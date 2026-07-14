@@ -65,8 +65,16 @@ export async function validateSession(token: string) {
 
 export async function revokeSession(token: string) {
   const tokenHash = hashSessionToken(token);
+  
   await prisma.staffSession.updateMany({
     where: { tokenHash },
-    data: { revokedAt: new Date() },
+    data: { revokedAt: new Date() }
+  });
+}
+
+export async function revokeAllUserSessions(userId: string) {
+  await prisma.staffSession.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() }
   });
 }

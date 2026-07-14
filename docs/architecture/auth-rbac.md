@@ -7,9 +7,10 @@ NenkinPro relies on a secure server-side session strategy. The old `employee_aut
 - **Cookie Transport:** Session tokens are delivered solely via `HttpOnly`, `Secure` (in production), and `SameSite=Lax` cookies. The token never enters JSON responses, localStorage, or `window`.
 
 ## 2. Session Lifecycle
-- **Login:** `/api/auth/employee/login`. Validates credentials against argon2, generates a new token, stores the hash with a TTL (e.g., 14 days), and sets the cookie.
+- **Policy:** 1 active session per user. Multi-device login will revoke any existing session for the user.
+- **Login:** `/api/auth/employee/login`. Validates credentials against argon2, revokes any existing sessions for the user (`revokeAllUserSessions`), generates a new token, stores the hash with a TTL (e.g., 14 days), and sets the cookie.
 - **Validation:** Every protected route uses `requireStaff()`, `requireRole()`, or an object-level access guard. The guard retrieves the cookie, hashes it, and looks it up in `StaffSession`.
-- **Revocation:** `/api/auth/employee/logout`. Sets `revokedAt` on the session and deletes the cookie. Sessions can also be revoked globally by dropping rows or setting `revokedAt` for all sessions of a specific `userId`.
+- **Revocation:** `/api/auth/employee/logout`. Sets `revokedAt` on the session and deletes the cookie. `revokeAllUserSessions(userId)` is used globally on password resets, role changes, or concurrent login kick-outs.
 
 ## 3. RBAC Matrix & Object-Level Guards
 Role definitions:

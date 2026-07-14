@@ -44,6 +44,8 @@ model StaffSession {
   ipHash     String?
   userAgent  String?
 
+  @@index([userId])
+  @@index([expiresAt])
   @@map("nenkin_staff_sessions")
 }
 
