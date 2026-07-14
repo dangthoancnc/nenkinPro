@@ -50,3 +50,10 @@ nenkin_202606*
 nenkin_202607*
 
 *.accdb
+
+# security
+.envrc
+.direnv/
+*.key
+*.p12
+*.pfx
