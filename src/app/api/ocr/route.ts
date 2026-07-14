@@ -1,4 +1,4 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff, requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
@@ -16,9 +16,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid document type for onboarding' }, { status: 400 });
       }
     } else {
-      const employee = await validateEmployee();
-      if (!employee) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const { user, error } = await requireStaff();
+      if (error || !user) return error;
+      
+      const customerId = formData.get('customerId') as string | null;
+      if (customerId) {
+        const { error: customerError } = await requireCustomerAccess(customerId);
+        if (customerError) return customerError;
       }
     }
 

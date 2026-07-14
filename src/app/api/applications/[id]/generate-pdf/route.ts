@@ -4,12 +4,16 @@ import { mapApplicationToTemplate } from '@/lib/documentMapper';
 import { fillPdfTemplate, PdfMappingConfig } from '@/lib/pdfGenerator';
 import fs from 'fs';
 import path from 'path';
+import { requireApplicationAccess } from '@/lib/auth/authorization';
 
 export async function GET(
   request: NextRequest
 ) {
   try {
     const id = request.nextUrl.pathname.split('/')[3];
+    const { user, error } = await requireApplicationAccess(id);
+    if (error || !user) return error;
+
     const searchParams = request.nextUrl.searchParams;
     const templateName = searchParams.get('template'); // e.g. don_xin_lan_1
 

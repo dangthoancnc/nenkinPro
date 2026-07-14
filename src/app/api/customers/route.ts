@@ -1,30 +1,12 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('employee_auth')?.value;
-
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await req.json();
     
     // Auto-generate code
@@ -71,7 +53,7 @@ export async function POST(req: Request) {
         bankPassbookUrl: body.bankPassbookUrl || '',
         postalCode: body.postalCode || '',
         taxOfficeId: finalTaxOfficeId,
-        createdById: userId,
+        createdById: user.id,
 
         // Additional fields
         nenkinNumber: body.nenkinNumber || null,
@@ -113,30 +95,13 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('employee_auth')?.value;
-
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     let whereClause = {};
     if (user.role === 'COLLABORATOR') {
-      whereClause = { createdById: userId };
+      whereClause = { createdById: user.id };
     }
 
     const customers = await prisma.customer.findMany({

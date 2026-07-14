@@ -1,32 +1,18 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('employee_auth')?.value;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { customerId, templateName } = await req.json();
+
+    const { user, error } = await requireCustomerAccess(customerId);
+    if (error || !user) return error;
 
     if (!customerId || !templateName) {
       return NextResponse.json({ error: 'Missing customerId or templateName' }, { status: 400 });

@@ -1,15 +1,19 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff, requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
+    let whereClause = {};
+    if (user.role === 'COLLABORATOR') {
+      whereClause = { customer: { createdById: user.id } };
+    }
+
     const applications = await prisma.nenkinApplication.findMany({
+      where: whereClause,
       include: {
         customer: true,
       },
@@ -25,11 +29,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
     const body = await request.json();
     const { customerId, status, applyDate, totalExpectedJpy } = body;
@@ -37,6 +36,9 @@ export async function POST(request: Request) {
     if (!customerId) {
       return NextResponse.json({ error: 'customerId is required' }, { status: 400 });
     }
+
+    const { user, error } = await requireCustomerAccess(customerId);
+    if (error || !user) return error;
 
     const newApplication = await prisma.nenkinApplication.create({
       data: {

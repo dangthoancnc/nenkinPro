@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireRole } from '@/lib/auth/authorization';
 
 export async function GET(request: NextRequest) {
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const templateName = searchParams.get('template'); // e.g. don_xin_lan_1
@@ -28,6 +32,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
+
   try {
     const body = await request.json();
     const { templateName, config } = body;

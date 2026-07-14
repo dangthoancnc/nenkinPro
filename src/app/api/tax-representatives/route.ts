@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff } from '@/lib/auth/authorization';
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
     const representatives = await prisma.taxRepresentative.findMany({

@@ -1,12 +1,10 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireRole } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
 
   try {
     const staffs = await prisma.user.findMany({

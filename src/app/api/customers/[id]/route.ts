@@ -1,30 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { requireCustomerAccess } from '@/lib/auth/authorization';
 
-async function verifyAccess(customerId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get('employee_auth')?.value;
-  if (!userId) return { allowed: false, error: 'Unauthorized', status: 401 };
-
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return { allowed: false, error: 'Unauthorized', status: 401 };
-
-  if (user.role === 'COLLABORATOR') {
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
-    if (!customer || customer.createdById !== userId) {
-      return { allowed: false, error: 'Bạn không có quyền thao tác trên khách hàng này.', status: 403 };
-    }
-  }
-  return { allowed: true, userId, user };
-}
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const access = await verifyAccess(id);
-    if (!access.allowed) {
-      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
-    }
+    const { user, error } = await requireCustomerAccess(id);
+    if (error || !user) return error;
 
     const customer = await prisma.customer.findUnique({
       where: { id },
@@ -55,10 +37,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const access = await verifyAccess(id);
-    if (!access.allowed) {
-      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
-    }
+    const { user, error } = await requireCustomerAccess(id);
+    if (error || !user) return error;
 
     const body = await req.json();
 
@@ -191,10 +171,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const access = await verifyAccess(id);
-    if (!access.allowed) {
-      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
-    }
+    const { user, error } = await requireCustomerAccess(id);
+    if (error || !user) return error;
 
     // Check if customer has applications
     const applicationsCount = await prisma.nenkinApplication.count({

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { mapApplicationToTemplate } from '@/lib/documentMapper';
+import { requireApplicationAccess } from '@/lib/auth/authorization';
 
 export const dynamic = 'force-dynamic';
 export async function GET(
@@ -9,6 +10,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const { user, error } = await requireApplicationAccess(id);
+    if (error || !user) return error;
     const application = await prisma.nenkinApplication.findUnique({
       where: { id },
       include: {
@@ -38,6 +41,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const { user, error } = await requireApplicationAccess(id);
+    if (error || !user) return error;
     const body = await request.json();
     
     const updatedApplication = await prisma.nenkinApplication.update({
@@ -58,6 +63,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const { user, error } = await requireApplicationAccess(id);
+    if (error || !user) return error;
     await prisma.nenkinApplication.delete({
       where: { id },
     });

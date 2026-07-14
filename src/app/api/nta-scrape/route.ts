@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/authorization';
 
 export async function GET(request: Request) {
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
+
   const { searchParams } = new URL(request.url);
   let zip = searchParams.get('zip') || '';
   zip = zip.replace(/[-\s]/g, '');

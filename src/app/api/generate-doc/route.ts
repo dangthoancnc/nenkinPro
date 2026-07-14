@@ -1,4 +1,4 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireApplicationAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -23,10 +23,6 @@ const generateDocSchema = z.object({
 }).strict();
 
 export async function POST(req: Request) {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   try {
     const body = await req.json();
@@ -37,6 +33,8 @@ export async function POST(req: Request) {
     }
 
     const { applicationId, templateName, templateType } = result.data;
+    const { user, error: accessError } = await requireApplicationAccess(applicationId);
+    if (accessError || !user) return accessError;
 
     const TEMPLATE_MAP: Record<string, string> = {
       LAN1_DATTAI: '脱退一時金請求書.docx',

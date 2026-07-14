@@ -1,26 +1,18 @@
-import { cookies } from 'next/headers';
-import prisma from './prisma';
+import { getSessionCookie } from './auth/cookies';
+import { validateSession } from './auth/session';
 
 export async function validateEmployee() {
-  const cookieStore = await cookies();
-  const employeeAuth = cookieStore.get('employee_auth')?.value;
+  const token = await getSessionCookie();
 
-  if (!employeeAuth) {
-    return null;
-  }
-
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(employeeAuth)) {
+  if (!token) {
     return null;
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: employeeAuth }
-    });
-    return user;
+    const session = await validateSession(token);
+    return session ? session.user : null;
   } catch (error) {
-    console.error('Database validation error:', error);
+    console.error('Session validation error:', error);
     return null;
   }
 }

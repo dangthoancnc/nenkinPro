@@ -1,17 +1,19 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireRole } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { hashPassword } from '@/lib/auth/password';
 
 export async function POST() {
-  const employee = await validateEmployee();
-  if (!employee || employee.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized - Admin only' }, { status: 401 });
-  }
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
 
   try {
+    const p1 = await hashPassword("duyen2026");
+    const p2 = await hashPassword("long2026");
+
     const staffData = [
-      { email: "daoduyen1102@gmail.com", password: "duyen2026", name: "Dao Thi Duyen", role: "MANAGER" as const, staffCode: "NV001" },
-      { email: "nguyenvanlong@vietnenkin.com", password: "long2026", name: "Nguyen Van Long", role: "MANAGER" as const, staffCode: "NV002" },
+      { email: "daoduyen1102@gmail.com", password: p1, name: "Dao Thi Duyen", role: "MANAGER" as const, staffCode: "NV001" },
+      { email: "nguyenvanlong@vietnenkin.com", password: p2, name: "Nguyen Van Long", role: "MANAGER" as const, staffCode: "NV002" },
     ];
 
     const results = [];

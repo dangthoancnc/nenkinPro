@@ -1,16 +1,13 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const employee = await validateEmployee();
-    if (!employee) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await params;
-    
+    const { user, error } = await requireCustomerAccess(id);
+    if (error || !user) return error;
+
     const ocrResults = await prisma.ocrResult.findMany({
       where: { customerId: id },
     });

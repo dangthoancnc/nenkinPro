@@ -1,12 +1,10 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff, requireRole } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
     const taxOffices = await prisma.taxOffice.findMany({
@@ -26,10 +24,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireRole(['ADMIN']);
+  if (error || !user) return error;
 
   try {
     const body = await req.json();

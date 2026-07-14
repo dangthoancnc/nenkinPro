@@ -24,11 +24,27 @@ model User {
 
   transfersSent     TransferRequest[] @relation("TransfersSent")
   transfersReceived TransferRequest[] @relation("TransfersReceived")
+  sessions          StaffSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("nenkin_users")
+}
+
+model StaffSession {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  ipHash     String?
+  userAgent  String?
+
+  @@map("nenkin_staff_sessions")
 }
 
 model OcrResult {

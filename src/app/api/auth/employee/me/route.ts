@@ -1,28 +1,20 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { requireStaff } from '@/lib/auth/authorization';
+import { clearSessionCookie } from '@/lib/auth/cookies';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('employee_auth')?.value;
+    const { user, error } = await requireStaff();
 
-    if (!userId) {
+    if (error || !user) {
+      await clearSessionCookie();
       return NextResponse.json({ success: false, user: null }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, role: true, email: true }
+    return NextResponse.json({ 
+      success: true, 
+      user: { id: user.id, name: user.name, role: user.role, email: user.email }
     });
-
-    if (!user) {
-      // Invalid cookie
-      cookieStore.delete('employee_auth');
-      return NextResponse.json({ success: false, user: null }, { status: 401 });
-    }
-
-    return NextResponse.json({ success: true, user });
 
   } catch (error: unknown) {
     console.error('Employee Me Error:', error);
