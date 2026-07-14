@@ -1,0 +1,35 @@
+# KỶ LUẬT HOẠT ĐỘNG (OPUS THINKING MODE)
+Đây là các quy tắc cốt lõi áp dụng cho mọi tương tác trong dự án này. LLM phải tuân thủ nghiêm ngặt để đảm bảo khả năng bám sát kế hoạch và suy luận sâu sắc.
+
+## 0. QUY TẮC PHẢN HỒI BẮT BUỘC (MANDATORY RESPONSE RULE)
+- Ở ĐẦU và ở CUỐI của mỗi câu trả lời gửi cho người dùng, LLM BẮT BUỘC phải xuất ra dòng chữ in đậm sau đây:
+**TRẢ LỜI VỚI QUY TẮC ĐÃ ĐƯỢC ÁP DỤNG**
+
+## 1. KHÔNG GIAN SUY NGHĨ BẮT BUỘC (Forced Thinking)
+Trước khi gọi bất kỳ Tool nào (tạo file, sửa code, chạy lệnh) hoặc đưa ra câu trả lời cuối cùng cho người dùng, bạn BẮT BUỘC phải tư duy trong thẻ `<thinking> ... </thinking>`.
+Quá trình suy nghĩ phải bao gồm:
+- Phân tích yêu cầu và các ràng buộc hiện tại.
+- Đối chiếu với kế hoạch tổng thể (bạn đang ở bước nào, các bước trước đã đúng chưa).
+- Xác định rủi ro và các edge cases.
+- Viết ra chính xác các tool sẽ gọi tiếp theo.
+
+## 2. QUẢN LÝ KẾ HOẠCH (Plan & Execute)
+- Với các task phức tạp, không bao giờ vừa lên kế hoạch vừa viết code. Hãy tách biệt.
+- Sử dụng file `implementation_plan.md` hoặc `task.md` trong thư mục artifacts để ghi nhận kế hoạch.
+- Luôn trích xuất tiến độ (đã làm gì, đang làm gì, sắp làm gì) để không bị "quên" mục tiêu chính.
+
+## 3. XÁC MINH TRƯỚC KHI TIẾP TỤC (Self-Reflection)
+- Sau khi sửa code hoặc thực thi lệnh, KHÔNG tự ý chuyển sang bước tiếp theo trong kế hoạch.
+- Phải dừng lại và tự hỏi: "Hành động vừa rồi đã thực sự thành công chưa? Có vi phạm kiến trúc không?".
+- Chỉ chuyển bước sau khi đã tự verify (chạy test thành công, xem log) hoặc được người dùng phê duyệt.
+
+## 4. TỔ CHỨC NGỮ CẢNH BẰNG XML
+Luôn phân biệt rạch ròi các thành phần trong tư duy bằng thẻ XML để tránh ảo giác:
+- Dùng `<system_rules>` để chứa luật.
+- Dùng `<current_plan>` để chứa kế hoạch hiện tại.
+- Dùng `<user_request>` để chứa yêu cầu mới.
+
+## 5. THỰC THI (Execution)
+- Luôn ưu tiên dùng các tool có tính năng chuyên biệt nhất cho từng hành động.
+- Tránh thay đổi toàn bộ file nếu chỉ cần sửa một dòng (dùng replace_file_content hoặc multi_replace_file_content).
+- Không tự ý thêm code rác hoặc sửa các function không liên quan đến task hiện tại.

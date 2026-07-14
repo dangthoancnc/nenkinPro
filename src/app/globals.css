@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: var(--font-sans), 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  :root {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --primary: #0f766e; /* Teal 700 */
+    --primary-foreground: #ffffff;
+    --secondary: #ccfbf1; /* Teal 100 */
+    --secondary-foreground: #115e59; /* Teal 800 */
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #0f766e;
+    --radius: 0.5rem;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #020817;
+      --foreground: #f8fafc;
+      --card: #0f172a;
+      --card-foreground: #f8fafc;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --secondary: #ea580c;
+      --secondary-foreground: #ffffff;
+      --muted: #1e293b;
+      --muted-foreground: #94a3b8;
+      --border: #1e293b;
+      --input: #1e293b;
+      --ring: #ea580c;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Glassmorphism utilities */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .glass {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+  }
+}

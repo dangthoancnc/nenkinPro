@@ -1,0 +1,6 @@
+scratch/
+parse_eslint.js
+test_gemini.ts
+test_gemini_search.js
+test_*.js
+*.js

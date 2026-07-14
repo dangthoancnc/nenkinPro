@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  COLLABORATOR
+}
+
+model User {
+  id        String  @id @default(uuid())
+  email     String  @unique
+  password  String
+  name      String
+  role      Role    @default(COLLABORATOR)
+  staffCode String? @unique
+
+  customers Customer[]
+
+  transfersSent     TransferRequest[] @relation("TransfersSent")
+  transfersReceived TransferRequest[] @relation("TransfersReceived")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("nenkin_users")
+}
+
+model OcrResult {
+  id           String   @id @default(uuid())
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id])
+  documentType String   // Ví dụ: 'zairyuFront', 'passport'
+  rawData      Json     // Lưu toàn bộ cục JSON do AI trả về
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Mỗi khách hàng chỉ có 1 bản lưu OCR mới nhất cho mỗi loại giấy tờ
+  @@unique([customerId, documentType]) 
+  @@map("nenkin_ocr_results")
+}
+
+model Customer {
+  id          String         @id @default(uuid())
+  code        String         @unique
+  cardNumber  String?        @unique
+  fullName    String
+  dob         DateTime
+  passwordPin String?
+  status      CustomerStatus @default(NEW)
+
+  zairyuAddress       String?
+  zairyuRomajiAddress String?
+  postalCode          String?
+  taxOfficeId         String?
+  nenkinNumber        String?
+
+  bankName      String?
+  branchName    String?
+  accountNumber String?
+  accountName   String?
+  swiftCode     String?
+
+  zairyuFrontUrl    String?
+  zairyuBackUrl     String?
+  passportUrl       String?
+  departureStampUrl String?
+  nenkinBookUrl     String?
+  bankPassbookUrl   String?
+  
+  securityPhotoUrl  String? // Chứa ảnh chụp chân dung bảo mật
+
+  lastName               String?
+  firstName              String?
+  fullNameFurigana       String?
+  nationality            String?
+  sex                    String?
+  placeOfBirth           String?
+  passportIssueDate      DateTime?
+  passportExpiryDate     DateTime?
+  phone                  String?
+  overseasAddress        String?
+  overseasCountry        String?
+  hasPermanentResidence  Boolean?
+  permanentResidenceDate DateTime?
+  myNumber               String?
+  bankBranchAddress      String?
+  bankBranchCity         String?
+  bankCountry            String?
+  accountNameKatakana    String?
+  occupation             String?
+  departureDate          DateTime?
+  headOfHouseholdName    String?
+  relationshipToHead     String?
+
+  overseasStreet         String?
+  overseasCity           String?
+  overseasProvince       String?
+  overseasPostalCode     String?
+
+  applications     NenkinApplication[]
+  transferRequests TransferRequest[]
+  workHistories    WorkHistory[]
+  ocrResults       OcrResult[]
+
+  createdBy   User?   @relation(fields: [createdById], references: [id])
+  createdById String?
+
+  referralType          ReferralType?
+  referredByCustomerId  String?
+  referredByCustomer    Customer?  @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id])
+  referrals             Customer[] @relation("CustomerReferrals")
+
+  taxOffice TaxOffice? @relation(fields: [taxOfficeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("nenkin_customers")
+}
+
+enum CustomerStatus {
+  NEW
+  PENDING
+  VERIFIED
+}
+
+enum ReferralType {
+  STAFF
+  CUSTOMER
+}
+
+enum ApplicationStatus {
+  PENDING
+  DRAFT
+  REVISION_REQUIRED
+  SENT_1ST
+  RECEIVED_1ST
+  SENT_2ND
+  RECEIVED_2ND
+  COMPLETED
+  CANCELLED
+}
+
+model NenkinApplication {
+  id         String @id @default(uuid())
+  status ApplicationStatus @default(DRAFT)
+  revisionNote String? // Ghi chú yêu cầu sửa chữa từ nhân viên
+
+
+  applyDate       DateTime?
+  sent1stDate     DateTime?
+  received1stDate DateTime?
+  sent2ndDate     DateTime?
+  received2ndDate DateTime?
+
+  // --- Lần 1 & Notice of Payment ---
+  noticeDate      DateTime? // Ngày ra thông báo cấp Lần 1
+  noticeImageUrl  String?   // Ảnh chụp Phiếu thông báo Lần 1
+  
+  totalExpectedJpy Decimal? // 支給額 - Tổng tiền
+  received1stJpy   Decimal? // 控除後支払額 - Tiền thực nhận Lần 1
+  received2ndJpy   Decimal? // Thực nhận Lần 2
+  tax2ndJpy        Decimal? // 所得税額 - Tiền thuế Lần 2 (Access ThueLan2)
+  withheldTax      Decimal? // Thuế đã khấu trừ (源泉徴収税額) 20.42%
+
+  serviceFeeJpy Decimal?
+  exchangeRate  Decimal?
+  serviceFeeVnd Decimal?
+  
+  referralBonusJpy    Decimal?  // +2000 JPY commission cho CTV giới thiệu
+  referralDiscountJpy Decimal?  // -2000 JPY giảm giá cho khách hàng được giới thiệu
+  
+  targetGroup   String?    // Equivalent to DoiTuong from Access
+  taxYear       Int?       // Năm khai thuế Reiwa
+  workYears     Int?       // Số năm làm việc
+
+  customerId          String
+  customer            Customer            @relation(fields: [customerId], references: [id])
+  
+  taxRepresentativeId String?
+  taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("nenkin_applications")
+}
+
+model TaxRepresentative {
+  id            String  @id @default(uuid())
+  fullName      String
+  fullNameKana  String?
+  address       String
+  postalCode    String
+  phone         String?
+  myNumber      String?
+  relationship  String? @default("納税管理人")
+  
+  bankName      String?
+  branchName    String?
+  accountNumber String?
+  accountName   String?
+
+  applications  NenkinApplication[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("nenkin_tax_representatives")
+}
+
+model TaxOffice {
+  id                String  @id @default(uuid())
+  name              String
+  romajiName        String?
+  address           String
+  romajiAddress     String?
+  postalCode        String
+  phone             String?
+  mapUrl            String?
+  websiteUrl        String?
+  receptionInfo     String?
+  notes             String?
+
+  // --- Các trường thông tin phục vụ gửi hồ sơ và tra cứu chi tiết ---
+  mailingName       String?  // 申告書等の郵送先 (Tên trung tâm/cục thuế nhận)
+  mailingPostalCode String?  // 申告書等の郵送先 (Mã bưu điện nhận)
+  mailingAddress    String?  // 申告書等の郵送先 (Địa chỉ nhận)
+  jurisdiction      String?  // 管轄区域 (Khu vực quản lý)
+  consultationPhone String?  // 電話相談の方 (SĐT tư vấn)
+  generalPhone      String?  // 電話相談以外で税務署にご用の方 (SĐT hành chính)
+
+  customers Customer[]
+
+  @@map("nenkin_tax_offices")
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TransferRequest {
+  id         String         @id @default(uuid())
+  customerId String
+  fromUserId String
+  toUserId   String
+  status     TransferStatus @default(PENDING)
+  notes      String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  fromUser User     @relation("TransfersSent", fields: [fromUserId], references: [id])
+  toUser   User     @relation("TransfersReceived", fields: [toUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("nenkin_transfer_requests")
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  date      DateTime @unique
+  jpyToVnd  Decimal
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("nenkin_exchange_rates")
+}
+
+model WorkHistory {
+  id             String    @id @default(uuid())
+  customerId     String
+  companyName    String
+  companyAddress String?
+  startDate      DateTime?
+  endDate        DateTime?
+  pensionType    String?   @default("厚生年金保険")
+
+  customer       Customer  @relation(fields: [customerId], references: [id])
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("nenkin_work_histories")
+}
