@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireCustomerSession } from '@/lib/auth/requireCustomerSession';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { Customer } from '@prisma/client';
 

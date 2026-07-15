@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 
 export async function requireCustomerSession() {
