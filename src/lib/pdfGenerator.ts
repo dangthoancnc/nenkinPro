@@ -5,10 +5,10 @@ import path from 'path';
 
 // Define the type for coordinate mapping
 export type PdfCoordinate = {
-  x: number;
-  y: number;
-  size?: number;
-  page?: number; // 0-indexed, default is 0
+  x: number | null;
+  y: number | null;
+  size?: number | null;
+  page?: number | null; // 0-indexed, default is 0
   type?: 'text' | 'line' | 'circle';
   value?: string;     // for static text
   width?: number;     // for lines and circles
@@ -40,6 +40,9 @@ export async function fillPdfTemplate(
   const pages = pdfDoc.getPages();
   
   for (const [key, coord] of Object.entries(config)) {
+    if (coord.x === null || coord.y === null || coord.page === null) {
+      continue;
+    }
     const pageIndex = coord.page || 0;
     if (pageIndex >= pages.length) continue;
     
