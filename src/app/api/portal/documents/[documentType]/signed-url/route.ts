@@ -54,20 +54,20 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Document not found' }, { status: 404 });
     }
 
-    if (!fullUrl.includes('/storage/v1/object/public/')) {
-      console.error('Unexpected URL format:', fullUrl);
-      return NextResponse.json({ success: false, error: 'Invalid document URL format' }, { status: 500 });
+    let bucket = 'nenkin-documents';
+    let filePath = fullUrl;
+
+    if (fullUrl.includes('/storage/v1/object/public/')) {
+      const urlParts = fullUrl.split('/storage/v1/object/public/')[1];
+      const slashIndex = urlParts.indexOf('/');
+      
+      if (slashIndex === -1) {
+        return NextResponse.json({ success: false, error: 'Invalid document URL format' }, { status: 500 });
+      }
+      
+      bucket = urlParts.substring(0, slashIndex);
+      filePath = urlParts.substring(slashIndex + 1);
     }
-    
-    const urlParts = fullUrl.split('/storage/v1/object/public/')[1];
-    const slashIndex = urlParts.indexOf('/');
-    
-    if (slashIndex === -1) {
-      return NextResponse.json({ success: false, error: 'Invalid document URL format' }, { status: 500 });
-    }
-    
-    const bucket = urlParts.substring(0, slashIndex);
-    const filePath = urlParts.substring(slashIndex + 1);
 
     // 5. Generate Signed URL (900 seconds = 15 mins)
     const { data, error } = await supabaseAdmin.storage

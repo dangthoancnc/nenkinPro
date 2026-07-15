@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 export default async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname; 
+  console.log('PROXY INTERCEPTED:', pathname);
   
   // Public paths
   if (
@@ -11,6 +12,7 @@ export default async function proxy(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/onboarding') ||
+    pathname.startsWith('/api/ocr') ||
     pathname.startsWith('/_next')
   ) {
     return NextResponse.next();
@@ -44,6 +46,6 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api/portal|api/auth|portal|login|_next|favicon.ico).*)',
+    '/((?!api/portal|api/auth|api/ocr|portal|login|_next|favicon.ico).*)',
   ],
 };

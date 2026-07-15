@@ -60,6 +60,11 @@ async function globalSetup() {
     process.env.TEST_EMPLOYEE_ID = user.id;
     console.log('Seeded DB for E2E tests. TEST_APP_ID:', process.env.TEST_APP_ID);
     console.log('TEST_EMPLOYEE_ID:', process.env.TEST_EMPLOYEE_ID);
+    
+    // Create nenkin-documents bucket
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    await supabase.storage.createBucket('nenkin-documents', { public: false });
   } catch (error) {
     console.error('Error in globalSetup:', error);
   } finally {
