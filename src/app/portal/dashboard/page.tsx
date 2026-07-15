@@ -63,7 +63,7 @@ export default function PortalDashboard() {
   }, [router]);
 
   const handleLogout = async () => {
-    document.cookie = "portal_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    await fetch('/api/portal/auth/logout', { method: 'POST' });
     router.push('/portal/login');
   };
 
@@ -274,6 +274,7 @@ function BanknoteIcon(props: React.SVGProps<SVGSVGElement>) {
 function DocumentUploadCard({ title, description, icon, isUploaded, docType, onUpload, onTrigger, isUploading, isEditable = true }: { title: string; description: string; icon: React.ReactNode; isUploaded: boolean; docType: string; onUpload: (f: File) => void; onTrigger?: (ref: React.RefObject<HTMLInputElement | null>) => void; isUploading?: boolean; isEditable?: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewUrlExpiry, setViewUrlExpiry] = useState<number>(0);
   const [loadingUrl, setLoadingUrl] = useState(false);
   
   const handleClick = () => {
@@ -295,13 +296,16 @@ function DocumentUploadCard({ title, description, icon, isUploaded, docType, onU
   };
 
   const handleViewImage = async () => {
-    if (viewUrl) return; // already loaded
+    const now = Date.now();
+    if (viewUrl && now < viewUrlExpiry) return; // already loaded and not expired
+    
     setLoadingUrl(true);
     try {
       const res = await fetch(`/api/portal/documents/${docType}/signed-url`);
       const data = await res.json();
       if (data.success && data.signedUrl) {
         setViewUrl(data.signedUrl);
+        setViewUrlExpiry(now + 14 * 60 * 1000); // expire in 14 minutes
       } else {
         alert('Không thể tải ảnh: ' + (data.error || 'Unknown error'));
       }
