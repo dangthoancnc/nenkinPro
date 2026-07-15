@@ -25,6 +25,7 @@ model User {
   transfersSent     TransferRequest[] @relation("TransfersSent")
   transfersReceived TransferRequest[] @relation("TransfersReceived")
   sessions          StaffSession[]
+  templateDrafts    TemplateDraft[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,6 +63,36 @@ model OcrResult {
   // Mỗi khách hàng chỉ có 1 bản lưu OCR mới nhất cho mỗi loại giấy tờ
   @@unique([customerId, documentType]) 
   @@map("nenkin_ocr_results")
+}
+
+model TemplateDraft {
+  id             String   @id @default(uuid())
+
+  /// ID của DocumentTemplate trong static registry (kebab-case)
+  templateId     String
+
+  /// Version ID trong registry làm gốc để fork
+  baseVersionId  String
+
+  /// Số thứ tự draft: tự tăng theo templateId
+  draftNumber    Int
+
+  /// Nội dung fieldMappings JSON — phải pass FieldMappingSchema[]
+  fieldMappings  Json
+
+  changeNote     String
+  createdById    String
+
+  /// User tạo draft — relation tới model User hiện có
+  createdBy      User     @relation(fields: [createdById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([templateId, draftNumber])
+  @@index([templateId])
+  @@index([createdById])
+  @@map("nenkin_template_drafts")
 }
 
 model Customer {

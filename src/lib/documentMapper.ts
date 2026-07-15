@@ -110,18 +110,33 @@ function todayTags(): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 function mapCustomerBase(customer: Customer): Record<string, string> {
-  const dob = formatDate(customer.dateOfBirth ? new Date(customer.dateOfBirth) : null);
-  const era = customer.dateOfBirth ? toJapaneseEra(new Date(customer.dateOfBirth)) : null;
+  const dob = formatDate(customer.dob ? new Date(customer.dob) : null);
+  const era = customer.dob ? toJapaneseEra(new Date(customer.dob)) : null;
 
   return {
     fullName:        customer.fullName ?? '',
-    fullName_kata:   (customer as Record<string, unknown>).fullNameKata as string ?? '',
-    nationality:     (customer as Record<string, unknown>).nationality as string ?? '',
-    address_jp:      (customer as Record<string, unknown>).addressJp as string ?? '',
+    fullName_kata:   customer.fullNameFurigana ?? '',
+    nationality:     customer.nationality ?? '',
+    address_jp:      customer.zairyuAddress ?? '',
     phone:           customer.phone ?? '',
-    gender:          customer.gender === 'MALE' ? '\u7537' : '\u5973',
-    gender_male_check:   customer.gender === 'MALE'   ? '\u2713' : '',
-    gender_female_check: customer.gender === 'FEMALE' ? '\u2713' : '',
+    gender:          customer.sex === 'MALE' ? '\u7537' : '\u5973',
+    gender_male_check:   customer.sex === 'MALE'   ? '\u2713' : '',
+    gender_female_check: customer.sex === 'FEMALE' ? '\u2713' : '',
+
+    placeOfBirth:    customer.placeOfBirth ?? '',
+    occupation:      customer.occupation ?? '',
+    
+    overseasStreet:  customer.overseasStreet ?? '',
+    overseasCity:    customer.overseasCity ?? '',
+    overseasProvince: customer.overseasProvince ?? '',
+    overseasPostalCode: customer.overseasPostalCode ?? '',
+    overseasCountry: customer.overseasCountry ?? '',
+
+    hasPermanentResidence: customer.hasPermanentResidence ? '\u2713' : '',
+    permRes_YES_mark: customer.hasPermanentResidence ? '\u2713' : '',
+    permRes_NO_mark: customer.hasPermanentResidence === false ? '\u2713' : '',
+    headOfHouseholdName: customer.headOfHouseholdName ?? '',
+    relationshipToHead: customer.relationshipToHead ?? '',
 
     // Date of birth
     dob_y:  dob.y,
@@ -137,8 +152,8 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     ...splitChars(dob.d,  'dob_d', 2, true),
     ...splitChars(era?.eraYearStr ?? '', 'dob_era_yr', 2, true),
     ...splitChars(customer.postalCode ?? '', 'post', 7, true),
-    ...splitChars((customer as Record<string, unknown>).nenkinNumber as string ?? '', 'nenkin', 10, true),
-    ...splitChars((customer as Record<string, unknown>).myNumber as string ?? '', 'my_num', 12, true),
+    ...splitChars(customer.nenkinNumber ?? '', 'nenkin', 10, true),
+    ...splitChars(customer.myNumber ?? '', 'my_num', 12, true),
     ...splitChars(customer.fullName ?? '', 'address', 50),
   };
 }
@@ -156,17 +171,16 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
       ...splitChars('', 'rep_post', 7),
     };
   }
-  const dob = formatDate((rep as Record<string, unknown>).dateOfBirth ? new Date((rep as Record<string, unknown>).dateOfBirth as string) : null);
   return {
-    rep_fullName:      (rep as Record<string, unknown>).fullName as string ?? '',
-    rep_fullName_kata: (rep as Record<string, unknown>).fullNameKata as string ?? '',
-    rep_address:       (rep as Record<string, unknown>).address as string ?? '',
-    rep_phone:         (rep as Record<string, unknown>).phone as string ?? '',
-    rep_relation:      (rep as Record<string, unknown>).relation as string ?? '',
-    rep_dob_y: dob.y,
-    rep_dob_m: dob.m,
-    rep_dob_d: dob.d,
-    ...splitChars((rep as Record<string, unknown>).postalCode as string ?? '', 'rep_post', 7, true),
+    rep_fullName:      rep.name ?? '',
+    rep_fullName_kata: rep.nameKana ?? '',
+    rep_address:       rep.address ?? '',
+    rep_phone:         rep.phone ?? '',
+    rep_relation:      '納税管理人',
+    rep_dob_y: '',
+    rep_dob_m: '',
+    rep_dob_d: '',
+    ...splitChars(rep.postalCode ?? '', 'rep_post', 7, true),
   };
 }
 
@@ -203,11 +217,16 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
 
   // Bank info
   const bankTags: Record<string, string> = {
-    bank_name:         (customer as Record<string, unknown>).bankName as string ?? '',
-    bank_branch:       (customer as Record<string, unknown>).bankBranch as string ?? '',
-    bank_account_type: (customer as Record<string, unknown>).bankAccountType as string ?? '',
-    bank_account_name: (customer as Record<string, unknown>).bankAccountName as string ?? '',
-    ...splitChars((customer as Record<string, unknown>).bankAccountNumber as string ?? '', 'bank', 7, true),
+    bank_name:         customer.bankName ?? '',
+    bank_branch:       customer.branchName ?? '',
+    bank_account_type: '', // To be filled if we have it
+    bank_account_name: customer.accountName ?? '',
+    bankBranchAddress: customer.bankBranchAddress ?? '',
+    bankBranchCity:    customer.bankBranchCity ?? '',
+    bankCountry:       customer.bankCountry ?? '',
+    accountNameKatakana: customer.accountNameKatakana ?? '',
+    ...splitChars(customer.accountNumber ?? '', 'bank', 7, true),
+    ...splitChars(customer.swiftCode ?? '', 'swift', 11, true),
   };
 
   return {
