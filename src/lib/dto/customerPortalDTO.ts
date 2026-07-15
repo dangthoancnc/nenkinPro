@@ -8,6 +8,7 @@ export type CustomerWithRelations = Customer & {
 export function toCustomerPortalDTO(customer: CustomerWithRelations) {
   const {
     myNumber,
+    nenkinNumber,
     passwordPin,
     pinResetRequired,
     
@@ -53,6 +54,11 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
     ...safeCustomer,
     accountNumber: maskedAccountNumber,
     documentsMetadata,
-    applications: customer.applications || []
+    applications: (customer.applications || []).map(app => ({
+      id: app.id,
+      status: app.status,
+      applyDate: app.applyDate,
+      updatedAt: app.updatedAt,
+    }))
   };
 }
