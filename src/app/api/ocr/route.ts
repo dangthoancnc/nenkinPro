@@ -23,8 +23,6 @@ export async function POST(request: Request) {
     const customerId = formData.get('customerId') as string | null;
     const source = formData.get('source') as string;
     
-    console.log('DEBUG UPLOAD:', { source, customerId, ip: request.headers.get('x-forwarded-for') });
-    
     // Rate limit check (20 requests per hour)
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const identifier = customerId || 'anonymous';
@@ -41,6 +39,8 @@ export async function POST(request: Request) {
     }
 
     if (source === 'onboarding') {
+      // NOTE: Onboarding allows unauthenticated uploads from new users to a specific prefix path.
+      // Rate limits and allowed file types are enforced strictly above to prevent abuse.
       const allowedOnboardingTypes = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank'];
       if (!allowedOnboardingTypes.includes(documentType)) {
         return NextResponse.json({ error: 'Invalid document type for onboarding' }, { status: 400 });
@@ -247,21 +247,22 @@ export async function POST(request: Request) {
 
       // === 2b. Verify & Correct data via Zipcloud ===
       if (extractedData && (documentType === 'zairyuFront' || documentType === 'zairyuBack')) {
-        const data = extractedData as any;
-        if (data.postalCode && data.address) {
+        const data = extractedData as Record<string, unknown>;
+        
+        if (typeof data.postalCode === 'string' && typeof data.address === 'string' && data.postalCode) {
           const isZipValid = await verifyPostalCode(data.postalCode, data.address);
           if (!isZipValid) {
             console.log(`Mã bưu điện AI trích xuất (${data.postalCode}) có thể sai. Đang tra cứu lại...`);
             const correctZip = await lookupPostalCodeFromAddress(data.address);
             if (correctZip) data.postalCode = correctZip;
           }
-        } else if (!data.postalCode && data.address) {
+        } else if (typeof data.address === 'string' && !data.postalCode) {
           const zip = await lookupPostalCodeFromAddress(data.address);
           if (zip) data.postalCode = zip;
         }
 
         // Auto-infer accurate Tax Office without hallucination
-        if (data.address) {
+        if (typeof data.address === 'string') {
           const inferredTaxOffice = inferTaxOffice(data.address);
           if (inferredTaxOffice) {
             data.taxOffice = {
@@ -276,7 +277,7 @@ export async function POST(request: Request) {
       }
 
       // === 3. Save to OcrResult if we have a customerId ===
-      const customerId = formData.get('customerId') as string | null;
+      // customerId is already parsed at the top of the function
       if (customerId && extractedData && !extractedData.error) {
         try {
           await prisma.ocrResult.upsert({
