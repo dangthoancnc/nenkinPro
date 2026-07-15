@@ -1,251 +1,298 @@
-import { Prisma } from '@prisma/client';
+/**
+ * documentMapper.ts
+ * Data Contract Source: MAPPING_GUIDE.md
+ * Author: PE (Perplexity) — Sprint 4 Form Generator M4
+ * AN (AntiGravity) should extend/adjust after confirming .docx templates.
+ */
 
-export type ApplicationWithRelations = Prisma.NenkinApplicationGetPayload<{ 
-  include: { 
-    customer: { include: { taxOffice: true, workHistories: true } }, 
-    taxRepresentative: true 
-  } 
-}>;
+import type { Customer, NenkinApplication, WorkHistory, TaxOffice, TaxRepresentative } from '@prisma/client';
 
-export function mapApplicationToTemplate(application: ApplicationWithRelations) {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type TemplateType = 'form1' | 'form2' | 'form3';
+
+export interface DocumentMapperInput {
+  application: NenkinApplication;
+  customer: Customer;
+  workHistories: WorkHistory[];
+  taxOffice: TaxOffice | null;
+  taxRepresentative: TaxRepresentative | null;
+}
+
+// ---------------------------------------------------------------------------
+// Helper 1: Japanese Era converter
+// ---------------------------------------------------------------------------
+
+interface EraResult {
+  era: string;
+  eraJp: string;
+  eraYear: number;
+  eraYearStr: string; // zero-padded 2 digits
+}
+
+export function toJapaneseEra(date: Date): EraResult {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const ymd = y * 10000 + m * 100 + d;
+
+  let era: string;
+  let eraJp: string;
+  let eraYear: number;
+
+  if (ymd >= 20190501) {
+    era = 'Reiwa';  eraJp = '\u4ee4\u548c'; eraYear = y - 2018;
+  } else if (ymd >= 19890108) {
+    era = 'Heisei'; eraJp = '\u5e73\u6210'; eraYear = y - 1988;
+  } else if (ymd >= 19261225) {
+    era = 'Showa';  eraJp = '\u662d\u548c'; eraYear = y - 1925;
+  } else {
+    era = 'Taisho'; eraJp = '\u5927\u6b63'; eraYear = y - 1911;
+  }
+
+  return { era, eraJp, eraYear, eraYearStr: String(eraYear).padStart(2, '0') };
+}
+
+// ---------------------------------------------------------------------------
+// Helper 2: Split string into per-character tag map
+// ---------------------------------------------------------------------------
+
+export function splitChars(
+  value: string,
+  tagPrefix: string,
+  length: number,
+  numericOnly = false,
+): Record<string, string> {
+  const cleaned = numericOnly ? value.replace(/\D/g, '') : value.replace(/[-\s]/g, '');
   const result: Record<string, string> = {};
-
-  // Hàm split string an toàn hỗ trợ cả unicode (chữ Nhật)
-  const splitStr = (str: string | null | undefined, prefix: string, maxLength?: number) => {
-    if (!str) return;
-    // Bỏ tất cả dấu cách để đếm ký tự chính xác (tùy chọn, đối với Furigana có thể giữ lại)
-    const cleanStr = str.replace(/\s+/g, '');
-    const chars = Array.from(cleanStr);
-    const len = maxLength || chars.length;
-    for (let i = 0; i < len; i++) {
-      if (i < chars.length) {
-        result[`${prefix}_${i + 1}`] = chars[i];
-      } else {
-        result[`${prefix}_${i + 1}`] = '';
-      }
-    }
-  };
-
-  // Hàm split string giữ nguyên khoảng trắng (Dùng cho Furigana)
-  const splitStrKeepSpace = (str: string | null | undefined, prefix: string, maxLength?: number) => {
-    if (!str) return;
-    const chars = Array.from(str);
-    const len = Math.max(maxLength || 0, chars.length);
-    for (let i = 0; i < len; i++) {
-      if (i < chars.length) {
-        result[`${prefix}_${i + 1}`] = chars[i];
-      } else {
-        result[`${prefix}_${i + 1}`] = '';
-      }
-    }
-  };
-
-  const getJapaneseEra = (date: Date) => {
-    const ymd = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-    if (ymd >= 20190501) return { name: 'Reiwa', nameJp: '令和', year: date.getFullYear() - 2018 };
-    if (ymd >= 19890108) return { name: 'Heisei', nameJp: '平成', year: date.getFullYear() - 1988 };
-    if (ymd >= 19261225) return { name: 'Showa', nameJp: '昭和', year: date.getFullYear() - 1925 };
-    return { name: 'Unknown', nameJp: '', year: date.getFullYear() };
-  };
-
-  const mapDate = (dateVal: Date | string | null | undefined, prefix: string) => {
-    if (!dateVal) return;
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return;
-
-    const yyyy = d.getFullYear().toString();
-    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
-    const dd = d.getDate().toString().padStart(2, '0');
-
-    result[`${prefix}_y`] = yyyy;
-    result[`${prefix}_m`] = mm;
-    result[`${prefix}_d`] = dd;
-    result[`${prefix}_full`] = `${yyyy}/${mm}/${dd}`;
-
-    splitStr(yyyy, `${prefix}_y`, 4);
-    splitStr(mm, `${prefix}_m`, 2);
-    splitStr(dd, `${prefix}_d`, 2);
-
-    const era = getJapaneseEra(d);
-    result[`${prefix}_era`] = era.name;
-    result[`${prefix}_era_jp`] = era.nameJp;
-    
-    // VD: 令和 05 -> 05
-    const eraYrStr = era.year.toString().padStart(2, '0');
-    result[`${prefix}_era_yr`] = eraYrStr;
-    splitStr(eraYrStr, `${prefix}_era_yr`, 2);
-  };
-
-  // ==========================================
-  // CUSTOMER MAPPING
-  // ==========================================
-  if (application.customer) {
-    const c = application.customer;
-    
-    // Tên
-    result['fullName'] = c.fullName || '';
-    result['lastName'] = c.lastName || '';
-    result['firstName'] = c.firstName || '';
-    result['fullNameFurigana'] = c.fullNameFurigana || '';
-    splitStrKeepSpace(c.fullNameFurigana, 'fullNameFurigana');
-
-    // Địa chỉ Nhật Bản
-    result['address'] = c.zairyuAddress || '';
-    splitStr(c.postalCode?.replace('-', ''), 'post', 7); // VD: 123-4567
-    result['postalCodeFormat'] = c.postalCode || ''; // 123-4567
-
-    // Địa chỉ nước ngoài (VN)
-    result['overseasAddress'] = c.overseasAddress || '';
-    result['overseasCountry'] = c.overseasCountry || 'VIET NAM';
-    result['overseasStreet'] = c.overseasStreet || '';
-    result['overseasCity'] = c.overseasCity || '';
-    result['overseasProvince'] = c.overseasProvince || '';
-    result['overseasPostalCode'] = c.overseasPostalCode || '';
-    
-    // Ngân hàng
-    result['bankName'] = c.bankName || '';
-    result['branchName'] = c.branchName || '';
-    result['bankBranchAddress'] = c.bankBranchAddress || '';
-    result['bankBranchCity'] = c.bankBranchCity || '';
-    result['bankCountry'] = c.bankCountry || 'VIET NAM';
-    splitStr(c.accountNumber, 'bank', 7);
-    result['accountName'] = c.accountName || '';
-    result['accountNameKatakana'] = c.accountNameKatakana || '';
-    result['swiftCode'] = c.swiftCode || '';
-    splitStr(c.swiftCode, 'swift', 11);
-
-    // Thông tin cá nhân
-    result['nationality'] = c.nationality || 'VIET NAM';
-    result['sex'] = c.sex || '';
-    result['sex_M_mark'] = c.sex === 'Nam' ? '○' : '';
-    result['sex_F_mark'] = c.sex === 'Nữ' ? '○' : '';
-    result['phone'] = c.phone || '';
-    splitStr(c.phone?.replace(/[-\s]/g, ''), 'phone', 11);
-    result['nenkinNumber'] = c.nenkinNumber || '';
-    splitStr(c.nenkinNumber?.replace(/[-\s]/g, ''), 'nenkin', 10);
-    splitStr(c.myNumber?.replace(/[-\s]/g, ''), 'my_num', 12);
-    result['occupation'] = c.occupation || '';
-    result['headOfHouseholdName'] = c.headOfHouseholdName || '';
-    result['relationshipToHead'] = c.relationshipToHead || '納税管理人';
-    
-    result['hasPermanentResidence'] = c.hasPermanentResidence ? 'YES' : 'NO';
-    if (c.hasPermanentResidence) {
-      result['permRes_YES_mark'] = '○';
-      result['permRes_NO_mark'] = '';
-    } else {
-      result['permRes_YES_mark'] = '';
-      result['permRes_NO_mark'] = '○';
-    }
-
-    if (c.hasPermanentResidence && c.permanentResidenceDate) {
-      mapDate(c.permanentResidenceDate, 'permResDate');
-    }
-
-    // Ngày tháng
-    mapDate(c.dob, 'dob');
-    mapDate(c.departureDate, 'departureDate');
-
-    if (c.taxOffice) {
-      result['taxOfficeName'] = c.taxOffice.name || '';
-      result['taxOfficeAddress'] = c.taxOffice.address || '';
-      result['taxOfficeZipCode'] = c.taxOffice.postalCode || c.taxOffice.zipCode || '';
-      splitStr(result['taxOfficeZipCode'].replace(/[-\s]/g, ''), 'tax_post', 7);
-    }
-
-    // Lịch sử làm việc
-    if (c.workHistories && c.workHistories.length > 0) {
-      c.workHistories.forEach((wh, idx) => {
-        const i = idx + 1;
-        result[`workHistory_${i}_companyName`] = wh.companyName || '';
-        result[`workHistory_${i}_companyAddress`] = wh.companyAddress || '';
-        if (wh.startDate) mapDate(wh.startDate, `workHistory_${i}_start`);
-        if (wh.endDate) mapDate(wh.endDate, `workHistory_${i}_end`);
-        
-        result[`workHistory_${i}_pensionType`] = wh.pensionType || '';
-        
-        // Loại hình bảo hiểm: 1: Quốc dân, 2: LĐXH (厚生年金保険), 3: Hàng hải, 4: Hỗ tương
-        result[`workHistory_${i}_type_1_mark`] = '';
-        result[`workHistory_${i}_type_2_mark`] = '';
-        result[`workHistory_${i}_type_3_mark`] = '';
-        result[`workHistory_${i}_type_4_mark`] = '';
-        
-        if (wh.pensionType === '国民年金') {
-          result[`workHistory_${i}_type_1_mark`] = '○';
-        } else if (wh.pensionType === '厚生年金保険') {
-          result[`workHistory_${i}_type_2_mark`] = '○';
-        } else if (wh.pensionType === '船員保険') {
-          result[`workHistory_${i}_type_3_mark`] = '○';
-        } else if (wh.pensionType === '共済組合') {
-          result[`workHistory_${i}_type_4_mark`] = '○';
-        }
-      });
-    }
+  for (let i = 0; i < length; i++) {
+    result[`${tagPrefix}_${i + 1}`] = cleaned[i] ?? '';
   }
-
-  // ==========================================
-  // TAX REPRESENTATIVE MAPPING
-  // ==========================================
-  if (application.taxRepresentative) {
-    const rep = application.taxRepresentative;
-    result['rep_fullName'] = rep.fullName || '';
-    result['rep_fullNameKana'] = rep.fullNameKana || '';
-    result['rep_address'] = rep.address || '';
-    result['rep_postalCodeFormat'] = rep.postalCode || ''; // 123-4567
-    splitStr(rep.postalCode?.replace(/[-\s]/g, ''), 'rep_post', 7);
-    result['rep_phone'] = rep.phone || '';
-    splitStr(rep.phone?.replace(/[-\s]/g, ''), 'rep_phone', 11);
-    result['rep_relationship'] = rep.relationship || '納税管理人';
-    
-    result['rep_bankName'] = rep.bankName || '';
-    result['rep_branchName'] = rep.branchName || '';
-    result['rep_accountNumber'] = rep.accountNumber || '';
-    result['rep_accountName'] = rep.accountName || '';
-  }
-
-  // ==========================================
-  // APPLICATION MAPPING & CALCULATIONS
-  // ==========================================
-  mapDate(application.applyDate, 'applyDate');
-  mapDate(application.noticeDate, 'noticeDate');
-
-  const taxYearStr = application.taxYear?.toString().padStart(2, '0') || '';
-  result['taxYear_era_yr'] = taxYearStr;
-  splitStr(taxYearStr, 'taxYear_era_yr', 2);
-
-  // Format Decimal values as strings
-  const decimalFields = [
-    'totalExpectedJpy',
-    'received1stJpy',
-    'received2ndJpy',
-    'tax2ndJpy',
-    'withheldTax',
-    'serviceFeeJpy',
-    'exchangeRate',
-    'serviceFeeVnd',
-  ] as const;
-  
-  for (const field of decimalFields) {
-    const val = application[field as keyof ApplicationWithRelations];
-    if (val !== undefined && val !== null) {
-      result[field] = val.toString();
-    } else {
-      result[field] = '';
-    }
-  }
-
-  // Thuế tính tự động cho Bảng 3
-  const workYears = application.workYears || 0;
-  // Làm tròn lên số năm làm việc (VD: 2.1 năm = 3 năm)
-  const roundedWorkYears = Math.ceil(workYears);
-  
-  // Công thức: 退職所得控除額 = Số năm * 400,000 JPY (Chỉ đúng với <= 20 năm)
-  // Thực tế Nenkin thường < 10 năm nên luôn dùng công thức này
-  const retirementDeductionAmount = roundedWorkYears * 400000;
-  result['retirementDeductionAmount'] = retirementDeductionAmount.toString();
-  
-  result['taxableRetirementIncome'] = '0'; // (76)
-  result['calculatedTax'] = '0'; // (92)
-  result['refundAmount'] = result['withheldTax']; // Tiền hoàn thường bằng đúng số tiền đã khấu trừ
-
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Helper 3: Format Date fields
+// ---------------------------------------------------------------------------
+
+function formatDate(date: Date | null | undefined) {
+  if (!date) return { y: '', m: '', d: '' };
+  return {
+    y: String(date.getFullYear()),
+    m: String(date.getMonth() + 1).padStart(2, '0'),
+    d: String(date.getDate()).padStart(2, '0'),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helper 4: Today tags
+// ---------------------------------------------------------------------------
+
+function todayTags(): Record<string, string> {
+  const now = new Date();
+  const { y, m, d } = formatDate(now);
+  const era = toJapaneseEra(now);
+  return {
+    today_y: y,
+    today_m: m,
+    today_d: d,
+    today_era_jp: era.eraJp,
+    today_era_yr: era.eraYearStr,
+    today_era_m: m,
+    today_era_d: d,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shared: Customer base tags (used by all 3 templates)
+// ---------------------------------------------------------------------------
+
+function mapCustomerBase(customer: Customer): Record<string, string> {
+  const dob = formatDate(customer.dateOfBirth ? new Date(customer.dateOfBirth) : null);
+  const era = customer.dateOfBirth ? toJapaneseEra(new Date(customer.dateOfBirth)) : null;
+
+  return {
+    fullName:        customer.fullName ?? '',
+    fullName_kata:   (customer as Record<string, unknown>).fullNameKata as string ?? '',
+    nationality:     (customer as Record<string, unknown>).nationality as string ?? '',
+    address_jp:      (customer as Record<string, unknown>).addressJp as string ?? '',
+    phone:           customer.phone ?? '',
+    gender:          customer.gender === 'MALE' ? '\u7537' : '\u5973',
+    gender_male_check:   customer.gender === 'MALE'   ? '\u2713' : '',
+    gender_female_check: customer.gender === 'FEMALE' ? '\u2713' : '',
+
+    // Date of birth
+    dob_y:  dob.y,
+    dob_m:  dob.m,
+    dob_d:  dob.d,
+    dob_era:       era?.era        ?? '',
+    dob_era_jp:    era?.eraJp      ?? '',
+    dob_era_yr:    era?.eraYearStr ?? '',
+
+    // Char splits
+    ...splitChars(dob.y,  'dob_y', 4, true),
+    ...splitChars(dob.m,  'dob_m', 2, true),
+    ...splitChars(dob.d,  'dob_d', 2, true),
+    ...splitChars(era?.eraYearStr ?? '', 'dob_era_yr', 2, true),
+    ...splitChars(customer.postalCode ?? '', 'post', 7, true),
+    ...splitChars((customer as Record<string, unknown>).nenkinNumber as string ?? '', 'nenkin', 10, true),
+    ...splitChars((customer as Record<string, unknown>).myNumber as string ?? '', 'my_num', 12, true),
+    ...splitChars(customer.fullName ?? '', 'address', 50),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shared: TaxRepresentative tags
+// ---------------------------------------------------------------------------
+
+function mapRepresentative(rep: TaxRepresentative | null): Record<string, string> {
+  if (!rep) {
+    return {
+      rep_fullName: '', rep_fullName_kata: '', rep_address: '',
+      rep_phone: '', rep_relation: '',
+      rep_dob_y: '', rep_dob_m: '', rep_dob_d: '',
+      ...splitChars('', 'rep_post', 7),
+    };
+  }
+  const dob = formatDate((rep as Record<string, unknown>).dateOfBirth ? new Date((rep as Record<string, unknown>).dateOfBirth as string) : null);
+  return {
+    rep_fullName:      (rep as Record<string, unknown>).fullName as string ?? '',
+    rep_fullName_kata: (rep as Record<string, unknown>).fullNameKata as string ?? '',
+    rep_address:       (rep as Record<string, unknown>).address as string ?? '',
+    rep_phone:         (rep as Record<string, unknown>).phone as string ?? '',
+    rep_relation:      (rep as Record<string, unknown>).relation as string ?? '',
+    rep_dob_y: dob.y,
+    rep_dob_m: dob.m,
+    rep_dob_d: dob.d,
+    ...splitChars((rep as Record<string, unknown>).postalCode as string ?? '', 'rep_post', 7, true),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shared: TaxOffice tags
+// ---------------------------------------------------------------------------
+
+function mapTaxOffice(taxOffice: TaxOffice | null): Record<string, string> {
+  return {
+    taxOfficeName:    taxOffice?.name    ?? '',
+    taxOfficeAddress: taxOffice?.address ?? '',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// TEMPLATE 1 — 脱退一時金請求書
+// ---------------------------------------------------------------------------
+
+export function mapTemplate1(input: DocumentMapperInput): Record<string, string> {
+  const { application, customer, workHistories, taxOffice } = input;
+
+  // WorkHistory tags (up to 5 entries)
+  const workTags: Record<string, string> = {};
+  workHistories.slice(0, 5).forEach((wh, i) => {
+    const n = i + 1;
+    workTags[`work_company_${n}`] = (wh as Record<string, unknown>).companyName as string ?? '';
+    workTags[`work_start_${n}`]   = wh.startDate  ? new Date(wh.startDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
+    workTags[`work_end_${n}`]     = wh.endDate    ? new Date(wh.endDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
+  });
+
+  // Last job
+  const lastJob = workHistories[workHistories.length - 1];
+  const lastEndDate = lastJob?.endDate ? formatDate(new Date(lastJob.endDate)) : { y: '', m: '' };
+
+  // Bank info
+  const bankTags: Record<string, string> = {
+    bank_name:         (customer as Record<string, unknown>).bankName as string ?? '',
+    bank_branch:       (customer as Record<string, unknown>).bankBranch as string ?? '',
+    bank_account_type: (customer as Record<string, unknown>).bankAccountType as string ?? '',
+    bank_account_name: (customer as Record<string, unknown>).bankAccountName as string ?? '',
+    ...splitChars((customer as Record<string, unknown>).bankAccountNumber as string ?? '', 'bank', 7, true),
+  };
+
+  return {
+    ...mapCustomerBase(customer),
+    ...bankTags,
+    ...workTags,
+    work_last_company: (lastJob as Record<string, unknown>)?.companyName as string ?? '',
+    work_last_end_y:   lastEndDate.y,
+    work_last_end_m:   lastEndDate.m,
+    ...mapTaxOffice(taxOffice),
+    app_id: application.id.slice(0, 8),
+    ...todayTags(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// TEMPLATE 2 — 委任状
+// ---------------------------------------------------------------------------
+
+export function mapTemplate2(input: DocumentMapperInput): Record<string, string> {
+  const { application, customer, taxOffice, taxRepresentative } = input;
+
+  const docDate = formatDate(new Date(application.createdAt));
+  const docEra  = toJapaneseEra(new Date(application.createdAt));
+
+  return {
+    ...mapCustomerBase(customer),
+    ...mapRepresentative(taxRepresentative),
+    ...mapTaxOffice(taxOffice),
+    doc_date_era_jp: docEra.eraJp,
+    doc_date_era_yr: docEra.eraYearStr,
+    doc_date_m:      docDate.m,
+    doc_date_d:      docDate.d,
+    app_id: application.id.slice(0, 8),
+    ...todayTags(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// TEMPLATE 3 — 納税管理人届出書
+// ---------------------------------------------------------------------------
+
+export function mapTemplate3(input: DocumentMapperInput): Record<string, string> {
+  const { application, customer, taxOffice, taxRepresentative } = input;
+
+  const docDate = formatDate(new Date(application.createdAt));
+  const docEra  = toJapaneseEra(new Date(application.createdAt));
+
+  // Departure date (ngày rời Nhật)
+  const depField = (application as Record<string, unknown>).departureDate;
+  const dep = formatDate(depField ? new Date(depField as string) : null);
+
+  return {
+    ...mapCustomerBase(customer),
+    ...mapRepresentative(taxRepresentative),
+    ...mapTaxOffice(taxOffice),
+
+    departure_y: dep.y,
+    departure_m: dep.m,
+    departure_d: dep.d,
+    ...splitChars(dep.y, 'departure_y', 4, true),
+    ...splitChars(dep.m, 'departure_m', 2, true),
+    ...splitChars(dep.d, 'departure_d', 2, true),
+
+    doc_date_era_jp: docEra.eraJp,
+    doc_date_era_yr: docEra.eraYearStr,
+    doc_date_m:      docDate.m,
+    doc_date_d:      docDate.d,
+    app_id: application.id.slice(0, 8),
+    ...todayTags(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main dispatcher
+// ---------------------------------------------------------------------------
+
+export function mapDocument(
+  input: DocumentMapperInput,
+  templateType: TemplateType,
+): Record<string, string> {
+  switch (templateType) {
+    case 'form1': return mapTemplate1(input);
+    case 'form2': return mapTemplate2(input);
+    case 'form3': return mapTemplate3(input);
+    default:      throw new Error(`Unknown templateType: ${templateType}`);
+  }
 }
