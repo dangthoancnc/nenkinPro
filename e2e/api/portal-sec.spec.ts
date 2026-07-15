@@ -5,21 +5,29 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { createClient } from '@supabase/supabase-js';
 
 let prisma: PrismaClient;
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
+let supabaseAdmin: ReturnType<typeof createClient>;
 
 // We use the same connection setup as global-setup.ts
 test.beforeAll(async () => {
+  supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  
   const connectionString = `${process.env.DATABASE_URL}`;
   const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool);
   prisma = new PrismaClient({ adapter });
 
   // Ensure bucket and test file exist
-  await supabaseAdmin.storage.createBucket('nenkin-documents', { public: false }).catch(() => {});
-  await supabaseAdmin.storage.from('nenkin-documents').upload('test-zairyu.jpg', Buffer.from('test'), { upsert: true });
+  const { error: bucketError } = await supabaseAdmin.storage.createBucket('nenkin-documents', { public: false });
+  // Ignore error if bucket already exists
+  if (bucketError && !bucketError.message.includes('already exists') && !bucketError.message.includes('row-level security policy')) {
+    // Optionally log or handle it, but wait for upload verification
+  }
+
+  const { data, error: uploadError } = await supabaseAdmin.storage.from('nenkin-documents').upload('test-zairyu.jpg', Buffer.from('test'), { upsert: true });
+  
+  if (uploadError) {
+    throw new Error(`Failed to upload test file: ${uploadError.message}`);
+  }
 });
 
 test.afterAll(async () => {
@@ -71,6 +79,9 @@ test.describe('Portal Security Tests (SEC-003 & SEC-004)', () => {
     await prisma.customer.deleteMany({
       where: { cardNumber: customerCode }
     });
+    
+    await prisma.user.deleteMany({ where: { staffCode: staffCode } });
+    await prisma.taxOffice.deleteMany({ where: { name: 'Test Sec Office' } });
   });
   test('[TC-01] Đăng ký thành công (Onboarding)', async ({ request }) => {
     const res = await request.post('/api/portal/auth/register', {
@@ -211,16 +222,10 @@ test.describe('Portal Security Tests (SEC-003 & SEC-004)', () => {
     });
 
     const res = await request.get('/api/portal/documents/zairyuFront/signed-url');
-    const status = res.status();
-    expect([200, 500]).toContain(status);
+    expect(res.status()).toBe(200);
     const data = await res.json();
-    if (status === 200) {
-      expect(data.success).toBe(true);
-      expect(data.signedUrl).toContain('token=');
-    } else {
-      expect(data.success).toBe(false);
-      expect(data.error).toBe('Failed to generate signed URL');
-    }
+    expect(data.success).toBe(true);
+    expect(data.signedUrl).toContain('token=');
   });
 
   test('[TC-07] Chặn Path Traversal/Injection', async ({ request }) => {
