@@ -28,7 +28,7 @@ export default function Home() {
     setTrackError('');
     setTrackLoading(true);
     try {
-      const res = await fetch('/api/portal/auth', {
+      const res = await fetch('/api/portal/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', cardNumber: appCode, passwordPin: pin })

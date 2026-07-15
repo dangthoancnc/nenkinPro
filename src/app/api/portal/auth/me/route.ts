@@ -1,37 +1,39 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { requireCustomerSession } from '@/lib/auth/requireCustomerSession';
+import { toCustomerPortalDTO } from '@/lib/dto/customerPortalDTO';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const customerId = cookieStore.get('portal_auth')?.value;
+    const { session } = await requireCustomerSession();
 
-    if (!customerId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      select: {
-        id: true,
-        fullName: true,
-        cardNumber: true,
-        status: true,
-        zairyuFrontUrl: true,
-        passportUrl: true,
-        nenkinBookUrl: true,
-        bankPassbookUrl: true
+    // Session already includes the customer object, but we need to fetch related applications and ocrResults for the DTO
+    // Wait, the requireCustomerSession only included { customer: true }
+    // Let's import prisma and fetch the full relations needed
+    const { prisma } = await import('@/lib/prisma');
+    
+    const customerWithRelations = await prisma.customer.findUnique({
+      where: { id: session.customerId },
+      include: {
+        applications: true,
+        ocrResults: true
       }
     });
 
-    if (!customer) {
+    if (!customerWithRelations) {
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, customer });
+    const dto = toCustomerPortalDTO(customerWithRelations);
+
+    return NextResponse.json({ success: true, customer: dto });
   } catch (error: unknown) {
     console.error('Fetch Me Error:', error);
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    if ((error as Error).message === '401_UNAUTHORIZED') {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if ((error as Error).message === '403_PIN_RESET_REQUIRED') {
+      return NextResponse.json({ success: false, error: 'PIN Reset Required', requireReset: true }, { status: 403 });
+    }
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
