@@ -34,7 +34,12 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
   ];
 
   useEffect(() => {
-    fetchCustomer();
+    if (id === 'new') {
+      setCustomer({});
+      setLoading(false);
+    } else {
+      fetchCustomer();
+    }
   }, [id]);
 
   const fetchCustomer = async () => {
@@ -85,15 +90,23 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/customers/${id}`, {
-        method: 'PUT',
+      const isNew = id === 'new';
+      const endpoint = isNew ? '/api/customers' : `/api/customers/${id}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      const res = await fetch(endpoint, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(customer)
       });
       const data = await res.json();
       if (data.success) {
-        alert('Đã lưu thành công!');
-        fetchCustomer();
+        alert(isNew ? 'Đã tạo khách hàng mới thành công!' : 'Đã lưu thành công!');
+        if (isNew) {
+          window.location.href = `/customers/${data.data.id}`;
+        } else {
+          fetchCustomer();
+        }
       } else {
         alert('Lỗi: ' + data.error);
       }
@@ -317,13 +330,15 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
               </Link>
               <div>
                 <h1 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-3">
-                  {customer.fullName || 'Chưa cập nhật tên'}
-                  <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-md border border-amber-200">
-                    {customer.status || 'Chờ xử lý'}
-                  </span>
+                  {id === 'new' ? 'Tạo Hồ Sơ Mới' : (customer.fullName || 'Chưa cập nhật tên')}
+                  {id !== 'new' && (
+                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-md border border-amber-200">
+                      {customer.status || 'Chờ xử lý'}
+                    </span>
+                  )}
                 </h1>
                 <p className="text-sm text-slate-500 font-mono">
-                  Mã KH: {customer.code} • Đã tạo: {new Date(customer.createdAt).toLocaleDateString('vi-VN')}
+                  {id === 'new' ? 'Mã KH: Tạo tự động sau khi lưu' : `Mã KH: ${customer.code} • Đã tạo: ${new Date(customer.createdAt).toLocaleDateString('vi-VN')}`}
                 </p>
               </div>
             </div>

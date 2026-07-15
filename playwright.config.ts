@@ -9,6 +9,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'html',
   globalSetup: require.resolve('./e2e/global-setup.ts'),
+  globalTeardown: require.resolve('./e2e/global-teardown.ts'),
   use: {
     baseURL: 'http://127.0.0.1:3015',
     trace: 'on-first-retry',

@@ -29,15 +29,14 @@ export default async function proxy(request: NextRequest) {
   };
 
   // Check employee auth cookie
-  const employeeAuth = request.cookies.get('employee_auth')?.value;
+  const employeeAuth = request.cookies.get('nenkin_staff_session')?.value;
   
   if (!employeeAuth) {
     return handleUnauthorized(request);
   }
 
-  // Validate the UUID stateless check
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(employeeAuth)) {
+  // Validate the token length (it's a 64 char hex string now, but let's be flexible)
+  if (employeeAuth.length < 32) {
     return handleUnauthorized(request);
   }
 
