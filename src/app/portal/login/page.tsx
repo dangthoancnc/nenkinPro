@@ -27,7 +27,8 @@ export default function PortalLogin() {
     setError('');
 
     try {
-      const res = await fetch('/api/portal/auth/login', {
+      const endpoint = isLogin ? '/api/portal/auth/login' : '/api/portal/auth/register';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
