@@ -1,0 +1,5 @@
+- Completed Step 1: `PENDING` is already in Prisma schema. Ran `prisma generate` and `prisma db push`.
+- Completed Step 2: Modified `api/ocr/route.ts` to check for `source === 'onboarding'` explicitly, bypassing employee auth.
+- Completed Step 3: Verified `api/onboarding/route.ts`. It was mostly completed, properly mapping to `ref` (staffCode), setting PENDING statuses.
+- Completed Step 4: Created `onboarding/page.tsx` wizard component matching the requirement for steps 1-4 and success state step 5. Wrapping in `<Suspense>`.
+- Build command `npm run build` is running in background. Waiting for it to finish.

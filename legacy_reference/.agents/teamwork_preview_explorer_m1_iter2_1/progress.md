@@ -1,0 +1,6 @@
+- 2026-05-31T13:59:49+09:00: Initialized workspace.
+- Found the `onClick` bug in `LayoutWrapper.tsx`.
+- Found the mojibake bug `hềEsơ` in `applications/page.tsx` and `customers/page.tsx`.
+- Found the missing hidden class in `Topbar.tsx` hamburger button.
+- Wrote `handoff.md`.
+- Last visited: 2026-05-31T14:00:00+09:00.

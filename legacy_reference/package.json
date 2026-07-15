@@ -1,0 +1,52 @@
+{
+  "name": "nenkin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev -H 127.0.0.1 --webpack -p 3015",
+    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
+    "start": "next start -H 127.0.0.1 -p 3015",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@google/generative-ai": "^0.24.1",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@supabase/supabase-js": "^2.106.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.3.0",
+    "docxtemplater": "^3.68.7",
+    "lucide-react": "^1.17.0",
+    "next": "16.2.6",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.21.0",
+    "pizzip": "^3.2.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-easy-crop": "^6.0.2",
+    "react-pdf": "^9.1.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@prisma/config": "^7.8.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/pizzip": "^3.0.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

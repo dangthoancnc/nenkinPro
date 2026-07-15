@@ -1,0 +1,450 @@
+import { validateEmployee } from '@/lib/serverAuth';
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
+import prisma from '@/lib/prisma';
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const source = formData.get('source') as string;
+    const documentType = formData.get('documentType') as string || 'zairyuFront';
+
+    if (source === 'onboarding') {
+      const allowedTypes = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank'];
+      if (!allowedTypes.includes(documentType)) {
+        return NextResponse.json({ error: 'Invalid document type for onboarding' }, { status: 400 });
+      }
+    } else {
+      const employee = await validateEmployee();
+      if (!employee) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
+    const file = formData.get('file') as File | null;
+    const action = formData.get('action') as string || 'uploadAndExtract';
+    const imageUrl = formData.get('imageUrl') as string | null;
+
+    let publicUrl = imageUrl || '';
+    let securityPhotoUrl = '';
+    let buffer: ArrayBuffer | null = null;
+    let mimeType = 'image/jpeg';
+
+    const securityFile = formData.get('securityFile') as File | null;
+
+    // === 0. Handle Security File Upload ===
+    if (securityFile && securityFile.size > 0) {
+      const secBuffer = await securityFile.arrayBuffer();
+      const secFileName = `security/${Date.now()}_${securityFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const { error: secUploadError } = await supabase.storage
+        .from('customer-documents')
+        .upload(secFileName, secBuffer, { contentType: securityFile.type });
+      
+      if (!secUploadError) {
+        const { data: secPublicUrlData } = supabase.storage
+          .from('customer-documents')
+          .getPublicUrl(secFileName);
+        securityPhotoUrl = secPublicUrlData.publicUrl;
+      } else {
+        console.error('Failed to upload security photo:', secUploadError);
+      }
+    }
+
+    // === 1. Handle Upload ===
+    if (file && file.size > 0) {
+      buffer = await file.arrayBuffer();
+      mimeType = file.type;
+      
+      if (action.includes('upload')) {
+        const fileName = `${documentType}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('customer-documents')
+          .upload(fileName, buffer, { contentType: mimeType });
+
+        if (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return NextResponse.json({ error: `Supabase Error: ${uploadError.message}` }, { status: 500 });
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('customer-documents')
+          .getPublicUrl(fileName);
+          
+        publicUrl = publicUrlData.publicUrl;
+      }
+    } else if (imageUrl) {
+      try {
+        const res = await fetch(imageUrl);
+        if (!res.ok) {
+          return NextResponse.json({ error: `Failed to fetch image: ${res.statusText}` }, { status: 400 });
+        }
+        buffer = await res.arrayBuffer();
+        const ct = res.headers.get('content-type');
+        mimeType = ct && ct.startsWith('image/') ? ct : 'image/jpeg';
+      } catch (fetchErr) {
+        console.error('Fetch image error:', fetchErr);
+        return NextResponse.json({ error: 'Invalid or unreachable imageUrl' }, { status: 400 });
+      }
+    }
+    
+    if (!buffer && action.includes('extract')) {
+      return NextResponse.json({ error: 'No image data to extract' }, { status: 400 });
+    }
+
+    // === 2. Perform OCR using Gemini ===
+    let extractedData: Record<string, unknown> | null = null;
+
+    if (action.includes('extract') && buffer) {
+      // Read keys from both possible env vars
+      const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '';
+      const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+      
+      if (apiKeys.length === 0) {
+        console.error('GEMINI_API_KEY not found.');
+        return NextResponse.json({ error: 'GEMINI_API_KEY is missing. OCR cannot be performed.' }, { status: 500 });
+      }
+
+      // Build prompt based on document type
+      const prompt = buildPrompt(documentType);
+
+      const imageParts = [
+        {
+          inlineData: {
+            data: Buffer.from(buffer).toString("base64"),
+            mimeType: mimeType
+          }
+        }
+      ];
+
+      let result = null;
+      let lastError: Error | null = null;
+
+      // Try each API key
+      for (let i = 0; i < apiKeys.length; i++) {
+        const currentKey = apiKeys[i];
+        try {
+          const genAI = new GoogleGenerativeAI(currentKey);
+          
+          // Updated to the latest stable flash model from the models list
+          const modelConfig: Record<string, unknown> = { model: 'gemini-2.5-flash' };
+          const model = genAI.getGenerativeModel(modelConfig as unknown as ModelParams);
+
+          // Only 1 retry (not 3) to avoid burning quota
+          result = await model.generateContent([prompt, ...imageParts]);
+          break; // Success → stop trying more keys
+
+        } catch (keyError: unknown) {
+          const errorMessage = keyError instanceof Error ? keyError.message : String(keyError);
+          lastError = keyError instanceof Error ? keyError : new Error(errorMessage);
+          
+          if (errorMessage.includes('429') || errorMessage.includes('RATE_LIMIT') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+            console.warn(`API Key số ${i + 1} đã cạn kiệt (429). Chuyển sang Key tiếp theo...`);
+            continue; // Try next key
+          } else if (errorMessage.includes('503') || errorMessage.includes('overloaded')) {
+            console.warn(`API Key số ${i + 1} bị quá tải (503). Chuyển sang Key tiếp theo...`);
+            continue; // Try next key
+          } else {
+            // Unknown error → stop immediately and report
+            console.error(`Gemini API error (Key ${i + 1}):`, errorMessage);
+            return NextResponse.json({ 
+              error: `Lỗi Gemini AI: ${errorMessage.substring(0, 200)}` 
+            }, { status: 500 });
+          }
+        }
+      }
+
+      // All keys exhausted
+      if (!result) {
+        const msg = apiKeys.length > 1 
+          ? 'Tất cả các API Key đều đã cạn kiệt giới hạn truy cập. Vui lòng thêm API Key mới vào file .env hoặc chờ vài giờ để Google cấp lại dung lượng.'
+          : 'API Key đã hết dung lượng (429). Vui lòng chờ 1-2 phút rồi thử lại, hoặc thêm Key mới vào file .env.';
+        console.error('All API keys exhausted:', lastError?.message);
+        return NextResponse.json({ error: msg }, { status: 429 });
+      }
+
+      // Parse response
+      try {
+        const response = await result.response;
+        let text = response.text();
+        
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          text = text.substring(jsonStart, jsonEnd + 1);
+          extractedData = JSON.parse(text);
+        } else {
+          console.error('Gemini OCR returned non-JSON:', text.substring(0, 300));
+          return NextResponse.json({ 
+            error: 'Hình ảnh không phù hợp hoặc quá mờ. AI không thể đọc được nội dung. Vui lòng kiểm tra lại loại tài liệu (Zairyu / Hộ chiếu / Sổ Nenkin) và chụp lại ảnh rõ nét hơn.' 
+          }, { status: 400 });
+        }
+      } catch (parseError) {
+        console.error('Gemini OCR parse error:', parseError);
+        return NextResponse.json({ 
+          error: 'AI trả về dữ liệu không hợp lệ. Vui lòng thử lại hoặc nhập dữ liệu thủ công.' 
+        }, { status: 500 });
+      }
+
+      // === 2b. Verify & Correct data via Zipcloud ===
+      if (extractedData && (documentType === 'zairyuFront' || documentType === 'zairyuBack')) {
+        const data = extractedData as any;
+        if (data.postalCode && data.address) {
+          const isZipValid = await verifyPostalCode(data.postalCode, data.address);
+          if (!isZipValid) {
+            console.log(`Mã bưu điện AI trích xuất (${data.postalCode}) có thể sai. Đang tra cứu lại...`);
+            const correctZip = await lookupPostalCodeFromAddress(data.address);
+            if (correctZip) data.postalCode = correctZip;
+          }
+        } else if (!data.postalCode && data.address) {
+          const zip = await lookupPostalCodeFromAddress(data.address);
+          if (zip) data.postalCode = zip;
+        }
+
+        // Auto-infer accurate Tax Office without hallucination
+        if (data.address) {
+          const inferredTaxOffice = inferTaxOffice(data.address);
+          if (inferredTaxOffice) {
+            data.taxOffice = {
+              name: inferredTaxOffice.name,
+              postalCode: inferredTaxOffice.zip,
+              address: inferredTaxOffice.address,
+              mailingName: inferredTaxOffice.name,
+              mailingPostalCode: inferredTaxOffice.zip
+            };
+          }
+        }
+      }
+
+      // === 3. Save to OcrResult if we have a customerId ===
+      const customerId = formData.get('customerId') as string | null;
+      if (customerId && extractedData && !extractedData.error) {
+        try {
+          await prisma.ocrResult.upsert({
+            where: { customerId_documentType: { customerId, documentType } },
+            update: { rawData: extractedData },
+            create: { customerId, documentType, rawData: extractedData }
+          });
+        } catch (dbErr) {
+          console.error('Failed to save OcrResult to DB:', dbErr);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      publicUrl,
+      securityPhotoUrl: securityPhotoUrl || undefined,
+      extractedData
+    });
+  } catch (error) {
+    console.error('OCR Route Error:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+/**
+ * Build an appropriate prompt based on document type.
+ */
+function buildPrompt(documentType: string): string {
+  switch (documentType) {
+    case 'zairyuFront':
+      return `Hãy trích xuất các thông tin sau từ ảnh MẶT TRƯỚC Thẻ ngoại kiều (Zairyu Card) này:
+1. Full Name (Họ tên)
+2. Nationality (Quốc tịch)
+3. Date of Birth (Ngày sinh) - định dạng YYYY-MM-DD
+4. Sex (Giới tính)
+5. Address (Địa chỉ cư trú bằng tiếng Nhật)
+6. Address Romaji (Địa chỉ cư trú chuyển sang Romaji để dễ đọc)
+7. Card Number (Mã số thẻ - thường ở góc trên bên phải)
+8. Từ "Address", hãy suy luận ra Postal Code (Mã bưu điện - 7 chữ số) của địa chỉ đó.
+9. Có phải là người cư trú vĩnh viễn (Permanent Resident / 永住者) không? (true/false)
+10. Ngày bắt đầu cư trú vĩnh viễn (nếu có) - định dạng YYYY-MM-DD
+11. QUAN TRỌNG: KHÔNG ĐƯỢC tự ý đoán hoặc bịa tên Cục Thuế (Tax Office). Hãy để trống toàn bộ object taxOffice. Hệ thống sẽ tự động tra cứu chính xác.
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là ảnh thẻ ngoại kiều (Zairyu Card), hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải thẻ ngoại kiều. Vui lòng tải đúng loại tài liệu."
+
+Trả về JSON với cấu trúc: { "fullName": "", "nationality": "", "dob": "", "sex": "", "address": "", "romajiAddress": "", "cardNumber": "", "postalCode": "", "hasPermanentResidence": false, "permanentResidenceDate": "", "taxOffice": { "name": "", "romajiName": "", "address": "", "romajiAddress": "", "postalCode": "", "phone": "", "websiteUrl": "", "mapUrl": "", "receptionInfo": "", "notes": "" } }`;
+
+    case 'zairyuBack':
+      return `Đây là MẶT SAU của Thẻ ngoại kiều. Nhiệm vụ chính của bạn là tìm Địa Chỉ Cư Trú Mới Nhất.
+LƯU Ý QUAN TRỌNG: Trường hợp mặt sau có nhiều dòng ghi địa chỉ, hãy kiểm tra ngày ghi bên cạnh, hoặc thông thường HÃY LẤY ĐỊA CHỈ Ở DÒNG DƯỚI CÙNG vì đó là địa chỉ được cập nhật sau cùng.
+Chỉ trả về các trường address, romajiAddress, postalCode và taxOffice. Các trường khác (fullName, dob, cardNumber) để chuỗi rỗng.
+KHÔNG ĐƯỢC tự ý đoán hoặc bịa tên Cục Thuế (taxOffice). Hãy để trống toàn bộ object taxOffice.
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là mặt sau thẻ ngoại kiều, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải mặt sau thẻ ngoại kiều."
+
+Trả về JSON với cấu trúc: { "fullName": "", "dob": "", "address": "", "romajiAddress": "", "cardNumber": "", "postalCode": "", "taxOffice": { "name": "", "romajiName": "", "address": "", "romajiAddress": "", "postalCode": "", "phone": "", "websiteUrl": "", "mapUrl": "", "receptionInfo": "", "notes": "" } }`;
+
+    case 'passport':
+      return `Trích xuất thông tin từ ảnh Hộ Chiếu (Passport) này:
+1. Surname / Family Name (Họ)
+2. Given Names (Tên đệm và Tên)
+3. Nationality (Quốc tịch)
+4. Date of Birth (Ngày sinh) - định dạng YYYY-MM-DD
+5. Sex / Gender (Giới tính)
+6. Passport Number (Số hộ chiếu)
+7. Date of Issue (Ngày cấp) - định dạng YYYY-MM-DD
+8. Date of Expiry (Ngày hết hạn) - định dạng YYYY-MM-DD
+9. Place of Birth (Nơi sinh)
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là ảnh hộ chiếu, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải hộ chiếu."
+
+Trả về JSON: { "lastName": "", "firstName": "", "nationality": "", "dob": "", "sex": "", "passportNumber": "", "passportIssueDate": "", "passportExpiryDate": "", "placeOfBirth": "" }`;
+
+    case 'nenkin':
+      return `Trích xuất thông tin từ ảnh Sổ Nenkin (年金手帳 - Nenkin Techō) này:
+1. Số Nenkin (基礎年金番号 - Basic Pension Number, thường có 10 chữ số dạng XXXX-XXXXXX)
+2. Họ tên (Kanji)
+3. Họ tên Furigana (Kana/Romaji nếu có)
+4. Ngày sinh
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là sổ Nenkin, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải sổ Nenkin."
+
+Trả về JSON: { "nenkinNumber": "", "fullNameKanji": "", "fullNameFurigana": "", "dob": "" }`;
+
+    case 'bank':
+      return `Trích xuất thông tin từ ảnh Sổ/Thẻ Ngân Hàng này:
+1. Tên Ngân hàng (銀行名)
+2. Tên Chi nhánh (支店名)
+3. Số Tài khoản (口座番号)
+4. Chủ tài khoản (口座名義人)
+5. SWIFT Code (nếu có)
+6. Địa chỉ chi nhánh ngân hàng (nếu có)
+7. Quốc gia của ngân hàng
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là tài liệu ngân hàng, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải tài liệu ngân hàng."
+
+Trả về JSON: { "bankName": "", "branchName": "", "accountNumber": "", "accountName": "", "swiftCode": "", "bankBranchAddress": "", "bankCountry": "" }`;
+
+    case 'noticeOfPayment':
+      return `Trích xuất thông tin từ ảnh "Phiếu thông báo quyết định cấp Nenkin" (脱退一時金支給決定通知書) này:
+1. Ngày quyết định cấp (支給決定日 hoặc ngày tháng ghi trên phiếu) - định dạng YYYY-MM-DD
+2. Tổng tiền cấp (支給額) - Trích xuất phần số, bỏ chữ Yen/Phẩy
+3. Tiền thuế bị giữ lại (所得税額) - Thường là 20.42% của tổng tiền. Trích xuất phần số.
+4. Tiền thực nhận Lần 1 (控除後支払額) - Trích xuất phần số.
+
+LƯU Ý: Nếu đây KHÔNG PHẢI là phiếu thông báo Nenkin (脱退一時金支給決定通知書), hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải Phiếu thông báo cấp Nenkin."
+
+Trả về JSON: { "noticeDate": "", "totalExpectedJpy": "", "tax2ndJpy": "", "received1stJpy": "" }`;
+
+    default:
+      return `Trích xuất thông tin từ tài liệu này và trả về JSON: { "data": "extracted info" }`;
+  }
+}
+
+/**
+ * Xác minh mã bưu điện bằng zipcloud API (miễn phí, không cần key).
+ * Trả về true nếu mã bưu điện khớp với tỉnh, thành phố và thị trấn trong địa chỉ.
+ */
+async function verifyPostalCode(postalCode: string, address: string): Promise<boolean> {
+  try {
+    const code = postalCode.replace(/[-\s]/g, '');
+    if (code.length !== 7) return false;
+    
+    const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${code}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return false;
+    
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const pref = data.results[0].address1; // VD: "愛知県"
+      const city = data.results[0].address2; // VD: "東海市"
+      const town = data.results[0].address3; // VD: "荒尾町"
+      
+      if (!address.includes(pref) || !address.includes(city)) return false;
+      if (town && !address.includes(town)) return false; // Thắt chặt để loại bỏ bưu điện lệch (VD: khác town)
+      
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error('verifyPostalCode error:', err);
+    return true; // Timeout/lỗi mạng → chấp nhận tạm (user sẽ xác nhận)
+  }
+}
+
+/**
+ * Tra cứu mã bưu điện từ địa chỉ Nhật bằng excelapi (ưu tiên) hoặc Nominatim.
+ */
+async function lookupPostalCodeFromAddress(address: string): Promise<string> {
+  if (!address) return '';
+  
+  // 1. Ưu tiên sử dụng excelapi (chính xác hơn Nominatim cho địa chỉ Nhật)
+  try {
+    const excelUrl = `https://api.excelapi.org/post/zipcode?address=${encodeURIComponent(address)}`;
+    const excelRes = await fetch(excelUrl, { signal: AbortSignal.timeout(5000) });
+    if (excelRes.ok) {
+      let code = (await excelRes.text()).trim().replace(/-/g, '');
+      if (/^\d{7}$/.test(code)) return code;
+    }
+  } catch (err) {
+    console.error('excelapi lookup error:', err);
+  }
+
+  // 2. Fallback Nominatim (OpenStreetMap) nếu excelapi thất bại
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1&countrycodes=jp&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'NenkinApp/1.0 (postal-code-lookup)',
+        'Accept-Language': 'ja'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return '';
+    
+    const data = await res.json();
+    if (data.length > 0 && data[0].address?.postcode) {
+      return data[0].address.postcode.replace(/-/g, '');
+    }
+    return '';
+  } catch (err) {
+    console.error('lookupPostalCodeFromAddress error:', err);
+    return '';
+  }
+}
+
+/**
+ * Suy luận chính xác Cục Thuế từ địa chỉ (tránh AI bịa).
+ * Hỗ trợ các thành phố trọng điểm ở Aichi (nơi tệp khách hàng chủ yếu).
+ */
+function inferTaxOffice(address: string) {
+  if (!address) return null;
+  const a = address.replace(/\s+/g, '');
+
+  // Map 18 Cục Thuế tại Aichi
+  if (a.includes('名古屋市中村区') || a.includes('名古屋市中川区') || a.includes('清須市') || a.includes('あま市') || a.includes('海部郡')) 
+    return { name: '名古屋中村税務署', zip: '4538509', address: '愛知県名古屋市中村区太閤3丁目28番58号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/nakamura/index.htm' };
+  if (a.includes('名古屋市中区')) 
+    return { name: '名古屋中税務署', zip: '4608522', address: '愛知県名古屋市中区三の丸3丁目3番2号 名古屋国税総合庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/naka/index.htm' };
+  if (a.includes('名古屋市東区') || a.includes('名古屋市名東区') || a.includes('名古屋市天白区')) 
+    return { name: '名古屋東税務署', zip: '4618585', address: '愛知県名古屋市東区白壁3丁目11番22号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/higashi/index.htm' };
+  if (a.includes('名古屋市北区') || a.includes('名古屋市守山区')) 
+    return { name: '名古屋北税務署', zip: '4628555', address: '愛知県名古屋市北区金城町2丁目65番地', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kita/index.htm' };
+  if (a.includes('名古屋市西区')) 
+    return { name: '名古屋西税務署', zip: '4518504', address: '愛知県名古屋市西区押切2丁目3番1号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/nishi/index.htm' };
+  if (a.includes('名古屋市昭和区') || a.includes('名古屋市瑞穂区') || a.includes('日進市') || a.includes('長久手市') || a.includes('愛知郡')) 
+    return { name: '名古屋昭和税務署', zip: '4668601', address: '愛知県名古屋市昭和区八事本町58番地', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/showa/index.htm' };
+  if (a.includes('名古屋市熱田区') || a.includes('名古屋市港区')) 
+    return { name: '名古屋熱田税務署', zip: '4568502', address: '愛知県名古屋市熱田区神宮4丁目8番40号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/atsuta/index.htm' };
+  if (a.includes('名古屋市千種区')) 
+    return { name: '名古屋千種税務署', zip: '4648502', address: '愛知県名古屋市千種区若水3丁目12番1号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/chikusa/index.htm' };
+  if (a.includes('半田市') || a.includes('常滑市') || a.includes('東海市') || a.includes('大府市') || a.includes('知多市') || a.includes('知多郡')) 
+    return { name: '半田税務署', zip: '4758686', address: '愛知県半田市宮路町50番地の5', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/handa/index.htm' };
+  if (a.includes('春日井市') || a.includes('小牧市')) 
+    return { name: '春日井税務署', zip: '4868501', address: '愛知県春日井市八田町2丁目43番地1', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kasugai/index.htm' };
+  if (a.includes('豊田市') || a.includes('みよし市')) 
+    return { name: '豊田税務署', zip: '4718506', address: '愛知県豊田市常盤町1丁目105番地3', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/toyota/index.htm' };
+  if (a.includes('刈谷市') || a.includes('碧南市') || a.includes('安城市') || a.includes('知立市') || a.includes('高浜市')) 
+    return { name: '刈谷税務署', zip: '4488506', address: '愛知県刈谷市若松町1丁目46番地1', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kariya/index.htm' };
+  if (a.includes('一宮市') || a.includes('稲沢市')) 
+    return { name: '一宮税務署', zip: '4918508', address: '愛知県一宮市栄4丁目1番8号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/ichinomiya/index.htm' };
+  if (a.includes('豊橋市') || a.includes('豊川市') || a.includes('田原市')) 
+    return { name: '豊橋税務署', zip: '4408504', address: '愛知県豊橋市大国町111番地 豊橋地方合同庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/toyohashi/index.htm' };
+  if (a.includes('岡崎市') || a.includes('額田郡')) 
+    return { name: '岡崎税務署', zip: '4448511', address: '愛知県岡崎市羽根町字北乾地50番地1 岡崎合同庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/okazaki/index.htm' };
+
+  return null; // Trả về null nếu không khớp, để UI trống cho người dùng tự điền
+}

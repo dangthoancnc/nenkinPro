@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+
+	<meta content="text/html; charset=shift_jis" http-equiv="Content-Type">
+
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>�Ŗ����̏��ݒn�Ȃǂ�m�肽�����b���Œ�</title>
+	<link href="/template/css/bootstrap.min.css" rel="stylesheet">
+	<!--[if lt IE 9]>
+			<script src="/template/js/html5shiv.min.js"></script>
+			<script src="/template/js/respond.min.js"></script>
+		<![endif]-->
+	<!--<script src="/template/js/jquery.min.js"></script>-->
+		<script src="/template/js/jquery-3.6.0.min.js"></script>
+		<script src="/template/bootstrap-5.3.0-dist/js/bootstrap.min.js"></script>
+	<link href="/template/css/common.css" rel="stylesheet">
+	<script src="/template/js/custom.js"></script>
+
+	<script src="/m/common/js/sp.js" type="text/javascript"></script>
+	<script src="/m/common/js/sp.js" type="text/javascript"></script>
+	<!--<script src="/shared/js/jquery-1.11.2.min.js" type="text/javascript"></script>
+	<script src="/shared/js/jquery_1.7.2.min.js" type="text/javascript"></script>-->
+	<script src="/shared/js/jquery_bgSwitcher_min.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		//<![CDATA[
+		$(function() {
+			var ksaddr = document.getElementById('ksaddr');
+			ksaddr.onfocus = function() {
+				if (this.value == this.defaultValue) {
+					this.value = '';
+					this.style.color = '';
+				}
+			}
+
+			ksaddr.onblur = function() {
+				var defaultStr = "�s�撬���E���������";
+				if (this.value == '') {
+					this.value = this.defaultValue;
+					if (this.defaultValue == defaultStr) {
+						this.style.color = 'gray';
+					} else {
+						this.defaultValue = "�s�撬���E���������";
+						this.style.color = '';
+					}
+				} else if ((this.value != '') && (this.value != this.defaultValue)) {
+					this.style.color = 'black';
+				}
+			}
+
+			ksaddr.defaultValue = ksaddr.value;
+			ksaddr.value = '';
+
+			ksaddr.onblur();
+		});
+
+		$(function() {
+			$("#kszc1").keypress(function(event) {
+				return kszNumChk(event);
+			});
+		});
+		$(function() {
+			$("#kszc2").keypress(function(event) {
+				return kszNumChk(event);
+			});
+		});
+
+		function kszNumChk(e) {
+			if ((e.which < 48 || 57 < e.which) && e.which != 0 && e.which != 8 && e.which != 9 && e.which != 13) {
+				return false;
+			} else if (e.which == 13) {
+				return SubmitKszForm();
+			} else {
+				return true;
+			}
+		}
+
+		function SubmitKszForm() {
+			var zipcode1 = document.knskForm.kszc1;
+			var zipcode2 = document.knskForm.kszc2;
+			var m = document.getElementById('kszMsg');
+			if ((zipcode1.value == "") || (zipcode2.value == "")) {
+				m.innerHTML = '�X�֔ԍ��͕K�����͂��Ă��������B';
+				m.style.display = 'block';
+				m.style.color = '#b00';
+			} else if ((zipcode1.value.match(/[^0-9]+/)) || (zipcode2.value.match(/[^0-9]+/))) {
+				m.innerHTML = '�X�֔ԍ��͔��p�����œ��͂��Ă��������B';
+				m.style.display = 'block';
+				m.style.color = '#b00';
+			} else if ((zipcode1.value.length != 3) || (zipcode2.value.length != 4)) {
+				m.innerHTML = '�X�֔ԍ��͔��p�����œ��͂��Ă��������B';
+				m.style.display = 'block';
+				m.style.color = '#b00';
+			} else {
+				document.knskForm.KSTYPE.value = "ksz";
+				document.knskForm.submit();
+				emulAcceptCharset(document.knskForm);
+				return true;
+			}
+			return false;
+		}
+
+		$(function() {
+			$("#ksaddr").keypress(function(event) {
+				return ksaChk(event);
+			});
+		});
+
+		function ksaChk(e) {
+			if (e.which == 13) {
+				return SubmitKsaForm();
+			}
+		}
+
+		function SubmitKsaForm() {
+			var todofuken = document.knskForm.ksaTodofuken;
+			var addr = document.knskForm.ksaddr;
+			var addrStr = "";
+			if (addr.value != "") {
+				addrStr = addr.value.replace("�s�撬���E���������", "");
+			}
+			var m = document.getElementById('ksaMsg');
+			if ((todofuken.value == "")) {
+				if ((addrStr == "")) {
+					m.innerHTML = '�ēx�Z������͂��Ă��������B';
+					m.style.display = 'block';
+					m.style.color = '#b00';
+				} else {
+					m.innerHTML = '�s���{����I�����Ă��������B';
+					m.style.display = 'block';
+					m.style.color = '#b00';
+				}
+			} else if ((addrStr == "")) {
+				if ((todofuken.value == "")) {
+					m.innerHTML = '�ēx�Z������͂��Ă��������B';
+					m.style.display = 'block';
+					m.style.color = '#b00';
+				} else {
+					m.innerHTML = '�s�撬����������͂��Ă��������B';
+					m.style.display = 'block';
+					m.style.color = '#b00';
+				}
+			} else if (!(addrStr.match(/^[^ -~�-�]*$/))) {
+				m.innerHTML = '�S�p�����œ��͂��Ă��������B';
+				m.style.display = 'block';
+				m.style.color = '#b00';
+			} else {
+				document.knskForm.KSTYPE.value = "ksa";
+				var str_todofuken = convertToAscii(todofuken.value);
+				document.knskForm.TODOFUKEN_TO_ASCII.value = str_todofuken;
+				var str_addr = convertToAscii(addrStr);
+				document.knskForm.ADDR_TO_ASCII.value = str_addr;
+				document.knskForm.submit();
+				emulAcceptCharset(document.knskForm);
+				return true;
+			}
+			return false;
+		}
+
+		function SubmitKnskForm(prm) {
+			if (prm == "ksa") {
+				return SubmitKsaForm();
+			} else if (prm == "ksz") {
+				return SubmitKszForm();
+			} else {
+				return false;
+			}
+		}
+
+		function emulAcceptCharset(form) {
+			if (form.canHaveHTML) {
+				document.characterSet = form.acceptCharset;
+			}
+			return true;
+		}
+
+		function convertToAscii(str) {
+			var strToAscii = "";
+			for (var i = 0; i < str.length; i++) {
+				var c = str.charCodeAt(i);
+				if (i != 0) {
+					strToAscii += " ";
+				}
+				strToAscii += c;
+			}
+			return strToAscii;
+		}
+		//]]>
+
+	</script>
+	<script src="/template/js/include.js"></script>
+  <!-- Bootstrap 4����5�ւ̃u���b�W -->
+<link href="/template/bootstrap-5.3.0-dist/css/bootstrap-bridge.css" rel="stylesheet">
+<script src="/template/bootstrap-5.3.0-dist/js/bootstrap-bridge.js"></script>
+<style>
+/* �w�b�_�[���j���[�ʒu�����pCSS */
+@media (min-width: 768px) {
+  .navbar-nav {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .navbar > .container,
+  .navbar > .container-fluid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* ����Bootstrap 5�Ή� */
+  .navbar-expand-md .navbar-collapse,
+  .navbar-expand-lg .navbar-collapse {
+    display: flex !important;
+    flex-basis: auto;
+    justify-content: center;
+  }
+  
+  /* ���j���[�̐e�R���e�i�𒆉������� */
+  #header .navbar-collapse {
+    display: flex;
+    justify-content: center;
+  }
+  
+  /* �K�v�ɉ����ă}�[�W������ */
+ #header .navbar-nav {
+  margin-left: auto;
+  margin-right: auto;
+  transform: translateX(-40px); /* 20px���Ɉړ� */
+}
+}
+</style>
+
+</head>
+
+<body>
+	<noscript>���ׂĂ̋@�\�������p���������ɂ�Javascript��L���ɂ��Ă��������B</noscript>
+
+	<div class="container">
+
+
+		<div id="header"></div>
+		<div class="wrap">
+			<div class="clearfix">
+				<div class="left-content contents">
+					<div id="contents">
+						<div id="bodyArea">
+							<p class="skip"></p>
+							<ol class="breadcrumb">
+								<li><a href="/">�z�[��</a></li>
+								<li><a href="/about/index.htm">���Œ����ɂ���</a></li>
+								<li><a href="/about/organization/index.htm">�g�D�i���ŋǁE�Ŗ������j</a></li>
+								<li class="active">�Ŗ����̏��ݒn�Ȃǂ�m�肽����</li>
+							</ol>
+							
+							<div class="page-header" id="page-top">
+								<h1>�Ŗ����̏��ݒn�Ȃǂ�m�肽����</h1>
+							</div>
+							<h2 id="yubin">�X�֔ԍ��E�Z������Ŗ����𒲂ׂ�</h2>
+							<form method="post" action="/cgi-bin/zeimusho/kensaku/kensakuprocess.php" id="knskForm" name="knskForm" accept-charset="EUC-JP"> <input name="KSTYPE" type="hidden" id="KSTYPE" value="" /> <input name="TODOFUKEN_TO_ASCII" type="hidden" id="TODOFUKEN_TO_ASCII" value="" /> <input name="ADDR_TO_ASCII" type="hidden" id="ADDR_TO_ASCII" value="" />
+								<table id="kszTbl" style="width:100%;">
+									<tr>
+										<td class="hb_zc">
+											<p class="indent1em">�X�֔ԍ�����Ŗ���������<br />�i���p�����j</p>
+										</td>
+									</tr>
+									<tr>
+										<td class="hb"><input type="text" name="kszc1" size="4" maxlength="3" value="" title="�����X�֔ԍ��O3�������" id="kszc1" style="font-size:85%;" �@placeholder="�O3��" />&nbsp;-&nbsp;<input type="text" name="kszc2" size="5" maxlength="4" value="" title="�����X�֔ԍ���4�������" id="kszc2" style="font-size:85%;" �@placeholder="��4��" />&nbsp;&nbsp;<input type="button" name="kszBtn" title="���������s���܂�" value="����" onClick="SubmitKnskForm('ksz');" /></td>
+									</tr>
+									<tr>
+										<td id="kszMsg" style="display:none; font-weight:bold;" class="hb"><label>&nbsp;</label></td>
+									</tr>
+									<tr>
+										<td class="hb">
+											<p class="indent1em">�Z������Ŗ���������</p>
+										</td>
+									</tr>
+									<tr>
+										<td class="hb">
+											<label for="ksaTodofuken">�s���{��</label>
+											<select class="w17e" id="ksaTodofuken" name="ksaTodofuken">
+<option value="">�s���{����I��</option>
+<option value="�k�C��">�k�C��</option>
+<option value="�X��">�X��</option>
+<option value="��茧">��茧</option>
+<option value="�{�錧">�{�錧</option>
+<option value="�H�c��">�H�c��</option>
+<option value="�R�`��">�R�`��</option>
+<option value="������">������</option>
+<option value="��錧">��錧</option>
+<option value="�Ȗ،�">�Ȗ،�</option>
+<option value="�Q�n��">�Q�n��</option>
+<option value="��ʌ�">��ʌ�</option>
+<option value="��t��">��t��</option>
+<option value="�����s">�����s</option>
+<option value="�_�ސ쌧">�_�ސ쌧</option>
+<option value="�V����">�V����</option>
+<option value="�x�R��">�x�R��</option>
+<option value="�ΐ쌧">�ΐ쌧</option>
+<option value="���䌧">���䌧</option>
+<option value="�R����">�R����</option>
+<option value="���쌧">���쌧</option>
+<option value="�򕌌�">�򕌌�</option>
+<option value="�É���">�É���</option>
+<option value="���m��">���m��</option>
+<option value="�O�d��">�O�d��</option>
+<option value="���ꌧ">���ꌧ</option>
+<option value="���s�{">���s�{</option>
+<option value="���{">���{</option>
+<option value="���Ɍ�">���Ɍ�</option>
+<option value="�ޗǌ�">�ޗǌ�</option>
+<option value="�a�̎R��">�a�̎R��</option>
+<option value="���挧">���挧</option>
+<option value="������">������</option>
+<option value="���R��">���R��</option>
+<option value="�L����">�L����</option>
+<option value="�R����">�R����</option>
+<option value="������">������</option>
+<option value="���쌧">���쌧</option>
+<option value="���Q��">���Q��</option>
+<option value="���m��">���m��</option>
+<option value="������">������</option>
+<option value="���ꌧ">���ꌧ</option>
+<option value="���茧">���茧</option>
+<option value="�F�{��">�F�{��</option>
+<option value="�啪��">�啪��</option>
+<option value="�{�茧">�{�茧</option>
+<option value="��������">��������</option>
+<option value="���ꌧ">���ꌧ</option>
+</select>
+										</td>
+									</tr>
+									<tr>
+										<td class="hb"> <input type="text" name="ksaddr" maxlength="65" title="�����Z�������" id="ksaddr" style="color: gray;width:100%;" value="�s�撬���E���������" /><br /> ���͗�F���c������� </td>
+									</tr>
+									<tr>
+										<td class="hb"> <input type="button" name="ksaBtn" title="���������s���܂�" value="����" onClick="SubmitKnskForm('ksa');" /> </td>
+									</tr>
+									<tr>
+										<td id="ksaMsg" style="display:none; font-weight:bold;" class="hb"><label>&nbsp;</label></td>
+									</tr>
+								</table>
+							</form>
+
+							<h2 id="map">�n�}����Ŗ����𒲂ׂ�</h2>
+							<ul>
+								<li>���ŋǖ����N���b�N����Ɗe���ŋǂ��Ǌ�����s���{�����\������܂��B</li>
+								<li>�s���{�������N���b�N����Ɗe�s���{���̏����Ŗ����̈ꗗ���\������܂��B</li>
+							</ul>
+							<p>�@<a href="/taxes/shiraberu/sodan/denwa-sodan/index.htm">���łɊւ��邲���k�ɂ���</a></p>
+							<img alt="�s���{���ƍ��ŋǁE���Ŏ�����" border="0" class="over300" height="700" id="map2" name="map" src="/about/organization/access/map.gif" usemap="#m_map" width="640">
+							<map id="m_map" name="m_map">
+<area alt="�D�y���ŋǂ̃y�[�W��" coords="228,46,323,72" href="/about/organization/sapporo/location/index.htm" shape="rect">
+<area alt="�k�C���̃y�[�W��" coords="195,139,239,158" href="/about/organization/sapporo/location/index.htm" shape="rect">
+<area alt="��䍑�ŋǂ̃y�[�W��" coords="415,72,510,96" href="/about/organization/sendai/location/index.htm" shape="rect">
+<area alt="�X���̃y�[�W��" coords="530,54,572,73" href="/about/organization/sendai/location/aomori.htm" shape="rect">
+<area alt="��茧�̃y�[�W��" coords="558,116,602,133" href="/about/organization/sendai/location/iwate.htm" shape="rect">
+<area alt="�H�c���̃y�[�W��" coords="511,113,553,130" href="/about/organization/sendai/location/akita.htm" shape="rect">
+<area alt="�{�錧�̃y�[�W��" coords="553,168,597,187" href="/about/organization/sendai/location/miyagi.htm" shape="rect">
+<area alt="�R�`���̃y�[�W��" coords="499,157,544,174" href="/about/organization/sendai/location/yamagata.htm" shape="rect">
+<area alt="�������̃y�[�W��" coords="524,229,566,245" href="/about/organization/sendai/location/fukushima.htm" shape="rect">
+<area alt="�֓��M�z���ŋǂ̃y�[�W��" coords="327,167,452,192" href="/about/organization/kantoshinetsu/location/index.htm" shape="rect">
+<area alt="�V�����̃y�[�W��" coords="445,234,488,251" href="/about/organization/kantoshinetsu/location/niigata.htm" shape="rect">
+<area alt="��錧�̃y�[�W��" coords="533,289,574,307" href="/about/organization/kantoshinetsu/location/ibaraki.htm" shape="rect">
+<area alt="�Ȗ،��̃y�[�W��" coords="507,265,549,283" href="/about/organization/kantoshinetsu/location/tochigi.htm" shape="rect">
+<area alt="�Q�n���̃y�[�W��" coords="462,274,505,293" href="/about/organization/kantoshinetsu/location/gumma.htm" shape="rect">
+<area alt="��ʌ��̃y�[�W��" coords="475,299,521,317" href="/about/organization/kantoshinetsu/location/saitama.htm" shape="rect">
+<area alt="���쌧�̃y�[�W��" coords="421,292,462,309" href="/about/organization/kantoshinetsu/location/nagano.htm" shape="rect">
+<area alt="�������ŋǂ̃y�[�W��" coords="529,366,622,391" href="/about/organization/tokyo/location/index.htm" shape="rect">
+<area alt="��t���̃y�[�W��" coords="543,326,584,342" href="/about/organization/tokyo/location/chiba.htm" shape="rect">
+<area alt="�����s�̃y�[�W��" coords="495,324,539,341" href="/about/organization/tokyo/location/tokyo.htm" shape="rect">
+<area alt="�_�ސ쌧�̃y�[�W��" coords="485,343,540,362" href="/about/organization/tokyo/location/kanagawa.htm" shape="rect">
+<area alt="�R�����̃y�[�W��" coords="446,322,490,339" href="/about/organization/tokyo/location/yamanashi.htm" shape="rect">
+<area alt="���򍑐ŋǂ̃y�[�W��" coords="285,231,377,257" href="/about/organization/kanazawa/location/index.htm" shape="rect">
+<area alt="�x�R���̃y�[�W��" coords="388,265,431,285" href="/about/organization/kanazawa/location/toyama.htm" shape="rect">
+<area alt="�ΐ쌧�̃y�[�W��" coords="340,270,383,287" href="/about/organization/kanazawa/location/ishikawa.htm" shape="rect">
+<area alt="���䌧�̃y�[�W��" coords="346,301,389,320" href="/about/organization/kanazawa/location/fukui.htm" shape="rect">
+<area alt="���É����ŋǂ̃y�[�W��" coords="394,405,503,430" href="/about/organization/nagoya/location/index.htm" shape="rect">
+<area alt="�É����̃y�[�W��" coords="438,361,482,378" href="/about/organization/nagoya/location/shizuoka.htm" shape="rect">
+<area alt="�򕌌��̃y�[�W��" coords="381,324,425,341" href="/about/organization/nagoya/location/gifu.htm" shape="rect">
+<area alt="���m���̃y�[�W��" coords="386,354,429,372" href="/about/organization/nagoya/location/aichi.htm" shape="rect">
+<area alt="�O�d���̃y�[�W��" coords="369,383,412,401" href="/about/organization/nagoya/location/mie.htm" shape="rect" >
+<area alt="��㍑�ŋǂ̃y�[�W��" coords="310,463,403,489" href="/about/organization/osaka/location/index.htm" shape="rect">
+<area alt="���ꌧ�̃y�[�W��" coords="331,350,376,367" href="/about/organization/osaka/location/shiga.htm" shape="rect">
+<area alt="���s�{�̃y�[�W��" coords="305,331,347,347" href="/about/organization/osaka/location/kyoto.htm" shape="rect">
+<area alt="���Ɍ��̃y�[�W��" coords="283,353,327,371" href="/about/organization/osaka/location/hyogo.htm" shape="rect">
+<area alt="���{�̃y�[�W��" coords="300,377,348,394" href="/about/organization/osaka/location/osaka.htm" shape="rect">
+<area alt="�ޗǌ��̃y�[�W��" coords="317,398,362,415" href="/about/organization/osaka/location/nara.htm" shape="rect">
+<area alt="�a�̎R���̃y�[�W��" coords="301,432,359,448" href="/about/organization/osaka/location/wakayama.htm" shape="rect">
+<area alt="�L�����ŋǂ̃y�[�W��" coords="156,266,246,287" href="/about/organization/hiroshima/location/index.htm" shape="rect">
+<area alt="���挧�̃y�[�W��" coords="240,323,284,342" href="/about/organization/hiroshima/location/tottori.htm" shape="rect">
+<area alt="�������̃y�[�W��" coords="164,343,210,361" href="/about/organization/hiroshima/location/shimane.htm" shape="rect">
+<area alt="���R���̃y�[�W��" coords="233,355,278,372" href="/about/organization/hiroshima/location/okayama.htm" shape="rect">
+<area alt="�L�����̃y�[�W��" coords="193,374,239,391" href="/about/organization/hiroshima/location/hiroshima.htm" shape="rect">
+<area alt="�R�����̃y�[�W��" coords="144,392,187,409" href="/about/organization/hiroshima/location/yamaguchi.htm" shape="rect">
+<area alt="�������ŋǂ̃y�[�W��" coords="202,483,295,508" href="/about/organization/takamatsu/location/index.htm" shape="rect">
+<area alt="���쌧�̃y�[�W��" coords="246,391,289,408" href="/about/organization/takamatsu/location/kagawa.htm" shape="rect">
+<area alt="���Q���̃y�[�W��" coords="194,417,238,436" href="/about/organization/takamatsu/location/ehime.htm" shape="rect">
+<area alt="�������̃y�[�W��" coords="253,411,299,428" href="/about/organization/takamatsu/location/tokushima.htm" shape="rect">
+<area alt="���m���̃y�[�W��" coords="221,439,264,453" href="/about/organization/takamatsu/location/kochi.htm" shape="rect">
+<area alt="�������ŋǂ̃y�[�W��" coords="8,332,100,357" href="/about/organization/fukuoka/location/index.htm" shape="rect">
+<area alt="�������̃y�[�W��" coords="103,414,145,430" href="/about/organization/fukuoka/location/fukuoka.htm" shape="rect">
+<area alt="���ꌧ�̃y�[�W��" coords="55,421,97,437" href="/about/organization/fukuoka/location/saga.htm" shape="rect">
+<area alt="���茧�̃y�[�W��" coords="49,451,90,468" href="/about/organization/fukuoka/location/nagasaki.htm" shape="rect">
+<area alt="�F�{���ŋǂ̃y�[�W��" coords="141,551,235,576" href="/about/organization/kumamoto/location/index.htm" shape="rect">
+<area alt="�啪���̃y�[�W��" coords="136,433,179,448" href="/about/organization/kumamoto/location/oita.htm" shape="rect">
+<area alt="�F�{���̃y�[�W��" coords="109,463,153,481" href="/about/organization/kumamoto/location/kumamoto.htm" shape="rect">
+<area alt="�{�茧�̃y�[�W��" coords="136,499,181,516" href="/about/organization/kumamoto/location/miyazaki.htm" shape="rect">
+<area alt="���������̃y�[�W��" coords="70,522,129,538" href="/about/organization/kumamoto/location/kagoshima.htm" shape="rect">
+<area alt="���ꍑ�Ŏ������̃y�[�W��" coords="491,535,609,561" href="/about/organization/okinawa/location/index.htm" shape="rect">
+<area alt="���ꌧ�̃y�[�W��" coords="557,467,602,484" href="/about/organization/okinawa/location/index.htm" shape="rect">
+</map>
+							<h2 id="ichiran">�ꗗ���獑�ŋǁE�Ŗ����𒲂ׂ�</h2>
+							<ul>
+								<li>���ŋǖ����N���b�N����Ɗe���ŋǂ̏��ݒn�E�ē��}�����\������܂��B</li>
+								<li>�s���{�������N���b�N����Ɗe�s���{���̏����Ŗ����̈ꗗ���\������܂��B</li>
+							</ul>
+							<div class="table-responsive">
+								<table border="1" cellpadding="5" cellspacing="0" class="table table-bordered datatable width99 center" summary="�ꗗ���獑�ŋǁE�Ŗ����𒲂ׂ�">
+									<thead>
+										<tr>
+											<th scope="col">���ŋǁi���j</th>
+											<th colspan="6" scope="col">�s���{����</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td scope="row"><a href="/about/organization/sapporo/shokai/annai.htm">�D�y���ŋ�</a></td>
+											<td style="border-right:none;" width="13%"><a href="/about/organization/sapporo/location/index.htm">�k�C��</a></td>
+											<td colspan="5" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/sendai/shokai/annai.htm">��䍑�ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/sendai/location/aomori.htm">�X��</a></td>
+											<td style="border-right:none; border-left:none;" width="13%"><a href="/about/organization/sendai/location/iwate.htm">��茧</a></td>
+											<td style="border-right:none; border-left:none;" width="13%"><a href="/about/organization/sendai/location/miyagi.htm">�{�錧</a></td>
+											<td style="border-right:none; border-left:none;" width="13%"><a href="/about/organization/sendai/location/akita.htm">�H�c��</a></td>
+											<td style="border-right:none; border-left:none;" width="13%"><a href="/about/organization/sendai/location/yamagata.htm">�R�`��</a></td>
+											<td style="border-left:none;" width="13%"><a href="/about/organization/sendai/location/fukushima.htm">������</a></td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/kantoshinetsu/shokai/annai.htm">�֓��M�z���ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/kantoshinetsu/location/ibaraki.htm">��錧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kantoshinetsu/location/tochigi.htm">�Ȗ،�</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kantoshinetsu/location/gumma.htm">�Q�n��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kantoshinetsu/location/saitama.htm">��ʌ�</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kantoshinetsu/location/niigata.htm">�V����</a></td>
+											<td style="border-left:none;"><a href="/about/organization/kantoshinetsu/location/nagano.htm">���쌧</a></td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/tokyo/shokai/annai.htm">�������ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/tokyo/location/chiba.htm">��t��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/tokyo/location/tokyo.htm">�����s</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/tokyo/location/kanagawa.htm">�_�ސ쌧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/tokyo/location/yamanashi.htm">�R����</a></td>
+											<td colspan="2" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/kanazawa/shokai/annai.htm">���򍑐ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/kanazawa/location/toyama.htm">�x�R��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kanazawa/location/ishikawa.htm">�ΐ쌧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kanazawa/location/fukui.htm">���䌧</a></td>
+											<td colspan="3" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/nagoya/shokai/annai.htm">���É����ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/nagoya/location/gifu.htm">�򕌌�</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/nagoya/location/shizuoka.htm">�É���</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/nagoya/location/aichi.htm">���m��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/nagoya/location/mie.htm">�O�d��</a></td>
+											<td colspan="2" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/osaka/shokai/annai.htm">��㍑�ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/osaka/location/shiga.htm">���ꌧ</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/osaka/location/kyoto.htm">���s�{</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/osaka/location/osaka.htm">���{</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/osaka/location/hyogo.htm">���Ɍ�</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/osaka/location/nara.htm">�ޗǌ�</a></td>
+											<td style="border-left:none;"><a href="/about/organization/osaka/location/wakayama.htm">�a�̎R��</a></td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/hiroshima/shokai/annai.htm">�L�����ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/hiroshima/location/tottori.htm">���挧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/hiroshima/location/shimane.htm">������</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/hiroshima/location/okayama.htm">���R��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/hiroshima/location/hiroshima.htm">�L����</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/hiroshima/location/yamaguchi.htm">�R����</a></td>
+											<td style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/takamatsu/shokai/annai.htm">�������ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/takamatsu/location/tokushima.htm">������</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/takamatsu/location/kagawa.htm">���쌧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/takamatsu/location/ehime.htm">���Q��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/takamatsu/location/kochi.htm">���m��</a></td>
+											<td colspan="2" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/fukuoka/shokai/annai.htm">�������ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/fukuoka/location/fukuoka.htm">������</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/fukuoka/location/saga.htm">���ꌧ</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/fukuoka/location/nagasaki.htm">���茧</a></td>
+											<td colspan="3" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/kumamoto/shokai/annai.htm">�F�{���ŋ�</a></td>
+											<td style="border-right:none;"><a href="/about/organization/kumamoto/location/kumamoto.htm">�F�{��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kumamoto/location/oita.htm">�啪��</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kumamoto/location/miyazaki.htm">�{�茧</a></td>
+											<td style="border-right:none; border-left:none;"><a href="/about/organization/kumamoto/location/kagoshima.htm">��������</a></td>
+											<td colspan="2" style="border-left:none;">&nbsp;</td>
+										</tr>
+										<tr>
+											<td scope="row"><a href="/about/organization/okinawa/shokai/annai.htm">���ꍑ�Ŏ�����</a></td>
+											<td style="border-right:none;"><a href="/about/organization/okinawa/location/index.htm">���ꌧ</a></td>
+											<td colspan="5" style="border-left:none;">&nbsp;</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+
+						</div>
+					</div>
+					<p class="page-top-link"><a href="#page-top">���̃y�[�W�̐擪��</a></p>
+
+				</div>
+				<!--/left-menu-->
+
+				<div class="right-menu">
+
+
+
+
+
+
+					<div class="panel panel-default sidenavi bmg20">
+						<div class="panel-heading">
+							<h2 class="panel-title"><a href="/about/index.htm">���Œ����ɂ���</a></h2>
+						</div>
+						<div class="panel-group" id="navi-Accordion">
+
+
+
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/introduction/index.htm">���Œ��̊T�v</a><a data-parent="#sidenaviAccordion" data-toggle="collapse" href="#sidenaviAccordionCollapse1" class="collapsed"><img src="/template/img/template/navi_down.png" alt="���j���[���J��" /></a></h3>
+							<div class="panel-collapse collapse" id="sidenaviAccordionCollapse1">
+								<ul>
+									<li><a href="/about/introduction/index.htm#shokai">���Œ��̏Љ�</a></li>
+									<li><a href="/about/introduction/index.htm#torikumi">���Œ��̎�g</a></li>
+								</ul>
+							</div>
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/organization/index.htm">�g�D�i���ŋǁE�Ŗ������j</a><a data-parent="#sidenaviAccordion" data-toggle="collapse" href="#sidenaviAccordionCollapse2"><img src="/template/img/template/navi_up.png" alt="���j���[�����" /></a></h3>
+							<div class="panel-collapse collapse in" id="sidenaviAccordionCollapse2">
+								<ul>
+									<li class="active"><a href="/about/organization/access/map.htm">�Ŗ����̏��ݒn�Ȃǂ�m�肽����</a></li>
+									<li><a href="/about/organization/sapporo/index.htm">�D�y���ŋ�</a></li>
+									<li><a href="/about/organization/sendai/index.htm">��䍑�ŋ�</a></li>
+									<li><a href="/about/organization/kantoshinetsu/index.htm">�֓��M�z���ŋ�</a></li>
+									<li><a href="/about/organization/tokyo/index.htm">�������ŋ�</a></li>
+									<li><a href="/about/organization/kanazawa/index.htm">���򍑐ŋ�</a></li>
+									<li><a href="/about/organization/nagoya/index.htm">���É����ŋ�</a></li>
+									<li><a href="/about/organization/osaka/index.htm">��㍑�ŋ�</a></li>
+									<li><a href="/about/organization/hiroshima/index.htm">�L�����ŋ�</a></li>
+									<li><a href="/about/organization/takamatsu/index.htm">�������ŋ�</a></li>
+									<li><a href="/about/organization/fukuoka/index.htm">�������ŋ�</a></li>
+									<li><a href="/about/organization/kumamoto/index.htm">�F�{���ŋ�</a></li>
+									<li><a href="/about/organization/okinawa/index.htm">���ꍑ�Ŏ�����</a></li>
+									<li><a href="/about/organization/ntc/index.htm">�Ŗ���w�Z</a></li>
+									<li><a href="http://www.kfs.go.jp/">���ŕs���R����</a></li>
+									<li><a href="/about/organization/callcenter/index.htm">�W���d�b�Í��Z���^�[�i�[�ŃR�[���Z���^�[�j</a></li>
+<li><a href="/about/organization/gyoumu_center/index.htm">�Ɩ��Z���^�[</a></li>
+								</ul>
+							</div>
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/recruitment/index.htm">�̗p���</a><a data-parent="#sidenaviAccordion" data-toggle="collapse" href="#sidenaviAccordionCollapse3" class="collapsed"><img src="/template/img/template/navi_down.png" alt="���j���[���J��" /></a></h3>
+							<div class="panel-collapse collapse" id="sidenaviAccordionCollapse3">
+								<ul>
+									<li><a href="/about/recruitment/index.htm#news">�V�����ꗗ</a></li>
+									<li><a href="/about/recruitment/outline/index.htm">���Œ��œ����Ƃ�������</a></li>
+									<li><a href="/about/recruitment/jimukei/01_1.htm">�����E�����i�����n�j</a></li>
+									<li><a href="/about/recruitment/gijyutsu/01_2.htm">�����E�����i�Z�p�n�j</a></li>
+									<li><a href="/about/recruitment/insotsu/index.htm">�����E�����i�@���@���敪�j</a></li>
+									<li><a href="/about/recruitment/kokusen/02.htm">���Ő�劯����</a></li>
+									<li><a href="/about/recruitment/zeimushoku/03.htm">�Ŗ��E���̗p����</a></li>
+									<li><a href="/about/recruitment/keikensha/index.htm">�o���ҍ̗p����</a></li>
+									<li><a href="/about/recruitment/part_time/04.htm">���ΐE���i�A���o�C�g�j�̗̍p���</a></li>
+									<li><a href="/about/recruitment/link.htm">�e���ŋǂ̗̍p���</a></li>
+								</ul>
+							</div>
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/evaluation/01.htm">���Œ��̎��ѕ]��</a></h3>
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/council/kenkyu.htm">�R�c��E�����</a><a data-parent="#sidenaviAccordion" data-toggle="collapse" href="#sidenaviAccordionCollapse5" class="collapsed"><img src="/template/img/template/navi_down.png" alt="���j���[���J��" /></a></h3>
+							<div class="panel-collapse collapse" id="sidenaviAccordionCollapse5">
+								<ul>
+									<li><a href="/about/council/kenkyu.htm#a01">���ŐR�c��</a></li>
+									<li><a href="/about/council/kenkyu.htm#a02">���ŐR�����ȉ�i���ŐR�c��j</a></li>
+									<li><a href="/about/council/kenkyu.htm#a03">��ޕ��ȉ�i���ŐR�c��j</a></li>
+									<li><a href="/about/council/kenkyu.htm#a031">�n���I�\������i��ޕ��ȉ�j</a></li>
+									<li><a href="/about/council/kenkyu.htm#a04">�ŗ��m���ȉ�i���ŐR�c��j</a></li>
+									<li><a href="/about/council/kenkyu.htm#a09">���{�Y��ނ̏�񔭐M�̋����Ɋւ��鍧�k��</a></li>
+									<li><a href="/about/council/kenkyu.htm#a05">��ޔ̔��Ɠ��Ɋւ��鍧�k��</a></li>
+									<li><a href="/about/council/kenkyu.htm#a06">�\���葱�̓d�q�����Ɋւ��錤����</a></li>
+									<li><a href="/about/council/kenkyu.htm#a07">���ŐR����</a></li>
+									<li><a href="/about/council/kenkyu.htm#tochihyoka">�y�n�]���R�c��</a></li>
+								</ul>
+							</div>
+							<h3 class="sidenavi-title"><a class="navi_title" href="/about/disclosure/01.htm">�����J</a><a data-parent="#sidenaviAccordion" data-toggle="collapse" href="#sidenaviAccordionCollapse6" class="collapsed"><img src="/template/img/template/navi_down.png" alt="���j���[���J��" /></a></h3>
+							<div class="panel-collapse collapse" id="sidenaviAccordionCollapse6">
+								<ul>
+									<li><a href="/about/disclosure/01.htm#koukai">�����J</a></li>
+									<li><a href="/about/disclosure/kojinjoho/02.htm">�l���̕ی�</a></li>
+									<li><a href="/about/disclosure/01.htm#madoguchi">�����J�E�l���ی쑋��</a></li>
+								</ul>
+							</div>
+
+						</div>
+					</div>
+
+
+
+
+
+
+
+
+
+
+				</div>
+				<!--/right-menu-->
+
+			</div>
+			<!--/clearfix-->
+
+		</div>
+		<!--/wrap-->
+
+
+		<footer>
+			<h2>�T�C�g�}�b�v�i�R���e���c�ꗗ�j</h2>
+			<ol class="breadcrumb footer">
+				<li><a href="/">�z�[��</a></li>
+				<li><a href="/about/index.htm">���Œ����ɂ���</a></li>
+				<li><a href="/about/organization/index.htm">�g�D�i���ŋǁE�Ŗ������j</a></li>
+				<li class="active">�Ŗ����̏��ݒn�Ȃǂ�m�肽����</li>
+			</ol>
+			<div id="footer"></div>
+		</footer>
+
+	</div>
+	<!--/container-->
+<script>
+/**
+ * �T�C�h�i�r�A�R�[�f�B�I�� - �m���ɓ��삷��X���C�h�A�j���[�V����
+ * �J�����ŃX���[�Y�ɓ��삷����P��
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  // �������������x�点�đ��̃X�N���v�g�Ƃ̋��������
+  setTimeout(function() {
+    console.log('�T�C�h�i�r�A�j���[�V�����C����K�p���܂�');
+    
+    // �T�C�h�i�r�̃A�R�[�f�B�I���{�^����S�Ď擾
+    var menuButtons = document.querySelectorAll('.sidenavi-title a.navi_btn, .sidenavi-title a[data-parent="#sidenaviAccordion"], .sidenavi-title a[data-toggle="collapse"]');
+    
+    if (menuButtons.length === 0) {
+      console.warn('�T�C�h�i�r�{�^����������܂���');
+      return;
+    }
+    
+    // �X���[�Y�ȃX���C�h�_�E���i�J���j�A�j���[�V����
+    function smoothSlideDown(element, duration, callback) {
+      // �v�f����\���Ȃ���s
+      if (window.getComputedStyle(element).display === 'none') {
+        // �A�j���[�V�������ɑ�����ݒ�
+        element.setAttribute('data-sliding', 'down');
+        
+        // �\�����邪������0����
+        element.style.display = 'block';
+        element.style.overflow = 'hidden';
+        element.style.height = '0px';
+        element.style.paddingTop = '0px';
+        element.style.paddingBottom = '0px';
+        element.style.marginTop = '0px';
+        element.style.marginBottom = '0px';
+        
+        // �g�����W�V�����ݒ�
+        element.style.transitionProperty = 'height, margin, padding';
+        element.style.transitionDuration = duration + 'ms';
+        element.style.transitionTimingFunction = 'ease';
+        
+        // ���t���[������
+        element.offsetHeight;
+        
+        // ���ۂ̒l�ɖ߂�
+        element.style.height = element.scrollHeight + 'px';
+        element.style.paddingTop = '';
+        element.style.paddingBottom = '';
+        element.style.marginTop = '';
+        element.style.marginBottom = '';
+        
+        // �g�����W�V����������ɃN���[���A�b�v
+        window.setTimeout(function() {
+          element.style.height = '';
+          element.style.overflow = '';
+          element.style.transitionProperty = '';
+          element.style.transitionDuration = '';
+          element.style.transitionTimingFunction = '';
+          element.removeAttribute('data-sliding');
+          
+          // �R�[���o�b�N������Ύ��s
+          if (typeof callback === 'function') callback();
+        }, duration);
+      }
+    }
+    
+    // �X���[�Y�ȃX���C�h�A�b�v�i����j�A�j���[�V����
+    function smoothSlideUp(element, duration, callback) {
+      // �v�f���\������Ă���Ύ��s
+      if (window.getComputedStyle(element).display !== 'none') {
+        // �A�j���[�V�������̑�����ݒ�
+        element.setAttribute('data-sliding', 'up');
+        
+        // ���݂̍�������ݒ�
+        element.style.height = element.scrollHeight + 'px';
+        element.style.overflow = 'hidden';
+        
+        // �g�����W�V�����ݒ�
+        element.style.transitionProperty = 'height, margin, padding';
+        element.style.transitionDuration = duration + 'ms';
+        element.style.transitionTimingFunction = 'ease';
+        
+        // ���t���[������
+        element.offsetHeight;
+        
+        // ������0�ɕύX
+        element.style.height = '0px';
+        element.style.paddingTop = '0px';
+        element.style.paddingBottom = '0px';
+        element.style.marginTop = '0px';
+        element.style.marginBottom = '0px';
+        
+        // �g�����W�V����������ɃN���[���A�b�v
+        window.setTimeout(function() {
+          element.style.display = 'none';
+          element.style.height = '';
+          element.style.overflow = '';
+          element.style.transitionProperty = '';
+          element.style.transitionDuration = '';
+          element.style.transitionTimingFunction = '';
+          element.style.paddingTop = '';
+          element.style.paddingBottom = '';
+          element.style.marginTop = '';
+          element.style.marginBottom = '';
+          element.removeAttribute('data-sliding');
+          
+          // �R�[���o�b�N������Ύ��s
+          if (typeof callback === 'function') callback();
+        }, duration);
+      }
+    }
+    
+    // �e�{�^���ɃC�x���g�n���h����ݒ�
+    menuButtons.forEach(function(button) {
+      // �����̃C�x���g�n���h�����폜���邽�߂Ƀ{�^���𕡐�
+      var newButton = button.cloneNode(true);
+      button.parentNode.replaceChild(newButton, button);
+      
+      // �V�����C�x���g�n���h����ǉ�
+      newButton.addEventListener('click', function(e) {
+        // �C�x���g�̓`�d���~�߂�
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // �^�[�Q�b�g�p�l�����擾
+        var panelId = this.getAttribute('href');
+        if (!panelId) return false;
+        
+        var panel = document.querySelector(panelId);
+        if (!panel) return false;
+        
+        // �A�j���[�V�������Ȃ牽�����Ȃ�
+        if (panel.hasAttribute('data-sliding')) {
+          return false;
+        }
+        
+        // �\����Ԃ��m�F
+        var isDisplayed = window.getComputedStyle(panel).display !== 'none';
+        
+        // �\����Ԃɉ������A�j���[�V����
+        if (isDisplayed) {
+          // ����A�j���[�V����
+          smoothSlideUp(panel, 300, function() {
+            // Bootstrap�֘A�N���X���X�V
+            panel.classList.remove('in');
+            panel.classList.remove('show');
+          });
+          
+          // �A�C�R�����X�V
+          var img = this.querySelector('img');
+          if (img) {
+            img.src = '/template/img/template/navi_down.png';
+            img.alt = '���j���[���J��';
+          }
+          
+          this.setAttribute('aria-expanded', 'false');
+          this.classList.add('collapsed');
+        } else {
+          // �J���A�j���[�V����
+          smoothSlideDown(panel, 300, function() {
+            // Bootstrap�֘A�N���X���X�V
+            panel.classList.add('in');
+            panel.classList.add('show');
+          });
+          
+          // �A�C�R�����X�V
+          var img = this.querySelector('img');
+          if (img) {
+            img.src = '/template/img/template/navi_up.png';
+            img.alt = '���j���[�����';
+          }
+          
+          this.setAttribute('aria-expanded', 'true');
+          this.classList.remove('collapsed');
+        }
+        
+        return false;
+      });
+      
+      // ������Ԃ�ݒ�
+      var panelId = newButton.getAttribute('href');
+      if (!panelId) return;
+      
+      var panel = document.querySelector(panelId);
+      if (!panel) return;
+      
+      // �p�l���̏�����Ԃ��m�F
+      var isExpanded = panel.classList.contains('in') || 
+                      panel.classList.contains('show') || 
+                      window.getComputedStyle(panel).display !== 'none';
+      
+      // ��Ԃɉ����������\���ݒ�
+      if (isExpanded) {
+        panel.style.display = 'block';
+        
+        // �A�C�R���ݒ�
+        var img = newButton.querySelector('img');
+        if (img) {
+          img.src = '/template/img/template/navi_up.png';
+          img.alt = '���j���[�����';
+        }
+        
+        newButton.setAttribute('aria-expanded', 'true');
+        newButton.classList.remove('collapsed');
+      } else {
+        panel.style.display = 'none';
+        
+        // �A�C�R���ݒ�
+        var img = newButton.querySelector('img');
+        if (img) {
+          img.src = '/template/img/template/navi_down.png';
+          img.alt = '���j���[���J��';
+        }
+        
+        newButton.setAttribute('aria-expanded', 'false');
+        newButton.classList.add('collapsed');
+      }
+    });
+    
+    // Bootstrap�Ƃ̋�����h���X�^�C���ǉ�
+    var style = document.createElement('style');
+    style.textContent = `
+      /* Bootstrap�֘A�̃g�����W�V�����𖳌��� */
+      .collapse:not([data-sliding]),
+      .collapsing:not([data-sliding]) {
+        -webkit-transition: none !important;
+        -moz-transition: none !important;
+        -o-transition: none !important;
+        transition: none !important;
+      }
+      
+      /* �A�j���[�V�������̗v�f�ɓ��ʂȃX�^�C����K�p */
+      [data-sliding="up"],
+      [data-sliding="down"] {
+        display: block;
+        overflow: hidden;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    console.log('�T�C�h�i�r�A�j���[�V�����C�����������܂���');
+  }, 300);
+});
+</script>
+</body>
+
+</html>
