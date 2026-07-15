@@ -49,6 +49,23 @@ model StaffSession {
   @@map("nenkin_staff_sessions")
 }
 
+model CustomerSession {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  ipHash     String?
+  userAgent  String?
+
+  @@index([customerId])
+  @@index([expiresAt])
+  @@map("nenkin_customer_sessions")
+}
+
 model OcrResult {
   id           String   @id @default(uuid())
   customerId   String
@@ -71,6 +88,7 @@ model Customer {
   fullName    String
   dob         DateTime
   passwordPin String?
+  pinResetRequired Boolean @default(false)
   status      CustomerStatus @default(NEW)
 
   zairyuAddress       String?
@@ -126,6 +144,7 @@ model Customer {
   transferRequests TransferRequest[]
   workHistories    WorkHistory[]
   ocrResults       OcrResult[]
+  sessions         CustomerSession[]
 
   createdBy   User?   @relation(fields: [createdById], references: [id])
   createdById String?
