@@ -54,6 +54,15 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
     ...safeCustomer,
     accountNumber: maskedAccountNumber,
     documentsMetadata,
+    uploadedDocuments: {
+      zairyuFront: !!customer.zairyuFrontUrl,
+      zairyuBack: !!customer.zairyuBackUrl,
+      passport: !!customer.passportUrl,
+      departureStamp: !!customer.departureStampUrl,
+      nenkinBook: !!customer.nenkinBookUrl,
+      bankPassbook: !!customer.bankPassbookUrl,
+      securityPhoto: !!customer.securityPhotoUrl,
+    },
     applications: (customer.applications || []).map(app => ({
       id: app.id,
       status: app.status,

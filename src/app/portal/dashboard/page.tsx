@@ -17,10 +17,7 @@ export default function PortalDashboard() {
     code: string;
     cardNumber: string;
     status: string;
-    zairyuFrontUrl: string;
-    passportUrl: string;
-    nenkinBookUrl: string;
-    bankPassbookUrl: string;
+    uploadedDocuments?: Record<string, boolean>;
     applications?: { status: string; revisionNote: string | null }[];
   };
   const [customer, setCustomer] = useState<CustomerData | null>(null);
@@ -31,16 +28,29 @@ export default function PortalDashboard() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const res = await fetch('/api/portal/profile');
+        const res = await fetch('/api/portal/auth/me');
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            setCustomer(data.data);
+            // Map DTO to local state structure
+            const dto = data.customer;
+            setCustomer({
+              ...dto,
+              uploadedDocuments: dto.uploadedDocuments
+            });
+          } else {
+            if (data.requireReset) {
+              router.push('/portal/reset-pin');
+            } else {
+              router.push('/portal/login');
+            }
+          }
+        } else {
+          if (res.status === 403) {
+            router.push('/portal/reset-pin');
           } else {
             router.push('/portal/login');
           }
-        } else {
-          router.push('/portal/login');
         }
       } catch (err) {
         console.error(err);
@@ -95,18 +105,22 @@ export default function PortalDashboard() {
           updatePayload.securityPhotoUrl = data.securityPhotoUrl;
         }
 
-        // Update local state
-        setCustomer({
-          ...customer,
-          ...updatePayload
-        } as CustomerData);
-
         // Save to DB
         await fetch('/api/portal/profile', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatePayload)
         });
+
+        // Update local state by re-fetching
+        const resProfile = await fetch('/api/portal/auth/me');
+        if (resProfile.ok) {
+          const profileData = await resProfile.json();
+          if (profileData.success) {
+            setCustomer({ ...profileData.customer, uploadedDocuments: profileData.customer.uploadedDocuments });
+          }
+        }
+
       } else {
         alert('Upload failed: ' + (data.error || 'Unknown error'));
       }
@@ -181,7 +195,8 @@ export default function PortalDashboard() {
           title="Thẻ Ngoại Kiều (Zairyu Card)" 
           description="Bản chụp mặt trước rõ nét"
           icon={<CreditCard className="w-5 h-5 text-indigo-500" />}
-          url={customer.zairyuFrontUrl}
+          isUploaded={!!customer.uploadedDocuments?.zairyuFront}
+          docType="zairyuFront"
           isUploading={uploadingState['zairyu']}
           isEditable={isEditable}
           onTrigger={(ref) => handleTriggerCapture('zairyu', ref)}
@@ -191,7 +206,8 @@ export default function PortalDashboard() {
           title="Hộ chiếu (Passport)" 
           description="Trang thông tin cá nhân và chữ ký"
           icon={<User className="w-5 h-5 text-indigo-500" />}
-          url={customer.passportUrl}
+          isUploaded={!!customer.uploadedDocuments?.passport}
+          docType="passport"
           isUploading={uploadingState['passport']}
           isEditable={isEditable}
           onTrigger={(ref) => handleTriggerCapture('passport', ref)}
@@ -201,7 +217,8 @@ export default function PortalDashboard() {
           title="Sổ tay Nenkin" 
           description="Trang có ghi Số Nenkin"
           icon={<FileText className="w-5 h-5 text-indigo-500" />}
-          url={customer.nenkinBookUrl}
+          isUploaded={!!customer.uploadedDocuments?.nenkinBook}
+          docType="nenkinBook"
           isUploading={uploadingState['nenkin']}
           isEditable={isEditable}
           onTrigger={(ref) => handleTriggerCapture('nenkin', ref)}
@@ -211,7 +228,8 @@ export default function PortalDashboard() {
           title="Sổ/Thẻ Ngân hàng" 
           description="Ngân hàng nhận tiền hoàn thuế"
           icon={<BanknoteIcon className="w-5 h-5 text-indigo-500" />}
-          url={customer.bankPassbookUrl}
+          isUploaded={!!customer.uploadedDocuments?.bankPassbook}
+          docType="bankPassbook"
           isUploading={uploadingState['bank']}
           isEditable={isEditable}
           onTrigger={(ref) => handleTriggerCapture('bank', ref)}
@@ -253,8 +271,10 @@ function BanknoteIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function DocumentUploadCard({ title, description, icon, url, onUpload, onTrigger, isUploading, isEditable = true }: { title: string; description: string; icon: React.ReactNode; url: string; onUpload: (f: File) => void; onTrigger?: (ref: React.RefObject<HTMLInputElement | null>) => void; isUploading?: boolean; isEditable?: boolean }) {
+function DocumentUploadCard({ title, description, icon, isUploaded, docType, onUpload, onTrigger, isUploading, isEditable = true }: { title: string; description: string; icon: React.ReactNode; isUploaded: boolean; docType: string; onUpload: (f: File) => void; onTrigger?: (ref: React.RefObject<HTMLInputElement | null>) => void; isUploading?: boolean; isEditable?: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
   
   const handleClick = () => {
     if (!isEditable) return;
@@ -268,9 +288,29 @@ function DocumentUploadCard({ title, description, icon, url, onUpload, onTrigger
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setViewUrl(null); // Reset preview
       onUpload(file);
     }
     if (e.target) e.target.value = '';
+  };
+
+  const handleViewImage = async () => {
+    if (viewUrl) return; // already loaded
+    setLoadingUrl(true);
+    try {
+      const res = await fetch(`/api/portal/documents/${docType}/signed-url`);
+      const data = await res.json();
+      if (data.success && data.signedUrl) {
+        setViewUrl(data.signedUrl);
+      } else {
+        alert('Không thể tải ảnh: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi mạng khi tải ảnh');
+    } finally {
+      setLoadingUrl(false);
+    }
   };
 
   return (
@@ -282,18 +322,32 @@ function DocumentUploadCard({ title, description, icon, url, onUpload, onTrigger
           </CardTitle>
           <CardDescription className="text-xs">{description}</CardDescription>
         </div>
-        {url ? (
+        {isUploaded ? (
           <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
         ) : (
           <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" title="Chưa cập nhật"></div>
         )}
       </CardHeader>
       <CardContent>
-        {url ? (
+        {isUploaded ? (
           <div className="relative group">
-            <div className="h-32 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center overflow-hidden">
-              <img src={url} alt={title} className="max-h-full max-w-full p-2 object-contain" />
-            </div>
+            {viewUrl ? (
+              <div className="h-32 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center overflow-hidden">
+                <img src={viewUrl} alt={title} className="max-h-full max-w-full p-2 object-contain" />
+              </div>
+            ) : (
+              <div className="h-32 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center">
+                <button 
+                  onClick={handleViewImage} 
+                  disabled={loadingUrl}
+                  className="px-4 py-2 bg-white text-indigo-600 font-medium rounded-lg shadow-sm flex items-center gap-2 hover:bg-slate-50 transition-colors border border-slate-200"
+                >
+                  {loadingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                  Xem ảnh đã tải lên
+                </button>
+              </div>
+            )}
+            
             {isEditable && (
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
                 <button 
@@ -302,7 +356,7 @@ function DocumentUploadCard({ title, description, icon, url, onUpload, onTrigger
                   className="px-4 py-2 bg-white text-slate-800 font-bold rounded-lg shadow-sm flex items-center gap-2 hover:bg-slate-50 transition-colors"
                 >
                   {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
-                  Tải lại ảnh
+                  Tải lại ảnh mới
                 </button>
               </div>
             )}
