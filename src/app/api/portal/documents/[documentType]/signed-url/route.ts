@@ -49,25 +49,25 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
 
-    const fullUrl = customer[columnField] as string | null;
-    if (!fullUrl) {
+    const fullUrl = customer[columnField];
+    if (typeof fullUrl !== 'string' || !fullUrl) {
       return NextResponse.json({ success: false, error: 'Document not found' }, { status: 404 });
     }
 
-    // 4. Extract path from full URL
-    // Format is usually: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path...]
-    // Note: It might be already stored as just path, but let's handle full public URL first.
-    let bucket = 'nenkin-documents'; // default bucket
-    let filePath = fullUrl;
-
-    if (fullUrl.includes('/storage/v1/object/public/')) {
-      const urlParts = fullUrl.split('/storage/v1/object/public/')[1];
-      const slashIndex = urlParts.indexOf('/');
-      if (slashIndex > -1) {
-        bucket = urlParts.substring(0, slashIndex);
-        filePath = urlParts.substring(slashIndex + 1);
-      }
+    if (!fullUrl.includes('/storage/v1/object/public/')) {
+      console.error('Unexpected URL format:', fullUrl);
+      return NextResponse.json({ success: false, error: 'Invalid document URL format' }, { status: 500 });
     }
+    
+    const urlParts = fullUrl.split('/storage/v1/object/public/')[1];
+    const slashIndex = urlParts.indexOf('/');
+    
+    if (slashIndex === -1) {
+      return NextResponse.json({ success: false, error: 'Invalid document URL format' }, { status: 500 });
+    }
+    
+    const bucket = urlParts.substring(0, slashIndex);
+    const filePath = urlParts.substring(slashIndex + 1);
 
     // 5. Generate Signed URL (900 seconds = 15 mins)
     const { data, error } = await supabaseAdmin.storage
