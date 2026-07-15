@@ -53,12 +53,12 @@ export function useGenerateDoc() {
         throw new Error(errMsg);
       }
 
-      // API trả về binary .docx — tạo blob và trigger download
+      // API trả về binary .pdf — tạo blob và trigger download
       const blob = await res.blob();
 
       // Lấy tên file từ header Content-Disposition nếu có
       const disposition = res.headers.get('Content-Disposition') ?? '';
-      let filename = `${TEMPLATE_LABELS[params.templateType]}.docx`;
+      let filename = `${TEMPLATE_LABELS[params.templateType]}.pdf`;
       const match = disposition.match(/filename\*?=(?:UTF-8'')?([^;\r\n]+)/i);
       if (match?.[1]) {
         filename = decodeURIComponent(match[1].replace(/"/g, ''));

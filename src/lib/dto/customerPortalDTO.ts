@@ -36,7 +36,7 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
   }
 
   // Build metadata for documents
-  const documentsMetadata = [];
+  const documentsMetadata: any[] = [];
 
   // If there are OCR results, we map them
   if (customer.ocrResults) {

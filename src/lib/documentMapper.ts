@@ -172,8 +172,8 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     };
   }
   return {
-    rep_fullName:      rep.name ?? '',
-    rep_fullName_kata: rep.nameKana ?? '',
+    rep_fullName:      rep.fullName ?? '',
+    rep_fullName_kata: rep.fullNameKana ?? '',
     rep_address:       rep.address ?? '',
     rep_phone:         rep.phone ?? '',
     rep_relation:      '納税管理人',
