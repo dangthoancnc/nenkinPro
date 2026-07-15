@@ -23,10 +23,10 @@ export async function fillPdfTemplate(
   data: Record<string, string>,
   config: PdfMappingConfig
 ): Promise<Uint8Array> {
-  const templatePath = path.join(process.cwd(), 'public', 'templates', templateFileName);
+  const templatePath = path.join(process.cwd(), 'public', 'forms', templateFileName);
   const pdfBytes = fs.readFileSync(templatePath);
   
-  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   pdfDoc.registerFontkit(fontkit);
   
   // Load Japanese font
