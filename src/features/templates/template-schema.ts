@@ -35,7 +35,7 @@ export const FieldMappingSchema = z.object({
     .string()
     .min(1)
     .max(120)
-    .regex(/^[a-z][a-z0-9_.-]*$/, 'Field ID must be a stable dot-path'),
+    .regex(/^[a-zA-Z][a-zA-Z0-9_.-]*$/, 'Field ID must be a stable dot-path'),
 
   label: z.string().min(1).max(200),
 
@@ -43,7 +43,7 @@ export const FieldMappingSchema = z.object({
     .string()
     .min(1)
     .max(180)
-    .regex(/^[a-z][a-z0-9_.-]*$/, 'sourcePath must be a stable dot-path'),
+    .regex(/^[a-zA-Z][a-zA-Z0-9_.-]*$/, 'sourcePath must be a stable dot-path'),
 
   coordinate: PdfCoordinateSchema,
 

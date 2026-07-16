@@ -505,22 +505,25 @@ export default function ApplicationDetailPage() {
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Hồ sơ Lần 2</h3>
             <div className="flex flex-wrap gap-2">
               <button 
-                onClick={() => window.open(`/api/applications/${id}/generate-pdf?template=bang_1_2`, '_blank')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all"
+                onClick={() => generateDoc({ applicationId: id, templateType: 'bang_1_2' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Bảng 1 & 2
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Bảng 1 & 2
               </button>
               <button 
-                onClick={() => window.open(`/api/applications/${id}/generate-pdf?template=bang_3`, '_blank')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all"
+                onClick={() => generateDoc({ applicationId: id, templateType: 'bang_3' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Bảng Số 3
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Bảng Số 3
               </button>
               <button 
-                onClick={() => window.open(`/api/applications/${id}/generate-pdf?template=giay_uy_thac_lan_2`, '_blank')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all"
+                onClick={() => generateDoc({ applicationId: id, templateType: 'giay_uy_thac_lan_2' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Giấy Ủy Thác Lần 2
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Giấy Ủy Thác Lần 2
               </button>
             </div>
           </div>
