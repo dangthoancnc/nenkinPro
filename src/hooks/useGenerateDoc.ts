@@ -13,7 +13,7 @@
 
 import { useState, useCallback } from 'react';
 
-export type TemplateType = 'form1' | 'form2' | 'form3';
+export type TemplateType = 'form1' | 'form2' | 'form3' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
 
 export interface GenerateDocParams {
   applicationId: string;
@@ -24,6 +24,9 @@ const TEMPLATE_LABELS: Record<TemplateType, string> = {
   form1: '脱退一時金請求書',
   form2: '委任状',
   form3: '納税管理人届出書',
+  bang_1_2: '確定申告書_第一表_第二表',
+  bang_3: '確定申告書_第三表',
+  giay_uy_thac_lan_2: '納税管理人届出書_Lần_2',
 };
 
 export function useGenerateDoc() {

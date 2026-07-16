@@ -28,6 +28,7 @@ def convert_pdf_page_to_jpg(pdf_path, page_num, output_jpg_path):
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    forms_dir = os.path.join(base_dir, "public", "forms")
     templates_dir = os.path.join(base_dir, "public", "templates")
     
     tasks = [
@@ -50,7 +51,7 @@ def main():
     ]
     
     for pdf_name, page, out_rel in tasks:
-        pdf_path = os.path.join(templates_dir, pdf_name)
+        pdf_path = os.path.join(forms_dir, pdf_name)
         out_path = os.path.join(templates_dir, out_rel)
         convert_pdf_page_to_jpg(pdf_path, page, out_path)
 

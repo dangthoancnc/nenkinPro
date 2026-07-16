@@ -11,7 +11,7 @@ import type { Customer, NenkinApplication, WorkHistory, TaxOffice, TaxRepresenta
 // Types
 // ---------------------------------------------------------------------------
 
-export type TemplateType = 'form1' | 'form2' | 'form3';
+export type TemplateType = 'form1' | 'form2' | 'form3' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
 
 export interface DocumentMapperInput {
   application: NenkinApplication;
@@ -312,8 +312,80 @@ export function mapDocument(
     case 'form1': return mapTemplate1(input);
     case 'form2': return mapTemplate2(input);
     case 'form3': return mapTemplate3(input);
+    case 'bang_1_2': return mapTemplateBang12(input);
+    case 'bang_3': return mapTemplateBang3(input);
+    case 'giay_uy_thac_lan_2': return mapTemplateGiayUyThac2(input);
     default:      throw new Error(`Unknown templateType: ${templateType}`);
   }
+}
+
+export function mapTemplateBang12(input: DocumentMapperInput): Record<string, string> {
+  const { application, customer, taxOffice, taxRepresentative, workHistories } = input;
+
+  const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
+  const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
+  const refundAmount = withheldTax;
+
+  const taxYearStr = application.taxYear ? String(application.taxYear) : '';
+
+  return {
+    ...mapCustomerBase(customer),
+    ...mapRepresentative(taxRepresentative),
+    ...mapTaxOffice(taxOffice),
+    
+    taxYear_era_yr: taxYearStr,
+    ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
+    
+    totalExpectedJpy: String(totalExpectedJpy),
+    withheldTax: String(withheldTax),
+    refundAmount: String(refundAmount),
+    
+    app_id: application.id.slice(0, 8),
+    ...todayTags(),
+  };
+}
+
+export function mapTemplateBang3(input: DocumentMapperInput): Record<string, string> {
+  const { application, customer, taxOffice, workHistories } = input;
+
+  const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
+  const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
+  const refundAmount = withheldTax;
+
+  // Calculate work years & deduction
+  let totalDays = 0;
+  workHistories.forEach(wh => {
+    if (wh.startDate && wh.endDate) {
+      const start = new Date(wh.startDate);
+      const end = new Date(wh.endDate);
+      const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+      if (days > 0) totalDays += days;
+    }
+  });
+  const workYears = totalDays / 365.25;
+  const retirementDeductionAmount = Math.max(1, Math.ceil(workYears)) * 400000;
+
+  const taxYearStr = application.taxYear ? String(application.taxYear) : '';
+
+  return {
+    ...mapCustomerBase(customer),
+    ...mapTaxOffice(taxOffice),
+
+    taxYear_era_yr: taxYearStr,
+    ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
+
+    totalExpectedJpy: String(totalExpectedJpy),
+    withheldTax: String(withheldTax),
+    retirementDeductionAmount: String(retirementDeductionAmount),
+    refundAmount: String(refundAmount),
+    
+    app_id: application.id.slice(0, 8),
+    ...todayTags(),
+  };
+}
+
+export function mapTemplateGiayUyThac2(input: DocumentMapperInput): Record<string, string> {
+  return mapTemplate3(input);
 }
 
 /**
