@@ -142,3 +142,13 @@ for (let i = 1; i <= 5; i++) {
   MOCK_DATA[`workHistory_${i}_type_3_mark`] = '';
   MOCK_DATA[`workHistory_${i}_type_4_mark`] = '';
 }
+
+// Alias keys — bridge naming mismatches between mockData and JSON configs
+MOCK_DATA['address_jp'] = MOCK_DATA['address'];
+MOCK_DATA['fullName_kata'] = MOCK_DATA['fullNameFurigana'];
+MOCK_DATA['rep_fullName_kata'] = MOCK_DATA['rep_fullNameKana'];
+MOCK_DATA['rep_relation'] = '納税管理人';
+MOCK_DATA['bank_name'] = MOCK_DATA['bankName'];
+MOCK_DATA['bank_branch'] = MOCK_DATA['branchName'];
+MOCK_DATA['bank_account_name'] = MOCK_DATA['accountName'];
+

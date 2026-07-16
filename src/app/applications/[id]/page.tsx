@@ -480,21 +480,21 @@ export default function ApplicationDetailPage() {
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Hồ sơ Lần 1</h3>
             <div className="flex flex-wrap gap-2">
               <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'form1' })}
+                onClick={() => generateDoc({ applicationId: id, templateType: 'don_xin_lan_1' })}
                 disabled={generatingDocHook}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
                 {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Đơn Xin Lần 1
               </button>
               <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'form2' })}
+                onClick={() => generateDoc({ applicationId: id, templateType: 'ininjyo_yoshiki_lan_1' })}
                 disabled={generatingDocHook}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
                 {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Giấy Ủy Quyền
               </button>
               <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'form3' })}
+                onClick={() => generateDoc({ applicationId: id, templateType: 'nouzeikanrinin' })}
                 disabled={generatingDocHook}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >

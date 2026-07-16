@@ -22,13 +22,13 @@ interface DonXinFormProps {
 }
 
 const TEMPLATE_OPTIONS: { value: TemplateType; label: string; desc: string }[] = [
-  { value: 'form1', label: '脱退一時金請求書', desc: 'Đơn xin lĩnh một lần' },
-  { value: 'form2', label: '委任状', desc: 'Giấy uỷ thác' },
-  { value: 'form3', label: '納税管理人届出書', desc: 'Đơn đăng ký người quản lý nộp thuế' },
+  { value: 'don_xin_lan_1', label: '脱退一時金請求書', desc: 'Đơn xin lĩnh một lần' },
+  { value: 'ininjyo_yoshiki_lan_1', label: '委任状', desc: 'Giấy uỷ thác' },
+  { value: 'nouzeikanrinin', label: '納税管理人届出書', desc: 'Đơn đăng ký người quản lý nộp thuế' },
 ];
 
 export default function DonXinForm({ applicationId, applicantName, onSuccess }: DonXinFormProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('form1');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('don_xin_lan_1');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const { generate, isLoading, error, clearError } = useGenerateDoc();
 

@@ -217,14 +217,15 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
 
   // Bank info
   const bankTags: Record<string, string> = {
-    bank_name:         customer.bankName ?? '',
-    bank_branch:       customer.branchName ?? '',
+    bankName:          customer.bankName ?? '',
+    branchName:        customer.branchName ?? '',
     bank_account_type: '', // To be filled if we have it
-    bank_account_name: customer.accountName ?? '',
+    accountName:       customer.accountName ?? '',
     bankBranchAddress: customer.bankBranchAddress ?? '',
     bankBranchCity:    customer.bankBranchCity ?? '',
     bankCountry:       customer.bankCountry ?? '',
     accountNameKatakana: customer.accountNameKatakana ?? '',
+    accountNumber:     customer.accountNumber ?? '',
     ...splitChars(customer.accountNumber ?? '', 'bank', 7, true),
     ...splitChars(customer.swiftCode ?? '', 'swift', 11, true),
   };
@@ -309,9 +310,9 @@ export function mapDocument(
   templateType: TemplateType,
 ): Record<string, string> {
   switch (templateType) {
-    case 'form1': return mapTemplate1(input);
-    case 'form2': return mapTemplate2(input);
-    case 'form3': return mapTemplate3(input);
+    case 'don_xin_lan_1': return mapTemplate1(input);
+    case 'ininjyo_yoshiki_lan_1': return mapTemplate2(input);
+    case 'nouzeikanrinin': return mapTemplate3(input);
     case 'bang_1_2': return mapTemplateBang12(input);
     case 'bang_3': return mapTemplateBang3(input);
     case 'giay_uy_thac_lan_2': return mapTemplateGiayUyThac2(input);

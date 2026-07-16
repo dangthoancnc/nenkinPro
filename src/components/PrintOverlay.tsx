@@ -12,7 +12,7 @@ export const PrintContainer = ({ imageUrl, children, isLandscape = false }: Prin
   return (
     <div 
       className={`relative w-full mx-auto bg-white shadow-xl print:shadow-none print:m-0 break-inside-avoid ${isLandscape ? 'max-w-[1414px]' : 'max-w-[1000px]'}`} 
-      style={{ aspectRatio: isLandscape ? '297/210' : '210/297' }}
+      style={{ aspectRatio: isLandscape ? '297/210' : '210/297', containerType: 'inline-size' }}
     >
       {/* Background Layer */}
       {isPdf ? (
@@ -24,7 +24,7 @@ export const PrintContainer = ({ imageUrl, children, isLandscape = false }: Prin
         <img 
           src={imageUrl} 
           alt="Form Background" 
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-90 print:opacity-100" 
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-90 print:opacity-100" 
         />
       )}
       
@@ -61,7 +61,7 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
     left: `${x}%`,
     top: `${y}%`,
     position: 'absolute',
-    transform: type === 'text' ? 'translateY(-50%)' : 'translate(0, -100%)', // Match PdfMapperClient logic
+    transform: 'translate(0, -100%)', // Match PdfMapperClient & pdf-lib baseline anchoring
   };
 
   if (type === 'line') {
@@ -117,10 +117,11 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
 
   return (
     <div 
-      className={`absolute font-mono whitespace-nowrap ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`} 
+      className={`absolute whitespace-nowrap ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`} 
       style={{ 
         ...style,
-        fontSize: className.includes('text-') ? undefined : `max(10px, ${fontSizeVw}cqi)`, // use container query inline if supported, otherwise fallback
+        fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
+        fontSize: className.includes('text-') ? undefined : `${fontSizeVw}cqi`, // container query inline: scales with PrintContainer width
       }}
     >
       {content}

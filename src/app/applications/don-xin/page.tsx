@@ -48,9 +48,9 @@ function DonXinPageInner() {
   }
 
   const TEMPLATE_LABELS: Record<TemplateType, string> = {
-    form1: '脱退一時金請求書',
-    form2: '委任状',
-    form3: '納税管理人届出書',
+    don_xin_lan_1: '脱退一時金請求書',
+    ininjyo_yoshiki_lan_1: '委任状',
+    nouzeikanrinin: '納税管理人届出書',
     bang_1_2: '確定申告書_第一表_第二表',
     bang_3: '確定申告書_第三表',
     giay_uy_thac_lan_2: '納税管理人届出書_Lần_2',
