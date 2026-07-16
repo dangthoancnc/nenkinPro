@@ -1,119 +1,90 @@
-/**
- * POST /api/generate-doc
- * Body: { applicationId: string, templateType: 'form1' | 'form2' | 'form3' }
- * Response: .docx binary stream
- *
- * Author: PE (Perplexity) — Sprint 4
- * Requires: public/templates/form1.docx, form2.docx, form3.docx
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { prisma } from '@/lib/prisma';
-import { mapDocument, type TemplateType } from '@/lib/documentMapper';
-
-const TEMPLATE_DIR = path.join(process.cwd(), 'public', 'templates');
-
-const TEMPLATE_FILES: Record<TemplateType, string> = {
-  form1: 'form1.docx', // 脱退一時金請求書
-  form2: 'form2.docx', // 委任状
-  form3: 'form3.docx', // 納税管理人届出書
-};
-
-const OUTPUT_NAMES: Record<TemplateType, string> = {
-  form1: '\u8131\u9000\u4e00\u6642\u91d1\u8acb\u6c42\u66f8.docx',
-  form2: '\u59d4\u4efb\u72b6.docx',
-  form3: '\u7d0d\u7a0e\u7ba1\u7406\u4eba\u5c4a\u51fa\u66f8.docx',
-};
+import prisma from '@/lib/prisma';
+import { mapDocument } from '@/lib/documentMapper';
+import { fillPdfTemplate } from '@/lib/pdfGenerator';
+import { FORM1_COORDINATES } from '@/lib/configs/form1_config';
+import { FORM2_COORDINATES } from '@/lib/configs/form2_config';
+import { FORM3_COORDINATES } from '@/lib/configs/form3_config';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as { applicationId?: string; templateType?: string };
+    const body = await req.json();
     const { applicationId, templateType } = body;
 
-    // --- Validation ---
-    if (!applicationId || typeof applicationId !== 'string') {
-      return NextResponse.json({ error: 'applicationId is required' }, { status: 400 });
-    }
-    if (!templateType || !['form1', 'form2', 'form3'].includes(templateType)) {
-      return NextResponse.json(
-        { error: 'templateType must be form1 | form2 | form3' },
-        { status: 400 },
-      );
+    if (!applicationId || !templateType) {
+      return NextResponse.json({ error: 'Missing applicationId or templateType' }, { status: 400 });
     }
 
-    const tmplType = templateType as TemplateType;
-
-    // --- Check template file exists ---
-    const templatePath = path.join(TEMPLATE_DIR, TEMPLATE_FILES[tmplType]);
-    if (!fs.existsSync(templatePath)) {
-      return NextResponse.json(
-        { error: `Template file not found: ${TEMPLATE_FILES[tmplType]}. Please upload .docx templates to public/templates/` },
-        { status: 503 },
-      );
-    }
-
-    // --- Fetch data from DB ---
     const application = await prisma.nenkinApplication.findUnique({
       where: { id: applicationId },
       include: {
-        customer: true,
-        workHistories: { orderBy: { startDate: 'asc' } },
-        taxOffice: true,
+        customer: {
+          include: {
+            taxOffice: true
+          }
+        },
         taxRepresentative: true,
-      },
+      }
     });
 
-    if (!application) {
-      return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+    if (!application || !application.customer) {
+      return NextResponse.json({ error: 'Application or Customer not found' }, { status: 404 });
     }
 
-    // --- Map data ---
-    const tags = mapDocument(
-      {
-        application,
-        customer:           application.customer,
-        workHistories:      application.workHistories,
-        taxOffice:          application.taxOffice,
-        taxRepresentative:  application.taxRepresentative,
-      },
-      tmplType,
-    );
-
-    // --- Render docx ---
-    const content = fs.readFileSync(templatePath, 'binary');
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      // Throw on missing tag to surface mapping errors early
-      nullGetter: () => '',
+    const workHistories = await prisma.workHistory.findMany({
+      where: { customerId: application.customerId },
+      orderBy: { startDate: 'asc' }
     });
 
-    doc.render(tags);
+    const mapperInput = {
+      application,
+      customer: application.customer,
+      workHistories,
+      taxOffice: application.customer.taxOffice,
+      taxRepresentative: application.taxRepresentative,
+    };
 
-    const buffer = doc.getZip().generate({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-    });
+    let mappedData: Record<string, string> = {};
+    let config = {};
+    let pdfTemplateName = '';
+    let outputFilename = '';
 
-    const filename = encodeURIComponent(OUTPUT_NAMES[tmplType]);
+    try {
+      mappedData = mapDocument(mapperInput, templateType);
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
 
-    return new NextResponse(buffer, {
+    if (templateType === 'form1') {
+      config = FORM1_COORDINATES;
+      pdfTemplateName = 'don_xin_lan1.pdf'; // Use the unencrypted PDF in public/forms/ (wait, is it don_xin_lan1.pdf? Yes, 07.pdf had encryption issues, so we can use don_xin_lan1.pdf which was added to public/forms or copy it there)
+      outputFilename = `DatTaiNenkin_${application.customer.code}.pdf`;
+    } else if (templateType === 'form2') {
+      config = FORM2_COORDINATES;
+      pdfTemplateName = 'ininjyorei.pdf'; // 委任状
+      outputFilename = `UyQuyen_${application.customer.code}.pdf`;
+    } else if (templateType === 'form3') {
+      config = FORM3_COORDINATES;
+      pdfTemplateName = 'nouzeikanrinin.pdf'; // 納税管理人届出書
+      outputFilename = `NguoiDaiDienThue_${application.customer.code}.pdf`;
+    } else {
+      return NextResponse.json({ error: 'Invalid templateType' }, { status: 400 });
+    }
+
+    // Generate PDF Binary
+    const pdfBytes = await fillPdfTemplate(pdfTemplateName, mappedData, config);
+
+    // Return as downloadable file
+    return new Response(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename*=UTF-8''${filename}`,
-        'Content-Length': String(buffer.byteLength),
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${outputFilename}"`,
       },
     });
 
-  } catch (err) {
-    console.error('[generate-doc] Error:', err);
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error generating document:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }

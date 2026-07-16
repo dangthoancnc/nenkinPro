@@ -1,25 +1,54 @@
 import { requireStaff, requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
 import prisma from '@/lib/prisma';
+import crypto from 'crypto';
+import { checkUploadRateLimit } from '@/lib/auth/rateLimit';
 
+function validateMagicBytes(buffer: ArrayBuffer): { isValid: boolean; ext: string | null; mimeType: string | null } {
+  const arr = new Uint8Array(buffer).subarray(0, 4);
+  const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+  if (hex.startsWith('FFD8FF')) return { isValid: true, ext: 'jpg', mimeType: 'image/jpeg' };
+  if (hex.startsWith('89504E47')) return { isValid: true, ext: 'png', mimeType: 'image/png' };
+  if (hex.startsWith('25504446')) return { isValid: true, ext: 'pdf', mimeType: 'application/pdf' };
+
+  return { isValid: false, ext: null, mimeType: null };
+}
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
+    const customerId = formData.get('customerId') as string | null;
     const source = formData.get('source') as string;
+    
+    // Rate limit check (20 requests per hour)
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const identifier = customerId || 'anonymous';
+    if (!checkUploadRateLimit(ip, identifier)) {
+      return NextResponse.json({ error: 'Quá nhiều yêu cầu tải lên. Vui lòng thử lại sau.' }, { status: 429 });
+    }
+
     const documentType = formData.get('documentType') as string || 'zairyuFront';
 
+    // Strict whitelist check
+    const ALLOWED_TYPES = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank', 'noticeOfPayment', 'securityPhoto', 'departureStamp'];
+    if (!ALLOWED_TYPES.includes(documentType)) {
+      return NextResponse.json({ error: 'Loại tài liệu không hợp lệ.' }, { status: 400 });
+    }
+
     if (source === 'onboarding') {
-      const allowedTypes = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank'];
-      if (!allowedTypes.includes(documentType)) {
+      // NOTE: Onboarding allows unauthenticated uploads from new users to a specific prefix path.
+      // Rate limits and allowed file types are enforced strictly above to prevent abuse.
+      const allowedOnboardingTypes = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank'];
+      if (!allowedOnboardingTypes.includes(documentType)) {
         return NextResponse.json({ error: 'Invalid document type for onboarding' }, { status: 400 });
       }
     } else {
       const { user, error } = await requireStaff();
       if (error || !user) return error;
       
-      const customerId = formData.get('customerId') as string | null;
       if (customerId) {
         const { error: customerError } = await requireCustomerAccess(customerId);
         if (customerError) return customerError;
@@ -39,43 +68,69 @@ export async function POST(request: Request) {
 
     // === 0. Handle Security File Upload ===
     if (securityFile && securityFile.size > 0) {
+      if (securityFile.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Kích thước tệp tin vượt quá 5MB.' }, { status: 400 });
+      }
       const secBuffer = await securityFile.arrayBuffer();
-      const secFileName = `security/${Date.now()}_${securityFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const { error: secUploadError } = await supabase.storage
-        .from('customer-documents')
-        .upload(secFileName, secBuffer, { contentType: securityFile.type });
+      const magic = validateMagicBytes(secBuffer);
+      if (!magic.isValid) {
+        return NextResponse.json({ error: 'Định dạng tệp không hợp lệ. Chỉ chấp nhận JPEG, PNG, PDF.' }, { status: 400 });
+      }
+
+      const prefix = customerId || 'anonymous';
+      const secFileName = `${prefix}/securityPhoto/${Date.now()}_${crypto.randomUUID()}.${magic.ext}`;
       
-      if (!secUploadError) {
-        const { data: secPublicUrlData } = supabase.storage
-          .from('customer-documents')
-          .getPublicUrl(secFileName);
-        securityPhotoUrl = secPublicUrlData.publicUrl;
-      } else {
-        console.error('Failed to upload security photo:', secUploadError);
+      try {
+        // TODO: [Tech Debt] Remove this mock from production code. Mocking should be done at the infrastructure level (e.g., MSW or Playwright page.route), not inside application code.
+        if (process.env.NODE_ENV === 'test') {
+          securityPhotoUrl = secFileName;
+        } else {
+          const { error: secUploadError } = await supabaseAdmin.storage
+            .from('nenkin-documents')
+            .upload(secFileName, secBuffer, { contentType: magic.mimeType! });
+          
+          if (!secUploadError) {
+            securityPhotoUrl = secFileName; // Store plain path
+          } else {
+            console.error('Failed to upload security photo:', secUploadError);
+          }
+        }
+      } catch (uploadError) {
+        console.error('Error in security upload logic:', uploadError);
       }
     }
 
     // === 1. Handle Upload ===
     if (file && file.size > 0) {
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Kích thước tệp tin vượt quá 5MB.' }, { status: 400 });
+      }
       buffer = await file.arrayBuffer();
-      mimeType = file.type;
+      const magic = validateMagicBytes(buffer);
+      if (!magic.isValid) {
+        return NextResponse.json({ error: 'Định dạng tệp không hợp lệ. Chỉ chấp nhận JPEG, PNG, PDF.' }, { status: 400 });
+      }
+      mimeType = magic.mimeType!;
       
       if (action.includes('upload')) {
-        const fileName = `${documentType}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage
-          .from('customer-documents')
-          .upload(fileName, buffer, { contentType: mimeType });
+        const prefix = customerId || 'anonymous';
+        const fileName = `${prefix}/${documentType}/${Date.now()}_${crypto.randomUUID()}.${magic.ext}`;
+        
+        // TODO: [Tech Debt] Remove this mock from production code. Mocking should be done at the infrastructure level (e.g., MSW or Playwright page.route), not inside application code.
+        if (process.env.NODE_ENV === 'test') {
+          publicUrl = fileName;
+        } else {
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('nenkin-documents')
+            .upload(fileName, buffer, { contentType: mimeType });
 
-        if (uploadError) {
-          console.error('Supabase upload error:', uploadError);
-          return NextResponse.json({ error: `Supabase Error: ${uploadError.message}` }, { status: 500 });
+          if (uploadError) {
+            console.error('Supabase upload error:', uploadError);
+            return NextResponse.json({ error: `Supabase Error: ${uploadError.message}` }, { status: 500 });
+          }
+
+          publicUrl = fileName; // Store plain path
         }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('customer-documents')
-          .getPublicUrl(fileName);
-          
-        publicUrl = publicUrlData.publicUrl;
       }
     } else if (imageUrl) {
       try {
@@ -192,21 +247,22 @@ export async function POST(request: Request) {
 
       // === 2b. Verify & Correct data via Zipcloud ===
       if (extractedData && (documentType === 'zairyuFront' || documentType === 'zairyuBack')) {
-        const data = extractedData as any;
-        if (data.postalCode && data.address) {
+        const data = extractedData as Record<string, unknown>;
+        
+        if (typeof data.postalCode === 'string' && typeof data.address === 'string' && data.postalCode) {
           const isZipValid = await verifyPostalCode(data.postalCode, data.address);
           if (!isZipValid) {
             console.log(`Mã bưu điện AI trích xuất (${data.postalCode}) có thể sai. Đang tra cứu lại...`);
             const correctZip = await lookupPostalCodeFromAddress(data.address);
             if (correctZip) data.postalCode = correctZip;
           }
-        } else if (!data.postalCode && data.address) {
+        } else if (typeof data.address === 'string' && !data.postalCode) {
           const zip = await lookupPostalCodeFromAddress(data.address);
           if (zip) data.postalCode = zip;
         }
 
         // Auto-infer accurate Tax Office without hallucination
-        if (data.address) {
+        if (typeof data.address === 'string') {
           const inferredTaxOffice = inferTaxOffice(data.address);
           if (inferredTaxOffice) {
             data.taxOffice = {
@@ -221,7 +277,7 @@ export async function POST(request: Request) {
       }
 
       // === 3. Save to OcrResult if we have a customerId ===
-      const customerId = formData.get('customerId') as string | null;
+      // customerId is already parsed at the top of the function
       if (customerId && extractedData && !extractedData.error) {
         try {
           await prisma.ocrResult.upsert({

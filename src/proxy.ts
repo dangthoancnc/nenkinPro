@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 export default async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname; 
+  console.log('PROXY INTERCEPTED:', pathname);
   
   // Public paths
   if (
@@ -11,6 +12,7 @@ export default async function proxy(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/onboarding') ||
+    pathname.startsWith('/api/ocr') ||
     pathname.startsWith('/_next')
   ) {
     return NextResponse.next();
@@ -27,15 +29,14 @@ export default async function proxy(request: NextRequest) {
   };
 
   // Check employee auth cookie
-  const employeeAuth = request.cookies.get('employee_auth')?.value;
+  const employeeAuth = request.cookies.get('nenkin_staff_session')?.value;
   
   if (!employeeAuth) {
     return handleUnauthorized(request);
   }
 
-  // Validate the UUID stateless check
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(employeeAuth)) {
+  // Validate the token length (it's a 64 char hex string now, but let's be flexible)
+  if (employeeAuth.length < 32) {
     return handleUnauthorized(request);
   }
 
@@ -44,6 +45,6 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api/portal|api/auth|portal|login|_next|favicon.ico).*)',
+    '/((?!api/portal|api/auth|api/ocr|portal|login|_next|favicon.ico).*)',
   ],
 };

@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireCustomerSession } from '@/lib/auth/requireCustomerSession';
 import { toCustomerPortalDTO } from '@/lib/dto/customerPortalDTO';
+import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
     const { session } = await requireCustomerSession();
 
     // Session already includes the customer object, but we need to fetch related applications and ocrResults for the DTO
-    // Wait, the requireCustomerSession only included { customer: true }
-    // Let's import prisma and fetch the full relations needed
-    const { prisma } = await import('@/lib/prisma');
-    
     const customerWithRelations = await prisma.customer.findUnique({
       where: { id: session.customerId },
       include: {

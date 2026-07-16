@@ -172,8 +172,8 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     };
   }
   return {
-    rep_fullName:      rep.name ?? '',
-    rep_fullName_kata: rep.nameKana ?? '',
+    rep_fullName:      rep.fullName ?? '',
+    rep_fullName_kata: rep.fullNameKana ?? '',
     rep_address:       rep.address ?? '',
     rep_phone:         rep.phone ?? '',
     rep_relation:      '納税管理人',
@@ -315,3 +315,46 @@ export function mapDocument(
     default:      throw new Error(`Unknown templateType: ${templateType}`);
   }
 }
+
+/**
+ * Legacy compatibility mapping function for /api/applications/[id]/generate-pdf
+ */
+export function mapApplicationToTemplate(application: any): Record<string, string> {
+  const customer = application?.customer || {};
+  const rep = application?.taxRepresentative || {};
+  const office = customer?.taxOffice || {};
+  const histories = customer?.workHistories || [];
+  
+  const result: Record<string, string> = {
+    fullName: customer.fullName || '',
+    fullName_kata: customer.fullNameFurigana || '',
+    dob: customer.dob ? new Date(customer.dob).toLocaleDateString() : '',
+    nationality: customer.nationality || '',
+    sex: customer.sex || '',
+    postalCode: customer.postalCode || '',
+    address: customer.zairyuAddress || '',
+    phone: customer.phone || '',
+    bankName: customer.bankName || '',
+    branchName: customer.branchName || '',
+    accountNumber: customer.accountNumber || '',
+    accountName: customer.accountName || '',
+    swiftCode: customer.swiftCode || '',
+    rep_fullName: rep.fullName || '',
+    rep_fullName_kata: rep.fullNameKana || '',
+    rep_address: rep.address || '',
+    rep_postalCode: rep.postalCode || '',
+    rep_phone: rep.phone || '',
+    office_name: office.name || '',
+    office_address: office.address || '',
+  };
+
+  // Add work histories if any
+  histories.forEach((w: any, index: number) => {
+    result[`work_company_${index + 1}`] = w.companyName || '';
+    result[`work_start_${index + 1}`] = w.startDate ? new Date(w.startDate).toLocaleDateString() : '';
+    result[`work_end_${index + 1}`] = w.endDate ? new Date(w.endDate).toLocaleDateString() : '';
+  });
+
+  return result;
+}
+

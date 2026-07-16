@@ -30,7 +30,7 @@ export default function EmployeeLogin() {
       
       if (data.success) {
         // Redirect to dashboard
-        router.push('/');
+        router.push('/dashboard');
         router.refresh();
       } else {
         setError(data.error || 'Đăng nhập thất bại.');

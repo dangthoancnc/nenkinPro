@@ -36,7 +36,7 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
   }
 
   // Build metadata for documents
-  const documentsMetadata = [];
+  const documentsMetadata: any[] = [];
 
   // If there are OCR results, we map them
   if (customer.ocrResults) {
@@ -54,6 +54,15 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
     ...safeCustomer,
     accountNumber: maskedAccountNumber,
     documentsMetadata,
+    uploadedDocuments: {
+      zairyuFront: !!customer.zairyuFrontUrl,
+      zairyuBack: !!customer.zairyuBackUrl,
+      passport: !!customer.passportUrl,
+      departureStamp: !!customer.departureStampUrl,
+      nenkinBook: !!customer.nenkinBookUrl,
+      bankPassbook: !!customer.bankPassbookUrl,
+      securityPhoto: !!customer.securityPhotoUrl,
+    },
     applications: (customer.applications || []).map(app => ({
       id: app.id,
       status: app.status,
