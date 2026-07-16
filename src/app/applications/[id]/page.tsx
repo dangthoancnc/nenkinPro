@@ -6,6 +6,7 @@ import { ArrowLeft, Save, Clock, CheckCircle, Wallet, Calculator, FileText, Prin
 import Link from 'next/link';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { TaxRepresentative } from '@prisma/client';
+import { useGenerateDoc } from '@/hooks/useGenerateDoc';
 
 const STATUS_STEPS = [
   { id: 'DRAFT', label: 'Bản nháp' },
@@ -34,6 +35,7 @@ export default function ApplicationDetailPage() {
   // Use React.use() or type casting to unwrap params in Next 15 if needed, 
   // but for client components, useParams() usually returns the unwrapped object in React 19/Next 15.
   const id = params.id as string;
+  const { generate: generateDoc, isLoading: generatingDocHook } = useGenerateDoc();
 
   type AppData = {
     customer: { 
@@ -473,16 +475,25 @@ export default function ApplicationDetailPage() {
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Hồ sơ Lần 1</h3>
             <div className="flex flex-wrap gap-2">
               <button 
-                onClick={() => window.open(`/api/applications/${id}/generate-pdf?template=don_xin_lan_1`, '_blank')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all"
+                onClick={() => generateDoc({ applicationId: id, templateType: 'form1' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Đơn Xin Lần 1
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Đơn Xin Lần 1
               </button>
               <button 
-                onClick={() => window.open(`/api/applications/${id}/generate-pdf?template=ininjyo_yoshiki_lan_1`, '_blank')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all"
+                onClick={() => generateDoc({ applicationId: id, templateType: 'form2' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Giấy Ủy Quyền
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Giấy Ủy Quyền
+              </button>
+              <button 
+                onClick={() => generateDoc({ applicationId: id, templateType: 'form3' })}
+                disabled={generatingDocHook}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
+              >
+                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Đại Diện Thuế (Lần 1)
               </button>
             </div>
           </div>
