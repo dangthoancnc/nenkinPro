@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    if (user.role === 'COLLABORATOR' && customer.createdById !== userId) {
+    if (user.role === 'COLLABORATOR' && customer.createdById !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -23,7 +23,8 @@ async function run() {
     data: {
       code: `KH_TEST1_${Date.now()}`,
       fullName: 'Customer Collab 1',
-      createdById: collab1.id
+      createdById: collab1.id,
+      dob: new Date('1990-01-01')
     }
   });
 
@@ -31,7 +32,8 @@ async function run() {
     data: {
       code: `KH_TEST2_${Date.now()}`,
       fullName: 'Customer Collab 2',
-      createdById: collab2.id
+      createdById: collab2.id,
+      dob: new Date('1990-01-01')
     }
   });
 

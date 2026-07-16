@@ -35,7 +35,7 @@ test.describe('SEC-002: Session, RBAC, and Cross-owner access', () => {
     collab2Id = collab2.id;
 
     const c2 = await prisma.customer.create({
-      data: { code: `KH_E2E_${Date.now()}`, fullName: 'Customer E2E Collab 2', createdById: collab2.id }
+      data: { code: `KH_E2E_${Date.now()}`, fullName: 'Customer E2E Collab 2', createdById: collab2.id, dob: new Date('1990-01-01') }
     });
     customer2Id = c2.id;
 

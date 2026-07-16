@@ -282,8 +282,8 @@ export async function POST(request: Request) {
         try {
           await prisma.ocrResult.upsert({
             where: { customerId_documentType: { customerId, documentType } },
-            update: { rawData: extractedData },
-            create: { customerId, documentType, rawData: extractedData }
+            update: { rawData: extractedData as any },
+            create: { customerId, documentType, rawData: extractedData as any }
           });
         } catch (dbErr) {
           console.error('Failed to save OcrResult to DB:', dbErr);

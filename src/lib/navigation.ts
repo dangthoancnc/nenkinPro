@@ -9,7 +9,8 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   { name: 'Tổng quan', icon: Home, href: '/dashboard' },
-  { name: 'Khách hàng & Hồ sơ', icon: Users, href: '/customers' },
+  { name: 'Khách hàng', icon: Users, href: '/customers' },
+  { name: 'Hồ sơ Nenkin', icon: FileText, href: '/applications' },
   { name: 'Cục Thuế', icon: Building2, href: '/tax-offices' },
   { name: 'Nhân sự', icon: Briefcase, href: '/hr' },
   { name: 'Tài chính & Hoa hồng', icon: Banknote, href: '/finance' },

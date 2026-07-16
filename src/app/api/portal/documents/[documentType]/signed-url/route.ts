@@ -49,7 +49,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
 
-    const fullUrl = customer[columnField];
+    const fullUrl = (customer as any)[columnField];
     if (typeof fullUrl !== 'string' || !fullUrl) {
       return NextResponse.json({ success: false, error: 'Document not found' }, { status: 404 });
     }
