@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { mapApplicationToTemplate } from '@/lib/documentMapper';
+import { mapDocument, mapApplicationToTemplate, TemplateType } from '@/lib/documentMapper';
 import { requireApplicationAccess } from '@/lib/auth/authorization';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,38 @@ export async function GET(
       return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     }
 
-    const mappedData = mapApplicationToTemplate(application);
+    const workHistories = await prisma.workHistory.findMany({
+      where: { customerId: application.customerId },
+      orderBy: { startDate: 'asc' }
+    });
+
+    const mapperInput = {
+      application,
+      customer: application.customer,
+      workHistories,
+      taxOffice: application.customer.taxOffice,
+      taxRepresentative: application.taxRepresentative,
+    };
+
+    const templates: TemplateType[] = ['form1', 'form2', 'form3', 'bang_1_2', 'bang_3', 'giay_uy_thac_lan_2'];
+    let mappedData: Record<string, string> = {};
+    
+    // Fallback legacy compatibility mapping first
+    try {
+      mappedData = { ...mapApplicationToTemplate(application) };
+    } catch (e) {
+      // ignore
+    }
+
+    // Merge advanced mapping for all forms
+    for (const t of templates) {
+      try {
+        const data = mapDocument(mapperInput, t);
+        mappedData = { ...mappedData, ...data };
+      } catch (e) {
+        // ignore
+      }
+    }
 
     return NextResponse.json({ ...application, mappedData });
   } catch (error) {

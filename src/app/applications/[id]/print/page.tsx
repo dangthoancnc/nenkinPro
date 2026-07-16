@@ -227,9 +227,9 @@ export default function ApplicationPrintView() {
             <PrintField x={90} y={25} value={customer.relationshipToHead} />
 
             {/* Thuế */}
-            <PrintField x={80} y={55} value={appData.withheldTax} className="text-right" /> {/* 48 */}
+            <PrintField x={80} y={55} value={mappedData.withheldTax} className="text-right" /> {/* 48 */}
             <PrintField x={80} y={58} value="△" className="text-right" /> {/* 49 */}
-            <PrintField x={80} y={65} value={appData.withheldTax} className="text-right" /> {/* 52 (Hoàn thuế) */}
+            <PrintField x={80} y={65} value={mappedData.withheldTax} className="text-right" /> {/* 52 (Hoàn thuế) */}
             
             {/* Chuyển khoản (Đại diện thuế) */}
             <PrintField x={20} y={75} value={rep.bankName} />
@@ -249,10 +249,10 @@ export default function ApplicationPrintView() {
             <PrintField x={20} y={20} value="退職" />
             <PrintField x={30} y={20} value="脱退一時金" />
             <PrintField x={40} y={20} value="日本年金機構" />
-            <PrintField x={60} y={20} value={appData.totalExpectedJpy} className="text-right" />
-            <PrintField x={80} y={20} value={appData.withheldTax} className="text-right" />
+            <PrintField x={60} y={20} value={mappedData.totalExpectedJpy} className="text-right" />
+            <PrintField x={80} y={20} value={mappedData.withheldTax} className="text-right" />
             
-            <PrintField x={80} y={35} value={appData.withheldTax} className="text-right" /> {/* 48 */}
+            <PrintField x={80} y={35} value={mappedData.withheldTax} className="text-right" /> {/* 48 */}
           </>
         );
 
@@ -265,20 +265,20 @@ export default function ApplicationPrintView() {
             <PrintField x={20} y={15} value={customer.overseasCountry || 'VIET NAM'} />
             <PrintField x={20} y={18} value={customer.fullName} />
             
-            <PrintField x={60} y={40} value={appData.totalExpectedJpy} className="text-right" /> {/* テ */}
+            <PrintField x={60} y={40} value={mappedData.totalExpectedJpy} className="text-right" /> {/* テ */}
             
             <PrintField x={80} y={45} value="0" className="text-right" /> {/* 76 */}
             <PrintField x={80} y={50} value="0" className="text-right" /> {/* 12 */}
             <PrintField x={80} y={55} value="0" className="text-right" /> {/* 92 */}
             <PrintField x={80} y={60} value="0" className="text-right" /> {/* 93 */}
             
-            <PrintField x={80} y={70} value={appData.withheldTax} className="text-right" /> {/* 48 */}
-            <PrintField x={80} y={75} value={appData.withheldTax} className="text-right" /> {/* 52 */}
+            <PrintField x={80} y={70} value={mappedData.withheldTax} className="text-right" /> {/* 48 */}
+            <PrintField x={80} y={75} value={mappedData.withheldTax} className="text-right" /> {/* 52 */}
             
             <PrintField x={20} y={85} value="所法" />
             <PrintField x={30} y={85} value="171" charSpacing={10} />
             
-            <PrintField x={40} y={90} value={appData.totalExpectedJpy} className="text-right" />
+            <PrintField x={40} y={90} value={mappedData.totalExpectedJpy} className="text-right" />
             <PrintField x={60} y={90} value={mappedData.retirementDeductionAmount} className="text-right" />
           </>
         );
