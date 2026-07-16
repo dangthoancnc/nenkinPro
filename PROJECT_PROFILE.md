@@ -53,12 +53,12 @@ Trang `/applications/[id]`: Chi tiết đầy đủ, chỉnh sửa inline.
 Status transition UI với validation rules.
 Ghi chú revision, lịch sử thay đổi.
 
-### Sprint 4 — Form Generator (M4 — Cốt lõi)
-`documentMapper.ts`: map toàn bộ dữ liệu → flat JSON, băm ký tự (postalCode, bankAccount, myNumber 12 số, nenkinNumber 10 số, ngày sinh → Reiwa/Heisei).
-API `/api/generate-doc`: nhận applicationId + templateType, render .docx qua docxtemplater.
-Templates: 脱退一時金請求書.docx, 委任状.docx, 確認書.docx.
-UI xuất biểu mẫu trên trang `/applications/[id]`.
-`MAPPING_GUIDE.md` đầy đủ tất cả {{tags}}.
+### Sprint 4 — PDF Form Generator ⭐ ĐANG THỰC HIỆN
+- [x] PR 1 — Template Registry: Cơ sở dữ liệu tĩnh `don-xin-lan-1` và SHA-256 fingerprint.
+- [x] PR 2 — PDF Mapping Studio: Giao diện web chỉnh tọa độ field trên PDF, kéo-thả, lưu Draft vào Database.
+- [ ] PR 3 — Workflow Review & Publish: Trình xét duyệt Draft thành Published Version, tạo PDF Preview.
+- [ ] PR 4 — Port AI/OCR + Address Lookup từ bản cũ.
+- [ ] Thay thế hoàn toàn `.docx` form builder cũ bằng PDF overlay tuyệt đối.
 
 ### Sprint 5 — Finance & Reporting
 Trang `/finance`: bảng tỷ giá, tính toán phí dịch vụ, hoa hồng CTV.
