@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ArrowLeft, Save, FileText, FolderOpen, Printer, PieChart, UploadCloud, CheckCircle, Plus, X, ZoomIn, Wand2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import PrintTab from './PrintTab';
+import AppDetailsTab from './AppDetailsTab';
 
 export default function CustomerDetailDashboard({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -41,6 +43,14 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
       fetchCustomer();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab) setActiveTab(tab);
+    }
+  }, []);
 
   const fetchCustomer = async () => {
     try {
@@ -366,7 +376,7 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
             <button 
               onClick={() => setActiveTab('report')}
               className={`border-b-2 font-medium py-3 px-2 flex items-center gap-2 whitespace-nowrap ${activeTab === 'report' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <PieChart className="w-4 h-4" /> 3. Báo cáo tổng quan
+              <Printer className="w-4 h-4" /> 3. In ấn & Biểu mẫu
             </button>
           </nav>
           
@@ -724,52 +734,11 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {activeTab === 'app_details' && (
-          <div className="h-full overflow-y-auto p-3 md:p-4 max-w-screen-xl mx-auto custom-scrollbar">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-slate-800">Danh sách Hồ sơ Thuế (Applications)</h2>
-              <Button className="h-8 py-1 px-3 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm rounded-md">
-                <Plus className="w-3.5 h-3.5" /> Tạo Hồ sơ mới
-              </Button>
-            </div>
-            
-            {(!customer.applications || customer.applications.length === 0) ? (
-              <div className="text-center py-8 bg-white rounded-lg border border-slate-200">
-                <FolderOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <h3 className="text-base font-medium text-slate-700">Khách hàng chưa có hồ sơ nào</h3>
-                <p className="text-sm text-slate-500 mb-3">Bấm nút "Tạo Hồ sơ mới" để bắt đầu quy trình xử lý hoàn thuế.</p>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                {customer.applications.map((app: any) => (
-                  <Card key={app.id} className="p-3 flex flex-col md:flex-row md:items-center justify-between border border-slate-200 hover:border-indigo-300 transition-colors rounded-md shadow-sm gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-sm text-slate-800">Hồ sơ hoàn thuế Nenkin</h3>
-                        <span className="bg-blue-100 text-blue-800 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-blue-200">
-                          {app.status || 'DRAFT'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Ngày tạo: {new Date(app.createdAt).toLocaleDateString('vi-VN')} • 
-                        Dự kiến: <span className="font-mono text-slate-700">{app.totalExpectedJpy ? Number(app.totalExpectedJpy).toLocaleString() : '---'} JPY</span>
-                      </p>
-                    </div>
-                    <div>
-                      <Link href={`/applications/${app.id}`}>
-                        <Button variant="outline" className="w-full md:w-auto h-8 py-1 px-3 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50 rounded-md">
-                          Mở hồ sơ & In ấn <ArrowLeft className="w-3.5 h-3.5 ml-1.5 rotate-180" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+        {activeTab === 'app_details' && customer && (
+          <AppDetailsTab customer={customer} />
         )}
 
-        {activeTab === 'report' && <div className="p-8 text-center text-slate-500">Báo cáo đang được phát triển...</div>}
+        {activeTab === 'report' && customer && <PrintTab customer={customer} />}
       </main>
     </div>
   );

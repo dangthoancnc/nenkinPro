@@ -8,6 +8,14 @@ import { Save, MousePointer2 } from 'lucide-react';
 
 
 // Setup PDF worker in useEffect to avoid SSR error
+const TEMPLATE_NAMES: Record<string, string> = {
+  don_xin_lan_1: 'Đơn Xin Lần 1',
+  ininjyo_yoshiki_lan_1: 'Giấy Ủy Quyền Lần 1',
+  nouzeikanrinin: 'Đại Diện Thuế (Lần 1)',
+  bang_1_2: 'Bảng 1 & 2 (Lần 2)',
+  bang_3: 'Bảng Số 3 (Lần 2)',
+  giay_uy_thac_lan_2: 'Giấy Ủy Thác Lần 2',
+};
 
 const generateSplitTags = (prefix: string, count: number, labelPrefix: string) => 
   Array.from({ length: count }, (_, i) => ({ id: `${prefix}_${i + 1}`, label: `${labelPrefix} [${i + 1}]` }));
@@ -151,7 +159,7 @@ export default function PdfMapperPage() {
   // Fetch templates list and setup PDF worker
   useEffect(() => {
     // Setup PDF worker on client side only, using local file to prevent CORS errors
-    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
     fetch('/api/templates/mapping')
       .then(res => res.json())
@@ -317,7 +325,7 @@ export default function PdfMapperPage() {
             value={selectedTemplate}
             onChange={e => setSelectedTemplate(e.target.value)}
           >
-            {templates.map(t => <option key={t} value={t}>{t}</option>)}
+            {templates.map(t => <option key={t} value={t}>{TEMPLATE_NAMES[t] || t}</option>)}
           </select>
 
           <button
@@ -539,7 +547,7 @@ export default function PdfMapperPage() {
         <div className="flex-1 overflow-auto flex flex-col items-center p-8 gap-8">
           {selectedTemplate && (
             <Document
-              file={`/templates/${selectedTemplate}.pdf`}
+              file={`/forms/${selectedTemplate}.pdf`}
               options={pdfOptions}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={<div className="p-20 text-slate-500">Đang tải PDF...</div>}

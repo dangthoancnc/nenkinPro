@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     if (!templateName) {
       // List all pdfs
-      const templatesDir = path.join(process.cwd(), 'public', 'templates');
+      const templatesDir = path.join(process.cwd(), 'public', 'forms');
       const files = fs.readdirSync(templatesDir);
       const pdfs = files.filter(f => f.endsWith('.pdf') && !f.includes('_grid')).map(f => f.replace('.pdf', ''));
       return NextResponse.json({ success: true, data: pdfs });

@@ -1061,7 +1061,7 @@ export default function CustomersPage() {
                     </TableCell>
                     <TableCell className="text-right flex gap-2 justify-end">
                       {customer.applicationId ? (
-                        <Link href={`/applications/${customer.applicationId}`}>
+                        <Link href={`/customers/${customer.id}?tab=app_details`}>
                           <Button variant="outline" size="sm" className="h-8 px-3 text-purple-600 border-purple-200 hover:bg-purple-50">Xem Hồ sơ</Button>
                         </Link>
                       ) : (
@@ -1078,7 +1078,7 @@ export default function CustomersPage() {
                               });
                               if (res.ok) {
                                 const newApp = await res.json();
-                                window.location.href = `/applications/${newApp.id}`;
+                                window.location.href = `/customers/${customer.id}?tab=app_details`;
                               }
                             } catch (e) { console.error(e); }
                           }}
@@ -1124,7 +1124,7 @@ export default function CustomersPage() {
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1 pl-[68px]">
                   {customer.applicationId ? (
-                    <Link href={`/applications/${customer.applicationId}`} className="flex-1">
+                    <Link href={`/customers/${customer.id}?tab=app_details`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full h-7 text-xs px-2 text-purple-600 border-purple-200 hover:bg-purple-50">Xem Hồ sơ</Button>
                     </Link>
                   ) : (
@@ -1141,7 +1141,7 @@ export default function CustomersPage() {
                             });
                             if (res.ok) {
                               const newApp = await res.json();
-                              window.location.href = `/applications/${newApp.id}`;
+                              window.location.href = `/customers/${customer.id}?tab=app_details`;
                             }
                           } catch (e) { console.error(e); }
                         }}

@@ -98,6 +98,10 @@ export default function ApplicationDetailPage() {
         const res = await fetch(`/api/applications/${id}`);
         if (res.ok) {
           const data = await res.json();
+          if (data && data.customerId) {
+            window.location.href = `/customers/${data.customerId}?tab=app_details`;
+            return;
+          }
           setAppData(data);
           
           // Helper to format date for input type="date"
