@@ -44,12 +44,61 @@ export const PrintContainer = ({ imageUrl, children, isLandscape = false }: Prin
 export interface PrintFieldProps {
   x: number; // Percentage 0-100
   y: number; // Percentage 0-100
-  value: string | number | undefined | null;
+  value?: string | number | undefined | null;
   className?: string;
   charSpacing?: number; // In px, useful for spreading text like "1 2 3"
+  size?: number; // Font size from config
+  type?: 'text' | 'line' | 'circle';
+  width?: number; // Width for lines/circles
+  height?: number; // Height for circles
+  thickness?: number; // Border thickness
+  isMock?: boolean;
 }
 
-export const PrintField = ({ x, y, value, className = '', charSpacing }: PrintFieldProps) => {
+export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false }: PrintFieldProps) => {
+  // Common style for absolute positioning using percentages
+  const style: React.CSSProperties = {
+    left: `${x}%`,
+    top: `${y}%`,
+    position: 'absolute',
+    transform: type === 'text' ? 'translateY(-50%)' : 'translate(0, -100%)', // Match PdfMapperClient logic
+  };
+
+  if (type === 'line') {
+    // 595.32 is A4 width in points. We calculate width percentage based on points
+    const widthPercent = ((width || 100) / 595.32) * 100;
+    return (
+      <div 
+        className="bg-black print:bg-black absolute" 
+        style={{
+          ...style,
+          width: `${widthPercent}%`,
+          height: `${thickness}px`,
+          transform: 'none' // Lines draw from exactly x, y
+        }}
+      />
+    );
+  }
+
+  if (type === 'circle') {
+    const widthPercent = ((width || 20) / 595.32) * 100;
+    const heightPercent = ((height || 20) / 841.92) * 100;
+    return (
+      <div 
+        className="absolute border-black print:border-black rounded-full" 
+        style={{
+          left: `${x}%`,
+          top: `${y}%`,
+          width: `${widthPercent}%`,
+          height: `${heightPercent}%`,
+          borderWidth: `${thickness}px`,
+          borderStyle: 'solid',
+          transform: 'translate(-50%, -50%)', // Circle centers on coordinate usually, wait, in PdfMapperClient it centers differently, let's use translate(-50%, -50%) for simplicity
+        }}
+      />
+    );
+  }
+
   if (value === undefined || value === null || value === '') return null;
   
   const content = charSpacing 
@@ -60,14 +109,18 @@ export const PrintField = ({ x, y, value, className = '', charSpacing }: PrintFi
       ))
     : value;
 
+  // Convert font size from points to a rough viewport relative size or just px if scaling is fixed.
+  // Actually, PrintContainer uses a fixed aspect ratio. A4 width is 210mm. 
+  // For simplicity, we'll use a responsive font size based on container width if possible, or just raw px (since it's max 1000px wide anyway).
+  // A4 is 595.32 points wide. So 1pt = 1/595.32 of container width.
+  const fontSizeVw = (size / 595.32) * 100;
+
   return (
     <div 
-      className={`absolute font-mono text-black print:text-black font-semibold whitespace-nowrap ${className}`} 
+      className={`absolute font-mono whitespace-nowrap ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`} 
       style={{ 
-        left: `${x}%`, 
-        top: `${y}%`, 
-        transform: 'translateY(-50%)',
-        fontSize: className.includes('text-') ? undefined : '14px', // default font size if no Tailwind text class is provided
+        ...style,
+        fontSize: className.includes('text-') ? undefined : `max(10px, ${fontSizeVw}cqi)`, // use container query inline if supported, otherwise fallback
       }}
     >
       {content}

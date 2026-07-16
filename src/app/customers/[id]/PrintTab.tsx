@@ -1,39 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Download, Maximize2, Loader2, CheckCircle, FileText, X } from 'lucide-react';
+import { Printer, Download, Maximize2, Loader2, X, Eye } from 'lucide-react';
 import { PrintContainer, PrintField } from '@/components/PrintOverlay';
 import { useGenerateDoc } from '@/hooks/useGenerateDoc';
+import { MOCK_DATA } from '@/lib/mockData';
 
-type PrintTabType = 'lan1_donxin_p1' | 'lan1_donxin_p2' | 'lan1_uyquyen' | 'lan2_donxin1' | 'lan2_donxin2' | 'lan2_donxin3' | 'lan2_uyquyen';
+type PrintTabId = 'don_xin_lan_1_p1' | 'don_xin_lan_1_p2' | 'ininjyo_yoshiki_lan_1' | 'bang_1_2_p1' | 'bang_1_2_p2' | 'bang_3' | 'giay_uy_thac_lan_2';
 
-const TEMPLATE_NAMES: Record<PrintTabType, string> = {
-  lan1_donxin_p1: 'Đơn Xin Lần 1 (Trang 1)',
-  lan1_donxin_p2: 'Đơn Xin Lần 1 (Trang 2)',
-  lan1_uyquyen: 'Giấy Ủy Quyền Lần 1',
-  lan2_donxin1: 'Bảng 1 & 2 (Trang 1)',
-  lan2_donxin2: 'Bảng 1 & 2 (Trang 2)',
-  lan2_donxin3: 'Bảng Số 3 (Lần 2)',
-  lan2_uyquyen: 'Giấy Ủy Thác Lần 2',
-};
+interface PrintTabConfig {
+  id: PrintTabId;
+  label: string;
+  template: 'don_xin_lan_1' | 'ininjyo_yoshiki_lan_1' | 'nouzeikanrinin' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
+  page: number;
+  bg: string;
+}
 
-const TEMPLATE_MAPPING: Record<PrintTabType, 'form1' | 'form2' | 'form3' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2'> = {
-  lan1_donxin_p1: 'form1',
-  lan1_donxin_p2: 'form1', 
-  lan1_uyquyen: 'form2',
-  lan2_donxin1: 'bang_1_2',
-  lan2_donxin2: 'bang_1_2',
-  lan2_donxin3: 'bang_3',
-  lan2_uyquyen: 'giay_uy_thac_lan_2',
-};
+const PRINT_TABS: PrintTabConfig[] = [
+  { id: 'don_xin_lan_1_p1', label: 'Đơn Xin Lần 1 (Trang 1)', template: 'don_xin_lan_1', page: 0, bg: '/templates/nenkin_lan1/don_xin_lan_1_p1.jpg' },
+  { id: 'don_xin_lan_1_p2', label: 'Đơn Xin Lần 1 (Trang 2)', template: 'don_xin_lan_1', page: 1, bg: '/templates/nenkin_lan1/don_xin_lan_1_p2.jpg' },
+  { id: 'ininjyo_yoshiki_lan_1', label: 'Giấy Ủy Quyền Lần 1', template: 'ininjyo_yoshiki_lan_1', page: 0, bg: '/templates/nenkin_lan1/ininjyo_yoshiki_lan_1.jpg' },
+  { id: 'bang_1_2_p1', label: 'Bảng 1 & 2 (Trang 1)', template: 'bang_1_2', page: 0, bg: '/templates/nenkin_lan2/bang_1_2_p1.jpg' },
+  { id: 'bang_1_2_p2', label: 'Bảng 1 & 2 (Trang 2)', template: 'bang_1_2', page: 1, bg: '/templates/nenkin_lan2/bang_1_2_p2.jpg' },
+  { id: 'bang_3', label: 'Bảng Số 3 (Lần 2)', template: 'bang_3', page: 0, bg: '/templates/nenkin_lan2/bang_3.jpg' },
+  { id: 'giay_uy_thac_lan_2', label: 'Giấy Ủy Thác Lần 2', template: 'giay_uy_thac_lan_2', page: 0, bg: '/templates/nenkin_lan2/giay_uy_thac_lan_2.jpg' },
+];
+
+const GROUP_1: PrintTabId[] = ['don_xin_lan_1_p1', 'don_xin_lan_1_p2', 'ininjyo_yoshiki_lan_1'];
+const GROUP_2: PrintTabId[] = ['bang_1_2_p1', 'bang_1_2_p2', 'bang_3', 'giay_uy_thac_lan_2'];
+
+const A4_W = 595.32;
+const A4_H = 841.92;
 
 export default function PrintTab({ customer: initialCustomer }: { customer: any }) {
   const application = initialCustomer.applications?.[0];
   const [appDetails, setAppDetails] = useState<any | null>(null);
   const [loadingApp, setLoadingApp] = useState(true);
-  const [activeFormTab, setActiveFormTab] = useState<PrintTabType>('lan1_donxin_p1');
+  const [activeFormTab, setActiveFormTab] = useState<PrintTabId>('don_xin_lan_1_p1');
   const [showModal, setShowModal] = useState(false);
+  const [showMockData, setShowMockData] = useState(true);
+  
+  const [jsonConfigs, setJsonConfigs] = useState<Record<string, any>>({});
 
   const { generate: generateDoc, isLoading: generatingDocHook } = useGenerateDoc();
 
+  // Load App Details
   useEffect(() => {
     if (!application?.id) {
       setLoadingApp(false);
@@ -48,6 +57,19 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
       .catch(err => console.error(err))
       .finally(() => setLoadingApp(false));
   }, [application?.id]);
+
+  // Load JSON Configs
+  useEffect(() => {
+    const templatesToFetch = Array.from(new Set(PRINT_TABS.map(t => t.template)));
+    Promise.all(
+      templatesToFetch.map(t => 
+        fetch(`/templates/${t}.json`).then(res => res.json()).then(data => ({ [t]: data })).catch(() => ({}))
+      )
+    ).then(results => {
+      const merged = Object.assign({}, ...results);
+      setJsonConfigs(merged);
+    });
+  }, []);
 
   if (loadingApp) {
     return (
@@ -69,206 +91,81 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
   }
 
   const appData = appDetails || application;
-  const customer = appData.customer || initialCustomer;
-  const rep = appData.taxRepresentative || {};
   const mappedData = appData.mappedData || {};
-
-  // Helpers
-  const cleanStr = (str: string | null | undefined) => str?.replace(/[\s-]/g, '') || '';
-  const cleanPost = (str: string | null | undefined) => str?.replace(/-/g, '') || '';
   
-  const getEraNumber = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const ymd = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-    if (ymd >= 20190501) return '5'; // Reiwa
-    if (ymd >= 19890108) return '4'; // Heisei
-    if (ymd >= 19261225) return '3'; // Showa
-    return '';
-  };
+  const activeTabConfig = PRINT_TABS.find(t => t.id === activeFormTab)!;
+  const currentJsonConfig = jsonConfigs[activeTabConfig.template];
 
   const handlePrint = () => {
     window.print();
   };
 
-  const getBackgroundUrl = (type: PrintTabType) => {
-    switch (type) {
-      case 'lan1_donxin_p1': return '/templates/nenkin_lan1/don_xin_lan_1_p1.jpg';
-      case 'lan1_donxin_p2': return '/templates/nenkin_lan1/don_xin_lan_1_p2.jpg';
-      case 'lan1_uyquyen': return '/templates/nenkin_lan1/ininjyo_yoshiki_lan_1.jpg';
-      case 'lan2_uyquyen': return '/templates/nenkin_lan2/giay_uy_thac_lan_2.jpg';
-      case 'lan2_donxin1': return '/templates/nenkin_lan2/bang_1_2_p1.jpg';
-      case 'lan2_donxin2': return '/templates/nenkin_lan2/bang_1_2_p2.jpg';
-      case 'lan2_donxin3': return '/templates/nenkin_lan2/bang_3.jpg';
-    }
+  const handleDownloadPdf = (id: PrintTabId) => {
+    const tabConfig = PRINT_TABS.find(t => t.id === id);
+    if (!tabConfig) return;
+    generateDoc({ applicationId: application.id, templateType: tabConfig.template });
   };
 
-  const renderFields = (type: PrintTabType) => {
-    switch (type) {
-      case 'lan1_donxin_p1':
-        return (
-          <>
-            <PrintField x={65} y={15} value={mappedData.applyDate_y} charSpacing={15} />
-            <PrintField x={75} y={15} value={mappedData.applyDate_m} charSpacing={15} />
-            <PrintField x={85} y={15} value={mappedData.applyDate_d} charSpacing={15} />
-            <PrintField x={22} y={23.5} value={customer.fullName} className="text-xl uppercase tracking-widest" />
-            <PrintField x={28} y={27} value={cleanStr(mappedData.dob_y)} charSpacing={16} />
-            <PrintField x={40} y={27} value={mappedData.dob_m} charSpacing={16} />
-            <PrintField x={48} y={27} value={mappedData.dob_d} charSpacing={16} />
-            <PrintField x={25} y={30} value={customer.nationality || 'VIET NAM'} />
-            <PrintField x={30} y={35} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={30} y={38} value={customer.overseasStreet} />
-            <PrintField x={30} y={40} value={customer.overseasCity} />
-            <PrintField x={60} y={40} value={customer.overseasProvince} />
-            <PrintField x={80} y={40} value={customer.overseasPostalCode} />
-            <PrintField x={35} y={45} value={cleanPost(customer.nenkinNumber)} charSpacing={24} />
-            <PrintField x={25} y={55} value={customer.bankName} />
-            <PrintField x={55} y={55} value={customer.branchName} />
-            <PrintField x={85} y={55} value={customer.bankCountry || 'VIET NAM'} />
-            <PrintField x={85} y={58} value={customer.bankBranchCity} />
-            <PrintField x={25} y={58} value={customer.bankBranchAddress} />
-            <PrintField x={35} y={62} value={cleanStr(customer.accountNumber)} charSpacing={20} />
-            <PrintField x={35} y={65} value={customer.accountName} />
-            <PrintField x={35} y={68} value={customer.accountNameKatakana} />
-            <PrintField x={35} y={72} value={cleanStr(customer.swiftCode)} charSpacing={16} />
-          </>
-        );
-      case 'lan1_donxin_p2':
-        return (
-          <>
-            {customer.workHistories?.map((wh: any, idx: number) => {
-              const yOffset = 30 + idx * 5;
-              return (
-                <React.Fragment key={wh.id}>
-                  <PrintField x={20} y={yOffset} value={wh.companyName} />
-                  <PrintField x={50} y={yOffset} value={wh.companyAddress} />
-                  {wh.startDate && (
-                    <PrintField x={70} y={yOffset} value={`${new Date(wh.startDate).getFullYear()}/${new Date(wh.startDate).getMonth() + 1}/${new Date(wh.startDate).getDate()}`} />
-                  )}
-                  {wh.endDate && (
-                    <PrintField x={85} y={yOffset} value={`${new Date(wh.endDate).getFullYear()}/${new Date(wh.endDate).getMonth() + 1}/${new Date(wh.endDate).getDate()}`} />
-                  )}
-                  <PrintField x={90} y={yOffset} value={wh.pensionType || '厚生年金保険'} />
-                </React.Fragment>
-              );
-            })}
-          </>
-        );
-      case 'lan1_uyquyen':
-        return (
-          <>
-            <PrintField x={60} y={10} value={mappedData.applyDate_era_jp} />
-            <PrintField x={65} y={10} value={mappedData.applyDate_era_yr} />
-            <PrintField x={75} y={10} value={mappedData.applyDate_m} />
-            <PrintField x={85} y={10} value={mappedData.applyDate_d} />
-            <PrintField x={30} y={20} value={rep.fullNameKana} />
-            <PrintField x={30} y={24} value={rep.fullName} />
-            <PrintField x={30} y={28} value={cleanPost(rep.postalCode)} charSpacing={12} />
-            <PrintField x={30} y={31} value={rep.address} />
-            <PrintField x={30} y={34} value={rep.phone} />
-            <PrintField x={80} y={34} value={rep.relationship || '納税管理人'} />
-            <PrintField x={30} y={40} value={cleanPost(customer.nenkinNumber)} charSpacing={20} />
-            <PrintField x={30} y={44} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
-            <PrintField x={30} y={48} value={customer.fullName} />
-            <PrintField x={30} y={52} value={mappedData.dob_era_yr} />
-            <PrintField x={40} y={52} value={mappedData.dob_m} />
-            <PrintField x={50} y={52} value={mappedData.dob_d} />
-            <PrintField x={30} y={56} value={cleanPost(customer.postalCode)} charSpacing={12} />
-            <PrintField x={30} y={59} value={customer.zairyuAddress} />
-            <PrintField x={30} y={62} value={customer.phone} />
-          </>
-        );
-      case 'lan2_uyquyen':
-        return (
-          <>
-            <PrintField x={20} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={60} y={10} value={mappedData.applyDate_y} />
-            <PrintField x={70} y={10} value={mappedData.applyDate_m} />
-            <PrintField x={80} y={10} value={mappedData.applyDate_d} />
-            <PrintField x={20} y={25} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={20} y={28} value={customer.zairyuAddress} />
-            <PrintField x={20} y={32} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
-            <PrintField x={20} y={35} value={customer.fullName} />
-            <PrintField x={70} y={35} value={cleanPost(customer.myNumber)} charSpacing={22} />
-            <PrintField x={30} y={40} value={mappedData.dob_era_yr} />
-            <PrintField x={40} y={40} value={mappedData.dob_m} />
-            <PrintField x={50} y={40} value={mappedData.dob_d} />
-            <PrintField x={20} y={50} value={cleanPost(rep.postalCode)} charSpacing={12} />
-            <PrintField x={20} y={53} value={rep.address} />
-            <PrintField x={20} y={56} value={rep.fullNameKana} />
-            <PrintField x={20} y={59} value={rep.fullName} />
-            <PrintField x={70} y={59} value={rep.phone} />
-            <PrintField x={80} y={59} value={rep.relationship || '納税管理人'} />
-            <PrintField x={40} y={70} value={mappedData.departureDate_y} />
-            <PrintField x={50} y={70} value={mappedData.departureDate_m} />
-            <PrintField x={60} y={70} value={mappedData.departureDate_d} />
-          </>
-        );
-      case 'lan2_donxin1':
-        return (
-          <>
-            <PrintField x={15} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={65} y={10} value={mappedData.taxYear_era_yr} />
-            <PrintField x={20} y={15} value={cleanPost(customer.postalCode)} charSpacing={15} />
-            <PrintField x={20} y={18} value={customer.zairyuAddress} className="text-[12px] max-w-[40%]" />
-            <PrintField x={20} y={20} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
-            <PrintField x={20} y={22} value={customer.fullName} className="text-lg" />
-            <PrintField x={70} y={22} value={cleanPost(customer.myNumber)} charSpacing={22} />
-            <PrintField x={78} y={18} value={getEraNumber(customer.dob)} />
-            <PrintField x={82} y={18} value={mappedData.dob_era_yr} charSpacing={12} />
-            <PrintField x={88} y={18} value={mappedData.dob_m} charSpacing={12} />
-            <PrintField x={94} y={18} value={mappedData.dob_d} charSpacing={12} />
-            <PrintField x={20} y={25} value={customer.occupation} />
-            <PrintField x={80} y={25} value={customer.headOfHouseholdName} />
-            <PrintField x={90} y={25} value={customer.relationshipToHead} />
-            <PrintField x={80} y={55} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={80} y={58} value="△" className="text-right" />
-            <PrintField x={80} y={65} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={20} y={75} value={rep.bankName} />
-            <PrintField x={40} y={75} value={rep.branchName} />
-            <PrintField x={60} y={75} value={rep.accountNumber} />
-            <PrintField x={80} y={75} value={rep.fullName} />
-          </>
-        );
-      case 'lan2_donxin2':
-        return (
-          <>
-            <PrintField x={20} y={8} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
-            <PrintField x={20} y={10} value={customer.fullName} />
-            <PrintField x={20} y={20} value="退職" />
-            <PrintField x={30} y={20} value="脱退一時金" />
-            <PrintField x={40} y={20} value="日本年金機構" />
-            <PrintField x={60} y={20} value={mappedData.totalExpectedJpy} className="text-right" />
-            <PrintField x={80} y={20} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={80} y={35} value={mappedData.withheldTax} className="text-right" />
-          </>
-        );
-      case 'lan2_donxin3':
-        return (
-          <>
-            <PrintField x={15} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={65} y={10} value={mappedData.taxYear_era_yr} />
-            <PrintField x={20} y={15} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={20} y={18} value={customer.fullName} />
-            <PrintField x={60} y={40} value={mappedData.totalExpectedJpy} className="text-right" />
-            <PrintField x={80} y={45} value="0" className="text-right" />
-            <PrintField x={80} y={50} value="0" className="text-right" />
-            <PrintField x={80} y={55} value="0" className="text-right" />
-            <PrintField x={80} y={60} value="0" className="text-right" />
-            <PrintField x={80} y={70} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={80} y={75} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={20} y={85} value="所法" />
-            <PrintField x={30} y={85} value="171" charSpacing={10} />
-            <PrintField x={40} y={90} value={mappedData.totalExpectedJpy} className="text-right" />
-            <PrintField x={60} y={90} value={mappedData.retirementDeductionAmount} className="text-right" />
-          </>
-        );
-    }
-  };
+  const renderDynamicFields = () => {
+    if (!currentJsonConfig) return null;
+    
+    return Object.entries(currentJsonConfig)
+      .filter(([_, coord]: [string, any]) => coord.page === activeTabConfig.page)
+      .map(([tag, coord]: [string, any]) => {
+        // PDF-lib coordinates are bottom-left
+        // CSS coordinates are top-left relative to the background
+        const xPercent = (coord.x / A4_W) * 100;
+        const yPercent = ((A4_H - coord.y) / A4_H) * 100;
+  
+        const baseTag = tag.split('#')[0];
+        
+        let textToDraw = '';
+        let isMock = false;
+        
+        if (coord.type === 'line' || coord.type === 'circle') {
+            textToDraw = ' '; // trigger render for shape
+        } else if (baseTag.startsWith('static_')) {
+           textToDraw = coord.value || '';
+        } else {
+           textToDraw = mappedData[baseTag];
+           
+           if (!textToDraw && showMockData) {
+               textToDraw = MOCK_DATA[baseTag] || '';
+               if (textToDraw) isMock = true;
+           }
 
-  const handleDownloadPdf = (type: PrintTabType) => {
-    const templateType = TEMPLATE_MAPPING[type];
-    generateDoc({ applicationId: application.id, templateType });
+           // Also checking marked values
+           if (baseTag.endsWith('_mark')) {
+               if (mappedData[baseTag]) {
+                   textToDraw = '○';
+                   isMock = false;
+               } else if (showMockData && MOCK_DATA[baseTag]) {
+                   textToDraw = '○';
+                   isMock = true;
+               } else {
+                   textToDraw = '';
+               }
+           }
+        }
+        
+        // If there's no text and it's not a shape, don't render
+        if (!textToDraw && coord.type !== 'line' && coord.type !== 'circle') return null;
+
+        return (
+          <PrintField 
+             key={tag} 
+             x={xPercent} 
+             y={yPercent} 
+             value={textToDraw} 
+             size={coord.size}
+             type={coord.type || 'text'}
+             width={coord.width}
+             height={coord.height}
+             thickness={coord.thickness}
+             isMock={isMock}
+          />
+        );
+      });
   };
 
   return (
@@ -284,14 +181,16 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
             HỒ SƠ LẦN 1
           </h3>
           <div className="flex flex-col gap-2">
-            {(['lan1_donxin_p1', 'lan1_donxin_p2', 'lan1_uyquyen'] as PrintTabType[]).map(type => (
+            {GROUP_1.map(type => {
+              const tabConf = PRINT_TABS.find(t => t.id === type)!;
+              return (
               <div 
                 key={type} 
                 className={`p-3 rounded-lg border flex items-center justify-between transition-all ${activeFormTab === type ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
               >
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-slate-700">{TEMPLATE_NAMES[type]}</span>
-                  <span className="text-xs text-slate-400 font-mono">{TEMPLATE_MAPPING[type]}.pdf</span>
+                  <span className="text-sm font-semibold text-slate-700">{tabConf.label}</span>
+                  <span className="text-xs text-slate-400 font-mono">{tabConf.template}.pdf</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -310,7 +209,7 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -321,14 +220,16 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
             HỒ SƠ LẦN 2
           </h3>
           <div className="flex flex-col gap-2">
-            {(['lan2_donxin1', 'lan2_donxin2', 'lan2_donxin3', 'lan2_uyquyen'] as PrintTabType[]).map(type => (
+            {GROUP_2.map(type => {
+              const tabConf = PRINT_TABS.find(t => t.id === type)!;
+              return (
               <div 
                 key={type} 
                 className={`p-3 rounded-lg border flex items-center justify-between transition-all ${activeFormTab === type ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
               >
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-slate-700">{TEMPLATE_NAMES[type]}</span>
-                  <span className="text-xs text-slate-400 font-mono">{TEMPLATE_MAPPING[type]}.pdf</span>
+                  <span className="text-sm font-semibold text-slate-700">{tabConf.label}</span>
+                  <span className="text-xs text-slate-400 font-mono">{tabConf.template}.pdf</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -347,7 +248,7 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -360,22 +261,35 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
         <div className="p-3 bg-slate-800 text-white flex items-center justify-between text-xs font-semibold">
           <span className="text-slate-300 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-            Xem trước: {TEMPLATE_NAMES[activeFormTab]}
+            Xem trước: {activeTabConfig.label}
           </span>
-          <button 
-            onClick={() => setShowModal(true)} 
-            className="flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white transition-colors"
-          >
-            <Maximize2 size={13} />
-            Mở rộng phóng to
-          </button>
+          <div className="flex items-center gap-3">
+            <div 
+              className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700 px-2 py-1 rounded transition-colors" 
+              onClick={() => setShowMockData(!showMockData)}
+              title="Điền dữ liệu mẫu cho các ô trống"
+            >
+              <div className={`w-6 h-3 rounded-full p-0.5 transition-colors ${showMockData ? 'bg-blue-500' : 'bg-slate-600'}`}>
+                <div className={`w-2 h-2 rounded-full bg-white transition-transform ${showMockData ? 'translate-x-3' : 'translate-x-0'}`}></div>
+              </div>
+              <span className={`text-[10px] ${showMockData ? 'text-blue-200' : 'text-slate-400'}`}>Dữ liệu mẫu</span>
+            </div>
+            
+            <button 
+              onClick={() => setShowModal(true)} 
+              className="flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white transition-colors"
+            >
+              <Maximize2 size={13} />
+              Mở rộng
+            </button>
+          </div>
         </div>
 
         {/* Live Visual Overlay Render */}
         <div className="flex-1 p-6 bg-slate-100 overflow-auto flex items-start justify-center">
           <div className="w-full max-w-[500px] border border-slate-300 shadow-md rounded">
-            <PrintContainer imageUrl={getBackgroundUrl(activeFormTab)}>
-              {renderFields(activeFormTab)}
+            <PrintContainer imageUrl={activeTabConfig.bg}>
+              {renderDynamicFields()}
             </PrintContainer>
           </div>
         </div>
@@ -396,10 +310,10 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
                 <select 
                   className="bg-slate-800 border border-slate-700 text-white text-xs px-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   value={activeFormTab}
-                  onChange={(e) => setActiveFormTab(e.target.value as PrintTabType)}
+                  onChange={(e) => setActiveFormTab(e.target.value as PrintTabId)}
                 >
-                  {(Object.keys(TEMPLATE_NAMES) as PrintTabType[]).map(type => (
-                    <option key={type} value={type}>{TEMPLATE_NAMES[type]}</option>
+                  {PRINT_TABS.map(tab => (
+                    <option key={tab.id} value={tab.id}>{tab.label}</option>
                   ))}
                 </select>
               </div>
@@ -432,8 +346,8 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
             {/* Printable Preview Pane */}
             <div id="print-area" className="flex-1 p-6 bg-slate-100 flex items-center justify-center print:bg-white print:p-0">
               <div className="w-full max-w-[850px] bg-white print:max-w-none print:w-[210mm] print:h-[297mm]">
-                <PrintContainer imageUrl={getBackgroundUrl(activeFormTab)}>
-                  {renderFields(activeFormTab)}
+                <PrintContainer imageUrl={activeTabConfig.bg}>
+                  {renderDynamicFields()}
                 </PrintContainer>
               </div>
             </div>

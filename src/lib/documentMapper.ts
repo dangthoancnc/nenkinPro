@@ -11,7 +11,7 @@ import type { Customer, NenkinApplication, WorkHistory, TaxOffice, TaxRepresenta
 // Types
 // ---------------------------------------------------------------------------
 
-export type TemplateType = 'form1' | 'form2' | 'form3' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
+export type TemplateType = 'don_xin_lan_1' | 'ininjyo_yoshiki_lan_1' | 'nouzeikanrinin' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
 
 export interface DocumentMapperInput {
   application: NenkinApplication;

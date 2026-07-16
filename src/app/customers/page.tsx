@@ -1046,7 +1046,7 @@ export default function CustomersPage() {
               ) : (
                 customers.map((customer, index) => (
                   <TableRow key={index} className="hover:bg-slate-50/50">
-                    <TableCell className="font-medium text-indigo-600 text-sm">{customer.cardNumber || '---'}</TableCell>
+                    <TableCell className="font-medium text-indigo-600 text-sm">{customer.code || '---'}</TableCell>
                     <TableCell className="font-medium text-sm">{customer.fullName}</TableCell>
                     <TableCell>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">
@@ -1114,7 +1114,7 @@ export default function CustomersPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
-                      <div className="text-xs text-indigo-600 font-medium leading-none mb-1">{customer.cardNumber || '---'}</div>
+                      <div className="text-xs text-indigo-600 font-medium leading-none mb-1">{customer.code || '---'}</div>
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700">
                         {customer.status || 'NEW'}
                       </span>

@@ -39,7 +39,7 @@ export async function GET(
       taxRepresentative: application.taxRepresentative,
     };
 
-    const templates: TemplateType[] = ['form1', 'form2', 'form3', 'bang_1_2', 'bang_3', 'giay_uy_thac_lan_2'];
+    const templates: TemplateType[] = ['don_xin_lan_1', 'ininjyo_yoshiki_lan_1', 'nouzeikanrinin', 'bang_1_2', 'bang_3', 'giay_uy_thac_lan_2'];
     let mappedData: Record<string, string> = {};
     
     // Fallback legacy compatibility mapping first

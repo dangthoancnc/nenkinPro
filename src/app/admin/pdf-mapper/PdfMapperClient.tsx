@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { Save, MousePointer2 } from 'lucide-react';
+import { Save, MousePointer2, Eye } from 'lucide-react';
+import { MOCK_DATA } from '@/lib/mockData';
 
 
 // Setup PDF worker in useEffect to avoid SSR error
@@ -134,6 +135,7 @@ export default function PdfMapperPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pdfScale, setPdfScale] = useState(1.0);
+  const [showMockData, setShowMockData] = useState(false);
 
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: '/cmaps/',
@@ -321,12 +323,19 @@ export default function PdfMapperPage() {
           
           <label className="block text-sm font-medium text-slate-600 mb-1">Chọn Form:</label>
           <select 
-            className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 mb-3"
             value={selectedTemplate}
             onChange={e => setSelectedTemplate(e.target.value)}
           >
             {templates.map(t => <option key={t} value={t}>{TEMPLATE_NAMES[t] || t}</option>)}
           </select>
+
+          <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => setShowMockData(!showMockData)}>
+            <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${showMockData ? 'bg-blue-500' : 'bg-slate-300'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showMockData ? 'translate-x-5' : 'translate-x-0'}`}></div>
+            </div>
+            <span className="text-sm font-medium text-slate-700 flex items-center gap-1"><Eye size={14}/> Hiển thị Dữ liệu mẫu</span>
+          </div>
 
           <button
             onClick={handleSave}
@@ -606,7 +615,7 @@ export default function PdfMapperPage() {
                             />
                           ) : (
                             <textarea
-                              value={coord.value !== undefined ? coord.value : ''}
+                              value={coord.value !== undefined ? coord.value : (showMockData && !tag.startsWith('static_') ? MOCK_DATA[tag.split('#')[0]] || '' : '')}
                               placeholder={tag}
                               onChange={(e) => setConfig(prev => ({...prev, [tag]: {...prev[tag], value: e.target.value}}))}
                               onMouseUp={(e) => {
