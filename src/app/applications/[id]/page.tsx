@@ -39,6 +39,7 @@ export default function ApplicationDetailPage() {
 
   type AppData = {
     customer: { 
+      id: string;
       fullName: string; 
       code: string;
       cardNumber?: string;
@@ -368,7 +369,7 @@ export default function ApplicationDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/customers/${appData.customer.id}?tab=app_details`} className="p-1.5 md:p-2 text-slate-400 hover:text-slate-900 bg-white rounded-lg border border-slate-200 shadow-sm transition-colors">
+          <Link href="/applications" className="p-1.5 md:p-2 text-slate-400 hover:text-slate-900 bg-white rounded-lg border border-slate-200 shadow-sm transition-colors">
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Link>
           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">

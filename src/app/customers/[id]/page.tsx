@@ -63,7 +63,7 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
   };
 
   const handleChange = (field: string, value: any) => {
-    setCustomer(prev => ({ ...prev, [field]: value }));
+    setCustomer((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const toggleVerify = (field: string) => {
@@ -692,25 +692,25 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                          <InputField label="Tên công ty" value={wh.companyName} onChange={(e) => {
+                          <InputField label="Tên công ty" value={wh.companyName} onChange={(e: any) => {
                             const newWh = [...customer.workHistories];
                             newWh[index].companyName = e.target.value;
                             handleChange('workHistories', newWh);
                           }} />
                         </div>
                         <div className="md:col-span-2">
-                          <InputField label="Địa chỉ công ty" value={wh.companyAddress} onChange={(e) => {
+                          <InputField label="Địa chỉ công ty" value={wh.companyAddress} onChange={(e: any) => {
                             const newWh = [...customer.workHistories];
                             newWh[index].companyAddress = e.target.value;
                             handleChange('workHistories', newWh);
                           }} />
                         </div>
-                        <InputField type="date" label="Từ ngày" value={wh.startDate ? new Date(wh.startDate).toISOString().split('T')[0] : ''} onChange={(e) => {
+                        <InputField type="date" label="Từ ngày" value={wh.startDate ? new Date(wh.startDate).toISOString().split('T')[0] : ''} onChange={(e: any) => {
                             const newWh = [...customer.workHistories];
                             newWh[index].startDate = e.target.value;
                             handleChange('workHistories', newWh);
                           }} />
-                        <InputField type="date" label="Đến ngày" value={wh.endDate ? new Date(wh.endDate).toISOString().split('T')[0] : ''} onChange={(e) => {
+                        <InputField type="date" label="Đến ngày" value={wh.endDate ? new Date(wh.endDate).toISOString().split('T')[0] : ''} onChange={(e: any) => {
                             const newWh = [...customer.workHistories];
                             newWh[index].endDate = e.target.value;
                             handleChange('workHistories', newWh);
@@ -857,7 +857,7 @@ const DocumentCard = ({ title, url, onView }: any) => (
         <ZoomIn className="w-4 h-4" /> Xem ảnh trực tiếp
       </Button>
     ) : (
-      <Button variant="dashed" size="sm" className="w-full border-dashed bg-slate-50 text-slate-500 flex gap-2">
+      <Button variant="outline" size="sm" className="w-full border-dashed bg-slate-50 text-slate-500 flex gap-2">
         <UploadCloud className="w-4 h-4" /> Tải ảnh lên
       </Button>
     )}
