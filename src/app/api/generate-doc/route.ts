@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validation Check
-    const requiredTags = getRequiredTags(templateType);
+    const requiredTags = getRequiredTags(templateType, mappedData);
     const missingDataFields: string[] = [];
     const missingMappingFields: string[] = [];
 

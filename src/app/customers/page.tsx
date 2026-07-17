@@ -835,6 +835,10 @@ export default function CustomersPage() {
                   <h3 className="font-semibold text-slate-800 mb-2 border-l-4 border-indigo-500 pl-2">Dữ liệu Sổ Nenkin</h3>
                   <div className="space-y-4">
                     <VerifiedInput hasError={hasErr('nenkinNumber')} label="Số Nenkin (Basic Pension Number)" value={activeCustomer.nenkinNumber || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('nenkinNumber', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.nenkinNumber} onToggleVerify={() => toggleVerify('nenkinNumber')} />
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">Mã số đăng ký hưu trí (nếu có)</label>
+                      <input type="text" className="w-full h-9 px-3 border border-slate-300 rounded-md text-sm" value={activeCustomer.pensionSystemRegistrationNumber || ''} onChange={(e) => handleFieldChange('pensionSystemRegistrationNumber', e.target.value)} />
+                    </div>
                     <VerifiedInput hasError={hasErr('fullName')} label="Họ tên (Kanji)" value={activeCustomer.fullName || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('fullName', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.fullName} onToggleVerify={() => toggleVerify('fullName')} />
                     <VerifiedInput hasError={hasErr('fullNameFurigana')} label="Họ tên (Furigana/Kana/Romaji)" value={activeCustomer.fullNameFurigana || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('fullNameFurigana', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.fullNameFurigana} onToggleVerify={() => toggleVerify('fullNameFurigana')} />
                     <VerifiedInput hasError={hasErr('nenkinDob')} label="Ngày sinh" type="date" value={activeCustomer.dob || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('dob', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.nenkinDob} onToggleVerify={() => toggleVerify('nenkinDob')} />
@@ -876,7 +880,23 @@ export default function CustomersPage() {
                   <h3 className="font-semibold text-slate-800 mb-2 border-l-4 border-indigo-500 pl-2">Dữ liệu Ngân hàng</h3>
                   <div className="space-y-4">
                     <VerifiedInput hasError={hasErr('bankName')} label="Tên Ngân hàng (銀行名)" value={activeCustomer.bankName || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('bankName', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.bankName} onToggleVerify={() => toggleVerify('bankName')} />
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">Mã Ngân hàng (金融機関コード)</label>
+                      <input type="text" className="w-full h-9 px-3 border border-slate-300 rounded-md text-sm" value={activeCustomer.bankInstitutionCode || ''} onChange={(e) => handleFieldChange('bankInstitutionCode', e.target.value)} />
+                    </div>
                     <VerifiedInput hasError={hasErr('branchName')} label="Tên Chi nhánh (支店名)" value={activeCustomer.branchName || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('branchName', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.branchName} onToggleVerify={() => toggleVerify('branchName')} />
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">Mã Chi nhánh (支店コード)</label>
+                      <input type="text" className="w-full h-9 px-3 border border-slate-300 rounded-md text-sm" value={activeCustomer.branchCode || ''} onChange={(e) => handleFieldChange('branchCode', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">Loại tài khoản</label>
+                      <select value={activeCustomer.bankAccountType || ''} onChange={(e: any) => handleFieldChange('bankAccountType', e.target.value)} className="w-full h-9 px-2.5 py-1 border border-slate-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Chọn --</option>
+                        <option value="ORDINARY">Thường (普通 - Ordinary)</option>
+                        <option value="CURRENT">Tiết kiệm (当座 - Current)</option>
+                      </select>
+                    </div>
                     <VerifiedInput hasError={hasErr('accountNumber')} label="Số Tài khoản (口座番号)" value={activeCustomer.accountNumber || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('accountNumber', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.accountNumber} onToggleVerify={() => toggleVerify('accountNumber')} />
                     <VerifiedInput hasError={hasErr('accountName')} label="Chủ tài khoản (口座名義人)" value={activeCustomer.accountName || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('accountName', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.accountName} onToggleVerify={() => toggleVerify('accountName')} />
                     <VerifiedInput hasError={hasErr('swiftCode')} label="SWIFT Code" value={activeCustomer.swiftCode || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('swiftCode', e.target.value)} isVerificationMode={isVerificationMode} isVerified={verifiedFields.swiftCode} onToggleVerify={() => toggleVerify('swiftCode')} />

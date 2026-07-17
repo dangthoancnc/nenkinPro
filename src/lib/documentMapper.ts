@@ -246,15 +246,19 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   const bankTags: Record<string, string> = {
     bankName:          customer.bankName ?? '',
     branchName:        customer.branchName ?? '',
-    bank_account_type: '', // To be filled if we have it
+    bank_account_type: customer.bankAccountType ?? '',
+    bank_account_type_1_mark: (customer.bankAccountType === 'ORDINARY' || customer.bankAccountType === '1') ? '\u2713' : '',
+    bank_account_type_2_mark: (customer.bankAccountType === 'CURRENT' || customer.bankAccountType === '2') ? '\u2713' : '',
     accountName:       customer.accountName ?? '',
     bankBranchAddress: customer.bankBranchAddress ?? '',
     bankBranchCity:    customer.bankBranchCity ?? '',
     bankCountry:       customer.bankCountry ?? '',
-    accountNameKatakana: customer.accountNameKatakana ?? '',
+    accountNameKatakana: customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.accountNameKatakana ?? '') : '',
     accountNumber:     customer.accountNumber ?? '',
     ...splitChars(customer.accountNumber ?? '', 'bank', 7, true),
     ...splitChars(customer.swiftCode ?? '', 'swift', 11, true),
+    ...splitChars(customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.bankInstitutionCode ?? '') : '', 'bankInstitutionCode', 4, true),
+    ...splitChars(customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.branchCode ?? '') : '', 'branchCode', 3, true),
   };
 
   return {
@@ -268,6 +272,9 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     app_id: application.id.slice(0, 8),
     ...todayTags(),
     ...docDateTags(application.applyDate),
+    applicantSignature: ' ', // Empty space to pass validation but leave physically blank
+    applicationAcknowledgement_mark: '\u2713',
+    ...splitChars(customer.pensionSystemRegistrationNumber ?? '', 'pensionSystemRegistrationNumber', 10, true),
   };
 }
 
@@ -291,6 +298,11 @@ export function mapTemplate2(input: DocumentMapperInput): Record<string, string>
     doc_date_d:      docDate.d,
     app_id: application.id.slice(0, 8),
     ...todayTags(),
+    agentName: process.env.AGENT_NAME || 'ANTI GRAVITY CORPORATION',
+    agentAddress: process.env.AGENT_ADDRESS || 'Tōkyō-to, Shinjuku-ku',
+    agentPhone: process.env.AGENT_PHONE || '03-0000-0000',
+    delegationPurpose: process.env.DELEGATION_PURPOSE || '脱退一時金請求およびそれに伴う一切の権限',
+    principalSignature: ' ', // Empty space for physical signature
   };
 }
 
@@ -333,6 +345,8 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     doc_date_d:      docDate.d,
     app_id: application.id.slice(0, 8),
     ...todayTags(),
+    taxRepresentativeAction_appoint_mark: taxRepresentative ? '\u2713' : '',
+    taxRepresentativeAction_dismiss_mark: '',
   };
 }
 

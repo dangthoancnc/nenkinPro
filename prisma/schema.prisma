@@ -160,11 +160,15 @@ model Customer {
   bankBranchAddress      String?
   bankBranchCity         String?
   bankCountry            String?
+  bankInstitutionCode    String?
+  branchCode             String?
+  bankAccountType        String?
   accountNameKatakana    String?
   occupation             String?
   departureDate          DateTime?
   headOfHouseholdName    String?
   relationshipToHead     String?
+  pensionSystemRegistrationNumber String?
 
   overseasStreet         String?
   overseasCity           String?

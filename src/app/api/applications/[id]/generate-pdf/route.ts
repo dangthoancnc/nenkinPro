@@ -94,7 +94,7 @@ export async function GET(
     }
 
     // Validation Check
-    const requiredTags = getRequiredTags(templateName);
+    const requiredTags = getRequiredTags(templateName, finalData);
     const missingDataFields: string[] = [];
     const missingMappingFields: string[] = [];
 
