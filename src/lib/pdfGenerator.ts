@@ -2,6 +2,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
+import { PDF_LINE_HEIGHT } from './pdfCoords';
 
 // Define the type for coordinate mapping
 export type PdfCoordinate = {
@@ -94,7 +95,7 @@ export async function fillPdfTemplate(
       font: customFont,
       color: rgb(0, 0, 0),
       maxWidth: coord.width ? coord.width : undefined,
-      lineHeight: (coord.size || 12) * 1.2,
+      lineHeight: (coord.size || 12) * PDF_LINE_HEIGHT,
       wordBreaks: [' '],
     });
   }

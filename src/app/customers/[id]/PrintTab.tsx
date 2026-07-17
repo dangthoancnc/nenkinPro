@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Printer, Download, Maximize2, Loader2, X, Eye } from 'lucide-react';
-import { PrintContainer, PrintField } from '@/components/PrintOverlay';
+import { PrintContainer, PrintField, A4_W, A4_H } from '@/components/PrintOverlay';
+import { pdfXToPercent, pdfYToPercent } from '@/lib/pdfCoords';
 import { useGenerateDoc } from '@/hooks/useGenerateDoc';
 import { MOCK_DATA } from '@/lib/mockData';
 
@@ -11,24 +14,23 @@ interface PrintTabConfig {
   label: string;
   template: 'don_xin_lan_1' | 'ininjyo_yoshiki_lan_1' | 'nouzeikanrinin' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
   page: number;
-  bg: string;
+  pdfFile: string; // Path to source PDF (same file used by Admin Mapper)
 }
 
 const PRINT_TABS: PrintTabConfig[] = [
-  { id: 'don_xin_lan_1_p1', label: 'Đơn Xin Lần 1 (Trang 1)', template: 'don_xin_lan_1', page: 0, bg: '/templates/nenkin_lan1/don_xin_lan_1_p1.jpg' },
-  { id: 'don_xin_lan_1_p2', label: 'Đơn Xin Lần 1 (Trang 2)', template: 'don_xin_lan_1', page: 1, bg: '/templates/nenkin_lan1/don_xin_lan_1_p2.jpg' },
-  { id: 'ininjyo_yoshiki_lan_1', label: 'Giấy Ủy Quyền Lần 1', template: 'ininjyo_yoshiki_lan_1', page: 0, bg: '/templates/nenkin_lan1/ininjyo_yoshiki_lan_1.jpg' },
-  { id: 'bang_1_2_p1', label: 'Bảng 1 & 2 (Trang 1)', template: 'bang_1_2', page: 0, bg: '/templates/nenkin_lan2/bang_1_2_p1.jpg' },
-  { id: 'bang_1_2_p2', label: 'Bảng 1 & 2 (Trang 2)', template: 'bang_1_2', page: 1, bg: '/templates/nenkin_lan2/bang_1_2_p2.jpg' },
-  { id: 'bang_3', label: 'Bảng Số 3 (Lần 2)', template: 'bang_3', page: 0, bg: '/templates/nenkin_lan2/bang_3.jpg' },
-  { id: 'giay_uy_thac_lan_2', label: 'Giấy Ủy Thác Lần 2', template: 'giay_uy_thac_lan_2', page: 0, bg: '/templates/nenkin_lan2/giay_uy_thac_lan_2.jpg' },
+  { id: 'don_xin_lan_1_p1', label: 'Đơn Xin Lần 1 (Trang 1)', template: 'don_xin_lan_1', page: 0, pdfFile: '/forms/don_xin_lan_1.pdf' },
+  { id: 'don_xin_lan_1_p2', label: 'Đơn Xin Lần 1 (Trang 2)', template: 'don_xin_lan_1', page: 1, pdfFile: '/forms/don_xin_lan_1.pdf' },
+  { id: 'ininjyo_yoshiki_lan_1', label: 'Giấy Ủy Quyền Lần 1', template: 'ininjyo_yoshiki_lan_1', page: 0, pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf' },
+  { id: 'bang_1_2_p1', label: 'Bảng 1 & 2 (Trang 1)', template: 'bang_1_2', page: 0, pdfFile: '/forms/bang_1_2.pdf' },
+  { id: 'bang_1_2_p2', label: 'Bảng 1 & 2 (Trang 2)', template: 'bang_1_2', page: 1, pdfFile: '/forms/bang_1_2.pdf' },
+  { id: 'bang_3', label: 'Bảng Số 3 (Lần 2)', template: 'bang_3', page: 0, pdfFile: '/forms/bang_3.pdf' },
+  { id: 'giay_uy_thac_lan_2', label: 'Giấy Ủy Thác Lần 2', template: 'giay_uy_thac_lan_2', page: 0, pdfFile: '/forms/giay_uy_thac_lan_2.pdf' },
 ];
 
 const GROUP_1: PrintTabId[] = ['don_xin_lan_1_p1', 'don_xin_lan_1_p2', 'ininjyo_yoshiki_lan_1'];
 const GROUP_2: PrintTabId[] = ['bang_1_2_p1', 'bang_1_2_p2', 'bang_3', 'giay_uy_thac_lan_2'];
 
-const A4_W = 595.32;
-const A4_H = 841.92;
+// A4_W and A4_H are now imported from PrintOverlay
 
 export default function PrintTab({ customer: initialCustomer }: { customer: any }) {
   const application = initialCustomer.applications?.[0];
@@ -114,8 +116,8 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
       .map(([tag, coord]: [string, any]) => {
         // PDF-lib coordinates are bottom-left
         // CSS coordinates are top-left relative to the background
-        const xPercent = (coord.x / A4_W) * 100;
-        const yPercent = ((A4_H - coord.y) / A4_H) * 100;
+        const xPercent = pdfXToPercent(coord.x);
+        const yPercent = pdfYToPercent(coord.y);
   
         const baseTag = tag.split('#')[0];
         
@@ -288,7 +290,7 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
         {/* Live Visual Overlay Render */}
         <div className="flex-1 p-6 bg-slate-100 overflow-auto flex items-start justify-center">
           <div className="w-full max-w-[500px] border border-slate-300 shadow-md rounded">
-            <PrintContainer imageUrl={activeTabConfig.bg}>
+            <PrintContainer pdfFile={activeTabConfig.pdfFile} pageNumber={activeTabConfig.page}>
               {renderDynamicFields()}
             </PrintContainer>
           </div>
@@ -346,7 +348,7 @@ export default function PrintTab({ customer: initialCustomer }: { customer: any 
             {/* Printable Preview Pane */}
             <div id="print-area" className="flex-1 p-6 bg-slate-100 flex items-center justify-center print:bg-white print:p-0">
               <div className="w-full max-w-[850px] bg-white print:max-w-none print:w-[210mm] print:h-[297mm]">
-                <PrintContainer imageUrl={activeTabConfig.bg}>
+                <PrintContainer pdfFile={activeTabConfig.pdfFile} pageNumber={activeTabConfig.page}>
                   {renderDynamicFields()}
                 </PrintContainer>
               </div>

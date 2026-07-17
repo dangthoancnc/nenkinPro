@@ -6,7 +6,7 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Save, MousePointer2, Eye } from 'lucide-react';
 import { MOCK_DATA } from '@/lib/mockData';
-
+import { A4_W, A4_H, PDF_LINE_HEIGHT } from '@/lib/pdfCoords';
 
 // Setup PDF worker in useEffect to avoid SSR error
 const TEMPLATE_NAMES: Record<string, string> = {
@@ -242,9 +242,6 @@ export default function PdfMapperPage() {
 
     const renderedHeight = rect.height;
     const renderedWidth = rect.width;
-
-    const A4_W = 595.32;
-    const A4_H = 841.92;
 
     const scaleX = A4_W / (renderedWidth / pdfScale);
     const scaleY = A4_H / (renderedHeight / pdfScale);
@@ -579,7 +576,6 @@ export default function PdfMapperPage() {
                   {Object.entries(config)
                     .filter(([_, coord]) => coord.page === index)
                     .map(([tag, coord]) => {
-                      const A4_H = 841.92;
                       const top = A4_H - coord.y;
                       const left = coord.x;
                       
@@ -631,16 +627,17 @@ export default function PdfMapperPage() {
                               }}
                               style={{ 
                                 fontSize: `${(coord.size || 12) * pdfScale}px`,
+                                fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
                                 width: coord.width ? `${coord.width * pdfScale}px` : undefined,
                                 height: coord.height ? `${coord.height * pdfScale}px` : undefined,
                                 minWidth: '50px',
-                                minHeight: `${(coord.size || 12) * pdfScale * 1.5}px`,
+                                minHeight: `${(coord.size || 12) * pdfScale * PDF_LINE_HEIGHT}px`,
                                 resize: 'both',
                                 overflow: 'hidden',
-                                lineHeight: '1.2',
+                                lineHeight: `${PDF_LINE_HEIGHT}`,
                                 whiteSpace: coord.width ? 'pre-wrap' : 'nowrap'
                               }}
-                              className={`bg-transparent outline-none px-0.5 py-0 rounded ${isSelected ? 'border border-blue-500 bg-blue-50/50 text-blue-900 shadow-sm ring-2 ring-blue-300' : 'border-b border-dashed border-slate-400 text-slate-800 hover:bg-slate-50/50'} focus:ring-0 block`}
+                              className={`bg-transparent outline-none p-0 rounded font-semibold ${isSelected ? 'border border-blue-500 bg-blue-50/50 text-blue-900 shadow-sm ring-2 ring-blue-300' : 'border-b border-dashed border-slate-400 text-slate-800 hover:bg-slate-50/50'} focus:ring-0 block`}
                             />
                           )}
                         </div>
