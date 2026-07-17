@@ -64,6 +64,10 @@ export interface Customer {
   accountName?: string;
   bankBranchAddress?: string;
   bankCountry?: string;
+  bankInstitutionCode?: string;
+  branchCode?: string;
+  bankAccountType?: string;
+  pensionSystemRegistrationNumber?: string;
   createdAt?: string;
   updatedAt?: string;
   applicationId?: string;

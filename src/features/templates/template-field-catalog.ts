@@ -18,7 +18,7 @@ export interface FieldGroup {
 
 const ALL_TEMPLATES = ['*'];
 
-const generateSplitTags = (prefix: string, count: number, labelPrefix: string, appliesTo: string[] = ALL_TEMPLATES, required = false): TemplateField[] => 
+const generateSplitTags = (prefix: string, count: number, labelPrefix: string, appliesTo: string[] = ALL_TEMPLATES, required: boolean | ((context: any) => boolean) = false): TemplateField[] => 
   Array.from({ length: count }, (_, i) => ({ 
     id: `${prefix}_${i + 1}`, 
     label: `${labelPrefix} (Ký tự ${i + 1})`,
