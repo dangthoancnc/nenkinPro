@@ -33,7 +33,7 @@ export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = fa
   // Setup PDF.js worker on first mount
   useEffect(() => {
     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     }
   }, []);
 

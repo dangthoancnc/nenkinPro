@@ -58,8 +58,8 @@ export default function PdfMapperPage() {
 
   // Fetch templates list and setup PDF worker
   useEffect(() => {
-    // Setup PDF worker on client side only, using local file to prevent CORS errors
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    // Setup PDF worker on client side only, using local file to prevent CORS and version mismatch errors
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
     fetch('/api/templates/mapping')
       .then(res => res.json())
