@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { A4_W, A4_H, PDF_LINE_HEIGHT } from '@/lib/pdfCoords';
+import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCoords';
 
 // Re-export for consumers that import from PrintOverlay
 export { A4_W, A4_H };
@@ -119,7 +119,9 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
     left: `${x}%`,
     top: `${y}%`,
     position: 'absolute',
-    transform: 'translate(0, -100%)', // Match PdfMapperClient & pdf-lib baseline anchoring
+    transform: type === 'text' || type === undefined ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
+    margin: 0,
+    padding: 0,
   };
 
   if (type === 'line') {
@@ -172,7 +174,7 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
 
   return (
     <div
-      className={`absolute whitespace-nowrap ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`}
+      className={`absolute ${width ? 'whitespace-pre-wrap' : 'whitespace-pre'} ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`}
       style={{
         ...style,
         fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",

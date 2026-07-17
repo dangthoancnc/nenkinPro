@@ -13,6 +13,12 @@ export const A4_H = 841.92;
 /** Unified line-height multiplier used across all render layers */
 export const PDF_LINE_HEIGHT = 1.2;
 
+/** 
+ * Exact offset to match HTML translateY() with pdf-lib's baseline anchoring.
+ * Typically ~0.85em for Noto Sans JP to shift from top-left CSS positioning to baseline.
+ */
+export const PDF_BASELINE_OFFSET_EM = -0.85;
+
 /** Convert pdf-lib Y (bottom-left origin) to CSS top % (top-left origin) */
 export function pdfYToPercent(pdfY: number): number {
   return ((A4_H - pdfY) / A4_H) * 100;

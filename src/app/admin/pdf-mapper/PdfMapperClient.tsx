@@ -6,7 +6,7 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Save, MousePointer2, Eye } from 'lucide-react';
 import { MOCK_DATA } from '@/lib/mockData';
-import { A4_W, A4_H, PDF_LINE_HEIGHT } from '@/lib/pdfCoords';
+import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCoords';
 
 // Setup PDF worker in useEffect to avoid SSR error
 const TEMPLATE_NAMES: Record<string, string> = {
@@ -586,9 +586,14 @@ export default function PdfMapperPage() {
                           key={tag}
                           onClick={(e) => { e.stopPropagation(); setSelectedTag(tag); }}
                           className={`absolute group cursor-pointer ${isSelected ? 'z-50' : 'z-10'}`}
-                          style={{ left: `${left * pdfScale}px`, top: `${top * pdfScale}px`, transform: 'translate(0, -100%)' }} 
+                          style={{ 
+                            left: `${left * pdfScale}px`, 
+                            top: `${top * pdfScale}px`, 
+                            transform: (!coord.type || coord.type === 'text') ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
+                            fontSize: `${(coord.size || 12) * pdfScale}px` 
+                          }} 
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 ${isSelected ? 'bg-blue-600 ring-2 ring-blue-300 z-50' : 'bg-red-500 z-10'}`}></div>
+                          <div className={`w-1.5 h-1.5 rounded-full absolute bottom-0 left-0 -translate-x-1/2 ${(!coord.type || coord.type === 'text') ? `translate-y-[${-PDF_BASELINE_OFFSET_EM}em]` : 'translate-y-1/2'} ${isSelected ? 'bg-blue-600 ring-2 ring-blue-300 z-50' : 'bg-red-500 z-10'}`}></div>
                           
                           {coord.type === 'line' ? (
                             <div 
@@ -626,7 +631,7 @@ export default function PdfMapperPage() {
                                 }
                               }}
                               style={{ 
-                                fontSize: `${(coord.size || 12) * pdfScale}px`,
+                                fontSize: 'inherit',
                                 fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
                                 width: coord.width ? `${coord.width * pdfScale}px` : undefined,
                                 height: coord.height ? `${coord.height * pdfScale}px` : undefined,
@@ -635,9 +640,11 @@ export default function PdfMapperPage() {
                                 resize: 'both',
                                 overflow: 'hidden',
                                 lineHeight: `${PDF_LINE_HEIGHT}`,
-                                whiteSpace: coord.width ? 'pre-wrap' : 'nowrap'
+                                whiteSpace: coord.width ? 'pre-wrap' : 'pre',
+                                margin: 0,
+                                padding: 0
                               }}
-                              className={`bg-transparent outline-none p-0 rounded font-semibold ${isSelected ? 'border border-blue-500 bg-blue-50/50 text-blue-900 shadow-sm ring-2 ring-blue-300' : 'border-b border-dashed border-slate-400 text-slate-800 hover:bg-slate-50/50'} focus:ring-0 block`}
+                              className={`bg-transparent outline-none rounded font-semibold ${isSelected ? 'border border-blue-500 bg-blue-50/50 text-blue-900 shadow-sm ring-2 ring-blue-300' : 'border-b border-dashed border-slate-400 text-slate-800 hover:bg-slate-50/50'} focus:ring-0 block`}
                             />
                           )}
                         </div>
