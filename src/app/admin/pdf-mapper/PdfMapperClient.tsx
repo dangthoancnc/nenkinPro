@@ -18,119 +18,7 @@ const TEMPLATE_NAMES: Record<string, string> = {
   giay_uy_thac_lan_2: 'Giấy Ủy Thác Lần 2',
 };
 
-const generateSplitTags = (prefix: string, count: number, labelPrefix: string) => 
-  Array.from({ length: count }, (_, i) => ({ id: `${prefix}_${i + 1}`, label: `${labelPrefix} [${i + 1}]` }));
-
-const TAG_GROUPS = [
-  {
-    name: '1. Thông tin cá nhân',
-    tags: [
-      { id: 'fullName', label: 'Họ và tên (Romaji)' }, { id: 'fullNameFurigana', label: 'Họ tên (Furigana)' },
-      { id: 'lastName', label: 'Họ' }, { id: 'firstName', label: 'Tên' },
-      { id: 'sex', label: 'Giới tính' }, { id: 'nationality', label: 'Quốc tịch' },
-      { id: 'myNumber', label: 'Mã số cá nhân' }, ...generateSplitTags('my_num', 12, 'MyNumber'),
-      { id: 'nenkinNumber', label: 'Mã số hưu trí' }, ...generateSplitTags('nenkin', 10, 'Nenkin'),
-      { id: 'phone', label: 'Số ĐT' }, ...generateSplitTags('phone', 11, 'SĐT'),
-      { id: 'permRes_YES_mark', label: 'Vĩnh trú: CÓ (○)' }, { id: 'permRes_NO_mark', label: 'Vĩnh trú: KHÔNG (○)' },
-      { id: 'sex_M_mark', label: 'Giới tính: Nam (○)' }, { id: 'sex_F_mark', label: 'Giới tính: Nữ (○)' },
-      { id: 'occupation', label: 'Nghề nghiệp' },
-      { id: 'headOfHouseholdName', label: 'Tên Chủ hộ' }, { id: 'relationshipToHead', label: 'Quan hệ với chủ hộ' },
-    ]
-  },
-  {
-    name: '2. Địa chỉ & Nơi cư trú',
-    tags: [
-      { id: 'address', label: 'Địa chỉ tại Nhật' },
-      { id: 'postalCodeFormat', label: 'Mã Bưu điện Nhật' }, ...generateSplitTags('post', 7, 'Mã BĐ Nhật'),
-      { id: 'overseasCountry', label: 'Quốc gia hải ngoại' },
-      { id: 'overseasStreet', label: 'Số nhà, đường hải ngoại' },
-      { id: 'overseasCity', label: 'Thành phố hải ngoại' },
-      { id: 'overseasProvince', label: 'Tỉnh/Bang hải ngoại' },
-      { id: 'overseasPostalCode', label: 'Mã bưu điện hải ngoại' },
-      { id: 'permResDate_full', label: 'Ngày cấp vĩnh trú (YYYY/MM/DD)' },
-      { id: 'permResDate_y', label: 'Năm cấp vĩnh trú' }, { id: 'permResDate_m', label: 'Tháng cấp vĩnh trú' }, { id: 'permResDate_d', label: 'Ngày cấp vĩnh trú' },
-      ...generateSplitTags('permResDate_y', 4, 'Năm cấp vĩnh trú'), ...generateSplitTags('permResDate_m', 2, 'Tháng cấp vĩnh trú'), ...generateSplitTags('permResDate_d', 2, 'Ngày cấp vĩnh trú'),
-    ]
-  },
-  {
-    name: '3. Ngày tháng',
-    tags: [
-      { id: 'dob_y', label: 'Năm sinh (Tây)' }, { id: 'dob_m', label: 'Tháng sinh' }, { id: 'dob_d', label: 'Ngày sinh' },
-      { id: 'dob_era', label: 'Thời đại (Romaji)' }, { id: 'dob_era_jp', label: 'Thời đại (Kanji)' }, { id: 'dob_era_yr', label: 'Năm sinh (Nhật)' },
-      ...generateSplitTags('dob_y', 4, 'Năm sinh'), ...generateSplitTags('dob_m', 2, 'Tháng sinh'), ...generateSplitTags('dob_d', 2, 'Ngày sinh'), ...generateSplitTags('dob_era_yr', 2, 'Năm sinh (Nhật)'),
-      { id: 'departureDate_y', label: 'Năm xuất cảnh' }, { id: 'departureDate_m', label: 'Tháng xuất cảnh' }, { id: 'departureDate_d', label: 'Ngày xuất cảnh' },
-      ...generateSplitTags('departureDate_y', 4, 'Năm xuất cảnh'), ...generateSplitTags('departureDate_m', 2, 'Tháng xuất cảnh'), ...generateSplitTags('departureDate_d', 2, 'Ngày xuất cảnh'),
-      { id: 'applyDate_y', label: 'Năm làm đơn' }, { id: 'applyDate_m', label: 'Tháng làm đơn' }, { id: 'applyDate_d', label: 'Ngày làm đơn' },
-      ...generateSplitTags('applyDate_y', 4, 'Năm làm đơn'), ...generateSplitTags('applyDate_m', 2, 'Tháng làm đơn'), ...generateSplitTags('applyDate_d', 2, 'Ngày làm đơn'),
-      { id: 'applyDate_era_yr', label: 'Năm làm đơn (Nhật)' }, ...generateSplitTags('applyDate_era_yr', 2, 'Năm làm đơn (Nhật)'),
-      { id: 'noticeDate_y', label: 'Năm thông báo' }, { id: 'noticeDate_m', label: 'Tháng thông báo' }, { id: 'noticeDate_d', label: 'Ngày thông báo' },
-      ...generateSplitTags('noticeDate_y', 4, 'Năm thông báo'), ...generateSplitTags('noticeDate_m', 2, 'Tháng thông báo'), ...generateSplitTags('noticeDate_d', 2, 'Ngày thông báo'),
-      ...generateSplitTags('taxYear_era_yr', 2, 'Năm khai thuế (Nhật)'),
-      { id: 'today_era_jp', label: 'Ngày hôm nay (元号)' },
-      { id: 'today_era_yr', label: 'Ngày hôm nay (年)' },
-      { id: 'today_m', label: 'Ngày hôm nay (tháng)' },
-      { id: 'today_d', label: 'Ngày hôm nay (ngày)' },
-      { id: 'doc_date_era_jp', label: 'Ngày văn bản (元号)' },
-      { id: 'doc_date_era_yr', label: 'Ngày văn bản (年)' },
-      { id: 'doc_date_m', label: 'Ngày văn bản (tháng)' },
-      { id: 'doc_date_d', label: 'Ngày văn bản (ngày)' },
-    ]
-  },
-  {
-    name: '4. Tài khoản Ngân hàng',
-    tags: [
-      { id: 'bankName', label: 'Tên Ngân hàng' }, { id: 'branchName', label: 'Tên chi nhánh' }, { id: 'bankBranchAddress', label: 'Địa chỉ chi nhánh' },
-      { id: 'bankBranchCity', label: 'TP chi nhánh' }, { id: 'bankCountry', label: 'Quốc gia NH' },
-      { id: 'accountNumber', label: 'Số tài khoản' }, { id: 'accountName', label: 'Tên tài khoản (Romaji)' },
-      { id: 'accountNameKatakana', label: 'Tên tài khoản (Katakana)' },
-      { id: 'swiftCode', label: 'SWIFT Code' },
-      ...generateSplitTags('bank', 7, 'Số TK'), ...generateSplitTags('swift', 11, 'SWIFT'),
-      { id: 'bank_account_type', label: 'Loại tài khoản' },
-    ]
-  },
-  {
-    name: '5. Lịch sử làm việc',
-    tags: Array.from({ length: 5 }).flatMap((_, i) => [
-      { id: `workHistory_${i+1}_companyName`, label: `Cty ${i+1}: Tên` }, { id: `workHistory_${i+1}_companyAddress`, label: `Cty ${i+1}: Địa chỉ` },
-      { id: `workHistory_${i+1}_start_full`, label: `Cty ${i+1} BĐ (YYYY/MM/DD)` },
-      ...generateSplitTags(`workHistory_${i+1}_start_y`, 4, `Cty ${i+1} Năm BĐ`), ...generateSplitTags(`workHistory_${i+1}_start_m`, 2, `Cty ${i+1} Tháng BĐ`), ...generateSplitTags(`workHistory_${i+1}_start_d`, 2, `Cty ${i+1} Ngày BĐ`),
-      { id: `workHistory_${i+1}_end_full`, label: `Cty ${i+1} KT (YYYY/MM/DD)` },
-      ...generateSplitTags(`workHistory_${i+1}_end_y`, 4, `Cty ${i+1} Năm KT`), ...generateSplitTags(`workHistory_${i+1}_end_m`, 2, `Cty ${i+1} Tháng KT`), ...generateSplitTags(`workHistory_${i+1}_end_d`, 2, `Cty ${i+1} Ngày KT`),
-      { id: `workHistory_${i+1}_type_1_mark`, label: `Cty ${i+1}: Quốc dân (○)` },
-      { id: `workHistory_${i+1}_type_2_mark`, label: `Cty ${i+1}: LĐXH (○)` },
-      { id: `workHistory_${i+1}_type_3_mark`, label: `Cty ${i+1}: Hàng hải (○)` },
-      { id: `workHistory_${i+1}_type_4_mark`, label: `Cty ${i+1}: Hỗ tương (○)` },
-    ])
-  },
-  {
-    name: '6. Nộp thuế & Đại diện',
-    tags: [
-      { id: 'taxOfficeName', label: 'Tên Cục Thuế' }, { id: 'taxOfficeAddress', label: 'Địa chỉ Cục Thuế' },
-      ...generateSplitTags('tax_post', 7, 'Mã BĐ Thuế'),
-      { id: 'rep_fullName', label: 'Đại diện: Tên' }, { id: 'rep_fullNameKana', label: 'Đại diện: Tên Furigana' },
-      { id: 'rep_phone', label: 'Đại diện: SĐT' }, ...generateSplitTags('rep_phone', 11, 'Đại diện: SĐT'),
-      { id: 'rep_postalCodeFormat', label: 'Đại diện: Mã BĐ' }, ...generateSplitTags('rep_post', 7, 'Đại diện: Mã BĐ'),
-      { id: 'rep_address', label: 'Đại diện: Địa chỉ' }, { id: 'rep_relationship', label: 'Đại diện: Quan hệ' },
-    ]
-  },
-  {
-    name: '7. Tính Thuế (Bảng 1, 2, 3)',
-    tags: [
-      { id: 'totalExpectedJpy', label: 'Tổng tiền Nenkin (¥)' },
-      { id: 'withheldTax', label: 'Thuế đã khấu trừ (¥)' },
-      { id: 'received1stJpy', label: 'Tiền nhận Lần 1 (¥)' },
-      { id: 'received2ndJpy', label: 'Tiền nhận Lần 2 (¥)' },
-      { id: 'tax2ndJpy', label: 'Thuế Lần 2 (¥)' },
-      { id: 'retirementDeductionAmount', label: 'Mức miễn giảm thu nhập' },
-      { id: 'taxableRetirementIncome', label: 'Thu nhập chịu thuế (76)' },
-      { id: 'calculatedTax', label: 'Thuế đã tính (92)' },
-      { id: 'refundAmount', label: 'Tiền xin hoàn (114)' },
-      { id: 'serviceFeeJpy', label: 'Phí dịch vụ (¥)' },
-      { id: 'exchangeRate', label: 'Tỷ giá' },
-      { id: 'serviceFeeVnd', label: 'Phí dịch vụ (VNĐ)' },
-    ]
-  }
-];
+import { getTagsForTemplate, getRequiredTags, FieldGroup } from '@/features/templates/template-field-catalog';
 
 type Coordinate = { x: number; y: number; size: number; page: number; value?: string; type?: string; width?: number; height?: number; thickness?: number };
 type ConfigMap = Record<string, Coordinate>;
@@ -157,7 +45,8 @@ export default function PdfMapperPage() {
   const getTagLabel = (tagId: string) => {
     if (!tagId) return '';
     const baseTag = tagId.split('#')[0];
-    for (const group of TAG_GROUPS) {
+    const tagsForTemplate = getTagsForTemplate(selectedTemplate || '*');
+    for (const group of tagsForTemplate) {
       const found = group.tags.find(t => t.id === baseTag);
       if (found) return found.label;
     }
@@ -291,6 +180,12 @@ export default function PdfMapperPage() {
   };
 
   const handleSave = async () => {
+    const requiredTags = getRequiredTags(selectedTemplate || '*');
+    const missingTags = requiredTags.filter(t => !config[t.id]);
+    if (missingTags.length > 0) {
+      const names = missingTags.map(t => t.label).join(', ');
+      alert(`Cảnh báo: Có ${missingTags.length} trường bắt buộc chưa được ghim trên biểu mẫu này:\n\n${names}\n\nLưu ý: Bạn vẫn có thể lưu lại, nhưng sẽ bị chặn khi xuất PDF.`);
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/templates/mapping', {
@@ -357,7 +252,7 @@ export default function PdfMapperPage() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">1. Chọn thẻ để ghim</h3>
             <p className="text-xs text-slate-500 mb-3">Bấm vào một thẻ bên dưới, sau đó click vào vị trí tương ứng trên hình PDF để ghim.</p>
             <div className="flex flex-col gap-3">
-              {TAG_GROUPS.map(group => (
+              {getTagsForTemplate(selectedTemplate || '*').map(group => (
                 <div key={group.name} className="border border-slate-200 rounded p-2 bg-white">
                   <h4 className="text-xs font-bold text-slate-600 mb-2">{group.name}</h4>
                   <div className="flex flex-wrap gap-1">

@@ -6,6 +6,7 @@
  */
 
 import type { Customer, NenkinApplication, WorkHistory, TaxOffice, TaxRepresentative } from '@prisma/client';
+import { calculateNenkinTax } from './taxCalculator';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,6 +103,19 @@ function todayTags(): Record<string, string> {
     today_era_yr: era.eraYearStr,
     today_era_m: m,
     today_era_d: d,
+  };
+}
+
+function docDateTags(applyDate: Date | null | undefined): Record<string, string> {
+  const date = applyDate ? new Date(applyDate) : new Date();
+  const { y, m, d } = formatDate(date);
+  const era = toJapaneseEra(date);
+  return {
+    doc_date_y: y,
+    doc_date_m: m,
+    doc_date_d: d,
+    doc_date_era_jp: era.eraJp,
+    doc_date_era_yr: era.eraYearStr,
   };
 }
 
@@ -253,6 +267,7 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     ...mapTaxOffice(taxOffice),
     app_id: application.id.slice(0, 8),
     ...todayTags(),
+    ...docDateTags(application.applyDate),
   };
 }
 
@@ -364,16 +379,16 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     
     app_id: application.id.slice(0, 8),
     ...todayTags(),
+    ...docDateTags(application.applyDate),
   };
 }
 
 export function mapTemplateBang3(input: DocumentMapperInput): Record<string, string> {
   const { application, customer, taxOffice, workHistories } = input;
 
-  const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
-  const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
+  const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : null;
 
-  // Calculate work years & deduction
+  // Calculate work years
   let totalDays = 0;
   workHistories.forEach(wh => {
     if (wh.startDate && wh.endDate) {
@@ -383,24 +398,12 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
       if (days > 0) totalDays += days;
     }
   });
-  const workYears = totalDays / 365.25;
-  const retirementDeductionAmount = Math.max(1, Math.ceil(workYears)) * 400000;
+  const workYears = totalDays > 0 ? totalDays / 365.25 : null;
 
-  // Taxable retirement income and progressive tax calculation
-  const taxableRetirementIncome = Math.max(0, totalExpectedJpy - retirementDeductionAmount);
-  let calculatedTax: number;
-  if (taxableRetirementIncome <= 1_950_000) {
-    calculatedTax = Math.floor(taxableRetirementIncome * 0.05);
-  } else if (taxableRetirementIncome <= 3_300_000) {
-    calculatedTax = Math.floor(taxableRetirementIncome * 0.10 - 97_500);
-  } else if (taxableRetirementIncome <= 6_950_000) {
-    calculatedTax = Math.floor(taxableRetirementIncome * 0.20 - 427_500);
-  } else if (taxableRetirementIncome <= 9_000_000) {
-    calculatedTax = Math.floor(taxableRetirementIncome * 0.23 - 636_000);
-  } else {
-    calculatedTax = Math.floor(taxableRetirementIncome * 0.33 - 1_536_000);
-  }
-  const refundAmount = withheldTax - calculatedTax;
+  const taxResult = calculateNenkinTax({
+    totalExpectedJpy,
+    workYears
+  });
 
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
 
@@ -411,15 +414,16 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
     taxYear_era_yr: taxYearStr,
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
 
-    totalExpectedJpy: String(totalExpectedJpy),
-    withheldTax: String(withheldTax),
-    retirementDeductionAmount: String(retirementDeductionAmount),
-    taxableRetirementIncome: String(taxableRetirementIncome),
-    calculatedTax: String(calculatedTax),
-    refundAmount: String(refundAmount),
+    totalExpectedJpy: taxResult.missingInputs.includes('totalExpectedJpy') ? '' : String(totalExpectedJpy),
+    withheldTax: taxResult.withheldTax == null ? '' : String(taxResult.withheldTax),
+    retirementDeductionAmount: taxResult.retirementDeductionAmount == null ? '' : String(taxResult.retirementDeductionAmount),
+    taxableRetirementIncome: taxResult.taxableRetirementIncome == null ? '' : String(taxResult.taxableRetirementIncome),
+    calculatedTax: taxResult.calculatedTax == null ? '' : String(taxResult.calculatedTax),
+    refundAmount: taxResult.refundAmount == null ? '' : String(taxResult.refundAmount),
     
     app_id: application.id.slice(0, 8),
     ...todayTags(),
+    ...docDateTags(application.applyDate),
   };
 }
 
@@ -465,6 +469,9 @@ export function mapApplicationToTemplate(application: any): Record<string, strin
     result[`work_start_${index + 1}`] = w.startDate ? new Date(w.startDate).toLocaleDateString() : '';
     result[`work_end_${index + 1}`] = w.endDate ? new Date(w.endDate).toLocaleDateString() : '';
   });
+
+  Object.assign(result, todayTags());
+  Object.assign(result, docDateTags(application.applyDate));
 
   return result;
 }

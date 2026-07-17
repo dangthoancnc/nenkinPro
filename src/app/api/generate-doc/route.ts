@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { mapDocument } from '@/lib/documentMapper';
 import { fillPdfTemplate } from '@/lib/pdfGenerator';
+import { getRequiredTags } from '@/features/templates/template-field-catalog';
 import fs from 'fs';
 import path from 'path';
 
@@ -82,12 +83,34 @@ export async function POST(req: NextRequest) {
       config = JSON.parse(configFile);
     } catch (err: any) {
       console.warn(`Could not load config for ${templateType}:`, err.message);
-      // It will just render without mapped fields if config is missing
       config = {};
     }
 
+    // Validation Check
+    const requiredTags = getRequiredTags(templateType);
+    const missingDataFields: string[] = [];
+    const missingMappingFields: string[] = [];
+
+    for (const tag of requiredTags) {
+      if (!(tag.id in config)) {
+        missingMappingFields.push(tag.label);
+      }
+      
+      const val = mappedData[tag.id];
+      if (val === undefined || val === null || val === '') {
+        missingDataFields.push(tag.label);
+      }
+    }
+
+    if (missingMappingFields.length > 0 || missingDataFields.length > 0) {
+      const errParts = [];
+      if (missingMappingFields.length > 0) errParts.push(`Chưa ghim tọa độ: ${missingMappingFields.join(', ')}`);
+      if (missingDataFields.length > 0) errParts.push(`Thiếu dữ liệu nguồn: ${missingDataFields.join(', ')}`);
+      return NextResponse.json({ error: errParts.join(' | ') }, { status: 400 });
+    }
+
     // Generate PDF Binary
-    const pdfBytes = await fillPdfTemplate(pdfTemplateName, mappedData, config);
+    const pdfBytes = await fillPdfTemplate(pdfTemplateName, mappedData, config as any);
 
     // Return as downloadable file
     return new Response(Buffer.from(pdfBytes), {

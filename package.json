@@ -6,7 +6,9 @@
     "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev -H 127.0.0.1 --webpack -p 3015",
     "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
     "start": "next start -H 127.0.0.1 -p 3015",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -47,8 +49,10 @@
     "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "node-mocks-http": "^1.18.1",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

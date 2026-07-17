@@ -5,6 +5,7 @@ import { fillPdfTemplate, PdfMappingConfig } from '@/lib/pdfGenerator';
 import fs from 'fs';
 import path from 'path';
 import { requireApplicationAccess } from '@/lib/auth/authorization';
+import { getRequiredTags } from '@/features/templates/template-field-catalog';
 
 export async function GET(
   request: NextRequest
@@ -90,6 +91,29 @@ export async function GET(
       }
     } else {
       console.warn(`Config file ${templateName}.json not found. Generating PDF without mapping.`);
+    }
+
+    // Validation Check
+    const requiredTags = getRequiredTags(templateName);
+    const missingDataFields: string[] = [];
+    const missingMappingFields: string[] = [];
+
+    for (const tag of requiredTags) {
+      if (!(tag.id in config)) {
+        missingMappingFields.push(tag.label);
+      }
+      
+      const val = finalData[tag.id];
+      if (val === undefined || val === null || val === '') {
+        missingDataFields.push(tag.label);
+      }
+    }
+
+    if (missingMappingFields.length > 0 || missingDataFields.length > 0) {
+      const errParts = [];
+      if (missingMappingFields.length > 0) errParts.push(`Chưa ghim tọa độ: ${missingMappingFields.join(', ')}`);
+      if (missingDataFields.length > 0) errParts.push(`Thiếu dữ liệu nguồn: ${missingDataFields.join(', ')}`);
+      return NextResponse.json({ success: false, error: errParts.join(' | ') }, { status: 400 });
     }
 
     // 3. Generate PDF
