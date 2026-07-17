@@ -209,6 +209,19 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     workTags[`work_company_${n}`] = (wh as Record<string, unknown>).companyName as string ?? '';
     workTags[`work_start_${n}`]   = wh.startDate  ? new Date(wh.startDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
     workTags[`work_end_${n}`]     = wh.endDate    ? new Date(wh.endDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
+    // Aliases: workHistory_N_xxx ↔ work_xxx_N
+    workTags[`workHistory_${n}_companyName`] = workTags[`work_company_${n}`];
+    workTags[`workHistory_${n}_start_full`] = workTags[`work_start_${n}`];
+    workTags[`workHistory_${n}_end_full`] = workTags[`work_end_${n}`];
+    // Plus split tags for start/end dates
+    const startDate = formatDate(wh.startDate ? new Date(wh.startDate) : null);
+    const endDate = formatDate(wh.endDate ? new Date(wh.endDate) : null);
+    Object.assign(workTags, splitChars(startDate.y, `workHistory_${n}_start_y`, 4));
+    Object.assign(workTags, splitChars(startDate.m, `workHistory_${n}_start_m`, 2));
+    Object.assign(workTags, splitChars(startDate.d, `workHistory_${n}_start_d`, 2));
+    Object.assign(workTags, splitChars(endDate.y, `workHistory_${n}_end_y`, 4));
+    Object.assign(workTags, splitChars(endDate.m, `workHistory_${n}_end_m`, 2));
+    Object.assign(workTags, splitChars(endDate.d, `workHistory_${n}_end_d`, 2));
   });
 
   // Last job
@@ -291,6 +304,13 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     ...splitChars(dep.y, 'departure_y', 4, true),
     ...splitChars(dep.m, 'departure_m', 2, true),
     ...splitChars(dep.d, 'departure_d', 2, true),
+    // Aliases: departureDate_x ↔ departure_x
+    departureDate_y: dep.y,
+    departureDate_m: dep.m,
+    departureDate_d: dep.d,
+    ...splitChars(dep.y, 'departureDate_y', 4, true),
+    ...splitChars(dep.m, 'departureDate_m', 2, true),
+    ...splitChars(dep.d, 'departureDate_d', 2, true),
 
     doc_date_era_jp: docEra.eraJp,
     doc_date_era_yr: docEra.eraYearStr,
@@ -325,6 +345,7 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
 
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
   const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
+  // calculatedTax will come from bang3; for bang12 we still output refund = withheld - 0
   const refundAmount = withheldTax;
 
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
@@ -351,7 +372,6 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
 
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
   const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
-  const refundAmount = withheldTax;
 
   // Calculate work years & deduction
   let totalDays = 0;
@@ -366,6 +386,22 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
   const workYears = totalDays / 365.25;
   const retirementDeductionAmount = Math.max(1, Math.ceil(workYears)) * 400000;
 
+  // Taxable retirement income and progressive tax calculation
+  const taxableRetirementIncome = Math.max(0, totalExpectedJpy - retirementDeductionAmount);
+  let calculatedTax: number;
+  if (taxableRetirementIncome <= 1_950_000) {
+    calculatedTax = Math.floor(taxableRetirementIncome * 0.05);
+  } else if (taxableRetirementIncome <= 3_300_000) {
+    calculatedTax = Math.floor(taxableRetirementIncome * 0.10 - 97_500);
+  } else if (taxableRetirementIncome <= 6_950_000) {
+    calculatedTax = Math.floor(taxableRetirementIncome * 0.20 - 427_500);
+  } else if (taxableRetirementIncome <= 9_000_000) {
+    calculatedTax = Math.floor(taxableRetirementIncome * 0.23 - 636_000);
+  } else {
+    calculatedTax = Math.floor(taxableRetirementIncome * 0.33 - 1_536_000);
+  }
+  const refundAmount = withheldTax - calculatedTax;
+
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
 
   return {
@@ -378,6 +414,8 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
     totalExpectedJpy: String(totalExpectedJpy),
     withheldTax: String(withheldTax),
     retirementDeductionAmount: String(retirementDeductionAmount),
+    taxableRetirementIncome: String(taxableRetirementIncome),
+    calculatedTax: String(calculatedTax),
     refundAmount: String(refundAmount),
     
     app_id: application.id.slice(0, 8),

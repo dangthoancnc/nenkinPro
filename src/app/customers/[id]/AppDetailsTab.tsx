@@ -34,7 +34,8 @@ export default function AppDetailsTab({ customer }: { customer: any }) {
     serviceFeeVnd: application?.serviceFeeVnd || '',
     noticeDate: application?.noticeDate ? new Date(application.noticeDate).toISOString().split('T')[0] : '',
     noticeImageUrl: application?.noticeImageUrl || '',
-    taxRepresentativeId: application?.taxRepresentativeId || ''
+    taxRepresentativeId: application?.taxRepresentativeId || '',
+    taxYear: application?.taxYear || ''
   });
 
   useEffect(() => {
@@ -140,7 +141,8 @@ export default function AppDetailsTab({ customer }: { customer: any }) {
         serviceFeeVnd: formData.serviceFeeVnd ? parseFloat(formData.serviceFeeVnd) : null,
         noticeDate: formData.noticeDate ? new Date(formData.noticeDate).toISOString() : null,
         noticeImageUrl: formData.noticeImageUrl || null,
-        taxRepresentativeId: formData.taxRepresentativeId || null
+        taxRepresentativeId: formData.taxRepresentativeId || null,
+        taxYear: formData.taxYear ? parseInt(formData.taxYear) : null
       };
 
       const res = await fetch(`/api/applications/${application.id}`, {
@@ -299,6 +301,10 @@ export default function AppDetailsTab({ customer }: { customer: any }) {
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Ngày nộp hồ sơ</label>
               <input type="date" name="applyDate" value={formData.applyDate} onChange={handleChange} className="w-full text-sm px-3 py-2 border rounded-md" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Năm khai thuế (Reiwa)</label>
+              <input type="number" name="taxYear" value={formData.taxYear} onChange={handleChange} placeholder="VD: 8" className="w-full text-sm px-3 py-2 border rounded-md" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

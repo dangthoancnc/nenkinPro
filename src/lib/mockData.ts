@@ -152,3 +152,40 @@ MOCK_DATA['bank_name'] = MOCK_DATA['bankName'];
 MOCK_DATA['bank_branch'] = MOCK_DATA['branchName'];
 MOCK_DATA['bank_account_name'] = MOCK_DATA['accountName'];
 
+// Departure date aliases (mapper → UI bridge)
+MOCK_DATA['departure_y'] = MOCK_DATA['departureDate_y'];
+MOCK_DATA['departure_m'] = MOCK_DATA['departureDate_m'];
+MOCK_DATA['departure_d'] = MOCK_DATA['departureDate_d'];
+generateSplitValues('departure_y', MOCK_DATA['departureDate_y'] || '2026', 4);
+generateSplitValues('departure_m', MOCK_DATA['departureDate_m'] || '01', 2);
+generateSplitValues('departure_d', MOCK_DATA['departureDate_d'] || '10', 2);
+
+// Work history aliases (mapper → UI bridge)
+for (let i = 1; i <= 5; i++) {
+  MOCK_DATA[`work_company_${i}`] = MOCK_DATA[`workHistory_${i}_companyName`] || '';
+  MOCK_DATA[`work_start_${i}`] = MOCK_DATA[`workHistory_${i}_start_full`] || '';
+  MOCK_DATA[`work_end_${i}`] = MOCK_DATA[`workHistory_${i}_end_full`] || '';
+}
+MOCK_DATA['work_last_company'] = MOCK_DATA['workHistory_5_companyName'] || '';
+MOCK_DATA['work_last_end_y'] = MOCK_DATA['workHistory_5_end_y'] || '';
+MOCK_DATA['work_last_end_m'] = MOCK_DATA['workHistory_5_end_m'] || '';
+
+// Today tags (auto-fill today's date)
+const _today = new Date();
+MOCK_DATA['today_y'] = String(_today.getFullYear());
+MOCK_DATA['today_m'] = String(_today.getMonth() + 1).padStart(2, '0');
+MOCK_DATA['today_d'] = String(_today.getDate()).padStart(2, '0');
+MOCK_DATA['today_era_jp'] = '令和';
+MOCK_DATA['today_era_yr'] = String(_today.getFullYear() - 2018).padStart(2, '0');
+MOCK_DATA['today_era_m'] = MOCK_DATA['today_m'];
+MOCK_DATA['today_era_d'] = MOCK_DATA['today_d'];
+
+// Doc date tags (use applyDate as default)
+MOCK_DATA['doc_date_era_jp'] = '令和';
+MOCK_DATA['doc_date_era_yr'] = MOCK_DATA['applyDate_era_yr'] || '08';
+MOCK_DATA['doc_date_m'] = MOCK_DATA['applyDate_m'] || '02';
+MOCK_DATA['doc_date_d'] = MOCK_DATA['applyDate_d'] || '20';
+
+// Bank account type
+MOCK_DATA['bank_account_type'] = '普通';
+

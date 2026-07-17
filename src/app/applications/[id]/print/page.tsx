@@ -344,43 +344,43 @@ export default function ApplicationPrintView() {
       )}
 
       {activeTab === 'lan1_donxin_p1' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan1/don_xin_lan_1_p1.jpg">
+        <PrintContainer pdfFile="/forms/don_xin_lan_1.pdf" pageNumber={0}>
           {renderMappedFields('lan1_donxin_p1')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan1_donxin_p2' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan1/don_xin_lan_1_p2.jpg">
+        <PrintContainer pdfFile="/forms/don_xin_lan_1.pdf" pageNumber={1}>
           {renderMappedFields('lan1_donxin_p2')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan1_uyquyen' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan1/ininjyo_yoshiki_lan_1.jpg">
+        <PrintContainer pdfFile="/forms/ininjyo_yoshiki_lan_1.pdf" pageNumber={0}>
           {renderMappedFields('lan1_uyquyen')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan2_uyquyen' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan2/giay_uy_thac_lan_2.jpg">
+        <PrintContainer pdfFile="/forms/giay_uy_thac_lan_2.pdf" pageNumber={0}>
           {renderMappedFields('lan2_uyquyen')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan2_donxin1' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan2/bang_1_2_p1.jpg">
+        <PrintContainer pdfFile="/forms/bang_1_2.pdf" pageNumber={0}>
           {renderMappedFields('lan2_donxin1')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan2_donxin2' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan2/bang_1_2_p2.jpg">
+        <PrintContainer pdfFile="/forms/bang_1_2.pdf" pageNumber={1}>
           {renderMappedFields('lan2_donxin2')}
         </PrintContainer>
       )}
 
       {activeTab === 'lan2_donxin3' && (
-        <PrintContainer imageUrl="/templates/nenkin_lan2/bang_3.jpg">
+        <PrintContainer pdfFile="/forms/bang_3.pdf" pageNumber={0}>
           {renderMappedFields('lan2_donxin3')}
         </PrintContainer>
       )}

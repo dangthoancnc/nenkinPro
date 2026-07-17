@@ -66,6 +66,14 @@ const TAG_GROUPS = [
       { id: 'noticeDate_y', label: 'Năm thông báo' }, { id: 'noticeDate_m', label: 'Tháng thông báo' }, { id: 'noticeDate_d', label: 'Ngày thông báo' },
       ...generateSplitTags('noticeDate_y', 4, 'Năm thông báo'), ...generateSplitTags('noticeDate_m', 2, 'Tháng thông báo'), ...generateSplitTags('noticeDate_d', 2, 'Ngày thông báo'),
       ...generateSplitTags('taxYear_era_yr', 2, 'Năm khai thuế (Nhật)'),
+      { id: 'today_era_jp', label: 'Ngày hôm nay (元号)' },
+      { id: 'today_era_yr', label: 'Ngày hôm nay (年)' },
+      { id: 'today_m', label: 'Ngày hôm nay (tháng)' },
+      { id: 'today_d', label: 'Ngày hôm nay (ngày)' },
+      { id: 'doc_date_era_jp', label: 'Ngày văn bản (元号)' },
+      { id: 'doc_date_era_yr', label: 'Ngày văn bản (年)' },
+      { id: 'doc_date_m', label: 'Ngày văn bản (tháng)' },
+      { id: 'doc_date_d', label: 'Ngày văn bản (ngày)' },
     ]
   },
   {
@@ -77,6 +85,7 @@ const TAG_GROUPS = [
       { id: 'accountNameKatakana', label: 'Tên tài khoản (Katakana)' },
       { id: 'swiftCode', label: 'SWIFT Code' },
       ...generateSplitTags('bank', 7, 'Số TK'), ...generateSplitTags('swift', 11, 'SWIFT'),
+      { id: 'bank_account_type', label: 'Loại tài khoản' },
     ]
   },
   {

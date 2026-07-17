@@ -556,6 +556,36 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
                     <VerifiedInput fieldKey="nenkinNumber" aiFields={aiFields} verifiedFields={verifiedFields} hasError={hasErr('nenkinNumber')} label="Mã số thẻ Nenkin" value={customer.nenkinNumber} onChange={(e: any) => handleChange('nenkinNumber', e.target.value)} onToggleVerify={() => toggleVerify('nenkinNumber')} onSyncFromAI={() => handleSyncFieldFromAI('nenkinBook', 'nenkinNumber', 'nenkinNumber')} />
                     <VerifiedInput fieldKey="cardNumber" aiFields={aiFields} verifiedFields={verifiedFields} hasError={hasErr('cardNumber')} label="Mã số thẻ ngoại kiều" value={customer.cardNumber} onChange={(e: any) => handleChange('cardNumber', e.target.value)} onToggleVerify={() => toggleVerify('cardNumber')} onSyncFromAI={() => handleSyncFieldFromAI('zairyuFront', 'cardNumber', 'cardNumber')} />
                     <InputField label="Mã số cá nhân (My Number)" value={customer.myNumber} onChange={(e: any) => handleChange('myNumber', e.target.value)} />
+                    <div className="space-y-1">
+                      <label className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">Giới tính</label>
+                      <select value={customer.sex || ''} onChange={(e: any) => handleChange('sex', e.target.value)} className="w-full h-8 px-2.5 py-1 border-slate-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                        <option value="">-- Chọn --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                      </select>
+                    </div>
+                    <InputField label="Quốc tịch" value={customer.nationality} onChange={(e: any) => handleChange('nationality', e.target.value)} />
+                    <InputField label="Số điện thoại" type="tel" value={customer.phone} onChange={(e: any) => handleChange('phone', e.target.value)} />
+                    <InputField label="Nghề nghiệp" value={customer.occupation} onChange={(e: any) => handleChange('occupation', e.target.value)} />
+                    <InputField label="Nơi sinh" value={customer.placeOfBirth} onChange={(e: any) => handleChange('placeOfBirth', e.target.value)} />
+                    <InputField label="Tên chủ hộ" value={customer.headOfHouseholdName} onChange={(e: any) => handleChange('headOfHouseholdName', e.target.value)} />
+                    <InputField label="Quan hệ với chủ hộ" value={customer.relationshipToHead} onChange={(e: any) => handleChange('relationshipToHead', e.target.value)} />
+                  </div>
+                  {/* Sub-section: Cư trú & Xuất nhập cảnh */}
+                  <div className="mt-3 p-3 bg-violet-50/30 rounded-lg border border-violet-100">
+                    <h3 className="text-[13px] font-semibold text-violet-900 mb-2">Cư trú & Xuất nhập cảnh</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">Có thường trú?</label>
+                        <select value={customer.hasPermanentResidence === true ? 'true' : customer.hasPermanentResidence === false ? 'false' : ''} onChange={(e: any) => handleChange('hasPermanentResidence', e.target.value === '' ? null : e.target.value === 'true')} className="w-full h-8 px-2.5 py-1 border-slate-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm">
+                          <option value="">-- Chọn --</option>
+                          <option value="true">Có</option>
+                          <option value="false">Không</option>
+                        </select>
+                      </div>
+                      <InputField label="Ngày cấp thường trú" type="date" value={customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate).toISOString().split('T')[0] : ''} onChange={(e: any) => handleChange('permanentResidenceDate', e.target.value)} />
+                      <InputField label="Ngày rời Nhật (出国日)" type="date" value={customer.departureDate ? new Date(customer.departureDate).toISOString().split('T')[0] : ''} onChange={(e: any) => handleChange('departureDate', e.target.value)} />
+                    </div>
                   </div>
                 </section>
 
@@ -655,6 +685,8 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
                         <div className="md:col-span-2">
                           <InputField label="Tên đường / Thôn xóm" value={customer.overseasStreet} onChange={(e: any) => handleChange('overseasStreet', e.target.value)} />
                         </div>
+                        <InputField label="Quốc gia" value={customer.overseasCountry || 'VIET NAM'} onChange={(e: any) => handleChange('overseasCountry', e.target.value)} />
+                        <InputField label="Mã bưu điện nước ngoài" value={customer.overseasPostalCode} onChange={(e: any) => handleChange('overseasPostalCode', e.target.value)} />
                       </div>
                     </div>
                   </div>
@@ -670,6 +702,9 @@ export default function CustomerDetailDashboard({ params }: { params: Promise<{ 
                     <VerifiedInput fieldKey="accountName" aiFields={aiFields} verifiedFields={verifiedFields} hasError={hasErr('accountName')} label="Tên chủ TK (Romaji/Katakana)" value={customer.accountName} onChange={(e: any) => handleChange('accountName', e.target.value)} onToggleVerify={() => toggleVerify('accountName')} onSyncFromAI={() => handleSyncFieldFromAI('bankPassbook', 'accountName', 'accountName')} />
                     <VerifiedInput fieldKey="swiftCode" aiFields={aiFields} verifiedFields={verifiedFields} hasError={hasErr('swiftCode')} label="Swift Code / BSB" value={customer.swiftCode} onChange={(e: any) => handleChange('swiftCode', e.target.value)} onToggleVerify={() => toggleVerify('swiftCode')} onSyncFromAI={() => handleSyncFieldFromAI('bankPassbook', 'swiftCode', 'swiftCode')} />
                     <VerifiedInput fieldKey="accountNumber" aiFields={aiFields} verifiedFields={verifiedFields} hasError={hasErr('accountNumber')} label="Số tài khoản" value={customer.accountNumber} onChange={(e: any) => handleChange('accountNumber', e.target.value)} onToggleVerify={() => toggleVerify('accountNumber')} onSyncFromAI={() => handleSyncFieldFromAI('bankPassbook', 'accountNumber', 'accountNumber')} />
+                    <InputField label="Tên chủ TK (Katakana)" value={customer.accountNameKatakana} onChange={(e: any) => handleChange('accountNameKatakana', e.target.value)} />
+                    <InputField label="Địa chỉ chi nhánh NH" value={customer.bankBranchAddress} onChange={(e: any) => handleChange('bankBranchAddress', e.target.value)} />
+                    <InputField label="Quốc gia ngân hàng" value={customer.bankCountry} onChange={(e: any) => handleChange('bankCountry', e.target.value)} />
                   </div>
                 </section>
 
