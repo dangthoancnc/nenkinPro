@@ -179,22 +179,20 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
 function mapRepresentative(rep: TaxRepresentative | null): Record<string, string> {
   if (!rep) {
     return {
-      rep_fullName: '', rep_fullName_kata: '', rep_address: '',
-      rep_phone: '', rep_relation: '',
-      rep_dob_y: '', rep_dob_m: '', rep_dob_d: '',
-      ...splitChars('', 'rep_post', 7),
+      taxRep_fullName: '', taxRep_fullNameKana: '', taxRep_fullName_kata: '', taxRep_address: '',
+      taxRep_phone: '', taxRep_relationship: '', taxRep_postalCodeFormat: '',
+      ...splitChars('', 'taxRep_post', 7),
     };
   }
   return {
-    rep_fullName:      rep.fullName ?? '',
-    rep_fullName_kata: rep.fullNameKana ?? '',
-    rep_address:       rep.address ?? '',
-    rep_phone:         rep.phone ?? '',
-    rep_relation:      '納税管理人',
-    rep_dob_y: '',
-    rep_dob_m: '',
-    rep_dob_d: '',
-    ...splitChars(rep.postalCode ?? '', 'rep_post', 7, true),
+    taxRep_fullName:      rep.fullName ?? '',
+    taxRep_fullNameKana:  rep.fullNameKana ?? '',
+    taxRep_fullName_kata: rep.fullNameKana ?? '',
+    taxRep_address:       rep.address ?? '',
+    taxRep_phone:         rep.phone ?? '',
+    taxRep_relationship:  rep.relationship ?? '納税管理人',
+    taxRep_postalCodeFormat: rep.postalCode ?? '',
+    ...splitChars(rep.postalCode ?? '', 'taxRep_post', 7, true),
   };
 }
 
@@ -345,8 +343,8 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     doc_date_d:      docDate.d,
     app_id: application.id.slice(0, 8),
     ...todayTags(),
-    taxRepresentativeAction_appoint_mark: taxRepresentative ? '\u2713' : '',
-    taxRepresentativeAction_dismiss_mark: '',
+    taxRep_appoint_mark: taxRepresentative ? '\u2713' : '',
+    taxRep_dismiss_mark: '',
   };
 }
 
@@ -468,11 +466,12 @@ export function mapApplicationToTemplate(application: any): Record<string, strin
     accountNumber: customer.accountNumber || '',
     accountName: customer.accountName || '',
     swiftCode: customer.swiftCode || '',
-    rep_fullName: rep.fullName || '',
-    rep_fullName_kata: rep.fullNameKana || '',
-    rep_address: rep.address || '',
-    rep_postalCode: rep.postalCode || '',
-    rep_phone: rep.phone || '',
+    taxRep_fullName: rep.fullName || '',
+    taxRep_fullNameKana: rep.fullNameKana || '',
+    taxRep_fullName_kata: rep.fullNameKana || '',
+    taxRep_address: rep.address || '',
+    taxRep_postalCode: rep.postalCode || '',
+    taxRep_phone: rep.phone || '',
     office_name: office.name || '',
     office_address: office.address || '',
   };

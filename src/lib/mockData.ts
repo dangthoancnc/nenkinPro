@@ -56,15 +56,22 @@ export const MOCK_DATA: Record<string, string> = {
   accountNameKatakana: 'グエン ヴァン A',
   swiftCode: 'BFTVVNVX',
   
-  // 6. Nộp thuế & Đại diện
+  // 6. Nộp thuế & Đại diện (Đại diện thuế - Cá nhân)
   taxOfficeName: 'Shinjuku',
   taxOfficeAddress: 'Tokyo-to Shinjuku-ku',
-  rep_fullName: 'TRAN THI B',
-  rep_fullNameKana: 'トラン ティ B',
-  rep_phone: '08098765432',
-  rep_postalCodeFormat: '1690074',
-  rep_address: '東京都新宿区百人町1-2-4',
-  rep_relationship: 'Vợ',
+  taxRep_fullName: 'TRAN THI B',
+  taxRep_fullNameKana: 'トラン ティ B',
+  taxRep_phone: '08098765432',
+  taxRep_postalCodeFormat: '1690074',
+  taxRep_address: '東京都新宿区百人町1-2-4',
+  taxRep_relationship: 'Vợ',
+
+  // 6b. Đại lý nhận ủy quyền (Công ty - Form 2)
+  agentName: 'CÔNG TY CỔ PHẦN NENKINPRO',
+  agentAddress: 'Tōkyō-to, Shinjuku-ku, Hyakuninchō 1-2-4',
+  agentPhone: '03-0000-0000',
+  delegationPurpose: 'Đại diện làm thủ tục nhận tiền Nenkin và các thủ tục liên quan',
+  agentRelationship: 'Đại lý ủy quyền',
   
   // 7. Tính Thuế
   totalExpectedJpy: '500000',
@@ -94,8 +101,8 @@ generateSplitValues('nenkin', '1234567890', 10);
 generateSplitValues('phone', '09012345678', 11);
 generateSplitValues('post', '1690073', 7);
 generateSplitValues('tax_post', '1690073', 7);
-generateSplitValues('rep_phone', '08098765432', 11);
-generateSplitValues('rep_post', '1690074', 7);
+generateSplitValues('taxRep_phone', '08098765432', 11);
+generateSplitValues('taxRep_post', '1690074', 7);
 generateSplitValues('bank', '1234567', 7);
 generateSplitValues('swift', 'BFTVVNVX', 11);
 
@@ -146,8 +153,8 @@ for (let i = 1; i <= 5; i++) {
 // Alias keys — bridge naming mismatches between mockData and JSON configs
 MOCK_DATA['address_jp'] = MOCK_DATA['address'];
 MOCK_DATA['fullName_kata'] = MOCK_DATA['fullNameFurigana'];
-MOCK_DATA['rep_fullName_kata'] = MOCK_DATA['rep_fullNameKana'];
-MOCK_DATA['rep_relation'] = '納税管理人';
+MOCK_DATA['taxRep_fullName_kata'] = MOCK_DATA['taxRep_fullNameKana'];
+MOCK_DATA['taxRep_relation'] = '納税管理人';
 MOCK_DATA['bank_name'] = MOCK_DATA['bankName'];
 MOCK_DATA['bank_branch'] = MOCK_DATA['branchName'];
 MOCK_DATA['bank_account_name'] = MOCK_DATA['accountName'];
