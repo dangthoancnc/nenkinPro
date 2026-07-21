@@ -15,6 +15,8 @@ import ImageCropModal from '@/components/ImageCropModal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
+import { WorkflowPanel } from '@/components/ui/WorkflowPanel';
+import type { WorkflowStatus } from '@/components/ui/WorkflowPanel';
 import { toast } from 'sonner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -793,48 +795,47 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         {/* ── Panel 3: Client + Tax ──────────────────────────────────────── */}
         <div className="col-span-1 md:col-span-5 flex flex-col gap-4 h-full min-h-0">
 
-          {/* Panel 3A: Client summary + workflow + finance */}
+          {/* Panel 3A: Client summary + WorkflowPanel + finance */}
           <div className="flex-[5] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-            <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center justify-between">
-              <div className="flex gap-2 min-w-0 flex-1">
-                <div className="w-16 h-10 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
-                  {watch('zairyuFrontUrl') ? (
-                    <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
-                      <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
-                        <ZoomIn className="w-3 h-3" />
-                      </button></>
-                  ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Image</span>}
-                </div>
-                <div className="flex-1 min-w-0 py-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-                    <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
-                  </div>
-                  <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2">
-                    <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
-                    <span>|</span>
-                    <span className="truncate">QT: {watch('nationality') || '---'}</span>
-                  </div>
-                </div>
+            {/* ── Client identity strip ── */}
+            <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center">
+              <div className="w-16 h-10 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
+                {watch('zairyuFrontUrl') ? (
+                  <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
+                    <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                      <ZoomIn className="w-3 h-3" />
+                    </button></>
+                ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Image</span>}
               </div>
-              <div className="flex flex-col gap-0.5 items-end shrink-0">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Trạng thái hồ sơ</span>
-                <select
-                  value={watch('status') || 'DRAFT'}
-                  disabled={!isEditing}
-                  onChange={e => setValue('status', e.target.value as any, { shouldDirty: true })}
-                  className={`h-6 rounded border px-1 text-[10px] font-bold outline-none cursor-pointer ${
-                    statusConfig[(watch('status') || 'DRAFT') as any]?.color || 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}>
-                  {Object.keys(statusConfig).filter(k => k !== 'PENDING' && k !== 'CANCELLED').map(key => (
-                    <option key={key} value={key} className="bg-white text-slate-800 font-medium">{statusConfig[key]?.label}</option>
-                  ))}
-                </select>
+              <div className="flex-1 min-w-0 py-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
+                  <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+                </div>
+                <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2">
+                  <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
+                  <span>|</span>
+                  <span className="truncate">QT: {watch('nationality') || '---'}</span>
+                </div>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+
+              {/* ── B.16: WorkflowPanel replaces raw <select> ── */}
+              <WorkflowPanel
+                status={(watch('status') || 'DRAFT') as WorkflowStatus}
+                isEditing={isEditing}
+                onChange={val => setValue('status', val as any, { shouldDirty: true })}
+                dates={{
+                  sent1st:     watch('sent1stDate')     as string | undefined,
+                  received1st: watch('received1stDate') as string | undefined,
+                  sent2nd:     watch('sent2ndDate')     as string | undefined,
+                  received2nd: watch('received2ndDate') as string | undefined,
+                }}
+              />
+
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Các mốc ngày xử lý</label>
                 <div className="grid grid-cols-2 gap-1.5">
