@@ -8,6 +8,9 @@ export type { BadgeProps } from "./Badge";
 export { StatusBadge, getStatusVariant, getStatusLabel } from "./StatusBadge";
 export type { StatusBadgeProps, NenkinStatus } from "./StatusBadge";
 
+export { Select, NativeSelect } from "./Select";
+export type { SelectProps, NativeSelectProps, SelectOption } from "./Select";
+
 export { WorkflowTimeline, NENKIN_STEPS } from "./WorkflowTimeline";
 export type { WorkflowStep, WorkflowStatus } from "./WorkflowTimeline";
 
