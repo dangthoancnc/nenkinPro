@@ -17,6 +17,8 @@
 | Ngày dương lịch | `dob_y` / `dob_m` / `dob_d` — zero-padded 2 chữ số, năm 4 chữ số |
 | Ngày âm lịch Nhật | `dob_era` + `dob_era_yr` — cần bảng chuyển đổi Era |
 
+*(Lưu ý Phase 2: Luồng Customer/Application flow đã được module hoá. Việc đảm bảo dữ liệu (Zairyu, Passport, Nenkin Book...) đầy đủ trước khi render template được thi hành bởi các state schemas (`sent1stSchema`, `sent2ndSchema`) tại `applicationService.ts`, nên mapper có thể tin tưởng tính toàn vẹn của dữ liệu ở các trạng thái tương ứng).*
+
 ---
 
 ## TEMPLATE 1 — 脱退一時金請求書 (Đơn xin hoàn tiền Nenkin)

@@ -1,12 +1,10 @@
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireStaff } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const employee = await validateEmployee();
-  if (!employee) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { user, error } = await requireStaff();
+  if (error || !user) return error;
 
   try {
     const totalCustomers = await prisma.customer.count();

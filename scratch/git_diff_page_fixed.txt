@@ -1,0 +1,848 @@
+�diff --git a/src/app/applications/[id]/page.tsx b/src/app/applications/[id]/page.tsx
+index 9ab34ab..0d29130 100644
+--- a/src/app/applications/[id]/page.tsx
++++ b/src/app/applications/[id]/page.tsx
+@@ -2,7 +2,7 @@
+ 
+ import React, { useEffect, useState, use } from 'react';
+ import { useRouter } from 'next/navigation';
+-import { ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle, AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2 } from 'lucide-react';
++import { ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle, AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles, Printer, Map, MapPin, Search } from 'lucide-react';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
+ import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
+@@ -43,9 +43,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+   const [activeDoc, setActiveDoc] = useState<string>('zairyuFront');
+   const [customerId, setCustomerId] = useState<string | null>(null);
++  const [customer, setCustomer] = useState<any | null>(null);
++  const [manualConfirmed, setManualConfirmed] = useState<boolean>(false);
++  const [taxOffices, setTaxOffices] = useState<Array<any>>([]);
++  const [isAddingTaxOffice, setIsAddingTaxOffice] = useState<boolean>(false);
++  const [creatingTaxOffice, setCreatingTaxOffice] = useState<boolean>(false);
++  const [newTaxOffice, setNewTaxOffice] = useState({
++    name: '',
++    address: '',
++    romajiAddress: '',
++    postalCode: '',
++    phone: '',
++    websiteUrl: ''
++  });
+ 
+   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<WorkspaceFormValues>({
+-    resolver: zodResolver(workspaceSchema),
+     mode: 'onBlur',
+     defaultValues: { status: 'DRAFT' }
+   });
+@@ -60,6 +72,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+           const data = await res.json();
+           setCustomerId(data.customerId || null);
+           const customer = data.customer || {};
++          setCustomer(customer);
++          setManualConfirmed(customer.status === 'VERIFIED');
+           
+           const formatDate = (dateStr: string | null | undefined) => {
+             if (!dateStr) return '';
+@@ -86,6 +100,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+             exchangeRate: data.exchangeRate || '',
+             serviceFeeVnd: data.serviceFeeVnd || '',
+           };
++          // Sanitise formValues: convert nulls to appropriate defaults
++          Object.keys(formValues).forEach(key => {
++            if (formValues[key] === null) {
++              if (key === 'hasPermanentResidence') {
++                formValues[key] = false;
++              } else {
++                formValues[key] = '';
++              }
++            }
++          });
+           reset(formValues);
+         }
+       } catch (err) {
+@@ -95,6 +119,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+       }
+     }
+     fetchData();
++
++    // Fetch Tax Offices
++    fetch('/api/tax-offices')
++      .then(res => res.json())
++      .then(data => {
++        if (data.success) setTaxOffices(data.data);
++      })
++      .catch(console.error);
+   }, [id, isNew, reset]);
+ 
+   const onSubmit = async (data: WorkspaceFormValues) => {
+@@ -108,15 +140,25 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+         zairyuAddress: data.zairyuAddress,
+         cardNumber: data.cardNumber,
+         nenkinNumber: data.nenkinNumber,
++        postalCode: data.postalCode,
++        taxOfficeId: data.taxOfficeId,
+         bankName: data.bankName,
+         branchName: data.branchName,
+         accountNumber: data.accountNumber,
+         accountName: data.accountName,
++        swiftCode: data.swiftCode,
+         zairyuFrontUrl: data.zairyuFrontUrl,
+         zairyuBackUrl: data.zairyuBackUrl,
+         passportUrl: data.passportUrl,
+         nenkinBookUrl: data.nenkinBookUrl,
+         bankPassbookUrl: data.bankPassbookUrl,
++        departureStampUrl: data.departureStampUrl,
++        status: manualConfirmed ? 'VERIFIED' : 'PENDING',
++        sex: data.sex,
++        phone: data.phone,
++        passportIssueDate: data.passportIssueDate ? new Date(data.passportIssueDate).toISOString() : null,
++        passportExpiryDate: data.passportExpiryDate ? new Date(data.passportExpiryDate).toISOString() : null,
++        departureDate: data.departureDate ? new Date(data.departureDate).toISOString() : null,
+       };
+ 
+       const applicationPayload = {
+@@ -142,7 +184,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+           body: JSON.stringify(customerPayload)
+         });
+         const cData = await cRes.json();
+-        if (!cData.success) throw new Error('Cannot create customer');
++        if (!cRes.ok || !cData.success) throw new Error(cData.error || 'Cannot create customer');
+ 
+         // 2. Create Application
+         const aRes = await fetch('/api/applications', {
+@@ -151,30 +193,42 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+           body: JSON.stringify({ ...applicationPayload, customerId: cData.data.id })
+         });
+         const aData = await aRes.json();
+-        if (aData.error) throw new Error(aData.error);
++        if (!aRes.ok || aData.error) throw new Error(aData.error || 'Cannot create application');
+ 
+         alert('Tạo hồ sơ thành công!');
+         router.push(`/applications/${aData.id}`);
+       } else {
+         // Fetch current application to get customerId
+         const appRes = await fetch(`/api/applications/${id}`);
++        if (!appRes.ok) {
++          const errData = await appRes.json();
++          throw new Error(errData.error || 'Lỗi lấy thông tin hồ sơ.');
++        }
+         const appData = await appRes.json();
+ 
+         // 1. Update Customer
+         if (appData.customerId) {
+-          await fetch(`/api/customers/${appData.customerId}`, {
++          const cRes = await fetch(`/api/customers/${appData.customerId}`, {
+             method: 'PUT',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(customerPayload)
+           });
++          if (!cRes.ok) {
++            const errData = await cRes.json();
++            throw new Error(errData.error || 'Lỗi cập nhật thông tin khách hàng.');
++          }
+         }
+         
+         // 2. Update Application
+-        await fetch(`/api/applications/${id}`, {
++        const aRes = await fetch(`/api/applications/${id}`, {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(applicationPayload)
+         });
++        if (!aRes.ok) {
++          const errData = await aRes.json();
++          throw new Error(errData.error || 'Lỗi cập nhật tiến trình hồ sơ.');
++        }
+ 
+         alert('Lưu hồ sơ thành công!');
+         setIsEditing(false);
+@@ -213,7 +267,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+     const form = new FormData();
+     form.append('file', file);
+     form.append('documentType', docKey);
+-    form.append('action', 'upload');
++    form.append('action', 'uploadAndExtract'); // Changed to uploadAndExtract to perform OCR
+     if (customerId) {
+       form.append('customerId', customerId);
+     }
+@@ -224,8 +278,58 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+       if (data.success) {
+         setValue(urlField as any, data.publicUrl);
+         setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
+-        if (!isNew) {
+-          await fetch(`/api/applications/${id}`, {
++
++        // Auto-fill form fields if OCR extracted data
++        if (data.extractedData && !data.extractedData.error) {
++          const ext = data.extractedData;
++          if (docKey === 'zairyuFront' || docKey === 'zairyuBack') {
++            if (ext.fullName) setValue('fullName', ext.fullName, { shouldValidate: true, shouldDirty: true });
++            if (ext.dob) setValue('dob', ext.dob, { shouldValidate: true, shouldDirty: true });
++            if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++            if (ext.cardNumber) setValue('cardNumber', ext.cardNumber, { shouldDirty: true });
++            if (ext.address) setValue('zairyuAddress', ext.address, { shouldDirty: true });
++            if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
++            
++            // Tax Office Auto-fill
++            if (ext.taxOffice && ext.taxOffice.name) {
++              fetch('/api/tax-offices', {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify(ext.taxOffice)
++              }).then(res => res.json()).then(tData => {
++                if (tData.success && tData.data?.id) {
++                  // Ensure taxOffices list contains it
++                  setTaxOffices(prev => {
++                    if (!prev.find(t => t.id === tData.data.id)) {
++                      return [...prev, tData.data];
++                    }
++                    return prev;
++                  });
++                  setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
++                }
++              }).catch(err => console.error('Failed to create/fetch tax office', err));
++            }
++          } else if (docKey === 'passport') {
++            if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
++            if (ext.dob) setValue('dob', ext.dob, { shouldDirty: true });
++            if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++            if (ext.sex) setValue('sex', ext.sex === 'M' ? 'Nam' : 'Nữ', { shouldDirty: true });
++            if (ext.passportNumber) setValue('cardNumber', ext.passportNumber, { shouldDirty: true }); // Storing passport in cardNumber for now or a separate field? 
++          } else if (docKey === 'nenkinBook') {
++            if (ext.nenkinNumber) setValue('nenkinNumber', ext.nenkinNumber, { shouldDirty: true });
++          } else if (docKey === 'bankPassbook') {
++            if (ext.bankName) setValue('bankName', ext.bankName, { shouldDirty: true });
++            if (ext.branchName) setValue('branchName', ext.branchName, { shouldDirty: true });
++            if (ext.accountNumber) setValue('accountNumber', ext.accountNumber, { shouldDirty: true });
++            if (ext.accountName) setValue('accountName', ext.accountName, { shouldDirty: true });
++            if (ext.swiftCode) setValue('swiftCode', ext.swiftCode, { shouldDirty: true });
++          } else if (docKey === 'departureStamp') {
++            if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
++          }
++        }
++
++        if (!isNew && customerId) {
++          await fetch(`/api/customers/${customerId}`, {
+             method: 'PUT',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ [urlField]: data.publicUrl })
+@@ -241,6 +345,46 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+     }
+   };
+ 
++  const handleNtaSearch = (zip: string | null | undefined) => {
++    if (!zip) {
++      alert('Vui lòng nhập mã bưu điện của khách hàng trước.');
++      return;
++    }
++    const cleanedZip = zip.replace(/[-\s]/g, '');
++    if (cleanedZip.length !== 7) {
++      alert('Mã bưu điện phải bao gồm đúng 7 chữ số.');
++      return;
++    }
++    const zip3 = cleanedZip.substring(0, 3);
++    const zip4 = cleanedZip.substring(3, 7);
++
++    const form = document.createElement('form');
++    form.method = 'POST';
++    form.action = 'https://www.nta.go.jp/cgi-bin/zeimusho/kensaku/kensakuprocess.php';
++    form.target = '_blank';
++    form.acceptCharset = 'EUC-JP';
++
++    const inputs = {
++      KSTYPE: 'ksz',
++      TODOFUKEN_TO_ASCII: '',
++      ADDR_TO_ASCII: '',
++      kszc1: zip3,
++      kszc2: zip4
++    };
++
++    for (const [key, value] of Object.entries(inputs)) {
++      const input = document.createElement('input');
++      input.type = 'hidden';
++      input.name = key;
++      input.value = value;
++      form.appendChild(input);
++    }
++
++    document.body.appendChild(form);
++    form.submit();
++    document.body.removeChild(form);
++  };
++
+   if (loading) {
+     return (
+       <div className="flex h-[80vh] items-center justify-center">
+@@ -249,8 +393,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+     );
+   }
+ 
++  const onError = (formErrors: any) => {
++    console.error('Validation errors:', formErrors);
++    alert('Không thể lưu hồ sơ do lỗi nhập liệu: ' + Object.keys(formErrors).map(k => `${k}: ${formErrors[k].message || 'Không hợp lệ'}`).join(', '));
++  };
++
+   return (
+-    <form onSubmit={handleSubmit(onSubmit)} className="h-[calc(100vh-100px)] flex flex-col space-y-4">
++    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-[calc(100vh-100px)] flex flex-col space-y-4">
+       {/* Header Actions */}
+       <div className="flex items-center justify-between shrink-0">
+         <div className="flex items-center gap-4">
+@@ -274,6 +423,23 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                   {deleting ? 'Đang xóa...' : 'Xóa Hồ sơ'}
+                 </Button>
+               )}
++              {!isNew && (
++                <Button 
++                  type="button" 
++                  variant="outline" 
++                  onClick={() => {
++                    if (customer?.status !== 'VERIFIED') {
++                      alert('Hồ sơ chưa được duyệt (xác nhận khớp ảnh gốc). Vui lòng chọn "Sửa Hồ sơ", kiểm tra thông tin từng trường, tích chọn xác nhận ở cuối form nhập liệu và bấm "Lưu Hồ sơ" để duyệt trước khi in.');
++                      return;
++                    }
++                    router.push(`/applications/${id}/print`);
++                  }}
++                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
++                >
++                  <Printer className="w-4 h-4 mr-2 inline" />
++                  In biểu mẫu
++                </Button>
++              )}
+               <Button type="button" onClick={() => setIsEditing(true)} className="min-w-[120px] shadow-lg shadow-blue-600/20">
+                 Sửa Hồ sơ
+               </Button>
+@@ -299,6 +465,37 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+         </div>
+       </div>
+ 
++      {/* Warning/Success Banner */}
++      {!isNew && (
++        <div className={`p-2.5 rounded-lg border flex items-center justify-between shadow-2xs text-xs shrink-0 ${
++          customer?.status === 'VERIFIED' 
++            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
++            : 'bg-amber-50/80 border-amber-200/80 text-amber-900'
++        }`}>
++          <div className="flex items-center gap-2">
++            {customer?.status === 'VERIFIED' ? (
++              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
++            ) : (
++              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
++            )}
++            <div>
++              <span className="font-bold">Trạng thái duyệt: </span>
++              {customer?.status === 'VERIFIED' ? (
++                <span>ĐÃ DUYỆT - Hồ sơ đã được đối chiếu khớp 100% với ảnh gốc. Có thể In biểu mẫu.</span>
++              ) : (
++                <span>CHƯA DUYỆT - Hồ sơ chưa được xác nhận khớp ảnh gốc. Bạn vẫn có thể lưu hồ sơ, nhưng cần tích chọn duyệt trước khi in.</span>
++              )}
++            </div>
++          </div>
++          {customer?.status !== 'VERIFIED' && (
++            <span className="bg-amber-100/80 text-amber-950 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">Chưa hoàn thành</span>
++          )}
++          {customer?.status === 'VERIFIED' && (
++            <span className="bg-emerald-100 text-emerald-950 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">Đã hoàn thành</span>
++          )}
++        </div>
++      )}
++
+       {/* Workspace Split Layout - 3 Panels */}
+       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0 overflow-hidden">
+         
+@@ -354,36 +551,118 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                       
+                       {/* Floating toolbar - extremely modern and clean */}
+                       <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+-                        {/* Replace Button */}
+-                        <label className="cursor-pointer p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center" title="Thay thế ảnh">
+-                          <UploadCloud className="w-4 h-4" />
+-                          <input 
+-                            type="file" 
+-                            className="hidden" 
+-                            accept="image/*" 
+-                            onChange={(e) => handleFileUpload(e, activeDoc, currentDocField)} 
+-                          />
+-                        </label>
+-                        {/* Delete Button */}
+-                        <button 
+-                          type="button" 
+-                          onClick={async () => {
+-                            if (confirm(`Bạn có chắc chắn muốn xóa ảnh của ${currentDocTitle}?`)) {
+-                              setValue(currentDocField as any, '');
+-                              if (!isNew) {
+-                                await fetch(`/api/applications/${id}`, {
+-                                  method: 'PUT',
+-                                  headers: { 'Content-Type': 'application/json' },
+-                                  body: JSON.stringify({ [currentDocField]: '' })
+-                                });
+-                              }
+-                            }
+-                          }}
+-                          className="p-1.5 bg-white/95 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
+-                          title="Xóa ảnh"
+-                        >
+-                          <Trash2 className="w-4 h-4" />
+-                        </button>
++                        {isEditing && (
++                          <>
++                            {/* AI Extract Button */}
++                            <button
++                              type="button"
++                              onClick={async () => {
++                                if (!currentDocUrl) return;
++                                setOcrStatus(prev => ({ ...prev, [activeDoc]: 'processing' }));
++                                try {
++                                  const form = new FormData();
++                                  form.append('imageUrl', currentDocUrl);
++                                  form.append('documentType', activeDoc);
++                                  form.append('action', 'extract');
++                                  if (customerId) {
++                                    form.append('customerId', customerId);
++                                  }
++                                  
++                                  const res = await fetch('/api/ocr', {
++                                    method: 'POST',
++                                    body: form
++                                  });
++                                  const data = await res.json();
++                                  if (data.success && data.extractedData && !data.extractedData.error) {
++                                    const ext = data.extractedData;
++                                    // Same auto-fill logic
++                                    if (activeDoc === 'zairyuFront' || activeDoc === 'zairyuBack') {
++                                      if (ext.fullName) setValue('fullName', ext.fullName, { shouldValidate: true, shouldDirty: true });
++                                      if (ext.dob) setValue('dob', ext.dob, { shouldValidate: true, shouldDirty: true });
++                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++                                      if (ext.cardNumber) setValue('cardNumber', ext.cardNumber, { shouldDirty: true });
++                                      if (ext.address) setValue('zairyuAddress', ext.address, { shouldDirty: true });
++                                      if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
++                                      
++                                      if (ext.taxOffice && ext.taxOffice.name) {
++                                        fetch('/api/tax-offices', {
++                                          method: 'POST',
++                                          headers: { 'Content-Type': 'application/json' },
++                                          body: JSON.stringify(ext.taxOffice)
++                                        }).then(r => r.json()).then(tData => {
++                                          if (tData.success && tData.data?.id) {
++                                            setTaxOffices(prev => {
++                                              if (!prev.find(t => t.id === tData.data.id)) return [...prev, tData.data];
++                                              return prev;
++                                            });
++                                            setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
++                                          }
++                                        }).catch(console.error);
++                                      }
++                                    } else if (activeDoc === 'passport') {
++                                      if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
++                                      if (ext.dob) setValue('dob', ext.dob, { shouldDirty: true });
++                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++                                      if (ext.sex) setValue('sex', ext.sex === 'M' ? 'Nam' : 'Nữ', { shouldDirty: true });
++                                      if (ext.passportNumber) setValue('cardNumber', ext.passportNumber, { shouldDirty: true });
++                                    } else if (activeDoc === 'nenkinBook') {
++                                      if (ext.nenkinNumber) setValue('nenkinNumber', ext.nenkinNumber, { shouldDirty: true });
++                                    } else if (activeDoc === 'bankPassbook') {
++                                      if (ext.bankName) setValue('bankName', ext.bankName, { shouldDirty: true });
++                                      if (ext.branchName) setValue('branchName', ext.branchName, { shouldDirty: true });
++                                      if (ext.accountNumber) setValue('accountNumber', ext.accountNumber, { shouldDirty: true });
++                                      if (ext.accountName) setValue('accountName', ext.accountName, { shouldDirty: true });
++                                      if (ext.swiftCode) setValue('swiftCode', ext.swiftCode, { shouldDirty: true });
++                                    } else if (activeDoc === 'departureStamp') {
++                                      if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
++                                    }
++                                    alert('Trích xuất thông tin AI thành công!');
++                                  } else {
++                                    alert('AI không tìm thấy thông tin hợp lệ: ' + (data.error || 'Lỗi không xác định'));
++                                  }
++                                } catch (err) {
++                                  alert('Đã xảy ra lỗi khi trích xuất AI.');
++                                } finally {
++                                  setOcrStatus(prev => ({ ...prev, [activeDoc]: 'done' }));
++                                }
++                              }}
++                              className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md border border-indigo-700 shadow-md transition-all flex items-center justify-center"
++                              title="Trích xuất AI"
++                            >
++                              <Sparkles className="w-4 h-4" />
++                            </button>
++                            {/* Replace Button */}
++                            <label className="cursor-pointer p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center" title="Thay thế ảnh">
++                              <UploadCloud className="w-4 h-4" />
++                              <input 
++                                type="file" 
++                                className="hidden" 
++                                accept="image/*" 
++                                onChange={(e) => handleFileUpload(e, activeDoc, currentDocField)} 
++                              />
++                            </label>
++                            {/* Delete Button */}
++                            <button 
++                              type="button" 
++                              onClick={async () => {
++                                if (confirm(`Bạn có chắc chắn muốn xóa ảnh của ${currentDocTitle}?`)) {
++                                  setValue(currentDocField as any, '');
++                                  if (!isNew && customerId) {
++                                    await fetch(`/api/customers/${customerId}`, {
++                                      method: 'PUT',
++                                      headers: { 'Content-Type': 'application/json' },
++                                      body: JSON.stringify({ [currentDocField]: '' })
++                                    });
++                                  }
++                                }
++                              }}
++                              className="p-1.5 bg-white/95 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
++                              title="Xóa ảnh"
++                            >
++                              <Trash2 className="w-4 h-4" />
++                            </button>
++                          </>
++                        )}
+                         {/* Zoom Button */}
+                         <button 
+                           type="button" 
+@@ -395,7 +674,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                         </button>
+                       </div>
+                     </div>
+-                  ) : (
++                  ) : isEditing ? (
+                     <label 
+                       className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-slate-900/5 transition-all text-slate-400 hover:text-indigo-600 bg-white border border-dashed border-slate-200 hover:border-indigo-400 rounded-lg p-6"
+                       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+@@ -420,6 +699,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                         onChange={(e) => handleFileUpload(e, activeDoc, currentDocField)} 
+                       />
+                     </label>
++                  ) : (
++                    <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-400 bg-white border border-dashed border-slate-200 rounded-lg p-6">
++                      <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
++                        <UploadCloud className="w-6 h-6 text-slate-300" />
++                      </div>
++                      <span className="text-xs font-semibold text-slate-400">Chưa có ảnh tài liệu</span>
++                      <span className="text-[10px] text-slate-400">Bật chế độ "Sửa hồ sơ" để tải ảnh lên</span>
++                    </div>
+                   )}
+                 </div>
+                 
+@@ -473,7 +760,33 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                       </div>
+                       <div className="flex flex-col gap-1">
+                         <label className="text-xs font-medium text-slate-500">Địa chỉ trên thẻ (Kanji)</label>
+-                        <Input {...register('zairyuAddress')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
++                        <div className="flex gap-1.5">
++                          <Input {...register('zairyuAddress')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" />
++                          {watch('zairyuAddress') && (
++                            <button
++                              type="button"
++                              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress') || '')}`, '_blank')}
++                              className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 transition-colors"
++                              title="Mở Google Maps cho địa chỉ này"
++                            >
++                              <MapPin className="w-4 h-4" />
++                            </button>
++                          )}
++                        </div>
++                      </div>
++                      <div className="flex flex-col gap-1">
++                        <label className="text-xs font-medium text-slate-500">Mã Bưu Điện</label>
++                        <div className="flex gap-1.5">
++                          <Input {...register('postalCode')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" placeholder="VD: 4530015" />
++                          <button
++                            type="button"
++                            onClick={() => handleNtaSearch(watch('postalCode'))}
++                            className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 transition-colors"
++                            title="Tra cứu Cục thuế theo mã bưu điện"
++                          >
++                            <Search className="w-4 h-4" />
++                          </button>
++                        </div>
+                       </div>
+                     </div>
+                   );
+@@ -569,6 +882,23 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                   return null;
+               }
+             })()}
++
++            {/* Manual Verification Checkbox */}
++            {!isNew && (
++              <div className="mt-4 p-3 bg-indigo-50/40 border border-indigo-100 rounded-lg flex items-center gap-2">
++                <input
++                  type="checkbox"
++                  id="manual-confirm"
++                  disabled={!isEditing}
++                  checked={manualConfirmed}
++                  onChange={(e) => setManualConfirmed(e.target.checked)}
++                  className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
++                />
++                <label htmlFor="manual-confirm" className="text-xs font-semibold text-indigo-900 cursor-pointer select-none">
++                  Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
++                </label>
++              </div>
++            )}
+           </div>
+         </div>
+ 
+@@ -580,7 +910,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+               {watch('zairyuFrontUrl') ? (
+                 <>
+                   {/* eslint-disable-next-line @next/next/no-img-element */}
+-                  <img src={watch('zairyuFrontUrl')} alt="Zairyu Front" className="w-full h-full object-cover" />
++                  <img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu Front" className="w-full h-full object-cover" />
+                   <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                     <ZoomIn className="w-3.5 h-3.5" />
+                   </button>
+@@ -592,13 +922,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+             <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0">
+               <div>
+                 <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Khách hàng</div>
+-                <div className="font-bold text-sm text-slate-900 truncate" title={watch('fullName')}>{watch('fullName') || 'N/A'}</div>
++                <div className="font-bold text-sm text-slate-900 truncate" title={watch('fullName') || undefined}>{watch('fullName') || 'N/A'}</div>
+                 <div className="text-[10px] text-slate-500 mt-0.5">Mã KH: <span className="font-mono text-slate-700">{watch('code') || '---'}</span></div>
+               </div>
+               <div className="space-y-0.5">
+                 <div className="text-[10px] text-slate-600 flex justify-between">
+                   <span className="text-slate-400">Ngày sinh:</span>
+-                  <span className="font-medium">{watch('dob') ? new Date(watch('dob')).toLocaleDateString('vi-VN') : '---'}</span>
++                  <span className="font-medium">{watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
+                 </div>
+                 <div className="text-[10px] text-slate-600 flex justify-between">
+                   <span className="text-slate-400">Quốc tịch:</span>
+@@ -712,6 +1042,238 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                 </div>
+               </div>
+             </div>
++
++            {/* Tax Office Section */}
++            <div className="border-t border-slate-100 pt-2 space-y-2">
++              <div className="flex flex-col gap-1">
++                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cục Thuế quản lý</label>
++                <div className="flex gap-1.5 mt-0.5">
++                  <button
++                    type="button"
++                    onClick={() => handleNtaSearch(watch('postalCode'))}
++                    className="text-[9px] text-blue-600 bg-blue-50 hover:bg-blue-100 font-semibold px-2 py-1 rounded transition-colors border border-blue-200 shadow-2xs flex-1 text-center"
++                    title="Tra cứu Cục thuế theo mã bưu điện khách hàng"
++                  >
++                    Tra cứu từ mã bưu điện KH
++                  </button>
++                  <button
++                    type="button"
++                    onClick={() => window.open(`https://www.nta.go.jp/about/organization/access/map.htm`, '_blank')}
++                    className="text-[9px] text-indigo-600 bg-indigo-50 hover:bg-indigo-100 font-semibold px-2 py-1 rounded transition-colors border border-indigo-200 shadow-2xs flex-1 text-center"
++                    title="Mở trang chủ tra cứu NTA"
++                  >
++                    Tra cứu NTA thủ công
++                  </button>
++                </div>
++              </div>
++
++              <div className="flex flex-col gap-1">
++                <div className="flex items-center justify-between gap-1.5">
++                  <select
++                    {...register('taxOfficeId')}
++                    disabled={!isEditing}
++                    className="h-7 rounded-md border border-slate-200 px-2 text-xs bg-white flex-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-medium min-w-0"
++                  >
++                    <option value="">-- Cục thuế chưa chọn hoặc AI tự điền --</option>
++                    {taxOffices.map(t => (
++                      <option key={t.id} value={t.id}>{t.name}</option>
++                    ))}
++                  </select>
++                  {isEditing && (
++                    <button
++                      type="button"
++                      onClick={() => setIsAddingTaxOffice(!isAddingTaxOffice)}
++                      className={`h-7 px-2 text-xs font-semibold rounded border transition-colors shrink-0 ${
++                        isAddingTaxOffice
++                          ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
++                          : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
++                      }`}
++                    >
++                      {isAddingTaxOffice ? 'Đóng' : '+ Mới'}
++                    </button>
++                  )}
++                </div>
++              </div>
++
++              {isAddingTaxOffice && isEditing && (
++                <div className="p-3 bg-indigo-50/20 border border-indigo-100 rounded-lg space-y-2 mt-2">
++                  <div className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Đăng ký Cục thuế mới</div>
++                  <div className="grid grid-cols-1 gap-2">
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Tên Cục thuế *</label>
++                      <input
++                        type="text"
++                        placeholder="VD: 小田原税務署"
++                        value={newTaxOffice.name}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, name: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
++                      />
++                    </div>
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Mã bưu điện</label>
++                      <input
++                        type="text"
++                        placeholder="VD: 250-8511"
++                        value={newTaxOffice.postalCode}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, postalCode: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-mono font-medium"
++                      />
++                    </div>
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Địa chỉ (Kanji)</label>
++                      <input
++                        type="text"
++                        placeholder="VD: 小田原市荻窪440番地"
++                        value={newTaxOffice.address}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, address: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
++                      />
++                    </div>
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Địa chỉ (Romaji)</label>
++                      <input
++                        type="text"
++                        placeholder="VD: 440 Ogikubo Odawara-shi"
++                        value={newTaxOffice.romajiAddress}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, romajiAddress: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
++                      />
++                    </div>
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Điện thoại đại diện</label>
++                      <input
++                        type="text"
++                        placeholder="VD: 0465-35-4511"
++                        value={newTaxOffice.phone}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, phone: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-mono font-medium"
++                      />
++                    </div>
++                    <div className="flex flex-col gap-0.5">
++                      <label className="text-[9px] text-slate-500 font-semibold">Website Cục thuế</label>
++                      <input
++                        type="text"
++                        placeholder="VD: https://www.nta.go.jp/..."
++                        value={newTaxOffice.websiteUrl}
++                        onChange={e => setNewTaxOffice(prev => ({ ...prev, websiteUrl: e.target.value }))}
++                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
++                      />
++                    </div>
++                  </div>
++                  <div className="flex justify-end gap-1.5 pt-1">
++                    <button
++                      type="button"
++                      onClick={() => {
++                        setIsAddingTaxOffice(false);
++                        setNewTaxOffice({ name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: '' });
++                      }}
++                      className="px-2 py-1 text-[10px] text-slate-500 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 font-semibold transition-colors"
++                    >
++                      Hủy
++                    </button>
++                    <button
++                      type="button"
++                      disabled={creatingTaxOffice}
++                      onClick={async () => {
++                        if (!newTaxOffice.name.trim()) {
++                          alert('Vui lòng nhập tên Cục thuế.');
++                          return;
++                        }
++                        setCreatingTaxOffice(true);
++                        try {
++                          const res = await fetch('/api/tax-offices', {
++                            method: 'POST',
++                            headers: { 'Content-Type': 'application/json' },
++                            body: JSON.stringify(newTaxOffice)
++                          });
++                          const resData = await res.json();
++                          if (res.ok && resData.success) {
++                            const createdOffice = resData.data;
++                            setTaxOffices(prev => {
++                              if (prev.some(t => t.id === createdOffice.id)) return prev;
++                              return [...prev, createdOffice].sort((a, b) => a.name.localeCompare(b.name));
++                            });
++                            setValue('taxOfficeId', createdOffice.id);
++                            setIsAddingTaxOffice(false);
++                            setNewTaxOffice({ name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: '' });
++                            alert(`Đã đăng ký và áp dụng Cục thuế ${createdOffice.name}!`);
++                          } else {
++                            alert('Lỗi đăng ký: ' + (resData.error || 'Vui lòng thử lại.'));
++                          }
++                        } catch (err) {
++                          alert('Lỗi kết nối khi đăng ký Cục thuế.');
++                        } finally {
++                          setCreatingTaxOffice(false);
++                        }
++                      }}
++                      className="px-2 py-1 text-[10px] text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 rounded font-semibold transition-colors flex items-center gap-1 shadow-xs"
++                    >
++                      {creatingTaxOffice && <Loader2 className="w-3 h-3 animate-spin" />}
++                      Lưu &amp; Áp dụng
++                    </button>
++                  </div>
++                </div>
++              )}
++
++              {/* Show selected Tax Office details */}
++              {(() => {
++                const selectedId = watch('taxOfficeId');
++                const office = taxOffices.find(t => t.id === selectedId);
++                if (!office) return null;
++                return (
++                  <div className="p-2 bg-indigo-50/30 border border-indigo-100/50 rounded-lg space-y-1 text-[10px] text-slate-600">
++                    <div className="flex justify-between items-center gap-2">
++                      <span className="text-slate-400 shrink-0">Địa chỉ:</span>
++                      <a
++                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(office.name + ' ' + office.address)}`}
++                        target="_blank"
++                        rel="noopener noreferrer"
++                        className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline text-right truncate max-w-[170px]"
++                        title="Click để mở bản đồ địa chỉ Cục Thuế này"
++                      >
++                        {office.address || '---'}
++                      </a>
++                    </div>
++                    {office.romajiAddress && (
++                      <div className="flex justify-between items-center gap-2">
++                        <span className="text-slate-400 shrink-0">Địa chỉ (Romaji):</span>
++                        <a
++                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(office.romajiName || office.name || '')}`}
++                          target="_blank"
++                          rel="noopener noreferrer"
++                          className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline text-right truncate max-w-[170px]"
++                          title="Click để mở bản đồ địa chỉ Romaji"
++                        >
++                          {office.romajiAddress}
++                        </a>
++                      </div>
++                    )}
++                    <div className="flex justify-between items-center">
++                      <span className="text-slate-400">Mã bưu điện:</span>
++                      <span className="font-mono font-medium text-slate-800">{office.postalCode || '---'}</span>
++                    </div>
++                    {office.phone && (
++                      <div className="flex justify-between items-center">
++                        <span className="text-slate-400">Điện thoại:</span>
++                        <span className="font-medium text-slate-800">{office.phone}</span>
++                      </div>
++                    )}
++                    {office.websiteUrl && (
++                      <div className="pt-1 border-t border-indigo-100/30 flex justify-end">
++                        <button
++                          type="button"
++                          onClick={() => window.open(office.websiteUrl, '_blank')}
++                          className="text-[9px] text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-bold transition-all"
++                        >
++                          Mở website Cục Thuế &rarr;
++                        </button>
++                      </div>
++                    )}
++                  </div>
++                );
++              })()}
++            </div>
++
+           </div>
+         </div>
+ 

@@ -22,8 +22,6 @@ model User {
 
   customers Customer[]
 
-  transfersSent     TransferRequest[] @relation("TransfersSent")
-  transfersReceived TransferRequest[] @relation("TransfersReceived")
   sessions          StaffSession[]
   templateDrafts    TemplateDraft[]
 
@@ -70,7 +68,7 @@ model CustomerSession {
 model OcrResult {
   id           String   @id @default(uuid())
   customerId   String
-  customer     Customer @relation(fields: [customerId], references: [id])
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   documentType String   // Ví dụ: 'zairyuFront', 'passport'
   rawData      Json     // Lưu toàn bộ cục JSON do AI trả về
   
@@ -127,20 +125,15 @@ model Customer {
   postalCode          String?
   taxOfficeId         String?
   nenkinNumber        String?
+  nenkinKatakanaName  String?
 
-  bankName      String?
-  branchName    String?
-  accountNumber String?
-  accountName   String?
-  swiftCode     String?
-
+  nenkinBookUrl     String?
   zairyuFrontUrl    String?
   zairyuBackUrl     String?
   passportUrl       String?
   departureStampUrl String?
-  nenkinBookUrl     String?
-  bankPassbookUrl   String?
   
+  bankAccounts      BankAccount[]
   securityPhotoUrl  String? // Chứa ảnh chụp chân dung bảo mật
 
   lastName               String?
@@ -157,13 +150,6 @@ model Customer {
   hasPermanentResidence  Boolean?
   permanentResidenceDate DateTime?
   myNumber               String?
-  bankBranchAddress      String?
-  bankBranchCity         String?
-  bankCountry            String?
-  bankInstitutionCode    String?
-  branchCode             String?
-  bankAccountType        String?
-  accountNameKatakana    String?
   occupation             String?
   departureDate          DateTime?
   headOfHouseholdName    String?
@@ -176,7 +162,6 @@ model Customer {
   overseasPostalCode     String?
 
   applications     NenkinApplication[]
-  transferRequests TransferRequest[]
   workHistories    WorkHistory[]
   ocrResults       OcrResult[]
   sessions         CustomerSession[]
@@ -186,7 +171,7 @@ model Customer {
 
   referralType          ReferralType?
   referredByCustomerId  String?
-  referredByCustomer    Customer?  @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id])
+  referredByCustomer    Customer?  @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id], onDelete: SetNull)
   referrals             Customer[] @relation("CustomerReferrals")
 
   taxOffice TaxOffice? @relation(fields: [taxOfficeId], references: [id])
@@ -254,7 +239,7 @@ model NenkinApplication {
   workYears     Int?       // Số năm làm việc
 
   customerId          String
-  customer            Customer            @relation(fields: [customerId], references: [id])
+  customer            Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   
   taxRepresentativeId String?
   taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
@@ -314,29 +299,6 @@ model TaxOffice {
   @@map("nenkin_tax_offices")
 }
 
-enum TransferStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-model TransferRequest {
-  id         String         @id @default(uuid())
-  customerId String
-  fromUserId String
-  toUserId   String
-  status     TransferStatus @default(PENDING)
-  notes      String?
-
-  customer Customer @relation(fields: [customerId], references: [id])
-  fromUser User     @relation("TransfersSent", fields: [fromUserId], references: [id])
-  toUser   User     @relation("TransfersReceived", fields: [toUserId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("nenkin_transfer_requests")
-}
 
 model ExchangeRate {
   id        String   @id @default(uuid())
@@ -358,10 +320,73 @@ model WorkHistory {
   endDate        DateTime?
   pensionType    String?   @default("厚生年金保険")
 
-  customer       Customer  @relation(fields: [customerId], references: [id])
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@map("nenkin_work_histories")
+}
+
+enum EntityType {
+  CUSTOMER
+  APPLICATION
+}
+
+model AuditLog {
+  id          String     @id @default(uuid())
+  entityId    String     // ID của Customer hoặc NenkinApplication
+  entityType  EntityType // Loại đối tượng bị thay đổi
+  fromState   String     // Trạng thái trước khi chuyển (vd: DRAFT)
+  toState     String     // Trạng thái sau khi chuyển (vd: SENT_1ST)
+  actionBy    String     // ID của người dùng (User hoặc Customer) thực hiện
+  actionAt    DateTime   @default(now()) // Thời gian thực hiện chuyển đổi
+  metadata    Json?      // Lưu JSON chi tiết: lý do từ chối (revision note), IP, User-Agent, hoặc các fields thay đổi quan trọng
+  
+  @@index([entityId, entityType])
+  @@index([actionAt])
+  @@map("nenkin_audit_logs")
+}
+
+model BankDictionary {
+  id          String   @id @default(uuid())
+  country     String   // 'JAPAN' | 'VIETNAM'
+  bankName    String
+  branchName  String?
+  swiftCode   String?
+  address     String?
+  city        String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([country, bankName, branchName])
+  @@map("nenkin_bank_dictionaries")
+}
+
+model BankAccount {
+  id                  String   @id @default(uuid())
+  customerId          String
+  customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  purpose             String   // 'FIRST_REFUND' | 'SECOND_REFUND' | 'BOTH'
+  bankCountry         String   // 'JAPAN' | 'VIETNAM'
+  bankPassbookUrls    String[] @default([])
+  
+  bankName            String?
+  branchName          String?
+  accountNumber       String?
+  accountName         String?
+  accountNameKatakana String?  
+  
+  swiftCode           String?
+  bankBranchAddress   String?
+  bankInstitutionCode String?
+  branchCode          String?
+  bankAccountType     String?  // ORDINARY (1) hoặc CURRENT (2)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("nenkin_bank_accounts")
 }

@@ -10,7 +10,7 @@ export default function Sidebar({ isOpen, isPinned, setIsPinned, onMouseEnter, o
 
   return (
     <aside 
-      className={`${isOpen ? 'w-64' : 'w-20'} bg-teal-900 text-teal-50 flex flex-col h-screen fixed left-0 top-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[105] transition-all duration-300 overflow-x-hidden`}
+      className={`${isOpen ? 'w-64' : 'w-16'} bg-teal-900 text-teal-50 flex flex-col h-screen fixed left-0 top-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[105] transition-all duration-300 overflow-x-hidden`}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -36,11 +36,7 @@ export default function Sidebar({ isOpen, isPinned, setIsPinned, onMouseEnter, o
         )}
       </div>
       
-      <div className={`px-4 py-4 text-xs font-semibold text-teal-400/80 uppercase tracking-wider ${!isOpen && 'text-center text-[10px]'}`}>
-        {isOpen ? 'Menu chính' : 'Menu'}
-      </div>
-      
-      <nav className="flex-1 px-3">
+      <nav className="flex-1 px-3 mt-4">
         <ul className="space-y-1.5">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -77,13 +73,6 @@ export default function Sidebar({ isOpen, isPinned, setIsPinned, onMouseEnter, o
           <Home className="w-5 h-5 group-hover:text-teal-200 transition-colors shrink-0" />
           {isOpen && <span className="font-medium text-sm group-hover:text-white whitespace-nowrap">Trang chủ Khách</span>}
         </Link>
-        <button 
-          className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 w-full rounded-md hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 group text-teal-200`}
-          title={!isOpen ? "Đăng xuất" : undefined}
-        >
-          <LogOut className="w-5 h-5 group-hover:text-red-300 transition-colors shrink-0" />
-          {isOpen && <span className="font-medium text-sm group-hover:text-red-300 whitespace-nowrap">Đăng xuất</span>}
-        </button>
       </div>
     </aside>
   );

@@ -1,13 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Map, ExternalLink, Clock, Plus } from 'lucide-react';
+import { Map, ExternalLink, Clock, Plus } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
 export default function TaxOfficesPage() {
+  return (
+    <React.Suspense fallback={<div className="flex h-[50vh] items-center justify-center"><div className="animate-spin w-8 h-8 border-b-2 border-blue-500 rounded-full"></div></div>}>
+      <TaxOfficesPageInner />
+    </React.Suspense>
+  );
+}
+
+function TaxOfficesPageInner() {
   type TaxOfficeData = {
     id: string;
     name: string;
@@ -61,6 +70,20 @@ export default function TaxOfficesPage() {
     return () => { ignore = true; };
   }, []);
 
+  const searchParams = useSearchParams();
+  const q = searchParams.get('q')?.toLowerCase() || '';
+
+  const filteredTaxOffices = taxOffices.filter(office => {
+    if (!q) return true;
+    return (
+      office.name.toLowerCase().includes(q) ||
+      (office.romajiName && office.romajiName.toLowerCase().includes(q)) ||
+      (office.address && office.address.toLowerCase().includes(q)) ||
+      (office.romajiAddress && office.romajiAddress.toLowerCase().includes(q)) ||
+      office.postalCode.includes(q)
+    );
+  });
+
   const handleEditClick = (office: TaxOfficeData) => {
     setEditingOffice(office);
   };
@@ -112,16 +135,10 @@ export default function TaxOfficesPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Tìm kiếm cục thuế..." className="pl-9" />
-          </div>
-        </CardHeader>
+      <Card className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50 dark:bg-slate-900">
+            <TableHeader className="bg-slate-50/50 backdrop-blur-sm dark:bg-slate-900/50">
               <TableRow>
                 <TableHead>Tên Cục Thuế (Kanji / Romaji)</TableHead>
                 <TableHead>Mã Bưu Điện</TableHead>
@@ -136,13 +153,13 @@ export default function TaxOfficesPage() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-4">Đang tải...</TableCell>
                 </TableRow>
-              ) : taxOffices.length === 0 ? (
+              ) : filteredTaxOffices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">Chưa có dữ liệu cục thuế</TableCell>
+                  <TableCell colSpan={6} className="text-center py-4">Không tìm thấy dữ liệu cục thuế</TableCell>
                 </TableRow>
               ) : (
-                taxOffices.map((office, index) => (
-                  <TableRow key={index}>
+                filteredTaxOffices.map((office, index) => (
+                  <TableRow key={index} className="hover:bg-slate-50/50 transition-colors">
                     <TableCell>
                       <div className="font-semibold text-indigo-600">{office.name}</div>
                       <div className="text-xs text-slate-500">{office.romajiName}</div>
@@ -177,13 +194,13 @@ export default function TaxOfficesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50/80 text-indigo-700 border border-indigo-200">
                         {office._count?.customers || 0} Khách
                       </span>
                     </TableCell>
                     <TableCell className="text-right flex gap-2 justify-end">
-                      <Button variant="outline" size="sm" onClick={() => handleEditClick(office)}>Sửa</Button>
-                      <Button variant="danger" size="sm" onClick={() => handleDeleteClick(office.id)}>Xóa</Button>
+                      <Button variant="outline" size="sm" className="rounded-xl" onClick={() => handleEditClick(office)}>Sửa</Button>
+                      <Button variant="danger" size="sm" className="rounded-xl" onClick={() => handleDeleteClick(office.id)}>Xóa</Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -195,17 +212,17 @@ export default function TaxOfficesPage() {
         <div className="md:hidden flex flex-col gap-4 p-4">
           {loading ? (
             <div className="text-center py-4">Đang tải...</div>
-          ) : taxOffices.length === 0 ? (
-            <div className="text-center py-4 text-slate-500">Chưa có dữ liệu cục thuế</div>
+          ) : filteredTaxOffices.length === 0 ? (
+            <div className="text-center py-4 text-slate-500">Không tìm thấy dữ liệu cục thuế</div>
           ) : (
-            taxOffices.map((office, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
+            filteredTaxOffices.map((office, index) => (
+              <div key={index} className="border border-white/50 rounded-2xl p-4 space-y-3 bg-white/40 backdrop-blur-md shadow-sm">
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="font-semibold text-indigo-600">{office.name}</div>
                     <div className="text-xs text-slate-500">{office.romajiName}</div>
                   </div>
-                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50/80 text-indigo-700 border border-indigo-200">
                     {office._count?.customers || 0} Khách
                   </span>
                 </div>
@@ -225,19 +242,19 @@ export default function TaxOfficesPage() {
                     <div className="text-xs text-amber-600 mt-1">{office.notes}</div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-white/30">
                   {office.websiteUrl && (
-                    <a href={office.websiteUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 flex items-center justify-center gap-1">
+                    <a href={office.websiteUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-1.5 text-xs font-medium text-blue-600 bg-blue-50/50 rounded-xl hover:bg-blue-100 flex items-center justify-center gap-1">
                       <ExternalLink className="w-3 h-3" /> Web
                     </a>
                   )}
                   {office.mapUrl && (
-                    <a href={office.mapUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 rounded-md hover:bg-emerald-100 flex items-center justify-center gap-1">
+                    <a href={office.mapUrl} target="_blank" rel="noreferrer" className="flex-1 text-center py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50/50 rounded-xl hover:bg-emerald-100 flex items-center justify-center gap-1">
                       <Map className="w-3 h-3" /> Map
                     </a>
                   )}
-                  <Button variant="outline" size="sm" className="flex-1 h-7" onClick={() => handleEditClick(office)}>Sửa</Button>
-                  <Button variant="danger" size="sm" className="flex-1 h-7" onClick={() => handleDeleteClick(office.id)}>Xóa</Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 rounded-xl" onClick={() => handleEditClick(office)}>Sửa</Button>
+                  <Button variant="danger" size="sm" className="flex-1 h-7 rounded-xl" onClick={() => handleDeleteClick(office.id)}>Xóa</Button>
                 </div>
               </div>
             ))

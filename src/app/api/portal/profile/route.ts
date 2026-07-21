@@ -10,7 +10,7 @@ export async function PUT(request: Request) {
     const customerId = session.customerId;
 
     const body = await request.json();
-    const allowedUpdates = ['zairyuFrontUrl', 'zairyuBackUrl', 'passportUrl', 'nenkinBookUrl', 'bankPassbookUrl', 'securityPhotoUrl'];
+    const allowedUpdates = ['zairyuFrontUrl', 'zairyuBackUrl', 'passportUrl', 'nenkinBookUrl', 'securityPhotoUrl'];
     const updateData: Record<string, string> = {};
     
     for (const key of allowedUpdates) {

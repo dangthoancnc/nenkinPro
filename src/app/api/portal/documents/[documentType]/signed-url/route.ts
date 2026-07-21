@@ -10,7 +10,6 @@ const ALLOWED_DOC_TYPES: Record<string, keyof Customer> = {
   passport:       'passportUrl',
   departureStamp: 'departureStampUrl',
   nenkinBook:     'nenkinBookUrl',
-  bankPassbook:   'bankPassbookUrl',
   securityPhoto:  'securityPhotoUrl',
 } as const;
 
@@ -54,7 +53,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Document not found' }, { status: 404 });
     }
 
-    let bucket = 'nenkin-documents';
+    let bucket = 'customer-documents';
     let filePath = fullUrl;
 
     if (fullUrl.includes('/storage/v1/object/public/')) {

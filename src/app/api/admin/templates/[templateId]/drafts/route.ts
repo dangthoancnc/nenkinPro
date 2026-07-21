@@ -1,20 +1,13 @@
 import { NextResponse } from 'next/server';
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireRole } from '@/lib/auth/authorization';
 import { createTemplateDraft } from '@/features/templates/template-draft-service';
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
-  const user = await validateEmployee();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!['ADMIN', 'MANAGER'].includes(user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { user, error } = await requireRole(['ADMIN', 'MANAGER']);
+  if (error || !user) return error;
 
   let body: unknown;
   try {

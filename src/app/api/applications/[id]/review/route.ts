@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/auth/authorization';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await requireRole(['ADMIN', 'MANAGER']);
+    if (authError || !user) return authError;
+
     const { id } = await params;
     const body = await request.json();
     const { action } = body;

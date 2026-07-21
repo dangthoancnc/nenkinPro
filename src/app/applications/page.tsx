@@ -2,10 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  FileText, Search, Plus, Filter, ArrowRight,
-  Clock, CheckCircle, AlertCircle, Send, Wallet
+  FileText, Plus, Filter, ArrowRight,
+  Clock, CheckCircle, AlertCircle, Send, Wallet,
+  ChevronUp, ChevronDown, LayoutGrid, List, LayoutTemplate,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 type ApplicationStatus = 'PENDING' | 'DRAFT' | 'SENT_1ST' | 'RECEIVED_1ST' | 'SENT_2ND' | 'RECEIVED_2ND' | 'COMPLETED' | 'CANCELLED';
 
@@ -18,6 +21,10 @@ interface Application {
   customer: {
     fullName: string;
     code: string;
+    bankName?: string;
+    dob?: string;
+    taxOfficeId?: string;
+    zairyuFrontUrl?: string;
   };
   createdAt: string;
 }
@@ -34,19 +41,54 @@ const statusConfig: Record<ApplicationStatus, { label: string; color: string; ic
 };
 
 export default function ApplicationsPage() {
+  return (
+    <React.Suspense fallback={<div className="flex h-[50vh] items-center justify-center"><div className="animate-spin w-8 h-8 border-b-2 border-blue-500 rounded-full"></div></div>}>
+      <ApplicationsPageInner />
+    </React.Suspense>
+  );
+}
+
+function ApplicationsPageInner() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const searchParams = useSearchParams();
+  const q = searchParams.get('q') || '';
+  
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterBank, setFilterBank] = useState('');
+  const [filterDobFrom, setFilterDobFrom] = useState('');
+  const [filterDobTo, setFilterDobTo] = useState('');
+  const [sortCol, setSortCol] = useState<string>('applyDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  const [taxOffices, setTaxOffices] = useState<Array<any>>([]);
 
   useEffect(() => {
     async function fetchApplications() {
       try {
-        const res = await fetch('/api/applications');
-        if (res.ok) {
-          const data = await res.json();
+        const [appRes, taxRes] = await Promise.all([
+          fetch('/api/applications'),
+          fetch('/api/tax-offices')
+        ]);
+        
+        if (appRes.ok) {
+          const data = await appRes.json();
           setApplications(data);
         }
+        if (taxRes.ok) {
+          const data = await taxRes.json();
+          if (data.success) {
+            setTaxOffices(data.data);
+          }
+        }
       } catch (error) {
-        console.error('Failed to fetch applications', error);
+        console.error('Failed to fetch data', error);
       } finally {
         setLoading(false);
       }
@@ -54,65 +96,203 @@ export default function ApplicationsPage() {
     fetchApplications();
   }, []);
 
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ChevronDown className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100" />;
+    return sortDir === 'asc' ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />;
+  };
+
+  let filteredApplications = applications.filter(app => {
+    if (q) {
+      const searchLower = q.toLowerCase();
+      const matchName = app.customer?.fullName?.toLowerCase().includes(searchLower);
+      const matchCode = app.customer?.code?.toLowerCase().includes(searchLower);
+      if (!matchName && !matchCode) return false;
+    }
+    if (filterStatuses.length > 0) {
+      if (!filterStatuses.includes(app.status)) return false;
+    }
+    if (filterBank) {
+      // @ts-ignore - customer has bankName but TS interface is missing it
+      if (!app.customer?.bankName?.toLowerCase().includes(filterBank.toLowerCase())) return false;
+    }
+    if (filterDobFrom) {
+      // @ts-ignore
+      if (app.customer?.dob && new Date(app.customer.dob) < new Date(filterDobFrom)) return false;
+    }
+    if (filterDobTo) {
+      // @ts-ignore
+      if (app.customer?.dob && new Date(app.customer.dob) > new Date(filterDobTo)) return false;
+    }
+    return true;
+  });
+
+  filteredApplications = filteredApplications.sort((a, b) => {
+    let cmp = 0;
+    if (sortCol === 'name') {
+      cmp = (a.customer?.fullName || '').localeCompare(b.customer?.fullName || '');
+    } else if (sortCol === 'status') {
+      cmp = a.status.localeCompare(b.status);
+    } else if (sortCol === 'applyDate') {
+      const da = a.applyDate ? new Date(a.applyDate).getTime() : 0;
+      const db = b.applyDate ? new Date(b.applyDate).getTime() : 0;
+      cmp = da - db;
+    } else if (sortCol === 'jpy') {
+      const va = a.totalExpectedJpy || 0;
+      const vb = b.totalExpectedJpy || 0;
+      cmp = va - vb;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+  const paginatedApps = filteredApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Quản lý Hồ sơ Nenkin</h1>
-          <p className="text-sm text-slate-500 mt-1">Theo dõi tiến độ và trạng thái các hồ sơ xin hoàn thuế Nenkin.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 shadow-sm">
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Quản lý Hồ sơ Nenkin</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Xem dạng bảng"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Xem dạng lưới"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+          <button 
+            onClick={() => setShowFilter(!showFilter)} 
+            className={`inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors border rounded-lg shadow-sm ${showFilter ? 'bg-primary/10 text-primary border-primary/20' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
+          >
             <Filter className="w-4 h-4" />
-            Lọc
+            <span className="hidden sm:inline">Lọc</span>
           </button>
-          <Link href="/customers" className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-primary text-white rounded-lg hover:bg-primary/90 shadow-sm shadow-primary/30">
+          <Link href="/applications/new" className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors bg-primary text-white rounded-lg hover:bg-primary/90 shadow-sm shadow-primary/30">
             <Plus className="w-4 h-4" />
-            Tạo hồ sơ mới
+            <span className="hidden sm:inline">Tạo mới</span>
           </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: 'Tổng số hồ sơ', value: applications.length, trend: '+12% tháng này', color: 'bg-blue-500' },
-          { label: 'Cần duyệt', value: applications.filter(a => a.status === 'PENDING').length, trend: 'Cần kiểm tra', color: 'bg-orange-500' },
-          { label: 'Đang xử lý', value: applications.filter(a => !['COMPLETED', 'CANCELLED', 'PENDING'].includes(a.status)).length, trend: 'Cần theo dõi', color: 'bg-amber-500' },
-          { label: 'Đã hoàn thành', value: applications.filter(a => a.status === 'COMPLETED').length, trend: 'Tháng này: 4', color: 'bg-emerald-500' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] relative overflow-hidden group">
-            <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-150 duration-500 ${stat.color}`} />
-            <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{stat.value}</p>
-            <p className="text-xs font-medium text-slate-400 mt-2">{stat.trend}</p>
-          </div>
-        ))}
+      {/* Stats Ribbon */}
+      <div className="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-slate-200 p-2 shadow-sm min-h-[40px]">
+        <div className="px-3 py-1 bg-slate-100 text-slate-700 rounded-md text-sm font-medium flex items-center gap-2">
+          Tổng <span className="bg-slate-200 px-1.5 py-0.5 rounded text-xs">{applications.length}</span>
+        </div>
+        <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-md text-sm font-medium flex items-center gap-2">
+          Cần duyệt <span className="bg-orange-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => a.status === 'PENDING').length}</span>
+        </div>
+        <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-md text-sm font-medium flex items-center gap-2">
+          Đang xử lý <span className="bg-amber-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => !['COMPLETED', 'CANCELLED', 'PENDING'].includes(a.status)).length}</span>
+        </div>
+        <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-md text-sm font-medium flex items-center gap-2">
+          Hoàn thành <span className="bg-emerald-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => a.status === 'COMPLETED').length}</span>
+        </div>
       </div>
 
-      {/* Main Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm theo mã KH, tên..." 
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
+      {/* Filter Slide-over/Popover */}
+      {showFilter && (
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-medium text-slate-800">Lọc nâng cao</h3>
+            <button onClick={() => setShowFilter(false)} className="text-sm text-slate-400 hover:text-slate-600">
+              Đóng
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-slate-500 uppercase mb-2 block">Trạng thái hồ sơ</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <button 
+                    key={status} 
+                    onClick={() => {
+                      if (filterStatuses.includes(status)) {
+                        setFilterStatuses(filterStatuses.filter(s => s !== status));
+                      } else {
+                        setFilterStatuses([...filterStatuses, status]);
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${filterStatuses.includes(status) ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    {config.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase mb-2 block">Tên ngân hàng</label>
+                <input 
+                  type="text" 
+                  placeholder="Ví dụ: Yucho..."
+                  value={filterBank}
+                  onChange={(e) => setFilterBank(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase mb-2 block">Ngày sinh (Từ)</label>
+                <input 
+                  type="date" 
+                  value={filterDobFrom}
+                  onChange={(e) => setFilterDobFrom(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase mb-2 block">Ngày sinh (Đến)</label>
+                <input 
+                  type="date" 
+                  value={filterDobTo}
+                  onChange={(e) => setFilterDobTo(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div className="hidden md:block overflow-x-auto">
+      )}
+
+      {/* Main Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className={viewMode === 'table' ? "hidden md:block overflow-x-auto" : "hidden"}>
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 font-semibold">Khách hàng</th>
-                <th className="px-6 py-4 font-semibold">Trạng thái</th>
-                <th className="px-6 py-4 font-semibold">Ngày nộp</th>
-                <th className="px-6 py-4 font-semibold text-right">Dự kiến (JPY)</th>
-                <th className="px-6 py-4 font-semibold">Hành động</th>
+                <th className="px-4 py-3 font-semibold w-16">Thẻ NK</th>
+                <th className="px-6 py-3 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1">Khách hàng <SortIcon col="name" /></div>
+                </th>
+                <th className="px-6 py-3 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1">Trạng thái <SortIcon col="status" /></div>
+                </th>
+                <th className="px-6 py-3 font-semibold">Cục thuế</th>
+                <th className="px-6 py-3 font-semibold">Ngân hàng</th>
+                <th className="px-6 py-3 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('applyDate')}>
+                  <div className="flex items-center gap-1">Ngày nộp <SortIcon col="applyDate" /></div>
+                </th>
+                <th className="px-6 py-3 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors text-right justify-end" onClick={() => handleSort('jpy')}>
+                  <div className="flex items-center justify-end gap-1">Dự kiến (JPY) <SortIcon col="jpy" /></div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -125,51 +305,64 @@ export default function ApplicationsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : applications.length === 0 ? (
+              ) : filteredApplications.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                         <FileText className="w-6 h-6 text-slate-400" />
                       </div>
-                      <p>Chưa có hồ sơ nào. Bắt đầu bằng cách tạo hồ sơ mới.</p>
+                      <p>{q || filterStatuses.length ? 'Không tìm thấy hồ sơ phù hợp với bộ lọc.' : 'Chưa có hồ sơ nào. Bắt đầu bằng cách tạo hồ sơ mới.'}</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                applications.map((app) => {
+                paginatedApps.map((app) => {
                   const status = statusConfig[app.status];
                   const StatusIcon = status.icon;
+                  const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
                   
                   return (
                     <tr key={app.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900">{app.customer?.fullName || 'N/A'}</span>
-                          <span className="text-xs text-slate-500 mt-0.5">{app.customer?.code || '---'}</span>
+                      <td className="px-4 py-3">
+                        <div className="w-12 h-8 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                          {app.customer?.zairyuFrontUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={app.customer.zairyuFrontUrl} alt="Zairyu" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[8px] text-slate-400">N/A</span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                      <td className="px-6 py-3">
+                        <Link href={`/applications/${app.id}`} className="flex flex-col hover:opacity-80 transition-opacity">
+                          <span className="font-semibold text-primary hover:underline">{app.customer?.fullName || 'N/A'}</span>
+                          <span className="text-xs text-slate-500 mt-0.5 font-mono">{app.customer?.code || '---'}</span>
+                        </Link>
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${status.color}`}>
                           <StatusIcon className="w-3.5 h-3.5" />
                           {status.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">
+                      <td className="px-6 py-3 text-slate-600">
+                        <div className="max-w-[150px] truncate text-xs" title={taxOffice?.name}>
+                          {taxOffice?.name || '---'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-slate-600">
+                        <div className="max-w-[120px] truncate text-xs" title={app.customer?.bankName}>
+                          {app.customer?.bankName || '---'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-slate-600">
                         {app.applyDate ? new Date(app.applyDate).toLocaleDateString('vi-VN') : '--/--/----'}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-3 text-right">
                         <span className="font-medium text-slate-900">
                           {app.totalExpectedJpy ? new Intl.NumberFormat('ja-JP').format(app.totalExpectedJpy) : '---'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Link 
-                          href={`/applications/${app.id}`}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </Link>
                       </td>
                     </tr>
                   );
@@ -179,61 +372,128 @@ export default function ApplicationsPage() {
           </table>
         </div>
 
-        <div className="md:hidden flex flex-col gap-4 p-4">
+        {/* Mobile / Grid View */}
+        <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4' : 'hidden md:hidden flex-col gap-3 p-4'}`}>
           {loading ? (
-            <div className="py-8 text-center text-slate-500">
+            <div className="py-8 text-center text-slate-500 col-span-full">
               <div className="animate-pulse flex flex-col items-center gap-2">
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                 <p>Đang tải dữ liệu...</p>
               </div>
             </div>
-          ) : applications.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 flex flex-col items-center gap-3">
+          ) : filteredApplications.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 flex flex-col items-center gap-3 col-span-full">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                 <FileText className="w-6 h-6 text-slate-400" />
               </div>
-              <p>Chưa có hồ sơ nào. Bắt đầu bằng cách tạo hồ sơ mới.</p>
+              <p>{q || filterStatuses.length ? 'Không tìm thấy kết quả.' : 'Chưa có hồ sơ nào.'}</p>
             </div>
           ) : (
-            applications.map((app) => {
+            paginatedApps.map((app) => {
               const status = statusConfig[app.status];
               const StatusIcon = status.icon;
+              const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
               
               return (
-                <div key={app.id} className="border rounded-lg p-4 space-y-3 bg-white shadow-sm relative">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="text-xs text-slate-500 mb-0.5">{app.customer?.code || '---'}</div>
-                      <div className="font-semibold text-slate-900">{app.customer?.fullName || 'N/A'}</div>
+                <div key={app.id} className="relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all flex flex-col group">
+                  <div className="h-32 bg-slate-100 border-b border-slate-200 relative overflow-hidden flex items-center justify-center">
+                    {app.customer?.zairyuFrontUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={app.customer.zairyuFrontUrl} alt="Zairyu" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <LayoutTemplate className="w-8 h-8 opacity-20" />
+                        <span className="text-xs font-medium uppercase tracking-wider">No Image</span>
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider shadow-sm ${status.color}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {status.label}
+                      </span>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                      <StatusIcon className="w-3.5 h-3.5" />
-                      {status.label}
-                    </span>
                   </div>
                   
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Ngày nộp:</span>
-                    <span className="text-slate-900">{app.applyDate ? new Date(app.applyDate).toLocaleDateString('vi-VN') : '--/--/----'}</span>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <Link href={`/applications/${app.id}`} className="mb-3 block hover:opacity-80">
+                      <h3 className="font-bold text-slate-800 text-base leading-tight group-hover:text-primary transition-colors">{app.customer?.fullName || 'N/A'}</h3>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">#{app.customer?.code || '---'}</p>
+                    </Link>
+                    
+                    <div className="space-y-2 mb-4 flex-1 text-sm">
+                      <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
+                        <span className="text-slate-500">Cục thuế</span>
+                        <span className="font-medium text-slate-700 text-right truncate max-w-[120px]" title={taxOffice?.name}>{taxOffice?.name || '---'}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
+                        <span className="text-slate-500">Ngân hàng</span>
+                        <span className="font-medium text-slate-700 text-right truncate max-w-[120px]" title={app.customer?.bankName}>{app.customer?.bankName || '---'}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
+                        <span className="text-slate-500">Ngày nộp</span>
+                        <span className="font-medium text-slate-700">{app.applyDate ? new Date(app.applyDate).toLocaleDateString('vi-VN') : '--/--/----'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Dự kiến</span>
+                        <span className="font-bold text-emerald-600">{app.totalExpectedJpy ? new Intl.NumberFormat('ja-JP').format(app.totalExpectedJpy) + ' JPY' : '---'}</span>
+                      </div>
+                    </div>
+                    
+                    <Link 
+                      href={`/applications/${app.id}`}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold transition-colors bg-slate-50 border border-slate-200 rounded-lg group-hover:bg-primary group-hover:text-white group-hover:border-primary text-slate-600"
+                    >
+                      Xem chi tiết hồ sơ
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
-                  
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Dự kiến (JPY):</span>
-                    <span className="font-medium text-slate-900">{app.totalExpectedJpy ? new Intl.NumberFormat('ja-JP').format(app.totalExpectedJpy) : '---'}</span>
-                  </div>
-                  
-                  <Link 
-                    href={`/applications/${app.id}`}
-                    className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-700"
-                  >
-                    Xem chi tiết
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               );
             })
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50/50">
+            <div className="text-sm text-slate-500">
+              Hiển thị <span className="font-medium text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> trong số <span className="font-medium text-slate-900">{filteredApplications.length}</span> kết quả
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1 rounded-md text-slate-500 hover:bg-slate-200 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              <div className="flex items-center gap-1 mx-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                      currentPage === page 
+                        ? 'bg-primary text-white shadow-sm' 
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1 rounded-md text-slate-500 hover:bg-slate-200 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

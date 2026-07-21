@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireCustomerAccess } from '@/lib/auth/authorization';
+import { customerSchema } from '@/lib/validations/customerSchema';
+import { deleteStorageFile, moveStorageFile } from '@/lib/storageHelper';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,11 +17,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         workHistories: { orderBy: { startDate: 'asc' } },
         applications: {
           orderBy: { createdAt: 'desc' },
-          take: 1,
           include: {
             taxRepresentative: true
           }
-        }
+        },
+        bankAccounts: true
       }
     });
 
@@ -40,82 +42,141 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const { user, error } = await requireCustomerAccess(id);
     if (error || !user) return error;
 
-    const body = await req.json();
+    const rawBody = await req.json();
+    const body = customerSchema.partial().parse(rawBody);
+    
+    // Also extract status and workHistories from rawBody since they might not be in the base schema
+    const status = rawBody.status;
+    const workHistories = rawBody.workHistories;
+    const taxOffice = rawBody.taxOffice;
+    const bankAccounts = rawBody.bankAccounts;
+
+    const existingCustomer = await prisma.customer.findUnique({
+      where: { id },
+      include: { bankAccounts: true }
+    });
+    if (!existingCustomer) {
+      return NextResponse.json({ success: false, error: 'Không tìm thấy khách hàng' }, { status: 404 });
+    }
+
+    // Move any newly added document files from anonymous to customerId, and delete old replaced files
+    const docFields = ['zairyuFrontUrl', 'zairyuBackUrl', 'passportUrl', 'departureStampUrl', 'nenkinBookUrl'] as const;
+    for (const field of docFields) {
+      const newVal = body[field];
+      const oldVal = existingCustomer[field];
+      if (newVal !== undefined && newVal !== oldVal) {
+        if (newVal && newVal.includes('/customer-documents/anonymous/')) {
+          body[field] = await moveStorageFile(newVal, id, field.replace('Url', ''));
+        }
+        if (oldVal) {
+          await deleteStorageFile(oldVal);
+        }
+      }
+    }
+
+    // Handle bank account passbooks moving/deletion
+    if (bankAccounts && Array.isArray(bankAccounts)) {
+      const newPassbookUrls = new Set<string>();
+      
+      for (let i = 0; i < bankAccounts.length; i++) {
+        const acc = bankAccounts[i];
+        if (acc.bankPassbookUrls && Array.isArray(acc.bankPassbookUrls)) {
+          const processedUrls = await Promise.all(acc.bankPassbookUrls.map(async (url: string) => {
+            if (url && url.includes('/customer-documents/anonymous/')) {
+              return await moveStorageFile(url, id, `bankPassbook_${i}`);
+            }
+            return url;
+          }));
+          acc.bankPassbookUrls = processedUrls;
+          processedUrls.forEach(url => {
+            if (url) newPassbookUrls.add(url);
+          });
+        }
+      }
+
+      // Gather old bank passbook urls
+      const oldPassbookUrls = existingCustomer.bankAccounts.reduce((accUrl: string[], curr: any) => {
+        if (curr.bankPassbookUrls && Array.isArray(curr.bankPassbookUrls)) {
+          accUrl.push(...curr.bankPassbookUrls);
+        }
+        return accUrl;
+      }, []);
+
+      // Delete any old passbook URL that is not present in new list
+      for (const oldUrl of oldPassbookUrls) {
+        if (!newPassbookUrls.has(oldUrl)) {
+          await deleteStorageFile(oldUrl);
+        }
+      }
+    }
 
     let finalTaxOfficeId = body.taxOfficeId || null;
-    if (!finalTaxOfficeId && body.taxOffice && body.taxOffice.name) {
+    if (!finalTaxOfficeId && taxOffice && taxOffice.name) {
       const existing = await prisma.taxOffice.findFirst({
-        where: { name: body.taxOffice.name }
+        where: { name: taxOffice.name }
       });
       if (existing) {
         // Cập nhật các trường mới nếu có
         await prisma.taxOffice.update({
           where: { id: existing.id },
           data: {
-            romajiName: body.taxOffice.romajiName !== undefined ? body.taxOffice.romajiName : existing.romajiName,
-            address: body.taxOffice.address || existing.address,
-            romajiAddress: body.taxOffice.romajiAddress !== undefined ? body.taxOffice.romajiAddress : existing.romajiAddress,
-            postalCode: body.taxOffice.postalCode || existing.postalCode,
-            phone: body.taxOffice.phone !== undefined ? body.taxOffice.phone : existing.phone,
-            mailingName: body.taxOffice.mailingName !== undefined ? body.taxOffice.mailingName : existing.mailingName,
-            mailingPostalCode: body.taxOffice.mailingPostalCode !== undefined ? body.taxOffice.mailingPostalCode : existing.mailingPostalCode,
-            mailingAddress: body.taxOffice.mailingAddress !== undefined ? body.taxOffice.mailingAddress : existing.mailingAddress,
-            jurisdiction: body.taxOffice.jurisdiction !== undefined ? body.taxOffice.jurisdiction : existing.jurisdiction,
-            consultationPhone: body.taxOffice.consultationPhone !== undefined ? body.taxOffice.consultationPhone : existing.consultationPhone,
-            generalPhone: body.taxOffice.generalPhone !== undefined ? body.taxOffice.generalPhone : existing.generalPhone,
+            romajiName: taxOffice.romajiName !== undefined ? taxOffice.romajiName : existing.romajiName,
+            address: taxOffice.address || existing.address,
+            romajiAddress: taxOffice.romajiAddress !== undefined ? taxOffice.romajiAddress : existing.romajiAddress,
+            postalCode: taxOffice.postalCode || existing.postalCode,
+            phone: taxOffice.phone !== undefined ? taxOffice.phone : existing.phone,
+            mailingName: taxOffice.mailingName !== undefined ? taxOffice.mailingName : existing.mailingName,
+            mailingPostalCode: taxOffice.mailingPostalCode !== undefined ? taxOffice.mailingPostalCode : existing.mailingPostalCode,
+            mailingAddress: taxOffice.mailingAddress !== undefined ? taxOffice.mailingAddress : existing.mailingAddress,
+            jurisdiction: taxOffice.jurisdiction !== undefined ? taxOffice.jurisdiction : existing.jurisdiction,
+            consultationPhone: taxOffice.consultationPhone !== undefined ? taxOffice.consultationPhone : existing.consultationPhone,
+            generalPhone: taxOffice.generalPhone !== undefined ? taxOffice.generalPhone : existing.generalPhone,
           }
         });
         finalTaxOfficeId = existing.id;
       } else {
         const newOffice = await prisma.taxOffice.create({
           data: {
-            name: body.taxOffice.name,
-            romajiName: body.taxOffice.romajiName ?? null,
-            address: body.taxOffice.address || '',
-            romajiAddress: body.taxOffice.romajiAddress ?? null,
-            postalCode: body.taxOffice.postalCode || '',
-            phone: body.taxOffice.phone ?? null,
-            mapUrl: body.taxOffice.mapUrl ?? null,
-            websiteUrl: body.taxOffice.websiteUrl ?? null,
-            mailingName: body.taxOffice.mailingName ?? null,
-            mailingPostalCode: body.taxOffice.mailingPostalCode ?? null,
-            mailingAddress: body.taxOffice.mailingAddress ?? null,
-            jurisdiction: body.taxOffice.jurisdiction ?? null,
-            consultationPhone: body.taxOffice.consultationPhone ?? null,
-            generalPhone: body.taxOffice.generalPhone ?? null,
+            name: taxOffice.name,
+            romajiName: taxOffice.romajiName ?? null,
+            address: taxOffice.address || '',
+            romajiAddress: taxOffice.romajiAddress ?? null,
+            postalCode: taxOffice.postalCode || '',
+            phone: taxOffice.phone ?? null,
+            mapUrl: taxOffice.mapUrl ?? null,
+            websiteUrl: taxOffice.websiteUrl ?? null,
+            mailingName: taxOffice.mailingName ?? null,
+            mailingPostalCode: taxOffice.mailingPostalCode ?? null,
+            mailingAddress: taxOffice.mailingAddress ?? null,
+            jurisdiction: taxOffice.jurisdiction ?? null,
+            consultationPhone: taxOffice.consultationPhone ?? null,
+            generalPhone: taxOffice.generalPhone ?? null,
           }
         });
         finalTaxOfficeId = newOffice.id;
       }
     }
 
-    const customer = await prisma.customer.update({
-      where: { id },
-      data: {
+    const customer = await prisma.$transaction(async (tx) => {
+      const updateData: any = {
         fullName: body.fullName,
         cardNumber: body.cardNumber,
         dob: body.dob ? new Date(body.dob) : undefined,
-        zairyuAddress: body.address !== undefined ? body.address : body.zairyuAddress,
-        zairyuRomajiAddress: body.romajiAddress !== undefined ? body.romajiAddress : body.zairyuRomajiAddress,
+        zairyuAddress: rawBody.address !== undefined ? rawBody.address : body.zairyuAddress,
+        zairyuRomajiAddress: rawBody.romajiAddress !== undefined ? rawBody.romajiAddress : body.zairyuRomajiAddress,
         zairyuFrontUrl: body.zairyuFrontUrl,
         zairyuBackUrl: body.zairyuBackUrl,
         passportUrl: body.passportUrl,
         departureStampUrl: body.departureStampUrl,
         nenkinBookUrl: body.nenkinBookUrl,
-        bankPassbookUrl: body.bankPassbookUrl,
         postalCode: body.postalCode,
         nenkinNumber: body.nenkinNumber,
+        nenkinKatakanaName: body.nenkinKatakanaName,
         taxOfficeId: finalTaxOfficeId || undefined,
-
-        bankName: body.bankName,
-        branchName: body.branchName,
-        accountNumber: body.accountNumber,
-        accountName: body.accountName,
-        swiftCode: body.swiftCode,
 
         lastName: body.lastName,
         firstName: body.firstName,
-        fullNameFurigana: body.fullNameFurigana,
+        fullNameFurigana: rawBody.fullNameFurigana,
         nationality: body.nationality,
         sex: body.sex,
         placeOfBirth: body.placeOfBirth,
@@ -127,37 +188,112 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         hasPermanentResidence: body.hasPermanentResidence,
         permanentResidenceDate: body.permanentResidenceDate ? new Date(body.permanentResidenceDate) : null,
         myNumber: body.myNumber,
-        bankBranchAddress: body.bankBranchAddress,
-        bankBranchCity: body.bankBranchCity,
-        accountNameKatakana: body.accountNameKatakana,
-        bankCountry: body.bankCountry,
         occupation: body.occupation,
         departureDate: body.departureDate ? new Date(body.departureDate) : null,
         headOfHouseholdName: body.headOfHouseholdName,
         relationshipToHead: body.relationshipToHead,
-        overseasStreet: body.overseasStreet,
-        overseasCity: body.overseasCity,
-        overseasProvince: body.overseasProvince,
-        overseasPostalCode: body.overseasPostalCode,
+        overseasStreet: rawBody.overseasStreet,
+        overseasCity: rawBody.overseasCity,
+        overseasProvince: rawBody.overseasProvince,
+        overseasPostalCode: rawBody.overseasPostalCode,
+      };
+
+      if (status && status !== existingCustomer.status) {
+        updateData.status = status;
       }
+
+      const updatedCustomer = await tx.customer.update({
+        where: { id },
+        data: updateData
+      });
+
+      if (status && status !== existingCustomer.status) {
+        await tx.auditLog.create({
+          data: {
+            entityId: id,
+            entityType: 'CUSTOMER',
+            fromState: existingCustomer.status || 'NEW',
+            toState: status,
+            actionBy: user.id,
+            metadata: {
+              updatedKeys: Object.keys(rawBody)
+            }
+          }
+        });
+      }
+
+      // Handle WorkHistories if provided
+      if (workHistories && Array.isArray(workHistories)) {
+        await tx.workHistory.deleteMany({ where: { customerId: id } });
+        if (workHistories.length > 0) {
+          await tx.workHistory.createMany({
+            data: workHistories.map((wh: any) => ({
+              customerId: id,
+              companyName: wh.companyName || '',
+              companyAddress: wh.companyAddress || '',
+              startDate: wh.startDate ? new Date(wh.startDate) : null,
+              endDate: wh.endDate ? new Date(wh.endDate) : null,
+              pensionType: wh.pensionType || '厚生年金保険',
+            }))
+          });
+        }
+      }
+
+      // Handle BankAccounts if provided
+      if (bankAccounts && Array.isArray(bankAccounts)) {
+        await tx.bankAccount.deleteMany({ where: { customerId: id } });
+        if (bankAccounts.length > 0) {
+          await tx.bankAccount.createMany({
+            data: bankAccounts.map((acc: any) => ({
+              customerId: id,
+              purpose: acc.purpose || 'BOTH',
+              bankCountry: acc.bankCountry || 'JAPAN',
+              bankPassbookUrls: acc.bankPassbookUrls || [],
+              bankName: acc.bankName || null,
+              branchName: acc.branchName || null,
+              accountNumber: acc.accountNumber || null,
+              accountName: acc.accountName || null,
+              accountNameKatakana: acc.accountNameKatakana || null,
+              swiftCode: acc.swiftCode || null,
+              bankBranchAddress: acc.bankBranchAddress || null,
+              bankInstitutionCode: acc.bankInstitutionCode || null,
+              branchCode: acc.branchCode || null,
+              bankAccountType: acc.bankAccountType || null
+            }))
+          });
+        }
+      }
+      
+      return updatedCustomer;
     });
 
-    // Handle WorkHistories if provided
-    if (body.workHistories && Array.isArray(body.workHistories)) {
-      // Delete existing
-      await prisma.workHistory.deleteMany({ where: { customerId: id } });
-      // Insert new
-      if (body.workHistories.length > 0) {
-        await prisma.workHistory.createMany({
-          data: body.workHistories.map((wh: any) => ({
-            customerId: id,
-            companyName: wh.companyName || '',
-            companyAddress: wh.companyAddress || '',
-            startDate: wh.startDate ? new Date(wh.startDate) : null,
-            endDate: wh.endDate ? new Date(wh.endDate) : null,
-            pensionType: wh.pensionType || '厚生年金保険',
-          }))
-        });
+    // Auto-save to BankDictionary if Vietnam bank
+    if (bankAccounts && Array.isArray(bankAccounts)) {
+      for (const acc of bankAccounts) {
+        if (acc.bankCountry === 'VIETNAM' && acc.bankName) {
+          try {
+            await prisma.bankDictionary.upsert({
+              where: {
+                country_bankName_branchName: {
+                  country: 'VIETNAM',
+                  bankName: acc.bankName,
+                  branchName: acc.branchName || '',
+                }
+              },
+              update: {
+                swiftCode: acc.swiftCode,
+                address: acc.bankBranchAddress,
+              },
+              create: {
+                country: 'VIETNAM',
+                bankName: acc.bankName,
+                branchName: acc.branchName || '',
+                swiftCode: acc.swiftCode,
+                address: acc.bankBranchAddress,
+              }
+            });
+          } catch (e) {}
+        }
       }
     }
 

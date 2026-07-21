@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
 import prisma from '@/lib/prisma';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { checkUploadRateLimit } from '@/lib/auth/rateLimit';
 
 function validateMagicBytes(buffer: ArrayBuffer): { isValid: boolean; ext: string | null; mimeType: string | null } {
@@ -30,10 +30,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quá nhiều yêu cầu tải lên. Vui lòng thử lại sau.' }, { status: 429 });
     }
 
-    const documentType = formData.get('documentType') as string || 'zairyuFront';
+    const rawDocType = formData.get('documentType') as string || 'zairyuFront';
+    let documentType = rawDocType;
+    if (rawDocType === 'nenkinBook') {
+      documentType = 'nenkin';
+    } else if (rawDocType.startsWith('bankPassbook')) {
+      documentType = 'bank';
+    } else if (rawDocType === 'departureStamp') {
+      documentType = 'departure';
+    }
 
     // Strict whitelist check
-    const ALLOWED_TYPES = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank', 'noticeOfPayment', 'securityPhoto', 'departureStamp'];
+    const ALLOWED_TYPES = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank', 'noticeOfPayment', 'securityPhoto', 'departure'];
     if (!ALLOWED_TYPES.includes(documentType)) {
       return NextResponse.json({ error: 'Loại tài liệu không hợp lệ.' }, { status: 400 });
     }
@@ -85,14 +93,17 @@ export async function POST(request: Request) {
         if (process.env.NODE_ENV === 'test') {
           securityPhotoUrl = secFileName;
         } else {
-          const { error: secUploadError } = await supabaseAdmin.storage
-            .from('nenkin-documents')
+          const { error: secUploadError } = await supabase.storage
+            .from('customer-documents')
             .upload(secFileName, secBuffer, { contentType: magic.mimeType! });
           
           if (!secUploadError) {
-            securityPhotoUrl = secFileName; // Store plain path
+            const { data } = supabase.storage
+              .from('customer-documents')
+              .getPublicUrl(secFileName);
+            securityPhotoUrl = data.publicUrl; // Store full public URL
           } else {
-            console.error('Failed to upload security photo:', secUploadError);
+            console.error('Security photo upload error:', secUploadError);
           }
         }
       } catch (uploadError) {
@@ -120,8 +131,8 @@ export async function POST(request: Request) {
         if (process.env.NODE_ENV === 'test') {
           publicUrl = fileName;
         } else {
-          const { error: uploadError } = await supabaseAdmin.storage
-            .from('nenkin-documents')
+          const { error: uploadError } = await supabase.storage
+            .from('customer-documents')
             .upload(fileName, buffer, { contentType: mimeType });
 
           if (uploadError) {
@@ -129,7 +140,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `Supabase Error: ${uploadError.message}` }, { status: 500 });
           }
 
-          publicUrl = fileName; // Store plain path
+          const { data } = supabase.storage
+            .from('customer-documents')
+            .getPublicUrl(fileName);
+          publicUrl = data.publicUrl; // Store full public URL
         }
       }
     } else if (imageUrl) {
@@ -263,7 +277,11 @@ export async function POST(request: Request) {
 
         // Auto-infer accurate Tax Office without hallucination
         if (typeof data.address === 'string') {
-          const inferredTaxOffice = inferTaxOffice(data.address);
+          const inferredTaxOffice = await inferTaxOfficeWithAI(
+            data.address, 
+            (data.postalCode as string) || '', 
+            apiKeys[0] || process.env.GEMINI_API_KEY || ''
+          );
           if (inferredTaxOffice) {
             data.taxOffice = {
               name: inferredTaxOffice.name,
@@ -357,11 +375,12 @@ Trả về JSON: { "lastName": "", "firstName": "", "nationality": "", "dob": ""
 1. Số Nenkin (基礎年金番号 - Basic Pension Number, thường có 10 chữ số dạng XXXX-XXXXXX)
 2. Họ tên (Kanji)
 3. Họ tên Furigana (Kana/Romaji nếu có)
-4. Ngày sinh
+4. Tên Katakana (Katakana Name, thường được ghi trên sổ)
+5. Ngày sinh
 
 LƯU Ý: Nếu đây KHÔNG PHẢI là sổ Nenkin, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải sổ Nenkin."
 
-Trả về JSON: { "nenkinNumber": "", "fullNameKanji": "", "fullNameFurigana": "", "dob": "" }`;
+Trả về JSON: { "nenkinNumber": "", "fullNameKanji": "", "fullNameFurigana": "", "nenkinKatakanaName": "", "dob": "" }`;
 
     case 'bank':
       return `Trích xuất thông tin từ ảnh Sổ/Thẻ Ngân Hàng này:
@@ -467,44 +486,46 @@ async function lookupPostalCodeFromAddress(address: string): Promise<string> {
 }
 
 /**
- * Suy luận chính xác Cục Thuế từ địa chỉ (tránh AI bịa).
- * Hỗ trợ các thành phố trọng điểm ở Aichi (nơi tệp khách hàng chủ yếu).
+ * Suy luận chính xác Cục Thuế từ địa chỉ bằng cách sử dụng AI (Gemini).
  */
-function inferTaxOffice(address: string) {
+async function inferTaxOfficeWithAI(address: string, postalCode: string, apiKey: string) {
   if (!address) return null;
-  const a = address.replace(/\s+/g, '');
+  
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const prompt = `Bạn là một chuyên gia về hệ thống hành chính Nhật Bản.
+Hãy tìm tên Cục Thuế Quốc gia (National Tax Agency - Zeimusho) trực thuộc có thẩm quyền quản lý đối với địa chỉ sau:
+Địa chỉ cư trú: ${address} (Mã bưu điện: ${postalCode})
 
-  // Map 18 Cục Thuế tại Aichi
-  if (a.includes('名古屋市中村区') || a.includes('名古屋市中川区') || a.includes('清須市') || a.includes('あま市') || a.includes('海部郡')) 
-    return { name: '名古屋中村税務署', zip: '4538509', address: '愛知県名古屋市中村区太閤3丁目28番58号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/nakamura/index.htm' };
-  if (a.includes('名古屋市中区')) 
-    return { name: '名古屋中税務署', zip: '4608522', address: '愛知県名古屋市中区三の丸3丁目3番2号 名古屋国税総合庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/naka/index.htm' };
-  if (a.includes('名古屋市東区') || a.includes('名古屋市名東区') || a.includes('名古屋市天白区')) 
-    return { name: '名古屋東税務署', zip: '4618585', address: '愛知県名古屋市東区白壁3丁目11番22号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/higashi/index.htm' };
-  if (a.includes('名古屋市北区') || a.includes('名古屋市守山区')) 
-    return { name: '名古屋北税務署', zip: '4628555', address: '愛知県名古屋市北区金城町2丁目65番地', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kita/index.htm' };
-  if (a.includes('名古屋市西区')) 
-    return { name: '名古屋西税務署', zip: '4518504', address: '愛知県名古屋市西区押切2丁目3番1号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/nishi/index.htm' };
-  if (a.includes('名古屋市昭和区') || a.includes('名古屋市瑞穂区') || a.includes('日進市') || a.includes('長久手市') || a.includes('愛知郡')) 
-    return { name: '名古屋昭和税務署', zip: '4668601', address: '愛知県名古屋市昭和区八事本町58番地', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/showa/index.htm' };
-  if (a.includes('名古屋市熱田区') || a.includes('名古屋市港区')) 
-    return { name: '名古屋熱田税務署', zip: '4568502', address: '愛知県名古屋市熱田区神宮4丁目8番40号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/atsuta/index.htm' };
-  if (a.includes('名古屋市千種区')) 
-    return { name: '名古屋千種税務署', zip: '4648502', address: '愛知県名古屋市千種区若水3丁目12番1号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/chikusa/index.htm' };
-  if (a.includes('半田市') || a.includes('常滑市') || a.includes('東海市') || a.includes('大府市') || a.includes('知多市') || a.includes('知多郡')) 
-    return { name: '半田税務署', zip: '4758686', address: '愛知県半田市宮路町50番地の5', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/handa/index.htm' };
-  if (a.includes('春日井市') || a.includes('小牧市')) 
-    return { name: '春日井税務署', zip: '4868501', address: '愛知県春日井市八田町2丁目43番地1', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kasugai/index.htm' };
-  if (a.includes('豊田市') || a.includes('みよし市')) 
-    return { name: '豊田税務署', zip: '4718506', address: '愛知県豊田市常盤町1丁目105番地3', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/toyota/index.htm' };
-  if (a.includes('刈谷市') || a.includes('碧南市') || a.includes('安城市') || a.includes('知立市') || a.includes('高浜市')) 
-    return { name: '刈谷税務署', zip: '4488506', address: '愛知県刈谷市若松町1丁目46番地1', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/kariya/index.htm' };
-  if (a.includes('一宮市') || a.includes('稲沢市')) 
-    return { name: '一宮税務署', zip: '4918508', address: '愛知県一宮市栄4丁目1番8号', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/ichinomiya/index.htm' };
-  if (a.includes('豊橋市') || a.includes('豊川市') || a.includes('田原市')) 
-    return { name: '豊橋税務署', zip: '4408504', address: '愛知県豊橋市大国町111番地 豊橋地方合同庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/toyohashi/index.htm' };
-  if (a.includes('岡崎市') || a.includes('額田郡')) 
-    return { name: '岡崎税務署', zip: '4448511', address: '愛知県岡崎市羽根町字北乾地50番地1 岡崎合同庁舎', websiteUrl: 'https://www.nta.go.jp/about/organization/nagoya/location/aichi/okazaki/index.htm' };
+LƯU Ý QUAN TRỌNG:
+1. Bạn phải trả về chính xác tên Cục Thuế (ví dụ: 名古屋中村税務署, 品川税務署).
+2. Hãy cố gắng tìm ra Mã bưu điện (Postal Code) của chính Cục Thuế đó, cũng như địa chỉ của nó.
+3. Nếu bạn hoàn toàn không thể xác định được, hãy để trống các trường thay vì bịa đặt.
 
-  return null; // Trả về null nếu không khớp, để UI trống cho người dùng tự điền
+Vui lòng trả về ĐÚNG định dạng JSON sau:
+{ "name": "Tên Cục Thuế (Kanji)", "romajiName": "Tên Romaji", "address": "Địa chỉ cục thuế (Kanji)", "postalCode": "Mã bưu điện của cục thuế (7 số)" }`;
+
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      text = text.substring(jsonStart, jsonEnd + 1);
+      const parsed = JSON.parse(text);
+      if (parsed.name) {
+        return {
+          name: parsed.name,
+          zip: parsed.postalCode || '',
+          address: parsed.address || '',
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('AI inferTaxOffice error:', error);
+    return null;
+  }
 }

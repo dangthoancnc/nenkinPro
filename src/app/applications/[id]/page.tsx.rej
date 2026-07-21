@@ -1,0 +1,271 @@
+diff a/src/app/applications/[id]/page.tsx b/src/app/applications/[id]/page.tsx	(rejected hunks)
+@@ -151,30 +193,42 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+           body: JSON.stringify({ ...applicationPayload, customerId: cData.data.id })
+         });
+         const aData = await aRes.json();
+-        if (aData.error) throw new Error(aData.error);
++        if (!aRes.ok || aData.error) throw new Error(aData.error || 'Cannot create application');
+ 
+         alert('Tß║ío hß╗ô s╞í th├ánh c├┤ng!');
+         router.push(`/applications/${aData.id}`);
+       } else {
+         // Fetch current application to get customerId
+         const appRes = await fetch(`/api/applications/${id}`);
++        if (!appRes.ok) {
++          const errData = await appRes.json();
++          throw new Error(errData.error || 'Lß╗ùi lß║Ñy th├┤ng tin hß╗ô s╞í.');
++        }
+         const appData = await appRes.json();
+ 
+         // 1. Update Customer
+         if (appData.customerId) {
+-          await fetch(`/api/customers/${appData.customerId}`, {
++          const cRes = await fetch(`/api/customers/${appData.customerId}`, {
+             method: 'PUT',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(customerPayload)
+           });
++          if (!cRes.ok) {
++            const errData = await cRes.json();
++            throw new Error(errData.error || 'Lß╗ùi cß║¡p nhß║¡t th├┤ng tin kh├ích h├áng.');
++          }
+         }
+         
+         // 2. Update Application
+-        await fetch(`/api/applications/${id}`, {
++        const aRes = await fetch(`/api/applications/${id}`, {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(applicationPayload)
+         });
++        if (!aRes.ok) {
++          const errData = await aRes.json();
++          throw new Error(errData.error || 'Lß╗ùi cß║¡p nhß║¡t tiß║┐n tr├¼nh hß╗ô s╞í.');
++        }
+ 
+         alert('L╞░u hß╗ô s╞í th├ánh c├┤ng!');
+         setIsEditing(false);
+@@ -274,6 +423,23 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                   {deleting ? '─Éang x├│a...' : 'X├│a Hß╗ô s╞í'}
+                 </Button>
+               )}
++              {!isNew && (
++                <Button 
++                  type="button" 
++                  variant="outline" 
++                  onClick={() => {
++                    if (customer?.status !== 'VERIFIED') {
++                      alert('Hß╗ô s╞í ch╞░a ─æ╞░ß╗úc duyß╗çt (x├íc nhß║¡n khß╗¢p ß║únh gß╗æc). Vui l├▓ng chß╗ìn "Sß╗¡a Hß╗ô s╞í", kiß╗âm tra th├┤ng tin tß╗½ng tr╞░ß╗¥ng, t├¡ch chß╗ìn x├íc nhß║¡n ß╗ƒ cuß╗æi form nhß║¡p liß╗çu v├á bß║Ñm "L╞░u Hß╗ô s╞í" ─æß╗â duyß╗çt tr╞░ß╗¢c khi in.');
++                      return;
++                    }
++                    router.push(`/applications/${id}/print`);
++                  }}
++                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
++                >
++                  <Printer className="w-4 h-4 mr-2 inline" />
++                  In biß╗âu mß║½u
++                </Button>
++              )}
+               <Button type="button" onClick={() => setIsEditing(true)} className="min-w-[120px] shadow-lg shadow-blue-600/20">
+                 Sß╗¡a Hß╗ô s╞í
+               </Button>
+@@ -354,36 +551,118 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                       
+                       {/* Floating toolbar - extremely modern and clean */}
+                       <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+-                        {/* Replace Button */}
+-                        <label className="cursor-pointer p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center" title="Thay thß║┐ ß║únh">
+-                          <UploadCloud className="w-4 h-4" />
+-                          <input 
+-                            type="file" 
+-                            className="hidden" 
+-                            accept="image/*" 
+-                            onChange={(e) => handleFileUpload(e, activeDoc, currentDocField)} 
+-                          />
+-                        </label>
+-                        {/* Delete Button */}
+-                        <button 
+-                          type="button" 
+-                          onClick={async () => {
+-                            if (confirm(`Bß║ín c├│ chß║»c chß║»n muß╗æn x├│a ß║únh cß╗ºa ${currentDocTitle}?`)) {
+-                              setValue(currentDocField as any, '');
+-                              if (!isNew) {
+-                                await fetch(`/api/applications/${id}`, {
+-                                  method: 'PUT',
+-                                  headers: { 'Content-Type': 'application/json' },
+-                                  body: JSON.stringify({ [currentDocField]: '' })
+-                                });
+-                              }
+-                            }
+-                          }}
+-                          className="p-1.5 bg-white/95 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
+-                          title="X├│a ß║únh"
+-                        >
+-                          <Trash2 className="w-4 h-4" />
+-                        </button>
++                        {isEditing && (
++                          <>
++                            {/* AI Extract Button */}
++                            <button
++                              type="button"
++                              onClick={async () => {
++                                if (!currentDocUrl) return;
++                                setOcrStatus(prev => ({ ...prev, [activeDoc]: 'processing' }));
++                                try {
++                                  const form = new FormData();
++                                  form.append('imageUrl', currentDocUrl);
++                                  form.append('documentType', activeDoc);
++                                  form.append('action', 'extract');
++                                  if (customerId) {
++                                    form.append('customerId', customerId);
++                                  }
++                                  
++                                  const res = await fetch('/api/ocr', {
++                                    method: 'POST',
++                                    body: form
++                                  });
++                                  const data = await res.json();
++                                  if (data.success && data.extractedData && !data.extractedData.error) {
++                                    const ext = data.extractedData;
++                                    // Same auto-fill logic
++                                    if (activeDoc === 'zairyuFront' || activeDoc === 'zairyuBack') {
++                                      if (ext.fullName) setValue('fullName', ext.fullName, { shouldValidate: true, shouldDirty: true });
++                                      if (ext.dob) setValue('dob', ext.dob, { shouldValidate: true, shouldDirty: true });
++                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++                                      if (ext.cardNumber) setValue('cardNumber', ext.cardNumber, { shouldDirty: true });
++                                      if (ext.address) setValue('zairyuAddress', ext.address, { shouldDirty: true });
++                                      if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
++                                      
++                                      if (ext.taxOffice && ext.taxOffice.name) {
++                                        fetch('/api/tax-offices', {
++                                          method: 'POST',
++                                          headers: { 'Content-Type': 'application/json' },
++                                          body: JSON.stringify(ext.taxOffice)
++                                        }).then(r => r.json()).then(tData => {
++                                          if (tData.success && tData.data?.id) {
++                                            setTaxOffices(prev => {
++                                              if (!prev.find(t => t.id === tData.data.id)) return [...prev, tData.data];
++                                              return prev;
++                                            });
++                                            setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
++                                          }
++                                        }).catch(console.error);
++                                      }
++                                    } else if (activeDoc === 'passport') {
++                                      if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
++                                      if (ext.dob) setValue('dob', ext.dob, { shouldDirty: true });
++                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
++                                      if (ext.sex) setValue('sex', ext.sex === 'M' ? 'Nam' : 'Nß╗»', { shouldDirty: true });
++                                      if (ext.passportNumber) setValue('cardNumber', ext.passportNumber, { shouldDirty: true });
++                                    } else if (activeDoc === 'nenkinBook') {
++                                      if (ext.nenkinNumber) setValue('nenkinNumber', ext.nenkinNumber, { shouldDirty: true });
++                                    } else if (activeDoc === 'bankPassbook') {
++                                      if (ext.bankName) setValue('bankName', ext.bankName, { shouldDirty: true });
++                                      if (ext.branchName) setValue('branchName', ext.branchName, { shouldDirty: true });
++                                      if (ext.accountNumber) setValue('accountNumber', ext.accountNumber, { shouldDirty: true });
++                                      if (ext.accountName) setValue('accountName', ext.accountName, { shouldDirty: true });
++                                      if (ext.swiftCode) setValue('swiftCode', ext.swiftCode, { shouldDirty: true });
++                                    } else if (activeDoc === 'departureStamp') {
++                                      if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
++                                    }
++                                    alert('Tr├¡ch xuß║Ñt th├┤ng tin AI th├ánh c├┤ng!');
++                                  } else {
++                                    alert('AI kh├┤ng t├¼m thß║Ñy th├┤ng tin hß╗úp lß╗ç: ' + (data.error || 'Lß╗ùi kh├┤ng x├íc ─æß╗ïnh'));
++                                  }
++                                } catch (err) {
++                                  alert('─É├ú xß║úy ra lß╗ùi khi tr├¡ch xuß║Ñt AI.');
++                                } finally {
++                                  setOcrStatus(prev => ({ ...prev, [activeDoc]: 'done' }));
++                                }
++                              }}
++                              className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md border border-indigo-700 shadow-md transition-all flex items-center justify-center"
++                              title="Tr├¡ch xuß║Ñt AI"
++                            >
++                              <Sparkles className="w-4 h-4" />
++                            </button>
++                            {/* Replace Button */}
++                            <label className="cursor-pointer p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center" title="Thay thß║┐ ß║únh">
++                              <UploadCloud className="w-4 h-4" />
++                              <input 
++                                type="file" 
++                                className="hidden" 
++                                accept="image/*" 
++                                onChange={(e) => handleFileUpload(e, activeDoc, currentDocField)} 
++                              />
++                            </label>
++                            {/* Delete Button */}
++                            <button 
++                              type="button" 
++                              onClick={async () => {
++                                if (confirm(`Bß║ín c├│ chß║»c chß║»n muß╗æn x├│a ß║únh cß╗ºa ${currentDocTitle}?`)) {
++                                  setValue(currentDocField as any, '');
++                                  if (!isNew && customerId) {
++                                    await fetch(`/api/customers/${customerId}`, {
++                                      method: 'PUT',
++                                      headers: { 'Content-Type': 'application/json' },
++                                      body: JSON.stringify({ [currentDocField]: '' })
++                                    });
++                                  }
++                                }
++                              }}
++                              className="p-1.5 bg-white/95 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
++                              title="X├│a ß║únh"
++                            >
++                              <Trash2 className="w-4 h-4" />
++                            </button>
++                          </>
++                        )}
+                         {/* Zoom Button */}
+                         <button 
+                           type="button" 
+@@ -473,7 +760,33 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+                       </div>
+                       <div className="flex flex-col gap-1">
+                         <label className="text-xs font-medium text-slate-500">─Éß╗ïa chß╗ë tr├¬n thß║╗ (Kanji)</label>
+-                        <Input {...register('zairyuAddress')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
++                        <div className="flex gap-1.5">
++                          <Input {...register('zairyuAddress')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" />
++                          {watch('zairyuAddress') && (
++                            <button
++                              type="button"
++                              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress') || '')}`, '_blank')}
++                              className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 transition-colors"
++                              title="Mß╗ƒ Google Maps cho ─æß╗ïa chß╗ë n├áy"
++                            >
++                              <MapPin className="w-4 h-4" />
++                            </button>
++                          )}
++                        </div>
++                      </div>
++                      <div className="flex flex-col gap-1">
++                        <label className="text-xs font-medium text-slate-500">M├ú B╞░u ─Éiß╗çn</label>
++                        <div className="flex gap-1.5">
++                          <Input {...register('postalCode')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" placeholder="VD: 4530015" />
++                          <button
++                            type="button"
++                            onClick={() => handleNtaSearch(watch('postalCode'))}
++                            className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 transition-colors"
++                            title="Tra cß╗⌐u Cß╗Ñc thuß║┐ theo m├ú b╞░u ─æiß╗çn"
++                          >
++                            <Search className="w-4 h-4" />
++                          </button>
++                        </div>
+                       </div>
+                     </div>
+                   );
+@@ -592,13 +922,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id:
+             <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0">
+               <div>
+                 <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Kh├ích h├áng</div>
+-                <div className="font-bold text-sm text-slate-900 truncate" title={watch('fullName')}>{watch('fullName') || 'N/A'}</div>
++                <div className="font-bold text-sm text-slate-900 truncate" title={watch('fullName') || undefined}>{watch('fullName') || 'N/A'}</div>
+                 <div className="text-[10px] text-slate-500 mt-0.5">M├ú KH: <span className="font-mono text-slate-700">{watch('code') || '---'}</span></div>
+               </div>
+               <div className="space-y-0.5">
+                 <div className="text-[10px] text-slate-600 flex justify-between">
+                   <span className="text-slate-400">Ng├áy sinh:</span>
+-                  <span className="font-medium">{watch('dob') ? new Date(watch('dob')).toLocaleDateString('vi-VN') : '---'}</span>
++                  <span className="font-medium">{watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
+                 </div>
+                 <div className="text-[10px] text-slate-600 flex justify-between">
+                   <span className="text-slate-400">Quß╗æc tß╗ïch:</span>

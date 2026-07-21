@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { user, error } = await requireRole(['ADMIN']);
+  const { user, error } = await requireStaff();
   if (error || !user) return error;
 
   try {

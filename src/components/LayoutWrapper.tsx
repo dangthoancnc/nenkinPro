@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { usePathname } from 'next/navigation';
@@ -13,14 +13,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   
   const isSidebarOpen = isPinned || isHovered;
   const pathname = usePathname();
-  const isPublicRoute = pathname === '/' || pathname === '/onboarding' || pathname === '/login';
+  const isNoLayoutRoute = pathname === '/' || pathname === '/onboarding' || pathname === '/login' || pathname?.endsWith('/print');
 
   useEffect(() => {
     const updateSidebarWidth = () => {
       if (window.innerWidth < 768) {
         document.documentElement.style.setProperty('--sidebar-width', '0px');
       } else {
-        document.documentElement.style.setProperty('--sidebar-width', isPinned ? '16rem' : '5rem');
+        document.documentElement.style.setProperty('--sidebar-width', isPinned ? '16rem' : '4rem');
       }
     };
     updateSidebarWidth();
@@ -28,7 +28,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     return () => window.removeEventListener('resize', updateSidebarWidth);
   }, [isPinned]);
 
-  if (isPublicRoute) {
+  if (isNoLayoutRoute) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         {children}
@@ -37,7 +37,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-blue-50/50 text-slate-900">
       <div className="hidden md:block">
         <Sidebar 
           isOpen={isSidebarOpen} 
@@ -49,11 +49,13 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       </div>
       <div 
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-          isPinned ? 'md:ml-64 ml-0' : 'md:ml-20 ml-0'
+          isPinned ? 'md:ml-64 ml-0' : 'md:ml-16 ml-0'
         }`}
       >
-        <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
-        <main className="flex-1 p-4 pb-20 md:pb-6 md:p-6 overflow-x-hidden relative">
+        <Suspense fallback={<div className="h-16 bg-card/80 border-b border-border sticky top-0 z-30" />}>
+          <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
+        </Suspense>
+        <main className="flex-1 p-3 pb-16 md:pb-3 md:p-3 overflow-x-hidden relative">
           {children}
         </main>
       </div>

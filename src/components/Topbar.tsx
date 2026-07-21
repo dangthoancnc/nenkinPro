@@ -1,13 +1,20 @@
+"use client";
 import { Bell, Search, UserCircle, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, FormEvent } from 'react';
 
 export default function Topbar({ isSidebarOpen, setIsSidebarOpen }: { isSidebarOpen: boolean, setIsSidebarOpen: (val: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<{name: string, role: string} | null>(null);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/auth/employee/me')
@@ -19,6 +26,17 @@ export default function Topbar({ isSidebarOpen, setIsSidebarOpen }: { isSidebarO
       })
       .catch(console.error);
   }, []);
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    if (searchQuery.trim()) {
+      params.set('q', searchQuery.trim());
+    } else {
+      params.delete('q');
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const handleLogout = async () => {
     await fetch('/api/auth/employee/logout', { method: 'POST' });
@@ -55,14 +73,16 @@ export default function Topbar({ isSidebarOpen, setIsSidebarOpen }: { isSidebarO
       </div>
 
       <div className="flex items-center w-full max-w-md ml-4">
-        <div className="relative w-full">
+        <form onSubmit={handleSearch} className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm khách hàng, hồ sơ..." 
             className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-primary transition-all w-full rounded-full"
           />
-        </div>
+        </form>
       </div>
       
       <div className="flex items-center gap-2 ml-auto">

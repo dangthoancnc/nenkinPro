@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
-const revenueData = [
-  { month: 'T1', revenue: 450 },
-  { month: 'T2', revenue: 520 },
-  { month: 'T3', revenue: 480 },
-  { month: 'T4', revenue: 610 },
-  { month: 'T5', revenue: 750 },
-];
+// Removed hardcoded revenueData
 
 // Utility to map icon names to Lucide icons
 const iconMap: Record<string, React.ElementType> = {
@@ -28,7 +22,9 @@ export default function Home() {
   const [kpis, setKpis] = useState<{ title: string; value: string; trend: string; iconName: string; color: string; bg: string }[]>([]);
   const [recentApplications, setRecentApplications] = useState<{ id: string; name: string; status: string; date: string; amount: string }[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ date: string; rate: number }[]>([]);
+  const [revenueData, setRevenueData] = useState<{ month: string; revenue: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   const statusMap: Record<string, string> = {
     DRAFT: 'Bản nháp',
@@ -54,6 +50,7 @@ export default function Home() {
         if (dashboardJson.success) {
           setKpis(dashboardJson.data.kpis || []);
           setRecentApplications(dashboardJson.data.recentApplications || []);
+          setRevenueData(dashboardJson.data.revenueData || []);
         }
         
         if (ratesJson.success && ratesJson.data.length > 0) {
@@ -84,6 +81,7 @@ export default function Home() {
       }
     }
     fetchData();
+    setIsMounted(true);
   }, []);
 
   return (
@@ -123,43 +121,6 @@ export default function Home() {
             })}
           </div>
 
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Biểu đồ Tỷ giá JPY/VND</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={exchangeRateData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
-                    <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <RechartsTooltip />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Doanh thu ước tính (Triệu VNĐ)</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
-                    <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Recent Applications and Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Applications */}
@@ -194,9 +155,13 @@ export default function Home() {
                           <TableRow 
                             key={index} 
                             className="cursor-pointer hover:bg-slate-50 transition-colors"
-                            onClick={() => window.location.href = `/customers?profileId=${app.id.replace('HS', 'KH-')}`}
+                            onClick={() => window.location.href = `/applications/${app.id}`}
                           >
-                            <TableCell className="font-medium">{app.id}</TableCell>
+                            <TableCell className="font-medium">
+                              <span className="truncate max-w-[100px] block" title={app.id}>
+                                {app.id.split('-')[0]}...
+                              </span>
+                            </TableCell>
                             <TableCell>{app.name}</TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
@@ -247,7 +212,7 @@ export default function Home() {
                 <CardTitle>Thao tác nhanh</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link href="/customers" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all text-left group">
+                <Link href="/applications/new" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all text-left group">
                   <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/60 transition-colors">
                     <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
@@ -274,6 +239,47 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">Báo giá Nenkin & tỷ giá</p>
                   </div>
                 </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Biểu đồ Tỷ giá JPY/VND</CardTitle>
+              </CardHeader>
+              <CardContent className="h-48">
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={exchangeRateData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
+                      <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                      <RechartsTooltip />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Doanh thu ước tính (Triệu VNĐ)</CardTitle>
+              </CardHeader>
+              <CardContent className="h-48">
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenueData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
+                      <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                      <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
+                      <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>

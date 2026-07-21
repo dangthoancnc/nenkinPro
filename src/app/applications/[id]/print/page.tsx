@@ -2,20 +2,180 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Printer, Loader2, FileImage } from 'lucide-react';
 import Link from 'next/link';
-import { PrintContainer, PrintField } from '@/components/PrintOverlay';
+import { PrintContainer, PrintField, ImagePrintContainer } from '@/components/PrintOverlay';
+
+const DOCUMENT_TYPES = [
+  // ── LẦN 1 ────────────────────────────
+  {
+    id: 'lan1_tonghop',
+    name: 'TỔNG HỢP (LẦN 1)',
+    category: 'LẦN 1',
+    pages: [
+      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_donxin_p1' },
+      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fieldType: 'lan1_donxin_p2' },
+      { pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_uyquyen' },
+      { isImage: true, imageKey: 'zairyu' },
+      { isImage: true, imageKey: 'passport' },
+      { isImage: true, imageKey: 'bank_first' },
+      { isImage: true, imageKey: 'bank_first_confirm' },
+      { isImage: true, imageKey: 'departureStamp' },
+    ]
+  },
+  {
+    id: 'lan1_donxin',
+    name: '1. Đơn xin Nenkin (Lần 1)',
+    category: 'LẦN 1',
+    pages: [
+      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_donxin_p1' },
+      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fieldType: 'lan1_donxin_p2' }
+    ]
+  },
+  {
+    id: 'lan1_uyquyen',
+    name: '2. Giấy ủy quyền (Lần 1)',
+    category: 'LẦN 1',
+    pages: [
+      { pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_uyquyen' }
+    ]
+  },
+  {
+    id: 'lan1_zairyu',
+    name: '3. Thẻ ngoại kiều (Mặt trước + sau)',
+    category: 'LẦN 1',
+    pages: [
+      { isImage: true, imageKey: 'zairyu' }
+    ]
+  },
+  {
+    id: 'lan1_passport',
+    name: '4. Ảnh hộ chiếu',
+    category: 'LẦN 1',
+    pages: [
+      { isImage: true, imageKey: 'passport' }
+    ]
+  },
+  {
+    id: 'lan1_bank',
+    name: '5. Sổ ngân hàng',
+    category: 'LẦN 1',
+    pages: [
+      { isImage: true, imageKey: 'bank_first' }
+    ]
+  },
+  {
+    id: 'lan1_bank_confirm',
+    name: '6. Giấy xác nhận ngân hàng',
+    category: 'LẦN 1',
+    pages: [
+      { isImage: true, imageKey: 'bank_first_confirm' }
+    ]
+  },
+  {
+    id: 'lan1_departure',
+    name: '7. Dấu xuất cảnh',
+    category: 'LẦN 1',
+    pages: [
+      { isImage: true, imageKey: 'departureStamp' }
+    ]
+  },
+
+  // ── LẦN 2 ────────────────────────────
+  {
+    id: 'lan2_tonghop',
+    name: 'TỔNG HỢP (LẦN 2)',
+    category: 'LẦN 2',
+    pages: [
+      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fieldType: 'lan2_donxin1' },
+      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fieldType: 'lan2_donxin2' },
+      { pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fieldType: 'lan2_donxin3' },
+      { pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fieldType: 'lan2_uyquyen' },
+      { isImage: true, imageKey: 'zairyu' },
+      { isImage: true, imageKey: 'passport' },
+      { isImage: true, imageKey: 'bank_second' },
+      { isImage: true, imageKey: 'bank_second_confirm' },
+    ]
+  },
+  {
+    id: 'lan2_donxin_12',
+    name: '1. Đơn xin Lần 2 (Tờ 1, 2)',
+    category: 'LẦN 2',
+    pages: [
+      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fieldType: 'lan2_donxin1' },
+      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fieldType: 'lan2_donxin2' }
+    ]
+  },
+  {
+    id: 'lan2_donxin_3',
+    name: '2. Đơn xin Lần 2 (Tờ 3)',
+    category: 'LẦN 2',
+    pages: [
+      { pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fieldType: 'lan2_donxin3' }
+    ]
+  },
+  {
+    id: 'lan2_uyquyen',
+    name: '3. Giấy ủy thác (Lần 2)',
+    category: 'LẦN 2',
+    pages: [
+      { pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fieldType: 'lan2_uyquyen' }
+    ]
+  },
+  {
+    id: 'lan2_zairyu',
+    name: '4. Thẻ ngoại kiều (Mặt trước + sau)',
+    category: 'LẦN 2',
+    pages: [
+      { isImage: true, imageKey: 'zairyu' }
+    ]
+  },
+  {
+    id: 'lan2_passport',
+    name: '5. Ảnh hộ chiếu',
+    category: 'LẦN 2',
+    pages: [
+      { isImage: true, imageKey: 'passport' }
+    ]
+  },
+  {
+    id: 'lan2_bank',
+    name: '6. Sổ ngân hàng',
+    category: 'LẦN 2',
+    pages: [
+      { isImage: true, imageKey: 'bank_second' }
+    ]
+  },
+  {
+    id: 'lan2_bank_confirm',
+    name: '7. Giấy xác nhận ngân hàng',
+    category: 'LẦN 2',
+    pages: [
+      { isImage: true, imageKey: 'bank_second_confirm' }
+    ]
+  },
+  {
+    id: 'lan2_departure',
+    name: '8. Dấu xuất cảnh (Lần 2)',
+    category: 'LẦN 2',
+    pages: [
+      { isImage: true, imageKey: 'departureStamp' }
+    ]
+  }
+];
 
 export default function ApplicationPrintView() {
   const params = useParams();
   const id = params?.id as string;
+  const searchParams = useSearchParams();
+  const embed = searchParams?.get('embed') === 'true';
   
   const [appData, setAppData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>(DOCUMENT_TYPES[0].id);
   
-  type PrintTab = 'summary' | 'lan1_donxin_p1' | 'lan1_donxin_p2' | 'lan1_uyquyen' | 'lan2_donxin1' | 'lan2_donxin2' | 'lan2_donxin3' | 'lan2_uyquyen';
-  const [activeTab, setActiveTab] = useState<PrintTab>('summary');
+  const [zoomWidth, setZoomWidth] = useState<number>(750);
 
   useEffect(() => {
     if (!id) return;
@@ -77,7 +237,49 @@ export default function ApplicationPrintView() {
     return '';
   };
 
-  const renderMappedFields = (formType: PrintTab) => {
+  const resolveImages = (key: string): string[][] => {
+    switch (key) {
+      case 'zairyu':
+        if (customer.zairyuFrontUrl || customer.zairyuBackUrl) {
+          return [[customer.zairyuFrontUrl, customer.zairyuBackUrl].filter(Boolean) as string[]];
+        }
+        return [];
+      case 'passport':
+        if (customer.passportUrl) return [[customer.passportUrl]];
+        return [];
+      case 'departureStamp':
+        if (customer.departureStampUrl) return [[customer.departureStampUrl]];
+        return [];
+      case 'bank_first': {
+        const banks = customer.bankAccounts || [];
+        const fBank = banks.find((b: any) => b.purpose === 'FIRST_REFUND' || b.purpose === 'BOTH');
+        if (!fBank || !fBank.bankPassbookUrls || fBank.bankPassbookUrls.length === 0) return [];
+        return [[fBank.bankPassbookUrls[0]]];
+      }
+      case 'bank_first_confirm': {
+        const banks = customer.bankAccounts || [];
+        const fBank = banks.find((b: any) => b.purpose === 'FIRST_REFUND' || b.purpose === 'BOTH');
+        if (!fBank || !fBank.bankPassbookUrls || fBank.bankPassbookUrls.length <= 1) return [];
+        return fBank.bankPassbookUrls.slice(1).map((url: string) => [url]);
+      }
+      case 'bank_second': {
+        const banks = customer.bankAccounts || [];
+        const sBank = banks.find((b: any) => b.purpose === 'SECOND_REFUND' || b.purpose === 'BOTH');
+        if (!sBank || !sBank.bankPassbookUrls || sBank.bankPassbookUrls.length === 0) return [];
+        return [[sBank.bankPassbookUrls[0]]];
+      }
+      case 'bank_second_confirm': {
+        const banks = customer.bankAccounts || [];
+        const sBank = banks.find((b: any) => b.purpose === 'SECOND_REFUND' || b.purpose === 'BOTH');
+        if (!sBank || !sBank.bankPassbookUrls || sBank.bankPassbookUrls.length <= 1) return [];
+        return sBank.bankPassbookUrls.slice(1).map((url: string) => [url]);
+      }
+      default:
+        return [];
+    }
+  };
+
+  const renderMappedFields = (formType: string) => {
     switch (formType) {
       case 'lan1_donxin_p1':
         return (
@@ -288,102 +490,138 @@ export default function ApplicationPrintView() {
     }
   };
 
+  const activeDoc = DOCUMENT_TYPES.find(d => d.id === activeTab) || DOCUMENT_TYPES[0];
+
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-8 print:p-0 print:bg-white flex flex-col items-center">
+    <div className={`min-h-screen flex flex-col items-center print:p-0 print:bg-white ${
+      embed ? 'bg-slate-100 p-2 md:p-4' : 'bg-slate-100 p-4 md:p-8'
+    }`}>
       
       {/* Non-printable Header Controls */}
-      <div className="w-full max-w-7xl mb-6 flex flex-col md:flex-row justify-between items-center print:hidden gap-4 bg-white p-4 rounded-xl shadow-sm">
-        <Link href={`/applications/${id}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Quay lại Hồ sơ</span>
-        </Link>
+      <div className="w-full max-w-7xl mb-4 flex flex-col md:flex-row justify-between items-center print:hidden gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        {!embed && (
+          <Link href={`/applications/${id}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium text-sm">Quay lại Hồ sơ</span>
+          </Link>
+        )}
         
-        <div className="flex gap-2 flex-wrap justify-center">
-          <button 
-            onClick={() => setActiveTab('summary')}
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === 'summary' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+        <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-0.5 shrink-0 select-none">
+          <button
+            type="button"
+            onClick={() => setZoomWidth(w => Math.max(400, w - 80))}
+            className="w-6 h-6 text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 rounded border border-slate-200 shadow-2xs flex items-center justify-center transition-colors"
           >
-            <FileImage className="w-4 h-4" /> Báo cáo Tổng hợp
+            -
           </button>
-          <select 
-            value={activeTab === 'summary' ? '' : activeTab}
-            onChange={(e) => setActiveTab(e.target.value as PrintTab)}
-            className="px-4 py-2 rounded-lg font-medium text-sm bg-white text-slate-700 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          <span className="text-[10px] font-bold text-slate-600 px-1 min-w-[36px] text-center">
+            {Math.round((zoomWidth / 800) * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => setZoomWidth(w => Math.min(1300, w + 80))}
+            className="w-6 h-6 text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 rounded border border-slate-200 shadow-2xs flex items-center justify-center transition-colors"
           >
-            <option value="" disabled>-- Chọn Biểu mẫu In đè (Overlay) --</option>
-            <optgroup label="Hồ sơ Lần 1">
-              <option value="lan1_donxin_p1">Đơn xin Lần 1 (Trang 1)</option>
-              <option value="lan1_donxin_p2">Đơn xin Lần 1 (Trang 2)</option>
-              <option value="lan1_uyquyen">Giấy ủy quyền Lần 1</option>
-            </optgroup>
-            <optgroup label="Hồ sơ Lần 2">
-              <option value="lan2_uyquyen">Giấy ủy thác thuế Lần 2 (納税管理人)</option>
-              <option value="lan2_donxin1">Bảng 1 (確定申告書 第一表)</option>
-              <option value="lan2_donxin2">Bảng 2 (確定申告書 第二表)</option>
-              <option value="lan2_donxin3">Bảng 3 (確定申告書 第三表)</option>
-            </optgroup>
-          </select>
+            +
+          </button>
+          <div className="h-3 w-[1px] bg-slate-200 mx-0.5" />
+          <button
+            type="button"
+            onClick={() => setZoomWidth(800)}
+            className="text-[9px] font-semibold text-slate-600 bg-white hover:bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs transition-colors"
+          >
+            Vừa khít
+          </button>
         </div>
 
         <button 
           onClick={handlePrint}
-          className="inline-flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition-colors text-sm"
         >
-          <Printer className="w-5 h-5" />
-          In Bản Này
+          <Printer className="w-4 h-4" />
+          In Tài Liệu Đang Chọn
         </button>
       </div>
 
-      {/* Printable Area */}
-      
-      {activeTab === 'summary' && (
-        <div className="w-full max-w-5xl bg-white rounded-xl shadow-sm border border-slate-200 p-8 print:shadow-none print:border-none print:max-w-none">
-          <h1 className="text-2xl font-bold text-center mb-8">Báo cáo Tổng hợp (Vui lòng chọn biểu mẫu để in)</h1>
-          <p className="text-center text-slate-500">Mã KH: {customer?.code}</p>
+      {/* Main Two-Pane Layout */}
+      <div className="w-full max-w-7xl flex flex-col md:flex-row gap-6 items-start">
+        {/* Left Sidebar: Document Categories */}
+        <div className="w-full md:w-64 flex flex-col gap-4 print:hidden shrink-0">
+          {/* Group 1: Lần 1 */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3">
+            <h4 className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-2 text-indigo-600 border-b pb-1">HỒ SƠ LẦN 1</h4>
+            <div className="flex flex-col gap-1">
+              {DOCUMENT_TYPES.filter(d => d.id === 'lan1_tonghop' || d.category === 'LẦN 1').map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => setActiveTab(doc.id)}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === doc.id
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {doc.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Group 2: Lần 2 */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3">
+            <h4 className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-2 text-amber-600 border-b pb-1">HỒ SƠ LẦN 2</h4>
+            <div className="flex flex-col gap-1">
+              {DOCUMENT_TYPES.filter(d => d.id === 'lan2_tonghop' || d.category === 'LẦN 2').map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => setActiveTab(doc.id)}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === doc.id
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {doc.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
 
-      {activeTab === 'lan1_donxin_p1' && (
-        <PrintContainer pdfFile="/forms/don_xin_lan_1.pdf" pageNumber={0}>
-          {renderMappedFields('lan1_donxin_p1')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan1_donxin_p2' && (
-        <PrintContainer pdfFile="/forms/don_xin_lan_1.pdf" pageNumber={1}>
-          {renderMappedFields('lan1_donxin_p2')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan1_uyquyen' && (
-        <PrintContainer pdfFile="/forms/ininjyo_yoshiki_lan_1.pdf" pageNumber={0}>
-          {renderMappedFields('lan1_uyquyen')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan2_uyquyen' && (
-        <PrintContainer pdfFile="/forms/giay_uy_thac_lan_2.pdf" pageNumber={0}>
-          {renderMappedFields('lan2_uyquyen')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan2_donxin1' && (
-        <PrintContainer pdfFile="/forms/bang_1_2.pdf" pageNumber={0}>
-          {renderMappedFields('lan2_donxin1')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan2_donxin2' && (
-        <PrintContainer pdfFile="/forms/bang_1_2.pdf" pageNumber={1}>
-          {renderMappedFields('lan2_donxin2')}
-        </PrintContainer>
-      )}
-
-      {activeTab === 'lan2_donxin3' && (
-        <PrintContainer pdfFile="/forms/bang_3.pdf" pageNumber={0}>
-          {renderMappedFields('lan2_donxin3')}
-        </PrintContainer>
-      )}
+        {/* Right Area: Print Preview Canvas */}
+        <div className="flex-1 min-w-0 w-full bg-slate-200/40 p-4 md:p-6 rounded-2xl border border-slate-200/60 overflow-x-auto flex justify-center">
+          <div 
+            style={{ width: `${zoomWidth}px`, maxWidth: '100%' }} 
+            className="flex flex-col gap-8 transition-all duration-200 print:w-full print:max-w-none print:m-0 print:gap-0 print:block"
+          >
+            {activeDoc.pages.map((page: any, idx: number) => {
+              if (page.isImage) {
+                const imageSets = resolveImages(page.imageKey);
+                if (imageSets.length === 0) {
+                  return (
+                    <div key={`${activeDoc.id}-${idx}-empty`} className="bg-white rounded-lg border-2 border-dashed border-slate-300 p-8 flex flex-col items-center justify-center min-h-[300px] print:hidden">
+                      <FileImage className="w-10 h-10 text-slate-400 mb-2" />
+                      <p className="text-xs text-slate-500 font-semibold text-center">Tài liệu "{page.imageKey === 'zairyu' ? 'Thẻ ngoại kiều' : page.imageKey === 'passport' ? 'Hộ chiếu' : page.imageKey === 'departureStamp' ? 'Dấu xuất cảnh' : 'Thông tin ngân hàng'}" chưa được tải lên hoặc bị trống</p>
+                    </div>
+                  );
+                }
+                return imageSets.map((imgArr, imgIdx) => (
+                  <div key={`${activeDoc.id}-${idx}-img-${imgIdx}`} className="print:break-after-page mb-8 print:mb-0">
+                    <ImagePrintContainer images={imgArr} />
+                  </div>
+                ));
+              }
+              return (
+                <div key={`${activeDoc.id}-${idx}`} className="print:break-after-page mb-8 print:mb-0">
+                  <PrintContainer pdfFile={page.pdfFile} pageNumber={page.pageNumber}>
+                    {renderMappedFields(page.fieldType)}
+                  </PrintContainer>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       <style jsx global>{`
         @media print {

@@ -3,6 +3,7 @@ import { Customer, OcrResult, NenkinApplication } from '@prisma/client';
 export type CustomerWithRelations = Customer & {
   ocrResults?: OcrResult[];
   applications?: NenkinApplication[];
+  bankAccounts?: any[]; // Allow bankAccounts
 };
 
 export function toCustomerPortalDTO(customer: CustomerWithRelations) {
@@ -18,16 +19,15 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
     passportUrl,
     departureStampUrl,
     nenkinBookUrl,
-    bankPassbookUrl,
     securityPhotoUrl,
-    
-    accountNumber,
     
     // Extract the rest
     ...safeCustomer
   } = customer;
 
   // Mask account number
+  const mainBankAccount = customer.bankAccounts && customer.bankAccounts.length > 0 ? customer.bankAccounts[0] : null;
+  const accountNumber = mainBankAccount?.accountNumber;
   let maskedAccountNumber = null;
   if (accountNumber && accountNumber.length >= 4) {
     maskedAccountNumber = `****${accountNumber.slice(-4)}`;
@@ -50,6 +50,8 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
     });
   }
 
+  const hasBankPassbook = customer.bankAccounts?.some(b => (b.bankPassbookUrls && b.bankPassbookUrls.length > 0)) || false;
+
   return {
     ...safeCustomer,
     accountNumber: maskedAccountNumber,
@@ -60,7 +62,7 @@ export function toCustomerPortalDTO(customer: CustomerWithRelations) {
       passport: !!customer.passportUrl,
       departureStamp: !!customer.departureStampUrl,
       nenkinBook: !!customer.nenkinBookUrl,
-      bankPassbook: !!customer.bankPassbookUrl,
+      bankPassbook: hasBankPassbook,
       securityPhoto: !!customer.securityPhotoUrl,
     },
     applications: (customer.applications || []).map(app => ({

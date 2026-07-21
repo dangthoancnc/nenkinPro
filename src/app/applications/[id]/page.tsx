@@ -1,116 +1,141 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Clock, CheckCircle, Wallet, Calculator, FileText, Printer, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
-import { UploadCloud, Loader2 } from 'lucide-react';
-import { TaxRepresentative } from '@prisma/client';
-import { useGenerateDoc } from '@/hooks/useGenerateDoc';
+import React, { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle, AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles, Printer, Map, MapPin, Search, Crop } from 'lucide-react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
+import { BankAutocomplete } from '../components/BankAutocomplete';
+import ImageCropModal from '@/components/ImageCropModal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
-const STATUS_STEPS = [
-  { id: 'DRAFT', label: 'Bản nháp' },
-  { id: 'SENT_1ST', label: 'Đã nộp Lần 1' },
-  { id: 'RECEIVED_1ST', label: 'Đã nhận Lần 1' },
-  { id: 'SENT_2ND', label: 'Đã nộp Lần 2' },
-  { id: 'COMPLETED', label: 'Hoàn thành' },
+const BASE_DOCUMENTS = [
+  { key: 'zairyuFront', title: 'Thẻ Ngoại Kiều (Trước)', urlField: 'zairyuFrontUrl' },
+  { key: 'zairyuBack', title: 'Thẻ Ngoại Kiều (Sau)', urlField: 'zairyuBackUrl' },
+  { key: 'passport', title: 'Hộ chiếu', urlField: 'passportUrl' },
+  { key: 'nenkinBook', title: 'Sổ Nenkin', urlField: 'nenkinBookUrl' },
+  { key: 'departureStamp', title: 'Dấu xuất cảnh', urlField: 'departureStampUrl' },
 ];
 
-type ApplicationStatus = 'PENDING' | 'DRAFT' | 'SENT_1ST' | 'RECEIVED_1ST' | 'SENT_2ND' | 'RECEIVED_2ND' | 'COMPLETED' | 'CANCELLED';
+const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  PENDING: { label: 'Cần duyệt', color: 'bg-orange-50 text-orange-700 border-orange-200', icon: AlertCircle },
+  DRAFT: { label: 'Bản nháp', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
+  SENT_1ST: { label: 'Đã gửi Lần 1', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send },
+  RECEIVED_1ST: { label: 'Đã nhận Lần 1', color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Wallet },
+  SENT_2ND: { label: 'Đã gửi Lần 2', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: Send },
+  RECEIVED_2ND: { label: 'Đã nhận Lần 2', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Wallet },
+  COMPLETED: { label: 'Hoàn thành', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
+  CANCELLED: { label: 'Đã hủy', color: 'bg-red-50 text-red-700 border-red-200', icon: AlertCircle },
+};
 
-const statusSteps: { id: ApplicationStatus; label: string }[] = [
-  { id: 'PENDING', label: 'Cần duyệt' },
-  { id: 'DRAFT', label: 'Bản nháp' },
-  { id: 'SENT_1ST', label: 'Đã gửi (Lần 1)' },
-  { id: 'RECEIVED_1ST', label: 'Đã nhận (Lần 1)' },
-  { id: 'SENT_2ND', label: 'Đã gửi (Lần 2)' },
-  { id: 'RECEIVED_2ND', label: 'Đã nhận (Lần 2)' },
-  { id: 'COMPLETED', label: 'Hoàn thành' },
-];
-
-export default function ApplicationDetailPage() {
-  const params = useParams();
+export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  
-  // Use React.use() or type casting to unwrap params in Next 15 if needed, 
-  // but for client components, useParams() usually returns the unwrapped object in React 19/Next 15.
-  const id = params.id as string;
-  const { generate: generateDoc, isLoading: generatingDocHook } = useGenerateDoc();
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
+  const isNew = id === 'new';
 
-  type AppData = {
-    customer: { 
-      id: string;
-      fullName: string; 
-      code: string;
-      cardNumber?: string;
-      zairyuAddress?: string;
-      zairyuFrontUrl?: string;
-      passportUrl?: string;
-    };
-    [key: string]: unknown;
-  };
-  const [appData, setAppData] = useState<AppData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [fetchingRate, setFetchingRate] = useState(false);
-  const [generatingDoc, setGeneratingDoc] = useState(false);
-  const [taxReps, setTaxReps] = useState<TaxRepresentative[]>([]);
-  const [ocrStatus, setOcrStatus] = useState<'idle' | 'processing' | 'done' | 'error'>('idle');
-  const [formData, setFormData] = useState({
-    status: 'DRAFT' as ApplicationStatus,
-    applyDate: '',
-    sent1stDate: '',
-    received1stDate: '',
-    sent2ndDate: '',
-    received2ndDate: '',
-    totalExpectedJpy: '',
-    received1stJpy: '',
-    received2ndJpy: '',
-    tax2ndJpy: '',
-    serviceFeeJpy: '',
-    exchangeRate: '',
-    serviceFeeVnd: '',
-    noticeDate: '',
-    noticeImageUrl: '',
-    taxRepresentativeId: ''
+  const [deleting, setDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(isNew);
+  const [ocrStatus, setOcrStatus] = useState<Record<string, string>>({});
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [activeDoc, setActiveDoc] = useState<string>('zairyuFront');
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<any | null>(null);
+  const [manualConfirmed, setManualConfirmed] = useState<boolean>(false);
+  const [taxOffices, setTaxOffices] = useState<Array<any>>([]);
+  const [isAddingTaxOffice, setIsAddingTaxOffice] = useState<boolean>(false);
+  const [creatingTaxOffice, setCreatingTaxOffice] = useState<boolean>(false);
+  const [syncingTaxOffice, setSyncingTaxOffice] = useState<boolean>(false);
+  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+  const [verifiedFields, setVerifiedFields] = useState<Record<string, boolean>>({});
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropDocKey, setCropDocKey] = useState<string>('');
+  const [cropUrlField, setCropUrlField] = useState<string>('');
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+
+  const toggleVerify = (field: string) => {
+    setVerifiedFields(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+  const [ntaSearchInfo, setNtaSearchInfo] = useState({
+    name: '',
+    address: '',
+    romajiAddress: '',
+    postalCode: '',
+    phone: '',
+    websiteUrl: ''
   });
 
-  useEffect(() => {
-    async function fetchTaxReps() {
-      try {
-        const res = await fetch('/api/tax-representatives');
-        if (res.ok) {
-          const data = await res.json();
-          setTaxReps(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch tax reps:', error);
-      }
-    }
-    fetchTaxReps();
-  }, []);
+  const { register, handleSubmit, formState: { errors }, reset, setValue, getValues, watch, control } = useForm<WorkspaceFormValues>({
+    mode: 'onBlur',
+    defaultValues: { status: 'DRAFT' }
+  });
 
+  const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({
+    control,
+    name: "bankAccounts",
+  });
+
+  const dynamicDocuments = React.useMemo(() => {
+    const banks = watch('bankAccounts') || [];
+    const bankDocs = banks.flatMap((bank, index) => {
+      const urls = bank.bankPassbookUrls || [];
+      const purposeLabel = bank.purpose === 'FIRST_REFUND' ? 'Lần 1' : bank.purpose === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
+      const items = urls.map((url: string, urlIndex: number) => ({
+        key: `bankPassbook_${index}_${urlIndex}`,
+        title: `Sổ Ngân hàng (${purposeLabel}) - Ảnh ${urlIndex + 1}`,
+        urlField: `bankAccounts.${index}.bankPassbookUrls.${urlIndex}`
+      }));
+      // Always add an empty slot at the end for a new image
+      items.push({
+        key: `bankPassbook_${index}_${urls.length}`,
+        title: `Sổ Ngân hàng (${purposeLabel}) - Thêm ảnh`,
+        urlField: `bankAccounts.${index}.bankPassbookUrls.${urls.length}`
+      });
+      return items;
+    });
+
+    return [
+      BASE_DOCUMENTS[0],
+      BASE_DOCUMENTS[1],
+      BASE_DOCUMENTS[2],
+      BASE_DOCUMENTS[3],
+      ...bankDocs,
+      BASE_DOCUMENTS[4]
+    ];
+  }, [watch('bankAccounts')]);
+
+  // Fetch Data if not new
   useEffect(() => {
-    if (!id) return;
-    
-    async function fetchApp() {
+    if (isNew) return;
+    async function fetchData() {
       try {
         const res = await fetch(`/api/applications/${id}`);
         if (res.ok) {
           const data = await res.json();
-          if (data && data.customerId) {
-            window.location.href = `/customers/${data.customerId}?tab=app_details`;
-            return;
-          }
-          setAppData(data);
+          setCustomerId(data.customerId || null);
+          const customer = data.customer || {};
+          setCustomer(customer);
+          setManualConfirmed(customer.status === 'VERIFIED');
           
-          // Helper to format date for input type="date"
-          const formatDate = (dateStr: string) => {
+          const formatDate = (dateStr: string | null | undefined) => {
             if (!dateStr) return '';
             return new Date(dateStr).toISOString().split('T')[0];
           };
 
-          setFormData({
+          const formValues: any = {
+            ...customer,
+            dob: formatDate(customer.dob),
+            departureDate: formatDate(customer.departureDate),
+            passportIssueDate: formatDate(customer.passportIssueDate),
+            passportExpiryDate: formatDate(customer.passportExpiryDate),
+            
             status: data.status,
             applyDate: formatDate(data.applyDate),
             sent1stDate: formatDate(data.sent1stDate),
@@ -120,676 +145,1839 @@ export default function ApplicationDetailPage() {
             totalExpectedJpy: data.totalExpectedJpy || '',
             received1stJpy: data.received1stJpy || '',
             received2ndJpy: data.received2ndJpy || '',
-            tax2ndJpy: data.tax2ndJpy || '',
             serviceFeeJpy: data.serviceFeeJpy || '',
             exchangeRate: data.exchangeRate || '',
             serviceFeeVnd: data.serviceFeeVnd || '',
-            noticeDate: formatDate(data.noticeDate),
-            noticeImageUrl: data.noticeImageUrl || '',
-            taxRepresentativeId: data.taxRepresentativeId || ''
+          };
+          // Sanitise formValues: convert nulls to appropriate defaults
+          Object.keys(formValues).forEach(key => {
+            if (formValues[key] === null) {
+              if (key === 'hasPermanentResidence') {
+                formValues[key] = false;
+              } else {
+                formValues[key] = '';
+              }
+            }
           });
+          if (customer.status === 'VERIFIED') {
+            setVerifiedFields({
+              fullName: true,
+              dob: true,
+              cardNumber: true,
+              zairyuAddress: true,
+              postalCode: true,
+              taxOffice_name: true,
+              taxOffice_postalCode: true,
+              taxOffice_address: true,
+              taxOffice_phone: true,
+              taxOffice_websiteUrl: true
+            });
+            setManualConfirmed(true);
+          } else {
+            setVerifiedFields({});
+            setManualConfirmed(false);
+          }
+          reset(formValues);
         }
-      } catch (error) {
-        console.error('Failed to fetch application:', error);
+      } catch (err) {
+        console.error('Failed to fetch data', err);
       } finally {
         setLoading(false);
       }
     }
-    
-    fetchApp();
-  }, [id]);
+    fetchData();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+    // Fetch Tax Offices
+    fetch('/api/tax-offices')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setTaxOffices(data.data);
+      })
+      .catch(console.error);
+  }, [id, isNew, reset]);
 
-  const calculateFees = () => {
-    // Basic logic for demonstration
-    const received1 = parseFloat(formData.received1stJpy) || 0;
-    const received2 = parseFloat(formData.received2ndJpy) || 0;
-    const rate = parseFloat(formData.exchangeRate) || 165; // default rate
-    
-    // Giả sử phí dịch vụ là 20% tổng nhận
-    const totalReceived = received1 + received2;
-    const feeJpy = totalReceived * 0.2;
-    const feeVnd = feeJpy * rate;
-    
-    setFormData(prev => ({
-      ...prev,
-      serviceFeeJpy: feeJpy.toString(),
-      serviceFeeVnd: feeVnd.toString(),
-      exchangeRate: rate.toString()
-    }));
-  };
-
-  const fetchDcomRate = async () => {
-    setFetchingRate(true);
-    try {
-      const res = await fetch('/api/exchange-rate');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.rate) {
-          setFormData(prev => ({
-            ...prev,
-            exchangeRate: data.rate.toString()
-          }));
-        }
-      } else {
-        alert('Không thể lấy tỷ giá DCOM.');
-      }
-    } catch (error) {
-      console.error('Error fetching DCOM rate', error);
-      alert('Lỗi kết nối tới server tỷ giá.');
-    } finally {
-      setFetchingRate(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setOcrStatus('processing');
-    const objectUrl = URL.createObjectURL(file);
-    setFormData(prev => ({ ...prev, noticeImageUrl: objectUrl }));
-
-    const form = new FormData();
-    form.append('file', file);
-    form.append('documentType', 'noticeOfPayment');
-    form.append('action', 'upload');
-
-    try {
-      const res = await fetch('/api/ocr', { method: 'POST', body: form });
-      const data = await res.json();
-      if (data.success) {
-        setFormData(prev => ({ ...prev, noticeImageUrl: data.publicUrl }));
-        setOcrStatus('done');
-      } else {
-        alert('Lỗi upload: ' + data.error);
-        setOcrStatus('error');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Đã xảy ra lỗi khi upload.');
-      setOcrStatus('error');
-    }
-  };
-
-  const handleExtractOcr = async () => {
-    if (!formData.noticeImageUrl || formData.noticeImageUrl.startsWith('blob:')) {
-      alert("Vui lòng chờ tải ảnh lên hoàn tất trước khi trích xuất.");
-      return;
-    }
-    setOcrStatus('processing');
-    const form = new FormData();
-    form.append('action', 'extract');
-    form.append('documentType', 'noticeOfPayment');
-    form.append('imageUrl', formData.noticeImageUrl);
-
-    try {
-      const res = await fetch('/api/ocr', { method: 'POST', body: form });
-      const data = await res.json();
-      
-      if (data.success && data.extractedData) {
-        if (data.extractedData.error) {
-          alert('⚠️ ' + data.extractedData.error);
-          setOcrStatus('error');
-          return;
-        }
-        
-        setFormData(prev => ({
-          ...prev,
-          totalExpectedJpy: data.extractedData.totalExpectedJpy || prev.totalExpectedJpy,
-          received1stJpy: data.extractedData.received1stJpy || prev.received1stJpy,
-          tax2ndJpy: data.extractedData.tax2ndJpy || prev.tax2ndJpy
-        }));
-        setOcrStatus('done');
-        alert('Trích xuất thành công! Vui lòng kiểm tra lại các số tiền được điền tự động.');
-      } else {
-        alert('⚠️ ' + (data.error || 'Dữ liệu không hợp lệ'));
-        setOcrStatus('error');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Đã xảy ra lỗi kết nối AI.');
-      setOcrStatus('error');
-    }
-  };
-
-  const handleGenerateDoc = async (templateName: string) => {
-    setGeneratingDoc(true);
-    try {
-      const res = await fetch('/api/generate-doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId: id, templateName }),
+  // Pre-populate ntaSearchInfo when selected taxOfficeId changes
+  const selectedTaxOfficeId = watch('taxOfficeId');
+  useEffect(() => {
+    const office = taxOffices.find(t => t.id === selectedTaxOfficeId);
+    if (office) {
+      setNtaSearchInfo({
+        name: office.name || '',
+        postalCode: office.postalCode || '',
+        address: office.address || '',
+        romajiAddress: office.romajiAddress || '',
+        phone: office.phone || '',
+        websiteUrl: office.websiteUrl || ''
       });
-
-      if (res.ok) {
-        // Download the file
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Generated_${templateName}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } else {
-        const err = await res.json();
-        alert(`Lỗi tạo file: ${err.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error generating doc', error);
-      alert('Lỗi kết nối khi tạo file.');
-    } finally {
-      setGeneratingDoc(false);
+    } else {
+      setNtaSearchInfo({ name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: '' });
     }
-  };
+  }, [selectedTaxOfficeId, taxOffices]);
 
-  const handleReview = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'REJECT' && !confirm('Bạn có chắc chắn muốn yêu cầu khách hàng chụp lại ảnh? (Hồ sơ sẽ bị hủy)')) {
-      return;
-    }
-    
-    try {
-      const res = await fetch(`/api/applications/${id}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setFormData(prev => ({ ...prev, status: data.status }));
-        alert(action === 'APPROVE' ? 'Đã duyệt hồ sơ thành công!' : 'Đã yêu cầu chụp lại ảnh (Hủy hồ sơ).');
-      } else {
-        alert('Có lỗi xảy ra khi thực hiện hành động này.');
-      }
-    } catch (error) {
-      console.error('Error reviewing application:', error);
-      alert('Lỗi kết nối.');
-    }
-  };
-
-  const handleSave = async () => {
+  const onSubmit = async (data: WorkspaceFormValues) => {
     setSaving(true);
     try {
-      const payload = {
-        ...formData,
-        applyDate: formData.applyDate ? new Date(formData.applyDate).toISOString() : null,
-        sent1stDate: formData.sent1stDate ? new Date(formData.sent1stDate).toISOString() : null,
-        received1stDate: formData.received1stDate ? new Date(formData.received1stDate).toISOString() : null,
-        sent2ndDate: formData.sent2ndDate ? new Date(formData.sent2ndDate).toISOString() : null,
-        received2ndDate: formData.received2ndDate ? new Date(formData.received2ndDate).toISOString() : null,
-        
-        totalExpectedJpy: formData.totalExpectedJpy ? parseFloat(formData.totalExpectedJpy) : null,
-        received1stJpy: formData.received1stJpy ? parseFloat(formData.received1stJpy) : null,
-        received2ndJpy: formData.received2ndJpy ? parseFloat(formData.received2ndJpy) : null,
-        tax2ndJpy: formData.tax2ndJpy ? parseFloat(formData.tax2ndJpy) : null,
-        serviceFeeJpy: formData.serviceFeeJpy ? parseFloat(formData.serviceFeeJpy) : null,
-        exchangeRate: formData.exchangeRate ? parseFloat(formData.exchangeRate) : null,
-        serviceFeeVnd: formData.serviceFeeVnd ? parseFloat(formData.serviceFeeVnd) : null,
-        noticeDate: formData.noticeDate ? new Date(formData.noticeDate).toISOString() : null,
-        noticeImageUrl: formData.noticeImageUrl || null,
-        taxRepresentativeId: formData.taxRepresentativeId || null
+      const customerPayload = {
+        fullName: data.fullName,
+        dob: data.dob ? new Date(data.dob).toISOString() : undefined,
+        nationality: data.nationality,
+        myNumber: data.myNumber,
+        zairyuAddress: data.zairyuAddress,
+        cardNumber: data.cardNumber,
+        nenkinNumber: data.nenkinNumber,
+        nenkinKatakanaName: data.nenkinKatakanaName,
+        postalCode: data.postalCode,
+        taxOfficeId: data.taxOfficeId,
+        bankAccounts: data.bankAccounts,
+        zairyuFrontUrl: data.zairyuFrontUrl,
+        zairyuBackUrl: data.zairyuBackUrl,
+        passportUrl: data.passportUrl,
+        nenkinBookUrl: data.nenkinBookUrl,
+        departureStampUrl: data.departureStampUrl,
+        status: manualConfirmed ? 'VERIFIED' : 'PENDING',
+        sex: data.sex,
+        phone: data.phone,
+        passportIssueDate: data.passportIssueDate ? new Date(data.passportIssueDate).toISOString() : null,
+        passportExpiryDate: data.passportExpiryDate ? new Date(data.passportExpiryDate).toISOString() : null,
+        departureDate: data.departureDate ? new Date(data.departureDate).toISOString() : null,
       };
 
-      const res = await fetch(`/api/applications/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      if (res.ok) {
-        // Success
-        router.push('/applications');
+      const applicationPayload = {
+        status: data.status,
+        applyDate: data.applyDate ? new Date(data.applyDate).toISOString() : null,
+        sent1stDate: data.sent1stDate ? new Date(data.sent1stDate).toISOString() : null,
+        received1stDate: data.received1stDate ? new Date(data.received1stDate).toISOString() : null,
+        sent2ndDate: data.sent2ndDate ? new Date(data.sent2ndDate).toISOString() : null,
+        received2ndDate: data.received2ndDate ? new Date(data.received2ndDate).toISOString() : null,
+        totalExpectedJpy: data.totalExpectedJpy ? parseFloat(String(data.totalExpectedJpy)) : null,
+        received1stJpy: data.received1stJpy ? parseFloat(String(data.received1stJpy)) : null,
+        received2ndJpy: data.received2ndJpy ? parseFloat(String(data.received2ndJpy)) : null,
+        serviceFeeJpy: data.serviceFeeJpy ? parseFloat(String(data.serviceFeeJpy)) : null,
+        exchangeRate: data.exchangeRate ? parseFloat(String(data.exchangeRate)) : null,
+        serviceFeeVnd: data.serviceFeeVnd ? parseFloat(String(data.serviceFeeVnd)) : null,
+      };
+
+      if (isNew) {
+        // 1. Create Customer
+        const cRes = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerPayload)
+        });
+        const cData = await cRes.json();
+        if (!cRes.ok || !cData.success) throw new Error(cData.error || 'Cannot create customer');
+
+        // 2. Create Application
+        const aRes = await fetch('/api/applications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...applicationPayload, customerId: cData.data.id })
+        });
+        const aData = await aRes.json();
+        if (!aRes.ok || aData.error) throw new Error(aData.error || 'Cannot create application');
+
+        alert('Tạo hồ sơ thành công!');
+        router.push(`/applications/${aData.id}`);
       } else {
-        console.error('Failed to update');
+        // Fetch current application to get customerId
+        const appRes = await fetch(`/api/applications/${id}`);
+        if (!appRes.ok) {
+          const errData = await appRes.json();
+          throw new Error(errData.error || 'Lỗi lấy thông tin hồ sơ.');
+        }
+        const appData = await appRes.json();
+
+        // 1. Update Customer
+        if (appData.customerId) {
+          const cRes = await fetch(`/api/customers/${appData.customerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customerPayload)
+          });
+          if (!cRes.ok) {
+            const errData = await cRes.json();
+            throw new Error(errData.error || 'Lỗi cập nhật thông tin khách hàng.');
+          }
+        }
+        
+        // 2. Update Application
+        const aRes = await fetch(`/api/applications/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(applicationPayload)
+        });
+        if (!aRes.ok) {
+          const errData = await aRes.json();
+          throw new Error(errData.error || 'Lỗi cập nhật tiến trình hồ sơ.');
+        }
+
+        alert('Lưu hồ sơ thành công!');
+        setIsEditing(false);
       }
-    } catch (error) {
-      console.error('Error updating application', error);
+    } catch (e: any) {
+      alert('Đã có lỗi xảy ra: ' + e.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa hồ sơ này không? Hành động này không thể hoàn tác.')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Không thể xóa hồ sơ');
+      alert('Đã xóa hồ sơ thành công!');
+      router.push('/applications');
+    } catch (e: any) {
+      alert('Đã xảy ra lỗi: ' + e.message);
+      setDeleting(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, docKey: string, urlField: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCropFile(file);
+    setCropDocKey(docKey);
+    setCropUrlField(urlField);
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+    }
+    setCropImageSrc(URL.createObjectURL(file));
+    e.target.value = ''; // Reset input
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    const file = new File([croppedBlob], cropFile?.name || 'cropped.jpg', { type: croppedBlob.type });
+    const docKey = cropDocKey;
+    const urlField = cropUrlField;
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+    }
+    setCropFile(null);
+    setCropDocKey('');
+    setCropUrlField('');
+
+    setOcrStatus(prev => ({ ...prev, [docKey]: 'processing' }));
+    
+    // Optimistic UI update
+    const objectUrl = URL.createObjectURL(file);
+    setValue(urlField as any, objectUrl);
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', docKey);
+    form.append('action', 'uploadAndExtract'); // Changed to uploadAndExtract to perform OCR
+    if (customerId) {
+      form.append('customerId', customerId);
+    }
+
+    try {
+      const res = await fetch('/api/ocr', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) {
+        const prevUrl = getValues(urlField as any);
+        if (prevUrl && prevUrl !== data.publicUrl) {
+          fetch('/api/storage/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: prevUrl })
+          }).catch(err => console.error('Failed to delete previous storage file:', err));
+        }
+
+        setValue(urlField as any, data.publicUrl);
+        setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
+
+        // Auto-fill form fields if OCR extracted data
+        if (data.extractedData && !data.extractedData.error) {
+          const ext = data.extractedData;
+          if (docKey === 'zairyuFront' || docKey === 'zairyuBack') {
+            if (ext.fullName) setValue('fullName', ext.fullName, { shouldValidate: true, shouldDirty: true });
+            if (ext.dob) setValue('dob', ext.dob, { shouldValidate: true, shouldDirty: true });
+            if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
+            if (ext.cardNumber) setValue('cardNumber', ext.cardNumber, { shouldDirty: true });
+            if (ext.address) setValue('zairyuAddress', ext.address, { shouldDirty: true });
+            if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
+            
+            // Tax Office Auto-fill
+            if (ext.taxOffice && ext.taxOffice.name) {
+              fetch('/api/tax-offices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ext.taxOffice)
+              }).then(res => res.json()).then(tData => {
+                if (tData.success && tData.data?.id) {
+                  // Ensure taxOffices list contains it
+                  setTaxOffices(prev => {
+                    if (!prev.find(t => t.id === tData.data.id)) {
+                      return [...prev, tData.data];
+                    }
+                    return prev;
+                  });
+                  setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
+                }
+              }).catch(err => console.error('Failed to create/fetch tax office', err));
+            }
+          } else if (docKey === 'passport') {
+            if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
+            if (ext.dob) setValue('dob', ext.dob, { shouldDirty: true });
+            if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
+            if (ext.sex) setValue('sex', ext.sex === 'M' ? 'Nam' : 'Nữ', { shouldDirty: true });
+            if (ext.passportNumber) setValue('cardNumber', ext.passportNumber, { shouldDirty: true }); // Storing passport in cardNumber for now or a separate field? 
+          } else if (docKey === 'nenkinBook') {
+            if (ext.nenkinNumber) setValue('nenkinNumber', ext.nenkinNumber, { shouldDirty: true });
+            if (ext.nenkinKatakanaName) setValue('nenkinKatakanaName', ext.nenkinKatakanaName, { shouldDirty: true });
+          } else if (docKey.startsWith('bankPassbook_')) {
+            const idxStr = docKey.split('_')[1];
+            const idx = parseInt(idxStr, 10);
+            if (!isNaN(idx)) {
+              if (ext.bankName) setValue(`bankAccounts.${idx}.bankName` as any, ext.bankName, { shouldDirty: true });
+              if (ext.branchName) setValue(`bankAccounts.${idx}.branchName` as any, ext.branchName, { shouldDirty: true });
+              if (ext.accountNumber) setValue(`bankAccounts.${idx}.accountNumber` as any, ext.accountNumber, { shouldDirty: true });
+              if (ext.accountName) setValue(`bankAccounts.${idx}.accountName` as any, ext.accountName, { shouldDirty: true });
+              if (ext.swiftCode) setValue(`bankAccounts.${idx}.swiftCode` as any, ext.swiftCode, { shouldDirty: true });
+            }
+          } else if (docKey === 'departureStamp') {
+            if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
+          }
+        }
+
+        if (!isNew && customerId) {
+          await fetch(`/api/customers/${customerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [urlField]: data.publicUrl })
+          });
+        }
+      } else {
+        alert('Lỗi upload: ' + data.error);
+        setOcrStatus(prev => ({ ...prev, [docKey]: 'error' }));
+      }
+    } catch (err) {
+      alert('Đã xảy ra lỗi khi upload.');
+      setOcrStatus(prev => ({ ...prev, [docKey]: 'error' }));
+    }
+  };
+
+  const handleNtaSearch = (zip: string | null | undefined) => {
+    if (!zip) {
+      alert('Vui lòng nhập mã bưu điện của khách hàng trước.');
+      return;
+    }
+    const cleanedZip = zip.replace(/[-\s]/g, '');
+    if (cleanedZip.length !== 7) {
+      alert('Mã bưu điện phải bao gồm đúng 7 chữ số.');
+      return;
+    }
+    const zip3 = cleanedZip.substring(0, 3);
+    const zip4 = cleanedZip.substring(3, 7);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://www.nta.go.jp/cgi-bin/zeimusho/kensaku/kensakuprocess.php';
+    form.target = '_blank';
+    form.acceptCharset = 'EUC-JP';
+
+    const inputs = {
+      KSTYPE: 'ksz',
+      TODOFUKEN_TO_ASCII: '',
+      ADDR_TO_ASCII: '',
+      kszc1: zip3,
+      kszc2: zip4
+    };
+
+    for (const [key, value] of Object.entries(inputs)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
       </div>
     );
   }
 
-  if (!appData) return <div>Không tìm thấy hồ sơ.</div>;
+  const onError = (formErrors: any) => {
+    console.error('Validation errors:', formErrors);
+    alert('Không thể lưu hồ sơ do lỗi nhập liệu: ' + Object.keys(formErrors).map(k => `${k}: ${formErrors[k].message || 'Không hợp lệ'}`).join(', '));
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 md:space-y-3 pb-12">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-[calc(100vh-65px)] flex flex-col space-y-2">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/applications" className="p-1.5 md:p-2 text-slate-400 hover:text-slate-900 bg-white rounded-lg border border-slate-200 shadow-sm transition-colors">
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-          </Link>
-          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-            <h1 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">Chi tiết Hồ sơ</h1>
-            <div className="hidden md:block w-px h-4 bg-slate-300"></div>
-            <p className="text-xs md:text-sm text-slate-600 flex items-center gap-2">
-              Khách hàng: <span className="font-semibold text-slate-900">{appData.customer.fullName}</span>
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">Mã: {appData.customer.code}</span>
-              {appData.customer.cardNumber && (
-                <span className="text-xs font-mono bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">Thẻ: {appData.customer.cardNumber}</span>
-              )}
-            </div>
+          <button type="button" onClick={() => router.push('/applications')} className="p-1.5 bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition-colors shadow-sm">
+            <ArrowLeft className="w-4 h-4 text-slate-600" />
+          </button>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
+              {isNew ? 'Tạo Hồ sơ mới' : 'Chi tiết Hồ sơ'}
+              {!isNew && <span className="text-[10px] font-normal text-slate-400">ID: {id}</span>}
+            </h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Cụm In ấn đã được dời xuống Panel bên dưới để rộng rãi hơn */}
-          <button 
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/30 disabled:opacity-50"
-          >
-            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Save className="w-4 h-4" />}
-            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-          </button>
+        
+        <div className="flex items-center gap-3">
+          {!isEditing ? (
+            <>
+              {!isNew && (
+                <Button type="button" variant="outline" onClick={handleDelete} disabled={deleting} className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50">
+                  {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> : null}
+                  {deleting ? 'Đang xóa...' : 'Xóa Hồ sơ'}
+                </Button>
+              )}
+              {!isNew && (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowPrintModal(true);
+                  }}
+                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <Printer className="w-4 h-4 mr-2 inline" />
+                  In biểu mẫu
+                </Button>
+              )}
+              <Button type="button" onClick={() => setIsEditing(true)} className="min-w-[120px] shadow-lg shadow-blue-600/20">
+                Sửa Hồ sơ
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => {
+                if (isNew) {
+                  router.push('/applications');
+                } else {
+                  setIsEditing(false);
+                  reset();
+                }
+              }} disabled={saving}>
+                Hủy thao tác
+              </Button>
+              <Button type="submit" disabled={saving || deleting} className="min-w-[120px] shadow-lg shadow-blue-600/20">
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Review Panel for PENDING applications */}
-      {formData.status === 'PENDING' && (
-        <div className="bg-orange-50 border border-orange-200 p-6 rounded-2xl shadow-sm mb-6">
-          <h2 className="text-lg font-semibold text-orange-900 mb-4 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            Hồ sơ đang chờ duyệt
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="font-medium text-orange-800 border-b border-orange-200 pb-2">Thông tin trích xuất (OCR)</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="block text-xs text-orange-700/80 mb-1">Thẻ ngoại kiều (Số)</span>
-                  <p className="font-medium text-orange-900">{appData.customer.cardNumber || '---'}</p>
-                </div>
-                <div>
-                  <span className="block text-xs text-orange-700/80 mb-1">Địa chỉ</span>
-                  <p className="font-medium text-orange-900">{appData.customer.zairyuAddress || '---'}</p>
-                </div>
-              </div>
+      {/* Application Status Banner */}
+      {!isNew && (
+        <div className={`p-1.5 px-3 rounded-lg border flex items-center justify-between shadow-3xs text-[11px] shrink-0 ${
+          statusConfig[customer?.applicationStatus || 'PENDING']?.color || 'bg-slate-100 text-slate-700 border-slate-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            {(() => {
+              const Icon = statusConfig[customer?.applicationStatus || 'PENDING']?.icon || Clock;
+              return <Icon className="w-4 h-4 shrink-0" />;
+            })()}
+            <div>
+              <span className="font-bold">Trạng thái hồ sơ: </span>
+              <span>{statusConfig[customer?.applicationStatus || 'PENDING']?.label || 'Không xác định'}</span>
             </div>
-            <div className="space-y-4">
-              <h3 className="font-medium text-orange-800 border-b border-orange-200 pb-2">Hồ sơ đính kèm</h3>
-              <div className="flex gap-4">
-                {appData.customer.zairyuFrontUrl && (
-                  <div className="relative group cursor-pointer" onClick={() => window.open(appData.customer.zairyuFrontUrl, '_blank')}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={appData.customer.zairyuFrontUrl} alt="Zairyu Front" className="w-24 h-16 object-cover rounded border border-orange-300" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded">
-                      <span className="text-white text-xs">Xem</span>
-                    </div>
-                  </div>
-                )}
-                {appData.customer.passportUrl && (
-                  <div className="relative group cursor-pointer" onClick={() => window.open(appData.customer.passportUrl, '_blank')}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={appData.customer.passportUrl} alt="Passport" className="w-24 h-16 object-cover rounded border border-orange-300" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded">
-                      <span className="text-white text-xs">Xem</span>
-                    </div>
-                  </div>
-                )}
-                {!appData.customer.zairyuFrontUrl && !appData.customer.passportUrl && (
-                  <p className="text-sm text-orange-700/80 italic">Không có ảnh đính kèm</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-3">
-            <button 
-              onClick={() => handleReview('REJECT')}
-              className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium text-sm shadow-sm"
-            >
-              Yêu cầu chụp lại ảnh
-            </button>
-            <button 
-              onClick={() => handleReview('APPROVE')}
-              className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm shadow-sm"
-            >
-              Duyệt hồ sơ
-            </button>
           </div>
         </div>
       )}
 
-      {/* Print Panel */}
-      <div className="bg-white p-4 md:p-5 rounded-lg border border-slate-200 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-          <Printer className="w-4 h-4 text-indigo-600" />
-          In ấn & Xuất file PDF
-        </h2>
+      {/* Workspace Split Layout - 3 Panels */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0 overflow-hidden">
         
-        <div className="space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Hồ sơ Lần 1</h3>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'don_xin_lan_1' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Đơn Xin Lần 1
-              </button>
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'ininjyo_yoshiki_lan_1' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Giấy Ủy Quyền
-              </button>
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'nouzeikanrinin' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Đại Diện Thuế (Lần 1)
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full h-px bg-slate-100"></div>
-
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Hồ sơ Lần 2</h3>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'bang_1_2' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Bảng 1 & 2
-              </button>
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'bang_3' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Bảng Số 3
-              </button>
-              <button 
-                onClick={() => generateDoc({ applicationId: id, templateType: 'giay_uy_thac_lan_2' })}
-                disabled={generatingDocHook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-md hover:bg-indigo-100 transition-all disabled:opacity-50"
-              >
-                {generatingDocHook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-500" />} Giấy Ủy Thác Lần 2
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full h-px bg-slate-100"></div>
-
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 shrink-0">Khác</h3>
-            <div className="flex flex-wrap gap-2">
-              <Link 
-                href={`/applications/${id}/print`}
-                target="_blank"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:h-8 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-all shadow-sm"
-              >
-                <Printer className="w-3.5 h-3.5 text-slate-500" /> In Báo Cáo
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stepper */}
-      <div className="bg-white p-4 md:p-5 rounded-lg border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between">
-          {STATUS_STEPS.map((step, index) => {
-            const isActive = formData.status === step.id;
-            const currentIndex = STATUS_STEPS.findIndex(s => s.id === formData.status);
-            const isCompleted = index < currentIndex || formData.status === 'COMPLETED';
-            
-            return (
-              <React.Fragment key={step.id}>
-                <div 
-                  className={`flex flex-col items-center gap-1.5 relative z-10 cursor-pointer ${isActive || isCompleted ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
-                  onClick={() => setFormData(prev => ({ ...prev, status: step.id as ApplicationStatus }))}
+        {/* Panel 1: Documents & Image (Left) */}
+        <div className="col-span-1 md:col-span-4 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+          <div className="p-3 border-b border-slate-100 flex flex-col gap-1.5 shrink-0 bg-slate-50/50">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Danh mục tài liệu</div>
+            <div className="grid grid-cols-3 gap-1">
+              {dynamicDocuments.map(doc => {
+                const isActive = activeDoc === doc.key;
+                const hasUrl = !!watch(doc.urlField as any);
+                return (
+                  <button
+                    key={doc.key}
+                    type="button"
+                    onClick={() => setActiveDoc(doc.key)}
+                    className={`px-2 py-1 text-[11px] font-medium border rounded transition-all truncate text-center ${
+                      isActive ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex items-center justify-center gap-1">
+                      {hasUrl && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0"></span>}
+                      {doc.title}
+                    </span>
+                  </button>
+                );
+              })}
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newIndex = bankFields.length;
+                    appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] });
+                    setActiveDoc(`bankPassbook_${newIndex}`);
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium border border-dashed border-indigo-300 rounded transition-all truncate text-center text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100"
+                  title="Thêm tài khoản ngân hàng"
                 >
-                  <div className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isActive ? 'bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/30' : isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-300 text-slate-400'}`}>
-                    {isCompleted && !isActive ? <CheckCircle className="w-4 h-4 md:w-5 md:h-5" /> : <span className="text-xs md:text-sm font-bold">{index + 1}</span>}
-                  </div>
-                  <span className={`text-[10px] md:text-xs font-semibold ${isActive ? 'text-primary' : isCompleted ? 'text-emerald-600' : 'text-slate-500'}`}>{step.label}</span>
+                  <span className="flex items-center justify-center gap-1">+ Thêm Ngân hàng</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Document Viewer */}
+          {(() => {
+            const currentDocField = dynamicDocuments.find(d => d.key === activeDoc)?.urlField || 'zairyuFrontUrl';
+            const currentDocUrl = watch(currentDocField as any) as string | undefined;
+            const currentDocTitle = dynamicDocuments.find(d => d.key === activeDoc)?.title || '';
+            return (
+              <div className="flex-1 p-3 flex flex-col min-h-0 bg-slate-100/30 overflow-hidden relative">
+                <div className="flex justify-between items-center mb-2 shrink-0">
+                  <span className="text-xs font-semibold text-slate-700">
+                    {currentDocTitle}
+                  </span>
                 </div>
                 
-                {index < STATUS_STEPS.length - 1 && (
-                  <div className="flex-1 h-1 bg-slate-200 mx-2 md:mx-4 relative overflow-hidden rounded-full">
-                    <div className={`absolute inset-y-0 left-0 bg-emerald-500 transition-all duration-500 ${isCompleted ? 'w-full' : 'w-0'}`}></div>
+                <div className="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-slate-900/5 flex items-center justify-center relative group min-h-0">
+                  {currentDocUrl ? (
+                    <div className="relative w-full h-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={currentDocUrl} 
+                        alt={currentDocTitle} 
+                        className="w-full h-full object-contain" 
+                      />
+                      
+                      {/* Floating toolbar - extremely modern and clean */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+                        {isEditing && (
+                          <>
+                            {/* AI Extract Button */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!currentDocUrl) return;
+                                if (ocrStatus[activeDoc] === 'done') {
+                                  const confirmRetry = window.confirm('Tài liệu này đã được trích xuất dữ liệu bằng AI trước đó. Bạn có chắc chắn muốn chạy trích xuất lại không?');
+                                  if (!confirmRetry) return;
+                                }
+                                setOcrStatus(prev => ({ ...prev, [activeDoc]: 'processing' }));
+                                try {
+                                  const form = new FormData();
+                                  form.append('imageUrl', currentDocUrl);
+                                  form.append('documentType', activeDoc);
+                                  form.append('action', 'extract');
+                                  if (customerId) {
+                                    form.append('customerId', customerId);
+                                  }
+                                  
+                                  const res = await fetch('/api/ocr', {
+                                    method: 'POST',
+                                    body: form
+                                  });
+                                  const data = await res.json();
+                                  if (data.success && data.extractedData && !data.extractedData.error) {
+                                    const ext = data.extractedData;
+                                    // Same auto-fill logic
+                                    if (activeDoc === 'zairyuFront' || activeDoc === 'zairyuBack') {
+                                      if (ext.fullName) setValue('fullName', ext.fullName, { shouldValidate: true, shouldDirty: true });
+                                      if (ext.dob) setValue('dob', ext.dob, { shouldValidate: true, shouldDirty: true });
+                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
+                                      if (ext.cardNumber) setValue('cardNumber', ext.cardNumber, { shouldDirty: true });
+                                      if (ext.address) setValue('zairyuAddress', ext.address, { shouldDirty: true });
+                                      if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
+                                      
+                                      if (ext.taxOffice && ext.taxOffice.name) {
+                                        fetch('/api/tax-offices', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify(ext.taxOffice)
+                                        }).then(r => r.json()).then(tData => {
+                                          if (tData.success && tData.data?.id) {
+                                            setTaxOffices(prev => {
+                                              if (!prev.find(t => t.id === tData.data.id)) return [...prev, tData.data];
+                                              return prev;
+                                            });
+                                            setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
+                                          }
+                                        }).catch(console.error);
+                                      }
+                                    } else if (activeDoc === 'passport') {
+                                      if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
+                                      if (ext.dob) setValue('dob', ext.dob, { shouldDirty: true });
+                                      if (ext.nationality) setValue('nationality', ext.nationality, { shouldDirty: true });
+                                      if (ext.sex) setValue('sex', ext.sex === 'M' ? 'Nam' : 'Nữ', { shouldDirty: true });
+                                      if (ext.passportNumber) setValue('cardNumber', ext.passportNumber, { shouldDirty: true });
+                                    } else if (activeDoc === 'nenkinBook') {
+                                      if (ext.nenkinNumber) setValue('nenkinNumber', ext.nenkinNumber, { shouldDirty: true });
+                                      if (ext.nenkinKatakanaName) setValue('nenkinKatakanaName', ext.nenkinKatakanaName, { shouldDirty: true });
+                                    } else if (activeDoc.startsWith('bankPassbook_')) {
+                                      const idxStr = activeDoc.split('_')[1];
+                                      const idx = parseInt(idxStr, 10);
+                                      if (!isNaN(idx)) {
+                                        if (ext.bankName) setValue(`bankAccounts.${idx}.bankName` as any, ext.bankName, { shouldDirty: true });
+                                        if (ext.branchName) setValue(`bankAccounts.${idx}.branchName` as any, ext.branchName, { shouldDirty: true });
+                                        if (ext.accountNumber) setValue(`bankAccounts.${idx}.accountNumber` as any, ext.accountNumber, { shouldDirty: true });
+                                        if (ext.accountName) setValue(`bankAccounts.${idx}.accountName` as any, ext.accountName, { shouldDirty: true });
+                                        if (ext.swiftCode) setValue(`bankAccounts.${idx}.swiftCode` as any, ext.swiftCode, { shouldDirty: true });
+                                      }
+                                    } else if (activeDoc === 'departureStamp') {
+                                      if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
+                                    }
+                                    alert('Trích xuất thông tin AI thành công!');
+                                  } else {
+                                    alert('AI không tìm thấy thông tin hợp lệ: ' + (data.error || 'Lỗi không xác định'));
+                                  }
+                                } catch (err) {
+                                  alert('Đã xảy ra lỗi khi trích xuất AI.');
+                                } finally {
+                                  setOcrStatus(prev => ({ ...prev, [activeDoc]: 'done' }));
+                                }
+                              }}
+                              className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md border border-indigo-700 shadow-md transition-all flex items-center justify-center"
+                              title="Trích xuất AI"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </button>
+                            {/* Crop / Edit Current Image Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (currentDocUrl) {
+                                  setCropDocKey(activeDoc);
+                                  setCropUrlField(currentDocField);
+                                  setCropImageSrc(currentDocUrl);
+                                }
+                              }}
+                              className="p-1.5 bg-white/95 hover:bg-slate-50 text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
+                              title="Cắt / Sửa ảnh hiện tại"
+                            >
+                              <Crop className="w-4 h-4" />
+                            </button>
+                            {/* Replace Button */}
+                            <label className="cursor-pointer p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center" title="Thay thế ảnh">
+                              <UploadCloud className="w-4 h-4" />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={(e) => handleFileSelect(e, activeDoc, currentDocField)} 
+                              />
+                            </label>
+                            {/* Delete Button */}
+                            <button 
+                              type="button" 
+                              onClick={async () => {
+                                if (confirm(`Bạn có chắc chắn muốn xóa ảnh của ${currentDocTitle}?`)) {
+                                  const prevUrl = getValues(currentDocField as any);
+                                  if (prevUrl) {
+                                    fetch('/api/storage/delete', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ url: prevUrl })
+                                    }).catch(err => console.error('Failed to delete storage file:', err));
+                                  }
+                                  setValue(currentDocField as any, '');
+                                  if (!isNew && customerId) {
+                                    await fetch(`/api/customers/${customerId}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ [currentDocField]: '' })
+                                    });
+                                  }
+                                }
+                              }}
+                              className="p-1.5 bg-white/95 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
+                              title="Xóa ảnh"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        {/* Zoom Button */}
+                        <button 
+                          type="button" 
+                          onClick={() => setLightboxUrl(currentDocUrl || null)} 
+                          className="p-1.5 bg-white/95 hover:bg-slate-50 text-slate-700 hover:text-indigo-600 rounded-md border border-slate-200/80 shadow-md transition-all flex items-center justify-center"
+                          title="Phóng to"
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : isEditing ? (
+                    <label 
+                      className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-slate-900/5 transition-all text-slate-400 hover:text-indigo-600 bg-white border border-dashed border-slate-200 hover:border-indigo-400 rounded-lg p-6"
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                          const fakeEvent = { target: { files: e.dataTransfer.files } } as any;
+                          handleFileSelect(fakeEvent as any, activeDoc, currentDocField);
+                        }
+                      }}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-indigo-50/50 flex items-center justify-center transition-transform">
+                        <UploadCloud className="w-6 h-6 text-indigo-500" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600">Nhấp hoặc Kéo thả vào đây để tải ảnh lên</span>
+                      <span className="text-[10px] text-slate-400">Định dạng chấp nhận: PNG, JPG, JPEG</span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={(e) => handleFileSelect(e, activeDoc, currentDocField)} 
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-400 bg-white border border-dashed border-slate-200 rounded-lg p-6">
+                      <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
+                        <UploadCloud className="w-6 h-6 text-slate-300" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-400">Chưa có ảnh tài liệu</span>
+                      <span className="text-[10px] text-slate-400">Bật chế độ "Sửa hồ sơ" để tải ảnh lên</span>
+                    </div>
+                  )}
+                </div>
+                
+                {ocrStatus[activeDoc] === 'processing' && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10">
+                    <span className="text-xs text-blue-600 flex items-center gap-1.5 bg-white border border-blue-100 px-3 py-1.5 rounded-full shadow-sm">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Đang quét OCR...
+                    </span>
                   </div>
                 )}
-              </React.Fragment>
+              </div>
             );
-          })}
+          })()}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Left Column: Flow & Dates */}
-        <div className="lg:col-span-2 space-y-4 md:space-y-6">
-          <div className="bg-white p-4 md:p-5 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Tiến trình Hồ sơ
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái hiện tại</label>
-                <select 
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                >
-                  {statusSteps.map(step => (
-                    <option key={step.id} value={step.id}>{step.label}</option>
-                  ))}
-                  <option value="CANCELLED">Đã hủy</option>
-                </select>
+        {/* Panel 2: Form Inputs Corresponding to Panel 1 (Middle) */}
+        <div className="col-span-1 md:col-span-3 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+          <div className="p-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            {(() => {
+              switch (activeDoc) {
+                case 'zairyuFront':
+                case 'zairyuBack':
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
+                      {(() => {
+                        const zairyuFields = ['fullName', 'dob', 'cardNumber', 'zairyuAddress', 'postalCode'];
+                        const isZairyuVerified = zairyuFields.every(field => verifiedFields[field]);
+                        return (
+                          <div className={`p-1 px-2 rounded border flex items-center justify-between text-[10px] font-bold ${
+                            isZairyuVerified
+                              ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                              : 'bg-amber-50 border-amber-100 text-amber-700'
+                          }`}>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className={`w-3.5 h-3.5 ${isZairyuVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
+                              Trạng thái duyệt thông tin:
+                            </span>
+                            <span>{isZairyuVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
+                          </div>
+                        );
+                      })()}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Họ và tên *</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input {...register('fullName')} disabled={!isEditing} className={`h-8 py-0.5 text-xs flex-1 ${errors.fullName ? 'border-rose-400' : ''}`} />
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('fullName')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['fullName']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['fullName'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {errors.fullName && <span className="text-[10px] text-rose-500">{errors.fullName.message as string}</span>}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Ngày sinh *</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input type="date" {...register('dob')} disabled={!isEditing} className={`h-8 py-0.5 text-xs flex-1 ${errors.dob ? 'border-rose-400' : ''}`} />
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('dob')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['dob']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['dob'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {errors.dob && <span className="text-[10px] text-rose-500">{errors.dob.message as string}</span>}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Quốc tịch</label>
+                        <Input {...register('nationality')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Số thẻ ngoại kiều</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input {...register('cardNumber')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" />
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('cardNumber')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['cardNumber']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['cardNumber'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Mã số cá nhân (My Number)</label>
+                        <Input {...register('myNumber')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Địa chỉ trên thẻ (Kanji)</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input {...register('zairyuAddress')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" />
+                          {watch('zairyuAddress') && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress') || '')}`, '_blank')}
+                              className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 w-8 transition-colors"
+                              title="Mở Google Maps cho địa chỉ này"
+                            >
+                              <MapPin className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('zairyuAddress')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['zairyuAddress']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['zairyuAddress'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Mã Bưu Điện</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input {...register('postalCode')} disabled={!isEditing} className="h-8 py-0.5 text-xs flex-1" placeholder="VD: 4530015" />
+                          <button
+                            type="button"
+                            onClick={() => handleNtaSearch(watch('postalCode'))}
+                            className="p-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-100 flex items-center justify-center shrink-0 h-8 w-8 transition-colors"
+                            title="Tra cứu Cục thuế theo mã bưu điện"
+                          >
+                            <Search className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('postalCode')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['postalCode']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['postalCode'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                case 'passport':
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN HỘ CHIẾU</div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Họ và tên *</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input {...register('fullName')} disabled={!isEditing} className={`h-8 py-0.5 text-xs flex-1 ${errors.fullName ? 'border-rose-400' : ''}`} />
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('fullName')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['fullName']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['fullName'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Ngày sinh *</label>
+                        <div className="flex gap-1.5 items-center">
+                          <Input type="date" {...register('dob')} disabled={!isEditing} className={`h-8 py-0.5 text-xs flex-1 ${errors.dob ? 'border-rose-400' : ''}`} />
+                          <button
+                            type="button"
+                            onClick={() => toggleVerify('dob')}
+                            className={`p-1.5 border rounded-md transition-colors shrink-0 h-8 w-8 flex items-center justify-center ${
+                              verifiedFields['dob']
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title={verifiedFields['dob'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Quốc tịch</label>
+                        <Input {...register('nationality')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Giới tính</label>
+                          <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-input px-2 text-xs bg-transparent">
+                            <option value="">Chọn...</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Số điện thoại</label>
+                          <Input {...register('phone')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Ngày cấp hộ chiếu</label>
+                          <Input type="date" {...register('passportIssueDate')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Ngày hết hạn</label>
+                          <Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                case 'nenkinBook':
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN SỔ NENKIN</div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Mã số Nenkin</label>
+                        <Input {...register('nenkinNumber')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Tên Katakana (Sổ Nenkin)</label>
+                        <Input {...register('nenkinKatakanaName')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                    </div>
+                  );
+                default:
+                  if (activeDoc.startsWith('bankPassbook_')) {
+                    const idxStr = activeDoc.split('_')[1];
+                    const idx = parseInt(idxStr, 10);
+                    if (isNaN(idx) || !bankFields[idx]) return null;
+                    return (
+                      <div className="space-y-3">
+                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">
+                          THÔNG TIN NGÂN HÀNG TRẢ TIỀN ({watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1' : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung'})
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-slate-500">Quốc gia</label>
+                            <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-input px-2 text-xs bg-white">
+                              <option value="JAPAN">Nhật Bản</option>
+                              <option value="VIETNAM">Việt Nam</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-slate-500">Mục đích</label>
+                            <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-input px-2 text-xs bg-white">
+                              <option value="BOTH">Chung cả 2 lần</option>
+                              <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
+                              <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1 relative group">
+                          <label className="text-xs font-medium text-slate-500">Tên ngân hàng</label>
+                          <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Chi nhánh</label>
+                          <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Địa chỉ chi nhánh (Eng)</label>
+                          <Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Số tài khoản</label>
+                          <Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Tên chủ tài khoản (Romaji)</label>
+                          <Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs uppercase" />
+                        </div>
+                        {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-slate-500">Tên chủ tài khoản (Katakana)</label>
+                            <Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-slate-500">Swift Code</label>
+                          <Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} className="h-8 py-0.5 text-xs uppercase" />
+                        </div>
+                        
+                        {/* Remove account button */}
+                        {isEditing && bankFields.length > 1 && (
+                          <div className="pt-2 border-t mt-2">
+                            <button type="button" onClick={() => {
+                              if (confirm('Bạn muốn xóa tài khoản ngân hàng này?')) {
+                                removeBank(idx);
+                                setActiveDoc('zairyuFront');
+                              }
+                            }} className="text-xs text-rose-600 hover:text-rose-700 flex items-center gap-1 font-medium bg-rose-50 px-2 py-1.5 rounded w-fit">
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Xóa tài khoản này
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                case 'departureStamp':
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-500">Ngày xuất cảnh Nhật Bản</label>
+                        <Input type="date" {...register('departureDate')} disabled={!isEditing} className="h-8 py-0.5 text-xs" />
+                      </div>
+                    </div>
+                  );
+                  return null;
+              }
+            })()}
+
+            {/* Manual Verification Checkbox */}
+            {!isNew && (() => {
+              const requiredVerificationFields = [
+                'fullName', 'dob', 'cardNumber', 'zairyuAddress', 'postalCode',
+                'taxOffice_name', 'taxOffice_postalCode', 'taxOffice_address', 'taxOffice_romajiAddress', 'taxOffice_phone', 'taxOffice_websiteUrl'
+              ];
+              const allVerified = requiredVerificationFields.every(field => verifiedFields[field]);
+              return (
+                <div className="mt-4 space-y-2">
+                  <div className={`p-3 border rounded-lg flex items-center gap-2 transition-all ${
+                    allVerified 
+                      ? 'bg-indigo-50/40 border-indigo-100' 
+                      : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      id="manual-confirm"
+                      disabled={!isEditing || !allVerified}
+                      checked={manualConfirmed && allVerified}
+                      onChange={(e) => setManualConfirmed(e.target.checked)}
+                      className={`rounded focus:ring-indigo-500 w-4 h-4 ${
+                        allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
+                      }`}
+                    />
+                    <label 
+                      htmlFor="manual-confirm" 
+                      className={`text-xs font-semibold select-none ${
+                        allVerified ? 'text-indigo-900 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+                    </label>
+                  </div>
+                  {!allVerified && isEditing && (
+                    <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-md flex items-start gap-1.5 shadow-2xs">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>⚠️ Yêu cầu đối chiếu:</strong> Bạn cần tích chọn biểu tượng tích xanh <CheckCircle className="w-3 h-3 inline text-emerald-600 mx-0.5" /> bên cạnh tất cả 5 trường thông tin khách hàng và 5 trường thông tin Cục thuế để xác nhận khớp trước khi có thể phê duyệt hồ sơ này.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Panel 3: Client Summary & Workflow (Right) */}
+        <div className="col-span-1 md:col-span-5 flex flex-col gap-4 h-full min-h-0">
+          {/* Panel 3A: Client Info & Workflow Progress */}
+          <div className="flex-[5] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+            {/* Upper Half: Client Basic Info & Compact Workflow Status */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center justify-between">
+            <div className="flex gap-2 min-w-0 flex-1">
+              <div className="w-16 h-10 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
+                {watch('zairyuFrontUrl') ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu Front" className="w-full h-full object-contain" />
+                    <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                      <ZoomIn className="w-3 h-3" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Image</span>
+                )}
               </div>
-
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày nộp hồ sơ</label>
-                  <input type="date" name="applyDate" value={formData.applyDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+              <div className="flex-1 min-w-0 py-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
+                  <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 py-0.2 rounded shrink-0">#{watch('code') || '---'}</span>
+                </div>
+                <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2">
+                  <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
+                  <span>|</span>
+                  <span className="truncate">QT: {watch('nationality') || '---'}</span>
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày gửi Lần 1</label>
-                  <input type="date" name="sent1stDate" value={formData.sent1stDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+            {/* Status Dropdown Select */}
+            <div className="flex flex-col gap-0.5 items-end shrink-0">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Trạng thái hồ sơ</span>
+              <select
+                value={watch('status') || 'DRAFT'}
+                disabled={!isEditing}
+                onChange={async (e) => {
+                  setValue('status', e.target.value as any, { shouldDirty: true });
+                }}
+                className={`h-6 rounded border px-1 text-[10px] font-bold outline-none cursor-pointer ${
+                  statusConfig[(watch('status') || 'DRAFT') as any]?.color || 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+              >
+                {Object.keys(statusConfig).filter(k => k !== 'PENDING' && k !== 'CANCELLED').map(key => (
+                  <option key={key} value={key} className="bg-white text-slate-800 font-medium">
+                    {statusConfig[key]?.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Lower Half: Financial Inputs */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+
+            {/* Dates Section */}
+            <div className="border-t border-slate-100 pt-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Các mốc ngày xử lý</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Ngày nộp Lần 1</label>
+                  <Input type="date" {...register('sent1stDate')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày nhận Lần 1</label>
-                  <input type="date" name="received1stDate" value={formData.received1stDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Ngày nhận Lần 1</label>
+                  <Input type="date" {...register('received1stDate')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Ngày nộp Lần 2</label>
+                  <Input type="date" {...register('sent2ndDate')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Ngày nhận Lần 2</label>
+                  <Input type="date" {...register('received2ndDate')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày gửi Lần 2</label>
-                  <input type="date" name="sent2ndDate" value={formData.sent2ndDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+            {/* Financial Section */}
+            <div className="border-t border-slate-100 pt-2 space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Thông tin Tài chính</label>
+                {isEditing && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const received1 = watch('received1stJpy') || 0;
+                      const received2 = watch('received2ndJpy') || 0;
+                      const rate = watch('exchangeRate') || 165;
+                      const feeJpy = (parseFloat(received1.toString()) + parseFloat(received2.toString())) * 0.2;
+                      setValue('serviceFeeJpy', feeJpy);
+                      setValue('serviceFeeVnd', feeJpy * parseFloat(rate.toString()));
+                      if (!watch('exchangeRate')) setValue('exchangeRate', rate);
+                    }} 
+                    className="text-[9px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded hover:bg-blue-100 font-medium transition-colors border border-blue-200 shadow-2xs"
+                  >
+                    Tính phí (20%)
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Dự kiến tổng (JPY)</label>
+                  <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày nhận Lần 2</label>
-                  <input type="date" name="received2ndDate" value={formData.received2ndDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Tỷ giá (VND/JPY)</label>
+                  <Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
+                </div>
+                
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Đã nhận Lần 1 (JPY)</label>
+                  <Input type="number" {...register('received1stJpy')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] text-slate-400">Đã nhận Lần 2 (JPY)</label>
+                  <Input type="number" {...register('received2ndJpy')} disabled={!isEditing} className="h-7 text-xs py-0.5 px-2" />
+                </div>
+
+                <div className="flex flex-col gap-0.5 col-span-2">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] font-medium text-blue-700">Phí DV (JPY)</label>
+                      <Input type="number" className="h-7 text-xs py-0.5 px-2 bg-blue-50/50" {...register('serviceFeeJpy')} disabled={!isEditing} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] font-medium text-emerald-700">Phí DV (VND)</label>
+                      <Input type="number" className="h-7 text-xs py-0.5 px-2 bg-emerald-50/50" {...register('serviceFeeVnd')} disabled={!isEditing} />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mt-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-purple-600" />
-              Nghiệp Vụ Lần 2 (20.42%)
-            </h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Người Đại Diện Nộp Thuế</label>
-                <select 
-                  name="taxRepresentativeId"
-                  value={formData.taxRepresentativeId}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                >
-                  <option value="">-- Chọn Người Đại Diện --</option>
-                  {taxReps.map(rep => (
-                    <option key={rep.id} value={rep.id}>{rep.fullName} {rep.phone ? `(${rep.phone})` : ''}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Sử dụng để điền thông tin vào Giấy uỷ quyền và Đơn xin hoàn thuế.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày ra thông báo</label>
-                  <input type="date" name="noticeDate" value={formData.noticeDate} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                </div>
-              </div>
-
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-medium text-sm text-slate-800">Phiếu thông báo quyết định cấp</h3>
-                  <button 
-                    onClick={handleExtractOcr}
-                    disabled={ocrStatus === 'processing' || !formData.noticeImageUrl}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 disabled:opacity-50 transition-colors"
+          {/* Panel 3B: Cục Thuế Quản Lý */}
+          <div className="flex-[4] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+            <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cục Thuế quản lý</span>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1.5 mt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleNtaSearch(watch('postalCode'))}
+                    className="text-[9px] text-blue-600 bg-blue-50 hover:bg-blue-100 font-semibold px-2 py-1 rounded transition-colors border border-blue-200 shadow-2xs flex-1 text-center"
+                    title="Tra cứu Cục thuế theo mã bưu điện khách hàng"
                   >
-                    {ocrStatus === 'processing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wallet className="w-3.5 h-3.5" />}
-                    Trích xuất AI
+                    Tra cứu từ mã bưu điện KH
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.open(`https://www.nta.go.jp/about/organization/access/map.htm`, '_blank')}
+                    className="text-[9px] text-indigo-600 bg-indigo-50 hover:bg-indigo-100 font-semibold px-2 py-1 rounded transition-colors border border-indigo-200 shadow-2xs flex-1 text-center"
+                    title="Mở trang chủ tra cứu NTA"
+                  >
+                    Tra cứu NTA thủ công
                   </button>
                 </div>
-                
-                <div className="flex gap-4">
-                  <div className="w-1/3">
-                    <div 
-                      className="aspect-[3/4] relative rounded-lg border-2 border-dashed border-slate-300 hover:border-purple-400 bg-white flex items-center justify-center cursor-pointer transition-colors overflow-hidden group"
-                      onClick={() => document.getElementById('upload-notice')?.click()}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <select
+                    {...register('taxOfficeId')}
+                    disabled={!isEditing}
+                    className="h-7 rounded-md border border-slate-200 px-2 text-xs bg-white flex-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-medium min-w-0"
+                  >
+                    <option value="">-- Cục thuế chưa chọn hoặc AI tự điền --</option>
+                    {taxOffices.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingTaxOffice(!isAddingTaxOffice)}
+                      className={`h-7 px-2 text-xs font-semibold rounded border transition-colors shrink-0 ${
+                        isAddingTaxOffice
+                          ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                          : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                      }`}
                     >
-                      {!formData.noticeImageUrl && <input id="upload-notice" type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />}
-                      
-                      {formData.noticeImageUrl ? (
-                        <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={formData.noticeImageUrl} className="w-full h-full object-cover" alt="Notice of Payment" />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-xs font-medium">Thay đổi ảnh</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-slate-400 flex flex-col items-center p-4 text-center">
-                          <UploadCloud className="w-8 h-8 mb-2 opacity-50" />
-                          <span className="text-xs font-medium">Tải ảnh lên</span>
+                      {isAddingTaxOffice ? 'Đóng' : '+ Mới'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {isAddingTaxOffice && isEditing && (
+                <div className="p-3 bg-indigo-50/20 border border-indigo-100 rounded-lg space-y-2 mt-2">
+                  <div className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Đăng ký Cục thuế mới</div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Tên Cục thuế *</label>
+                      <input
+                        type="text"
+                        placeholder="VD: 小田原税務署"
+                        value={ntaSearchInfo.name}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, name: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Mã bưu điện</label>
+                      <input
+                        type="text"
+                        placeholder="VD: 250-8511"
+                        value={ntaSearchInfo.postalCode}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, postalCode: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-mono font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Địa chỉ (Kanji)</label>
+                      <input
+                        type="text"
+                        placeholder="VD: 小田原市荻窪440番地"
+                        value={ntaSearchInfo.address}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, address: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Địa chỉ (Romaji)</label>
+                      <input
+                        type="text"
+                        placeholder="VD: 440 Ogikubo Odawara-shi"
+                        value={ntaSearchInfo.romajiAddress}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, romajiAddress: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Điện thoại đại diện</label>
+                      <input
+                        type="text"
+                        placeholder="VD: 0465-35-4511"
+                        value={ntaSearchInfo.phone}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, phone: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-mono font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="text-[9px] text-slate-500 font-semibold">Website Cục thuế</label>
+                      <input
+                        type="text"
+                        placeholder="VD: https://www.nta.go.jp/..."
+                        value={ntaSearchInfo.websiteUrl}
+                        onChange={e => setNtaSearchInfo(prev => ({ ...prev, websiteUrl: e.target.value }))}
+                        className="h-6 px-1.5 text-xs rounded border border-slate-200 bg-white font-medium"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingTaxOffice(false);
+                        setNtaSearchInfo({ name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: '' });
+                      }}
+                      className="px-2 py-1 text-[10px] text-slate-500 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 font-semibold transition-colors"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      disabled={creatingTaxOffice}
+                      onClick={async () => {
+                        if (!ntaSearchInfo.name.trim()) {
+                          alert('Vui lòng nhập tên Cục thuế.');
+                          return;
+                        }
+                        setCreatingTaxOffice(true);
+                        try {
+                          const res = await fetch('/api/tax-offices', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(ntaSearchInfo)
+                          });
+                          const resData = await res.json();
+                          if (res.ok && resData.success) {
+                            const createdOffice = resData.data;
+                            setTaxOffices(prev => {
+                              if (prev.some(t => t.id === createdOffice.id)) return prev;
+                              return [...prev, createdOffice].sort((a, b) => a.name.localeCompare(b.name));
+                            });
+                            setValue('taxOfficeId', createdOffice.id);
+                            setIsAddingTaxOffice(false);
+                            alert(`Đã đăng ký và áp dụng Cục thuế ${createdOffice.name}!`);
+                          } else {
+                            alert('Lỗi đăng ký: ' + (resData.error || 'Vui lòng thử lại.'));
+                          }
+                        } catch (err) {
+                          alert('Lỗi kết nối khi đăng ký Cục thuế.');
+                        } finally {
+                          setCreatingTaxOffice(false);
+                        }
+                      }}
+                      className="px-2 py-1 text-[10px] text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 rounded font-semibold transition-colors flex items-center gap-1 shadow-xs"
+                    >
+                      {creatingTaxOffice && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Lưu &amp; Áp dụng
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Show selected Tax Office details */}
+              {(() => {
+                const selectedId = watch('taxOfficeId');
+                const office = taxOffices.find(t => t.id === selectedId);
+                if (!office) return null;
+
+                if (!isEditing) {
+                  const taxOfficeFields = ['taxOffice_name', 'taxOffice_postalCode', 'taxOffice_address', 'taxOffice_romajiAddress', 'taxOffice_phone', 'taxOffice_websiteUrl'];
+                  const isTaxOfficeVerified = taxOfficeFields.every(field => verifiedFields[field]);
+
+                  return (
+                    <div className="p-2 bg-indigo-50/30 border border-indigo-100/50 rounded-lg space-y-1.5 text-[10px] text-slate-600">
+                      {/* Verification Status */}
+                      <div className={`p-1 px-2 rounded border flex items-center justify-between text-[9px] font-bold shrink-0 ${
+                        isTaxOfficeVerified
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                          : 'bg-amber-50 border-amber-100 text-amber-700'
+                      }`}>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className={`w-3 h-3 ${isTaxOfficeVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
+                          Cục thuế:
+                        </span>
+                        <span>{isTaxOfficeVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-slate-400 shrink-0">Tên Cục thuế:</span>
+                        <span className="font-bold text-slate-800 text-right truncate max-w-[170px]">{office.name || '---'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-slate-400 shrink-0">Địa chỉ:</span>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(office.name + ' ' + office.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline text-right truncate max-w-[170px]"
+                          title="Click để mở bản đồ địa chỉ Cục Thuế này"
+                        >
+                          {office.address || '---'}
+                        </a>
+                      </div>
+                      {office.romajiAddress && (
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 shrink-0">Địa chỉ (Romaji):</span>
+                          <span className="font-medium text-slate-800 text-right truncate max-w-[170px]" title={office.romajiAddress}>
+                            {office.romajiAddress}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Mã bưu điện:</span>
+                        <span className="font-mono font-medium text-slate-800">{office.postalCode || '---'}</span>
+                      </div>
+                      {office.phone && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Điện thoại:</span>
+                          <span className="font-medium text-slate-800">{office.phone}</span>
+                        </div>
+                      )}
+                      {office.websiteUrl && (
+                        <div className="pt-1 border-t border-indigo-100/30 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => window.open(office.websiteUrl, '_blank')}
+                            className="text-[9px] text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-bold transition-all"
+                          >
+                            Mở website Cục Thuế &rarr;
+                          </button>
                         </div>
                       )}
                     </div>
+                  );
+                }
+
+                const hasDiff = 
+                  ntaSearchInfo.address !== (office.address || '') ||
+                  ntaSearchInfo.romajiAddress !== (office.romajiAddress || '') ||
+                  ntaSearchInfo.postalCode !== (office.postalCode || '') ||
+                  ntaSearchInfo.phone !== (office.phone || '') ||
+                  ntaSearchInfo.websiteUrl !== (office.websiteUrl || '');
+
+                const isDiff = (field: keyof typeof ntaSearchInfo) => {
+                  return ntaSearchInfo[field] !== (office[field] || '');
+                };
+
+                return (
+                  <div className="p-2 bg-indigo-50/10 border border-indigo-100 rounded-lg space-y-2.5 mt-2">
+                    <div className="flex justify-between items-center border-b pb-1 border-slate-100">
+                      <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Đối chiếu Cục Thuế</span>
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1 py-0.5 rounded text-[8px] font-bold shrink-0">✓ Đã lưu</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      {/* Left: NTA (Editable) */}
+                      <div className="space-y-1.5 border-r pr-1.5 border-slate-100">
+                        <div className="font-bold text-slate-500 mb-0.5 border-b pb-0.5 border-dashed">Thực tế Tra cứu (NTA)</div>
+                        
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Tên Cục thuế *</label>
+                          <div className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={ntaSearchInfo.name}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, name: e.target.value }))}
+                              className={`h-5 px-1 text-[10px] rounded border font-medium flex-1 ${
+                                isDiff('name') ? 'bg-amber-50 border-amber-300 text-amber-950 font-bold' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_name')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center ${
+                                verifiedFields['taxOffice_name']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_name'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Mã bưu điện</label>
+                          <div className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={ntaSearchInfo.postalCode}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, postalCode: e.target.value }))}
+                              className={`h-5 px-1 text-[10px] rounded border font-mono font-medium flex-1 ${
+                                isDiff('postalCode') ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_postalCode')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center ${
+                                verifiedFields['taxOffice_postalCode']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_postalCode'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Địa chỉ Kanji</label>
+                          <div className="flex gap-1 items-start">
+                            <textarea
+                              value={ntaSearchInfo.address}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, address: e.target.value }))}
+                              className={`h-9 p-1 text-[9px] rounded border font-medium leading-tight resize-none flex-1 ${
+                                isDiff('address') ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_address')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center mt-0.5 ${
+                                verifiedFields['taxOffice_address']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_address'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Địa chỉ Romaji</label>
+                          <div className="flex gap-1 items-start">
+                            <textarea
+                              value={ntaSearchInfo.romajiAddress}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, romajiAddress: e.target.value }))}
+                              className={`h-9 p-1 text-[9px] rounded border font-medium leading-tight resize-none flex-1 ${
+                                isDiff('romajiAddress') ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_romajiAddress')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center mt-0.5 ${
+                                verifiedFields['taxOffice_romajiAddress']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_romajiAddress'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Điện thoại</label>
+                          <div className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={ntaSearchInfo.phone}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, phone: e.target.value }))}
+                              className={`h-5 px-1 text-[10px] rounded border font-mono font-medium flex-1 ${
+                                isDiff('phone') ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_phone')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center ${
+                                verifiedFields['taxOffice_phone']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_phone'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[8px] font-semibold text-slate-400">Website</label>
+                          <div className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={ntaSearchInfo.websiteUrl}
+                              onChange={e => setNtaSearchInfo(prev => ({ ...prev, websiteUrl: e.target.value }))}
+                              className={`h-5 px-1 text-[10px] rounded border font-medium flex-1 ${
+                                isDiff('websiteUrl') ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-slate-200'
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify('taxOffice_websiteUrl')}
+                              className={`p-0.5 border rounded transition-colors shrink-0 h-5 w-5 flex items-center justify-center ${
+                                verifiedFields['taxOffice_websiteUrl']
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={verifiedFields['taxOffice_websiteUrl'] ? 'Đã xác nhận khớp' : 'Xác nhận khớp dữ liệu'}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: DB (Static) */}
+                      <div className="space-y-1.5">
+                        <div className="font-bold text-slate-500 mb-0.5 border-b pb-0.5 border-dashed">Dữ liệu Hệ thống (DB)</div>
+                        
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Tên Cục thuế</span>
+                          <span className={`h-5 px-1 flex items-center font-bold ${
+                            isDiff('name') ? 'text-amber-700 bg-amber-50 rounded font-bold' : 'text-slate-800'
+                          }`}>
+                            {office.name || '---'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Mã bưu điện</span>
+                          <span className={`h-5 px-1 flex items-center font-mono font-bold ${
+                            isDiff('postalCode') ? 'text-amber-700 bg-amber-50 rounded' : 'text-slate-800'
+                          }`}>
+                            {office.postalCode || '---'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Địa chỉ Kanji</span>
+                          <span className={`h-9 px-1 py-0.5 overflow-y-auto block text-[9px] font-medium leading-tight ${
+                            isDiff('address') ? 'text-amber-700 bg-amber-50 rounded font-bold' : 'text-slate-700'
+                          }`} title={office.address}>
+                            {office.address || '---'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Địa chỉ Romaji</span>
+                          <span className={`h-9 px-1 py-0.5 overflow-y-auto block text-[9px] font-medium leading-tight ${
+                            isDiff('romajiAddress') ? 'text-amber-700 bg-amber-50 rounded font-bold' : 'text-slate-700'
+                          }`} title={office.romajiAddress}>
+                            {office.romajiAddress || '---'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Điện thoại</span>
+                          <span className={`h-5 px-1 flex items-center font-mono font-medium ${
+                            isDiff('phone') ? 'text-amber-700 bg-amber-50 rounded font-bold' : 'text-slate-800'
+                          }`}>
+                            {office.phone || '---'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-semibold text-slate-400">Website</span>
+                          <span className={`h-5 px-1 flex items-center truncate max-w-[120px] ${
+                            isDiff('websiteUrl') ? 'text-amber-700 bg-amber-50 rounded' : 'text-slate-700'
+                          }`} title={office.websiteUrl}>
+                            {office.websiteUrl || '---'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {hasDiff ? (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <span className="text-[9px] text-amber-600 font-medium">⚠️ Sai lệch thông tin!</span>
+                        <button
+                          type="button"
+                          disabled={syncingTaxOffice}
+                          onClick={async () => {
+                            if (!window.confirm(`Bạn có chắc chắn muốn cập nhật đồng bộ thông tin của Cục thuế "${office.name}" trong hệ thống theo dữ liệu thực tế mới?`)) return;
+                            setSyncingTaxOffice(true);
+                            try {
+                              const res = await fetch(`/api/tax-offices/${office.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(ntaSearchInfo)
+                              });
+                              const resData = await res.json();
+                              if (res.ok && resData.success) {
+                                setTaxOffices(prev => prev.map(t => t.id === office.id ? resData.data : t));
+                                alert('Đã cập nhật đồng bộ thông tin Cục Thuế thành công!');
+                              } else {
+                                alert('Lỗi cập nhật: ' + (resData.error || 'Vui lòng thử lại.'));
+                              }
+                            } catch (err) {
+                              alert('Lỗi kết nối khi đồng bộ.');
+                            } finally {
+                              setSyncingTaxOffice(false);
+                            }
+                          }}
+                          className="px-2 py-1 text-[10px] text-white bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 rounded font-semibold transition-colors flex items-center gap-1 shadow-xs shrink-0"
+                        >
+                          {syncingTaxOffice && <Loader2 className="w-3 h-3 animate-spin" />}
+                          Đồng bộ dữ liệu
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-1.5 border-t border-slate-100 text-center text-[9px] text-emerald-600 font-medium">
+                        ✓ Dữ liệu thực tế và Hệ thống khớp hoàn toàn
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="w-2/3 space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Tổng tiền (支給額)</label>
-                      <input type="number" name="totalExpectedJpy" value={formData.totalExpectedJpy} onChange={handleChange} className="w-full px-3 py-1.5 font-mono text-sm border border-slate-200 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Tiền thuế Lần 2 (所得税額)</label>
-                      <input type="number" name="tax2ndJpy" value={formData.tax2ndJpy} onChange={handleChange} className="w-full px-3 py-1.5 font-mono text-sm border border-slate-200 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Thực nhận Lần 1 (差引支給額)</label>
-                      <input type="number" name="received1stJpy" value={formData.received1stJpy} onChange={handleChange} className="w-full px-3 py-1.5 font-mono text-sm border border-slate-200 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="0" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
+
           </div>
         </div>
 
-        {/* Right Column: Financials */}
-        <div className="space-y-4 md:space-y-6">
-          <div className="bg-white p-4 md:p-5 rounded-lg border border-slate-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
-            
-            <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-emerald-600" />
-              Tài chính & Thuế
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Dự kiến nhận (JPY)</label>
-                <input type="number" name="totalExpectedJpy" value={formData.totalExpectedJpy} onChange={handleChange} className="w-full px-4 py-2 font-mono border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="0" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Đã nhận Lần 1 (JPY) - 80%</label>
-                <input type="number" name="received1stJpy" value={formData.received1stJpy} onChange={handleChange} className="w-full px-4 py-2 font-mono border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="0" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Đã nhận Lần 2 (JPY) - 20%</label>
-                <input type="number" name="received2ndJpy" value={formData.received2ndJpy} onChange={handleChange} className="w-full px-4 py-2 font-mono border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="0" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-lg text-white">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-blue-400" />
-                Phí Dịch Vụ
-              </h2>
-              <button onClick={calculateFees} className="text-xs px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded-md hover:bg-blue-500/40 transition-colors">Tính tự động</button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs text-slate-400">Tỷ giá JPY/VND (Manual Override)</label>
-                  <button 
-                    onClick={fetchDcomRate} 
-                    disabled={fetchingRate}
-                    className="text-[10px] text-blue-400 hover:text-blue-300 disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {fetchingRate ? 'Đang lấy...' : 'DCOM Mới nhất'}
-                  </button>
-                </div>
-                <input type="number" name="exchangeRate" value={formData.exchangeRate} onChange={handleChange} className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-1 focus:ring-blue-500 font-mono text-sm" placeholder="165" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Phí DV (JPY)</label>
-                  <input type="number" name="serviceFeeJpy" value={formData.serviceFeeJpy} onChange={handleChange} className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-1 focus:ring-blue-500 font-mono text-sm" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Phí DV (VND)</label>
-                  <input type="number" name="serviceFeeVnd" value={formData.serviceFeeVnd} onChange={handleChange} className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-1 focus:ring-blue-500 font-mono text-sm" placeholder="0" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
+
+      {/* Image Lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <button 
+            type="button" 
+            onClick={() => setLightboxUrl(null)} 
+            className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={lightboxUrl} 
+            alt="Enlarged document" 
+            className="w-full max-w-4xl max-h-[90vh] object-contain rounded-xl shadow-2xl" 
+          />
+        </div>
+      )}
+
+      {/* Modern Print Preview Overlay Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-xs flex items-center justify-center p-2 md:p-4">
+          <div className="bg-slate-100 w-full max-w-6xl h-[95vh] md:h-[90vh] rounded-xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="p-3 bg-white border-b border-slate-200 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Printer className="w-4 h-4 text-indigo-600 animate-pulse" />
+                <span className="font-bold text-slate-800 text-xs md:text-sm">Xem trước & In Biểu mẫu</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Embedded Iframe */}
+            <div className="flex-1 bg-slate-100 relative min-h-0">
+              <iframe
+                src={`/applications/${id}/print?embed=true`}
+                className="w-full h-full border-none"
+                title="Print Preview Overlay"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Crop Modal */}
+      {cropImageSrc && (
+        <ImageCropModal
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onClose={() => {
+            if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+            setCropImageSrc(null);
+            setCropFile(null);
+          }}
+        />
+      )}
+    </form>
   );
 }

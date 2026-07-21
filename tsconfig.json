@@ -39,6 +39,7 @@
     "build_next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "nenkin_20260607_2214_AiOk"
   ]
 }

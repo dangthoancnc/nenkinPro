@@ -11,7 +11,7 @@ const onboardingSchema = z.object({
   zairyuBackUrl: z.string().max(2048).nullable().optional(),
   passportUrl: z.string().max(2048).nullable().optional(),
   nenkinBookUrl: z.string().max(2048).nullable().optional(),
-  bankPassbookUrl: z.string().max(2048).nullable().optional(),
+  bankPassbookUrl: z.string().max(2048).nullable().optional(), // Still accepted from onboarding form, will be converted to bankPassbookUrls
   cardNumber: z.string().max(255).nullable().optional(),
   zairyuAddress: z.string().max(255).nullable().optional(),
   securityPhotoUrl: z.string().max(2048).nullable().optional(),
@@ -122,10 +122,18 @@ export async function POST(req: Request) {
             zairyuBackUrl: zairyuBackUrl || null,
             passportUrl: passportUrl || null,
             nenkinBookUrl: nenkinBookUrl || null,
-            bankPassbookUrl: bankPassbookUrl || null,
             securityPhotoUrl: securityPhotoUrl || null,
             referralType: referralType,
             referredByCustomerId: referredByCustomerId,
+            ...(bankPassbookUrl ? {
+              bankAccounts: {
+                create: [{
+                  bankCountry: 'VIETNAM',
+                  purpose: 'BOTH',
+                  bankPassbookUrls: [bankPassbookUrl],
+                }]
+              }
+            } : {})
           }
         });
         break;
@@ -149,6 +157,7 @@ export async function POST(req: Request) {
     if (!customer) {
       throw new Error('Failed to create customer with unique code');
     }
+
 
     // 3. Create application with referral tracking
     const application = await prisma.nenkinApplication.create({

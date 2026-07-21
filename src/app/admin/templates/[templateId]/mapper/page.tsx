@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import PdfMappingStudio from '@/features/templates/components/PdfMappingStudio';
 import { getTemplate } from '@/features/templates/template-registry';
-import { validateEmployee } from '@/lib/serverAuth';
+import { requireRole } from '@/lib/auth/authorization';
 
 type MapperPageProps = {
   params: Promise<{ templateId: string }>;
@@ -12,9 +12,8 @@ export default async function TemplateMapperPage({
   params,
   searchParams,
 }: MapperPageProps) {
-  const user = await validateEmployee();
-  if (!user) redirect('/login');
-  if (!['ADMIN', 'MANAGER'].includes(user.role)) notFound();
+  const { user, error } = await requireRole(['ADMIN', 'MANAGER']);
+  if (error || !user) redirect('/login');
 
   const { templateId } = await params;
   const resolvedSearchParams = await searchParams;

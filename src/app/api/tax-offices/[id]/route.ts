@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireStaff } from '@/lib/auth/authorization';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { user, error: authError } = await requireStaff();
+    if (authError || !user) return authError;
+
     const { id } = await params;
     const body = await req.json();
 
@@ -31,6 +35,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { user, error: authError } = await requireStaff();
+    if (authError || !user) return authError;
+
     const { id } = await params;
 
     // Check if tax office has customers

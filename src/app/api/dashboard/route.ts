@@ -47,15 +47,23 @@ export async function GET() {
       include: { customer: true }
     });
 
-    const recentApplications = recentAppsData.map((app, index) => ({
-      id: `HS${String(index + 1).padStart(3, '0')}`,
-      name: app.customer.fullName,
+    const recentApplications = recentAppsData.map((app) => ({
+      id: app.id,
+      name: app.customer?.fullName || 'N/A',
       status: app.status,
       date: app.createdAt.toISOString().split('T')[0],
       amount: app.totalExpectedJpy ? `¥${app.totalExpectedJpy.toString()}` : 'N/A'
     }));
 
-    return NextResponse.json({ success: true, data: { kpis, recentApplications } });
+    const revenueData = [
+      { month: 'T1', revenue: 0 },
+      { month: 'T2', revenue: 0 },
+      { month: 'T3', revenue: 0 },
+      { month: 'T4', revenue: 0 },
+      { month: 'T5', revenue: totalRevenue / 1000000 },
+    ];
+
+    return NextResponse.json({ success: true, data: { kpis, recentApplications, revenueData } });
   } catch (error) {
     console.error('Dashboard API Error:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });

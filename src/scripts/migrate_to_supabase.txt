@@ -114,20 +114,27 @@ async function run() {
         phone: c.SoDienThoai || null,
         overseasAddress: c.DiaChiVN || null,
         hasPermanentResidence: c.VinhTru === 'True',
-        bankName: c.TenNganHang || null,
-        branchName: c.TenChiNhanh || null,
-        accountNumber: c.SoTaiKhoan || null,
-        accountName: c.TenChuTaiKhoan || null,
-        bankBranchAddress: c.DiaChiChiNhanh || null,
-        
         // images
         zairyuFrontUrl,
         zairyuBackUrl,
         passportUrl,
         departureStampUrl,
         nenkinBookUrl,
-        bankPassbookUrl,
-        status: 'VERIFIED'
+        status: 'VERIFIED',
+        ...(c.TenNganHang || c.TenChiNhanh || c.SoTaiKhoan ? {
+          bankAccounts: {
+            create: [{
+              purpose: 'BOTH',
+              bankCountry: c.TenNganHang?.toLowerCase().includes('bank') ? 'JAPAN' : 'VIETNAM',
+              bankName: c.TenNganHang || null,
+              branchName: c.TenChiNhanh || null,
+              accountNumber: c.SoTaiKhoan || null,
+              accountName: c.TenChuTaiKhoan || null,
+              bankBranchAddress: c.DiaChiChiNhanh || null,
+              bankPassbookUrl: bankPassbookUrl,
+            }]
+          }
+        } : {})
       }
     });
 

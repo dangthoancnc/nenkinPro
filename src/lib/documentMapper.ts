@@ -138,6 +138,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     gender_female_check: customer.sex === 'FEMALE' ? '\u2713' : '',
 
     placeOfBirth:    customer.placeOfBirth ?? '',
+    nenkinKatakanaName: customer.nenkinKatakanaName ?? '',
     occupation:      customer.occupation ?? '',
     
     overseasStreet:  customer.overseasStreet ?? '',
@@ -241,22 +242,44 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   const lastEndDate = lastJob?.endDate ? formatDate(new Date(lastJob.endDate)) : { y: '', m: '' };
 
   // Bank info
+  const bankAccounts = (customer as any).bankAccounts || [];
+  const bank1st = bankAccounts.find((a: any) => a.purpose === 'FIRST_REFUND' || a.purpose === 'BOTH') || {};
+  const bank2nd = bankAccounts.find((a: any) => a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || {};
+  
+  // Mặc định cho template cũ dùng bank chung (nếu có)
+  const defaultBank = bank1st;
+
   const bankTags: Record<string, string> = {
-    bankName:          customer.bankName ?? '',
-    branchName:        customer.branchName ?? '',
-    bank_account_type: customer.bankAccountType ?? '',
-    bank_account_type_1_mark: (customer.bankAccountType === 'ORDINARY' || customer.bankAccountType === '1') ? '\u2713' : '',
-    bank_account_type_2_mark: (customer.bankAccountType === 'CURRENT' || customer.bankAccountType === '2') ? '\u2713' : '',
-    accountName:       customer.accountName ?? '',
-    bankBranchAddress: customer.bankBranchAddress ?? '',
-    bankBranchCity:    customer.bankBranchCity ?? '',
-    bankCountry:       customer.bankCountry ?? '',
-    accountNameKatakana: customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.accountNameKatakana ?? '') : '',
-    accountNumber:     customer.accountNumber ?? '',
-    ...splitChars(customer.accountNumber ?? '', 'bank', 7, true),
-    ...splitChars(customer.swiftCode ?? '', 'swift', 11, true),
-    ...splitChars(customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.bankInstitutionCode ?? '') : '', 'bankInstitutionCode', 4, true),
-    ...splitChars(customer.bankCountry === 'JP' || customer.bankCountry === 'Nhật Bản' ? (customer.branchCode ?? '') : '', 'branchCode', 3, true),
+    bankName:          defaultBank.bankName ?? '',
+    branchName:        defaultBank.branchName ?? '',
+    bank_account_type: defaultBank.bankAccountType ?? '',
+    bank_account_type_1_mark: (defaultBank.bankAccountType === 'ORDINARY' || defaultBank.bankAccountType === '1') ? '\u2713' : '',
+    bank_account_type_2_mark: (defaultBank.bankAccountType === 'CURRENT' || defaultBank.bankAccountType === '2') ? '\u2713' : '',
+    accountName:       defaultBank.accountName ?? '',
+    bankBranchAddress: defaultBank.bankBranchAddress ?? '',
+    bankCountry:       defaultBank.bankCountry ?? '',
+    accountNameKatakana: defaultBank.bankCountry === 'JAPAN' ? (defaultBank.accountNameKatakana ?? '') : '',
+    accountNumber:     defaultBank.accountNumber ?? '',
+    ...splitChars(defaultBank.accountNumber ?? '', 'bank', 7, true),
+    ...splitChars(defaultBank.swiftCode ?? '', 'swift', 11, true),
+    ...splitChars(defaultBank.bankCountry === 'JAPAN' ? (defaultBank.bankInstitutionCode ?? '') : '', 'bankInstitutionCode', 4, true),
+    ...splitChars(defaultBank.bankCountry === 'JAPAN' ? (defaultBank.branchCode ?? '') : '', 'branchCode', 3, true),
+
+    // Template mới cần tách biệt
+    bank1st_name: bank1st.bankName ?? '',
+    bank1st_branch: bank1st.branchName ?? '',
+    bank1st_accountNumber: bank1st.accountNumber ?? '',
+    bank1st_accountName: bank1st.accountName ?? '',
+    bank1st_katakanaName: bank1st.accountNameKatakana ?? '',
+    bank1st_swiftCode: bank1st.swiftCode ?? '',
+    
+    bank2nd_name: bank2nd.bankName ?? '',
+    bank2nd_branch: bank2nd.branchName ?? '',
+    bank2nd_accountNumber: bank2nd.accountNumber ?? '',
+    bank2nd_accountName: bank2nd.accountName ?? '',
+    bank2nd_katakanaName: bank2nd.accountNameKatakana ?? '',
+    bank2nd_swiftCode: bank2nd.swiftCode ?? '',
+    bank2nd_address: bank2nd.bankBranchAddress ?? '',
   };
 
   return {

@@ -17,6 +17,7 @@
 | 1 | Responsive UI | Update LayoutWrapper, Sidebar, create BottomNavigationBar, refactor tables to card lists for mobile. | none | DONE |
 | 2 | Onboarding Wizard | Create `/onboarding` route, step UI, PIN + ref code logic, OCR integration, Customer + Application creation. | none | DONE |
 | 3 | Staff Review | Update staff lists to highlight PENDING, image preview UI, approval/rejection actions (Duyệt / Yêu cầu chụp lại ảnh). | M2 | DONE |
+| 4 | DB/UI Refactoring | Implement AuditLog architecture, modularize Customer/Application flow, implement state machine API validation. | M3 | DONE |
 
 ## Interface Contracts
 ### API ↔ Frontend

@@ -1,0 +1,39 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env' });
+import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  const accounts = await prisma.bankAccount.findMany({
+    where: {
+      bankPassbookUrl: {
+        not: null
+      }
+    }
+  });
+
+  console.log(`Found ${accounts.length} bank accounts with passbook URL`);
+
+  for (const acc of accounts) {
+    if (acc.bankPassbookUrl && acc.bankPassbookUrls.length === 0) {
+      await prisma.bankAccount.update({
+        where: { id: acc.id },
+        data: {
+          bankPassbookUrls: [acc.bankPassbookUrl]
+        }
+      });
+      console.log(`Migrated account ${acc.id}`);
+    }
+  }
+
+  console.log('Done');
+  process.exit(0);
+}
+
+main().catch(console.error);

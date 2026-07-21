@@ -98,6 +98,45 @@ export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = fa
   );
 };
 
+// ── ImagePrintContainer ────────────────────────────────────────────
+interface ImagePrintContainerProps {
+  /** Array of image URLs to display on this A4 page. Up to 2 images for Zairyu Card */
+  images: string[];
+  isLandscape?: boolean;
+}
+
+/**
+ * Renders an A4 container to print uploaded images (e.g. Passport, Bank Passbook, Zairyu).
+ * Uses CSS margins for Japanese standard.
+ */
+export const ImagePrintContainer = ({ images, isLandscape = false }: ImagePrintContainerProps) => {
+  if (!images || images.length === 0) return null;
+
+  return (
+    <div
+      className={`relative w-full mx-auto bg-white shadow-xl print:shadow-none print:m-0 break-inside-avoid flex flex-col items-center justify-center p-[20mm] ${isLandscape ? 'max-w-[1414px]' : 'max-w-[1000px]'}`}
+      style={{ aspectRatio: isLandscape ? '297/210' : '210/297', containerType: 'inline-size' }}
+    >
+      <div className="w-full h-full flex flex-col items-center justify-center gap-8">
+        {images.filter(Boolean).map((src, idx) => (
+          <img
+            key={idx}
+            src={src}
+            alt={`Print Image ${idx}`}
+            className="max-w-full max-h-[45%] object-contain rounded-md"
+            style={{ pageBreakInside: 'avoid' }}
+          />
+        ))}
+      </div>
+      
+      {/* Watermark for Dev/Preview (Hidden on Print) */}
+      <div className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs px-2 py-1 rounded font-bold opacity-50 print:hidden pointer-events-none">
+        PREVIEW MODE
+      </div>
+    </div>
+  );
+};
+
 // ── PrintField ────────────────────────────────────────────────────
 export interface PrintFieldProps {
   x: number; // Percentage 0-100

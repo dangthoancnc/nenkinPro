@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      include: { taxOffice: true }
+      include: { taxOffice: true, bankAccounts: true }
     });
 
     if (!customer) {
@@ -90,13 +90,13 @@ export async function POST(req: Request) {
       taxOfficePhone: customer.taxOffice?.phone || '',
       
       // Bank Info
-      bankName: customer.bankName || '',
-      branchName: customer.branchName || '',
-      accountNumber: customer.accountNumber || '',
-      accountName: customer.accountName || '',
-      swiftCode: customer.swiftCode || '',
-      bankBranchAddress: customer.bankBranchAddress || '',
-      bankCountry: customer.bankCountry || '',
+      bankName: customer.bankAccounts?.[0]?.bankName || '',
+      branchName: customer.bankAccounts?.[0]?.branchName || '',
+      accountNumber: customer.bankAccounts?.[0]?.accountNumber || '',
+      accountName: customer.bankAccounts?.[0]?.accountName || '',
+      swiftCode: customer.bankAccounts?.[0]?.swiftCode || '',
+      bankBranchAddress: customer.bankAccounts?.[0]?.bankBranchAddress || '',
+      bankCountry: customer.bankAccounts?.[0]?.bankCountry || '',
       
       // Backward compatibility with previous AI assumptions
       customerName: customer.fullName || '',
@@ -115,26 +115,27 @@ export async function POST(req: Request) {
       const dStr = customer.dob.toISOString().split('T')[0]; // "1993-08-15"
       const [year, month, day] = dStr.split('-');
       if (year && year.length === 4) {
-        year.split('').forEach((char, i) => shreddedData[`dobY${i + 1}`] = char);
+        year.split('').forEach((char: string, i: number) => shreddedData[`dobY${i + 1}`] = char);
       }
       if (month && month.length === 2) {
-        month.split('').forEach((char, i) => shreddedData[`dobM${i + 1}`] = char);
+        month.split('').forEach((char: string, i: number) => shreddedData[`dobM${i + 1}`] = char);
       }
       if (day && day.length === 2) {
-        day.split('').forEach((char, i) => shreddedData[`dobD${i + 1}`] = char);
+        day.split('').forEach((char: string, i: number) => shreddedData[`dobD${i + 1}`] = char);
       }
     }
 
     // 2. Shred Nenkin Number (remove hyphens) -> nk1, nk2...
     if (customer.nenkinNumber) {
       const nkClean = customer.nenkinNumber.replace(/\D/g, ''); // Keep only digits
-      nkClean.split('').forEach((char, i) => shreddedData[`nk${i + 1}`] = char);
+      nkClean.split('').forEach((char: string, i: number) => shreddedData[`nk${i + 1}`] = char);
     }
 
     // 3. Shred Account Number -> acc1, acc2...
-    if (customer.accountNumber) {
-      const accClean = customer.accountNumber.replace(/\D/g, '');
-      accClean.split('').forEach((char, i) => shreddedData[`acc${i + 1}`] = char);
+    const accountNumber = customer.bankAccounts?.[0]?.accountNumber;
+    if (accountNumber) {
+      const accClean = accountNumber.replace(/\D/g, '');
+      accClean.split('').forEach((char: string, i: number) => shreddedData[`acc${i + 1}`] = char);
     }
 
     // 4. Shred Postal Code -> zip1, zip2... (e.g. 123-4567)
