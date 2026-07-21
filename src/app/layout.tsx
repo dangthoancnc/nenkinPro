@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 const beVietnamPro = Be_Vietnam_Pro({
   weight: ["300", "400", "500", "600", "700"],
@@ -34,6 +35,19 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <LayoutWrapper>{children}</LayoutWrapper>
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          duration={4000}
+          toastOptions={{
+            classNames: {
+              toast: "font-sans text-xs",
+              title: "font-semibold text-xs",
+              description: "text-[11px]",
+            },
+          }}
+        />
       </body>
     </html>
   );
