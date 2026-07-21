@@ -1,44 +1,38 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 export interface FormFieldProps {
-  /** Nhãn hiển thị trên input */
-  label?: string
-  /** Đánh dấu bắt buộc (*) */
+  label: string
   required?: boolean
-  /** Thông báo lỗi */
-  error?: string
-  /** Ghi chú nhỏ bên dưới (hint) */
-  hint?: string
-  /** className cho wrapper ngoài */
+  errorMessage?: string
   className?: string
   children: React.ReactNode
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+/**
+ * FormField
+ * Wraps label + input + error message into one consistent unit.
+ * Usage:
+ *   <FormField label="Họ và tên" required errorMessage={errors.fullName?.message}>
+ *     <Input {...register('fullName')} />
+ *   </FormField>
+ */
 export function FormField({
   label,
   required,
-  error,
-  hint,
+  errorMessage,
   className,
   children,
 }: FormFieldProps) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      {label && (
-        <label className="text-xs font-medium text-slate-500 flex items-center gap-0.5">
-          {label}
-          {required && <span className="text-rose-400 font-bold">*</span>}
-        </label>
-      )}
+      <label className="text-xs font-medium text-slate-500 select-none">
+        {label}
+        {required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
       {children}
-      {error && (
-        <span className="text-[10px] text-rose-500 leading-tight">{error}</span>
-      )}
-      {hint && !error && (
-        <span className="text-[10px] text-slate-400 leading-tight">{hint}</span>
+      {errorMessage && (
+        <span className="text-[10px] text-rose-500 mt-0.5">{errorMessage}</span>
       )}
     </div>
   )
