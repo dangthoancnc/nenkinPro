@@ -40,6 +40,8 @@
   ],
   "exclude": [
     "node_modules",
-    "nenkin_20260607_2214_AiOk"
+    "nenkin_202606*",
+    "nenkin_202607*",
+    "nenkinv2_202607*"
   ]
 }
