@@ -1,16 +1,22 @@
 // Central barrel export for all /ui components
-export { Button, buttonVariants } from "./Button"
-export type { ButtonProps } from "./Button"
+export { Button, buttonVariants } from "./Button";
+export type { ButtonProps } from "./Button";
 
-export { WorkflowTimeline, NENKIN_STEPS } from "./WorkflowTimeline"
-export type { WorkflowStep, WorkflowStatus } from "./WorkflowTimeline"
+export { Badge, badgeVariants } from "./Badge";
+export type { BadgeProps } from "./Badge";
 
-export { TaxOfficeDiffCard } from "./TaxOfficeDiffCard"
-export type { DiffField } from "./TaxOfficeDiffCard"
+export { StatusBadge, getStatusVariant, getStatusLabel } from "./StatusBadge";
+export type { StatusBadgeProps, NenkinStatus } from "./StatusBadge";
 
-export { ToastProvider, toast } from "./Toast"
+export { WorkflowTimeline, NENKIN_STEPS } from "./WorkflowTimeline";
+export type { WorkflowStep, WorkflowStatus } from "./WorkflowTimeline";
 
-export { Card } from "./Card"
-export { Input } from "./Input"
-export { DateInput } from "./DateInput"
-export { Table } from "./Table"
+export { TaxOfficeDiffCard } from "./TaxOfficeDiffCard";
+export type { DiffField } from "./TaxOfficeDiffCard";
+
+export { ToastProvider, toast } from "./Toast";
+
+export { Card } from "./Card";
+export { Input } from "./Input";
+export { DateInput } from "./DateInput";
+export { Table } from "./Table";
