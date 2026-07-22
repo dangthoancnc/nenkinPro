@@ -15,11 +15,11 @@ export type WorkflowStatus =
   | 'SENT_2ND'
   | 'RECEIVED_2ND'
   | 'COMPLETED'
-  | 'CANCELLED'
+  | 'CANCELLED';
 
 const DROPDOWN_STATUSES: WorkflowStatus[] = [
   'DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND', 'COMPLETED',
-]
+];
 
 const STATUS_LABELS: Record<WorkflowStatus, string> = {
   PENDING:      'Cần duyệt',
@@ -30,75 +30,137 @@ const STATUS_LABELS: Record<WorkflowStatus, string> = {
   RECEIVED_2ND: 'Đã nhận Lần 2',
   COMPLETED:    'Hoàn thành',
   CANCELLED:    'Đã hủy',
-}
+};
 
-// Status order for determining forward/backward direction
+// ─── Status order ────────────────────────────────────────────────────────────
 const STATUS_ORDER: WorkflowStatus[] = [
   'DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND', 'COMPLETED',
-]
+];
 
 function statusIndex(s: WorkflowStatus): number {
-  return STATUS_ORDER.indexOf(s)
+  return STATUS_ORDER.indexOf(s);
 }
+
+// ─── B.19: mapping status → form field key for auto-fill date ────────────────
+const STATUS_DATE_FIELD: Partial<Record<WorkflowStatus, string>> = {
+  SENT_1ST:     'sent1stDate',
+  RECEIVED_1ST: 'received1stDate',
+  SENT_2ND:     'sent2ndDate',
+  RECEIVED_2ND: 'received2ndDate',
+};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 export interface WorkflowPanelProps {
-  status:    WorkflowStatus
-  isEditing: boolean
-  onChange:  (status: WorkflowStatus) => void
+  status:          WorkflowStatus;
+  isEditing:       boolean;
+  onChange:        (status: WorkflowStatus) => void;
+  /** B.19 — called with (fieldName, value) when advancing to auto-fill today's date */
+  onAutoFillDate?: (field: string, value: string) => void;
   dates?: {
-    sent1st?:     string | null
-    received1st?: string | null
-    sent2nd?:     string | null
-    received2nd?: string | null
-  }
+    sent1st?:     string | null;
+    received1st?: string | null;
+    sent2nd?:     string | null;
+    received2nd?: string | null;
+  };
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
-export function WorkflowPanel({ status, isEditing, onChange, dates }: WorkflowPanelProps) {
-  const [open, setOpen] = React.useState(false)
-  const ref             = React.useRef<HTMLDivElement>(null)
+export function WorkflowPanel({
+  status,
+  isEditing,
+  onChange,
+  onAutoFillDate,
+  dates,
+}: WorkflowPanelProps) {
+  const [open, setOpen] = React.useState(false);
+  const ref             = React.useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   React.useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   const options = status === 'CANCELLED'
     ? [...DROPDOWN_STATUSES, 'CANCELLED' as WorkflowStatus]
-    : DROPDOWN_STATUSES
+    : DROPDOWN_STATUSES;
 
-  // ── B.18: click on timeline dot ──────────────────────────────────────────
+  // ── B.19: today as YYYY-MM-DD ─────────────────────────────────────────────
+  const todayIso = () => new Date().toISOString().split('T')[0];
+
+  // ── B.18 + B.19: click on timeline dot ───────────────────────────────────
   const handleTimelineClick = (newStatus: string) => {
-    const next    = newStatus as WorkflowStatus
-    const curIdx  = statusIndex(status)
-    const nextIdx = statusIndex(next)
-    if (nextIdx === curIdx) return
+    const next    = newStatus as WorkflowStatus;
+    const curIdx  = statusIndex(status);
+    const nextIdx = statusIndex(next);
+    if (nextIdx === curIdx) return;
 
-    const label     = STATUS_LABELS[next]
-    const isAdvance = nextIdx > curIdx
+    const label     = STATUS_LABELS[next];
+    const isAdvance = nextIdx > curIdx;
+    const dateField = STATUS_DATE_FIELD[next];
+
+    // ── B.19: check if the date field is empty → offer auto-fill ─────────
+    const hasExistingDate = (() => {
+      if (!dateField || !dates) return false;
+      const map: Record<string, string | null | undefined> = {
+        sent1stDate:     dates.sent1st,
+        received1stDate: dates.received1st,
+        sent2ndDate:     dates.sent2nd,
+        received2ndDate: dates.received2nd,
+      };
+      return !!map[dateField];
+    })();
+
+    const autoFillDesc =
+      isAdvance && dateField && !hasExistingDate && onAutoFillDate
+        ? ` Ngày hôm nay (${todayIso()}) sẽ tự động điền vào mốc ngày tương ứng.`
+        : '';
 
     if (isAdvance) {
-      toast(`Chuyển sang “${label}”?`, {
-        description: 'Tiến độ sẽ được cập nhật trên form. Nhớ lưu hồ sơ để ghi vào CSDL.',
-        action:  { label: 'Xác nhận', onClick: () => { onChange(next); toast.success(`Tiến độ: ${label}`) } },
-        cancel:  { label: 'Hủy',      onClick: () => {} },
+      toast(`Chuyển sang "${label}"?`, {
+        description: `Tiến độ sẽ được cập nhật trên form. Nhớ lưu hồ sơ để ghi vào CSDL.${autoFillDesc}`,
+        action: {
+          label: 'Xác nhận',
+          onClick: () => {
+            onChange(next);
+            // ── B.19: auto-fill date if empty ─────────────────────────────
+            if (isAdvance && dateField && !hasExistingDate && onAutoFillDate) {
+              onAutoFillDate(dateField, todayIso());
+              toast.success(`Tiến độ: ${label}`, {
+                description: `Đã tự điền ngày ${todayIso()} vào mốc ngày.`,
+              });
+            } else {
+              toast.success(`Tiến độ: ${label}`);
+            }
+          },
+        },
+        cancel: { label: 'Hủy', onClick: () => {} },
         duration: 7000,
-      })
+      });
     } else {
-      toast.warning(`Quay lại “${label}”?`, {
-        description: 'Điều này sẽ lùi tiến độ. Hãy chắc chắc trước khi xác nhận.',
-        action:  { label: 'Xác nhận', onClick: () => { onChange(next); toast(`Tiến độ đã quay lại: ${label}`) } },
-        cancel:  { label: 'Hủy',      onClick: () => {} },
+      toast.warning(`Quay lại "${label}"?`, {
+        description: 'Điều này sẽ lùi tiến độ. Hãy chắc chắn trước khi xác nhận.',
+        action: {
+          label: 'Xác nhận',
+          onClick: () => {
+            onChange(next);
+            toast(`Tiến độ đã quay lại: ${label}`);
+          },
+        },
+        cancel: { label: 'Hủy', onClick: () => {} },
         duration: 8000,
-      })
+      });
     }
-  }
+  };
+
+  // ── Dropdown onChange (manual select) — B.19 does NOT auto-fill here ─────
+  const handleDropdownSelect = (s: WorkflowStatus) => {
+    onChange(s);
+    setOpen(false);
+  };
 
   return (
     <div className="space-y-2">
@@ -126,7 +188,7 @@ export function WorkflowPanel({ status, isEditing, onChange, dates }: WorkflowPa
                   <button
                     key={s}
                     type="button"
-                    onClick={() => { onChange(s); setOpen(false) }}
+                    onClick={() => handleDropdownSelect(s)}
                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 hover:text-indigo-700 transition-colors ${
                       s === status ? 'font-bold text-indigo-700 bg-indigo-50/60' : 'text-slate-700'
                     }`}
@@ -142,7 +204,7 @@ export function WorkflowPanel({ status, isEditing, onChange, dates }: WorkflowPa
         )}
       </div>
 
-      {/* ── B.17 + B.18: Timeline with milestone dates + interactive dots ── */}
+      {/* ── Timeline with milestone dates + interactive dots ── */}
       <WorkflowTimeline
         currentStatus={status}
         dates={dates}
@@ -150,12 +212,6 @@ export function WorkflowPanel({ status, isEditing, onChange, dates }: WorkflowPa
         onStatusChange={handleTimelineClick}
       />
 
-      {/* ── B.18: Hint khi đang edit ── */}
+      {/* ── Hint when editing ── */}
       {isEditing && (
-        <p className="text-[9px] text-slate-400 text-center leading-none">
-          Nhấp vào • trên timeline để chuyển bước nhanh
-        </p>
-      )}
-    </div>
-  )
-}
+        <p className="text-[9px] text-slate-400 text-center leading-none
