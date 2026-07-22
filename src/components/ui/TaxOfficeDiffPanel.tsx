@@ -158,8 +158,7 @@ function DiffRow({
             disabled={syncState === 'syncing'}
             title={`Cập nhật “${label}” từ NTA`}
             className={cn(
-              'flex-shrink-0 flex items-center gap-0.5 text-[9px] font-bold
-               px-1.5 py-0.5 rounded-md mt-0.5 transition-all',
+              'flex-shrink-0 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 transition-all',
               syncState === 'done'
                 ? 'text-emerald-700 bg-emerald-100'
                 : syncState === 'error'
@@ -469,8 +468,7 @@ export function TaxOfficeDiffPanel({
                 onClick={syncAll}
                 disabled={syncAllState === 'syncing'}
                 className={cn(
-                  'flex items-center gap-1.5 text-[11px] font-bold
-                   px-3 py-1.5 rounded-lg transition-all shadow-sm',
+                  'flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm',
                   syncAllState === 'syncing'
                     ? 'bg-indigo-400 text-white cursor-not-allowed'
                     : syncAllState === 'done'

@@ -997,7 +997,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {taxPanel === 'form' && (
                 <div className="p-3">
                   <TaxOfficeForm
-                    defaultValues={selectedTaxOffice ?? undefined}
+                    initialData={selectedTaxOffice ?? undefined}
                     onSubmit={handleTaxFormSubmit}
                     onCancel={() => setTaxPanel('card')}
                     isSubmitting={taxFormSaving}

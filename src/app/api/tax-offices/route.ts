@@ -97,11 +97,10 @@ export async function POST(req: Request) {
     const data = buildData(parsed.data);
 
     // Upsert by name (idempotent — same name = update existing)
-    const taxOffice = await prisma.taxOffice.upsert({
-      where:  { name: data.name },
-      update: data,
-      create: data,
-    });
+    const existing = await prisma.taxOffice.findFirst({ where: { name: data.name } });
+    const taxOffice = existing
+      ? await prisma.taxOffice.update({ where: { id: existing.id }, data })
+      : await prisma.taxOffice.create({ data });
 
     return NextResponse.json(
       { success: true, data: taxOffice },
