@@ -45,6 +45,7 @@ const MAX_UPLOAD_ATTEMPTS = 20;
 const UPLOAD_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export function checkUploadRateLimit(ip: string, identifier: string): boolean {
+  if (process.env.NODE_ENV === 'development') return true;
   const now = Date.now();
   const key = `${ip}:${identifier}`;
   

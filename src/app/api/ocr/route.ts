@@ -193,38 +193,32 @@ export async function POST(request: Request) {
       let result = null;
       let lastError: Error | null = null;
 
-      // Try each API key
+      const MODELS_TO_TRY = ['gemini-1.5-flash', 'gemini-2.5-flash'];
+
+      // Try each API key and model fallback
       for (let i = 0; i < apiKeys.length; i++) {
         const currentKey = apiKeys[i];
-        try {
-          const genAI = new GoogleGenerativeAI(currentKey);
-          
-          // Updated to the latest stable flash model from the models list
-          const modelConfig: Record<string, unknown> = { model: 'gemini-2.5-flash' };
-          const model = genAI.getGenerativeModel(modelConfig as unknown as ModelParams);
+        const genAI = new GoogleGenerativeAI(currentKey);
 
-          // Only 1 retry (not 3) to avoid burning quota
-          result = await model.generateContent([prompt, ...imageParts]);
-          break; // Success → stop trying more keys
+        for (const modelName of MODELS_TO_TRY) {
+          try {
+            const modelConfig: Record<string, unknown> = { model: modelName };
+            const model = genAI.getGenerativeModel(modelConfig as unknown as ModelParams);
 
-        } catch (keyError: unknown) {
-          const errorMessage = keyError instanceof Error ? keyError.message : String(keyError);
-          lastError = keyError instanceof Error ? keyError : new Error(errorMessage);
-          
-          if (errorMessage.includes('429') || errorMessage.includes('RATE_LIMIT') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-            console.warn(`API Key số ${i + 1} đã cạn kiệt (429). Chuyển sang Key tiếp theo...`);
-            continue; // Try next key
-          } else if (errorMessage.includes('503') || errorMessage.includes('overloaded')) {
-            console.warn(`API Key số ${i + 1} bị quá tải (503). Chuyển sang Key tiếp theo...`);
-            continue; // Try next key
-          } else {
-            // Unknown error → stop immediately and report
-            console.error(`Gemini API error (Key ${i + 1}):`, errorMessage);
-            return NextResponse.json({ 
-              error: `Lỗi Gemini AI: ${errorMessage.substring(0, 200)}` 
-            }, { status: 500 });
+            result = await model.generateContent([prompt, ...imageParts]);
+            if (result) break; // Success with model → exit model loop
+          } catch (modelError: unknown) {
+            const errorMessage = modelError instanceof Error ? modelError.message : String(modelError);
+            lastError = modelError instanceof Error ? modelError : new Error(errorMessage);
+
+            console.warn(`Gemini model ${modelName} (Key ${i + 1}) error: ${errorMessage.substring(0, 100)}`);
+            if (errorMessage.includes('429') || errorMessage.includes('RATE_LIMIT') || errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('404') || errorMessage.includes('not found')) {
+              continue; // Try next model for this key
+            }
           }
         }
+
+        if (result) break; // Success → stop trying more keys
       }
 
       // All keys exhausted
