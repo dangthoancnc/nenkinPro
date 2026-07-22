@@ -17,7 +17,6 @@ import { Input }          from '@/components/ui/Input';
 import { FormField }      from '@/components/ui/FormField';
 import { WorkflowPanel }  from '@/components/ui/WorkflowPanel';
 import type { WorkflowStatus } from '@/components/ui/WorkflowPanel';
-// ─── C.1 / C.2 / C.3 components ─────────────────────────────────────────────
 import { TaxOfficeCard }       from '@/components/ui/TaxOfficeCard';
 import type { TaxOfficeData }  from '@/components/ui/TaxOfficeCard';
 import { TaxOfficeForm }       from '@/components/ui/TaxOfficeForm';
@@ -34,15 +33,15 @@ const BASE_DOCUMENTS = [
   { key: 'departureStamp', title: 'Dấu xuất cảnh',           urlField: 'departureStampUrl' },
 ];
 
-const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  PENDING:      { label: 'Cần duyệt',     color: 'bg-orange-50 text-orange-700 border-orange-200',   icon: AlertCircle },
-  DRAFT:        { label: 'Bản nháp',      color: 'bg-amber-50 text-amber-700 border-amber-200',       icon: Clock       },
-  SENT_1ST:     { label: 'Đã gửi Lần 1', color: 'bg-blue-50 text-blue-700 border-blue-200',           icon: Send        },
-  RECEIVED_1ST: { label: 'Đã nhận Lần 1',color: 'bg-indigo-50 text-indigo-700 border-indigo-200',    icon: Wallet      },
-  SENT_2ND:     { label: 'Đã gửi Lần 2', color: 'bg-purple-50 text-purple-700 border-purple-200',    icon: Send        },
-  RECEIVED_2ND: { label: 'Đã nhận Lần 2',color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Wallet      },
-  COMPLETED:    { label: 'Hoàn thành',    color: 'bg-green-100 text-green-700 border-green-200',      icon: CheckCircle },
-  CANCELLED:    { label: 'Đã hủy',        color: 'bg-red-50 text-red-700 border-red-200',             icon: AlertCircle },
+const statusConfig: Record<string, { label: string; color: string; badgeColor: string; icon: React.ElementType }> = {
+  PENDING:      { label: 'Cần duyệt',      color: 'bg-orange-50 text-orange-700 border-orange-200',   badgeColor: 'bg-orange-100 text-orange-700 border-orange-300',   icon: AlertCircle },
+  DRAFT:        { label: 'Bản nháp',       color: 'bg-amber-50 text-amber-700 border-amber-200',       badgeColor: 'bg-amber-100 text-amber-700 border-amber-300',       icon: Clock       },
+  SENT_1ST:     { label: 'Đã gửi Lần 1',  color: 'bg-blue-50 text-blue-700 border-blue-200',           badgeColor: 'bg-blue-100 text-blue-700 border-blue-300',           icon: Send        },
+  RECEIVED_1ST: { label: 'Đã nhận Lần 1', color: 'bg-indigo-50 text-indigo-700 border-indigo-200',    badgeColor: 'bg-indigo-100 text-indigo-700 border-indigo-300',    icon: Wallet      },
+  SENT_2ND:     { label: 'Đã gửi Lần 2',  color: 'bg-purple-50 text-purple-700 border-purple-200',    badgeColor: 'bg-purple-100 text-purple-700 border-purple-300',    icon: Send        },
+  RECEIVED_2ND: { label: 'Đã nhận Lần 2', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: Wallet      },
+  COMPLETED:    { label: 'Hoàn thành',     color: 'bg-green-100 text-green-700 border-green-200',      badgeColor: 'bg-green-100 text-green-700 border-green-300',      icon: CheckCircle },
+  CANCELLED:    { label: 'Đã hủy',         color: 'bg-red-50 text-red-700 border-red-200',             badgeColor: 'bg-red-100 text-red-700 border-red-300',             icon: AlertCircle },
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -69,6 +68,9 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [cropDocKey,        setCropDocKey]        = useState<string>('');
   const [cropUrlField,      setCropUrlField]      = useState<string>('');
   const [cropImageSrc,      setCropImageSrc]      = useState<string | null>(null);
+
+  // ── [UX-1] Panel 3A: tab state for Dates / Finance
+  const [panel3aTab,        setPanel3aTab]        = useState<'dates' | 'finance'>('dates');
 
   // ── C.1/C.2/C.3 Tax office state
   const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
@@ -195,7 +197,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Lỗi lưu');
-      // Refresh list
       setTaxOffices(prev => {
         const exists = prev.findIndex(t => t.id === data.data.id);
         if (exists >= 0) { const next = [...prev]; next[exists] = data.data; return next; }
@@ -437,10 +438,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const currentDocUrl   = watch(currentDocField as any) as string | undefined;
   const currentDocTitle = currentDoc?.title || '';
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-[calc(100vh-65px)] flex flex-col space-y-2">
+  // [UX-2] Derive status badge from application status
+  const appStatus    = watch('status') as string || customer?.applicationStatus || 'DRAFT';
+  const statusCfg    = statusConfig[appStatus] ?? statusConfig['DRAFT'];
+  const StatusIcon   = statusCfg.icon;
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+  return (
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-[calc(100vh-65px)] flex flex-col gap-2">
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          [UX-2] Header — status banner REMOVED, replaced by inline badge
+      ══════════════════════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -450,11 +458,20 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           >
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight text-slate-800">
               {isNew ? 'Tạo Hồ sơ mới' : 'Chi tiết Hồ sơ'}
-              {!isNew && <span className="text-[10px] font-normal text-slate-400">ID: {id}</span>}
             </h1>
+            {!isNew && (
+              <span className="text-[9px] font-normal text-slate-400 font-mono">ID: {id}</span>
+            )}
+            {/* [UX-2] Status badge inline — replaces full-width banner */}
+            {!isNew && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusCfg.badgeColor}`}>
+                <StatusIcon className="w-3 h-3" />
+                {statusCfg.label}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -488,27 +505,19 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      {/* ── Status banner ──────────────────────────────────────────────────── */}
-      {!isNew && (
-        <div className={`p-1.5 px-3 rounded-lg border flex items-center gap-2 text-[11px] shrink-0 ${
-          statusConfig[customer?.applicationStatus || 'PENDING']?.color || 'bg-slate-100 text-slate-700 border-slate-200'
-        }`}>
-          {(() => { const Icon = statusConfig[customer?.applicationStatus || 'PENDING']?.icon || Clock; return <Icon className="w-4 h-4 shrink-0" />; })()}
-          <span><strong>Trạng thái hồ sơ: </strong>{statusConfig[customer?.applicationStatus || 'PENDING']?.label || 'Không xác định'}</span>
-        </div>
-      )}
-
-      {/* ── 3-panel layout ─────────────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          3-panel layout  (col-span 4 | 3 | 5 unchanged)
+      ══════════════════════════════════════════════════════════════════════ */}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0 overflow-hidden">
 
-        {/* ── Panel 1: Documents ─────────────────────────────────────────── */}
+        {/* ── Panel 1: Documents ──────────────────────────────────────────── */}
         <div className="col-span-1 md:col-span-4 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
           <div className="p-3 border-b border-slate-100 flex flex-col gap-1.5 shrink-0 bg-slate-50/50">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Danh mục tài liệu</div>
             <div className="grid grid-cols-3 gap-1">
               {dynamicDocuments.map(doc => {
                 const isActive = activeDoc === doc.key;
-                const hasUrl = !!watch(doc.urlField as any);
+                const hasUrl   = !!watch(doc.urlField as any);
                 return (
                   <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
                     className={`px-2 py-1 text-[11px] font-medium border rounded transition-all truncate text-center ${
@@ -624,7 +633,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        {/* ── Panel 2: Form ──────────────────────────────────────────────── */}
+        {/* ── Panel 2: Form ───────────────────────────────────────────────── */}
         <div className="col-span-1 md:col-span-3 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
           <div className="p-3 border-b border-slate-100 flex items-center shrink-0 bg-slate-50/50">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
@@ -637,7 +646,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
                   const allVerified = zFields.every(f => verifiedFields[f]);
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
                       <div className={`p-1 px-2 rounded border flex items-center justify-between text-[10px] font-bold ${
                         allVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'
@@ -655,25 +664,29 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                       </FormField>
 
-                      <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                        <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                          verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                          state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                      </FormField>
+                      {/* [UX-3] 2-col: dob + nationality */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                          <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                            verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                            state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                        </FormField>
+                        <FormField label="Quốc tịch">
+                          <Input {...register('nationality')} disabled={!isEditing} size="md" />
+                        </FormField>
+                      </div>
 
-                      <FormField label="Quốc tịch">
-                        <Input {...register('nationality')} disabled={!isEditing} size="md" />
-                      </FormField>
-
-                      <FormField label="Số thẻ ngoại kiều">
-                        <Input {...register('cardNumber')} disabled={!isEditing} size="md"
-                          verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
-                          state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
-                      </FormField>
-
-                      <FormField label="Mã số cá nhân (My Number)">
-                        <Input {...register('myNumber')} disabled={!isEditing} size="md" />
-                      </FormField>
+                      {/* [UX-3] 2-col: cardNumber + myNumber */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Số thẻ ngoại kiều">
+                          <Input {...register('cardNumber')} disabled={!isEditing} size="md"
+                            verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
+                            state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
+                        </FormField>
+                        <FormField label="My Number">
+                          <Input {...register('myNumber')} disabled={!isEditing} size="md" />
+                        </FormField>
+                      </div>
 
                       <FormField label="Địa chỉ trên thẻ (Kanji)">
                         <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
@@ -704,19 +717,25 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
                 case 'passport':
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN HỘ CHIẾU</div>
                       <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
                         <Input {...register('fullName')} disabled={!isEditing} size="md"
                           verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
                           state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                       </FormField>
-                      <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                        <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                          verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                          state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                      </FormField>
-                      <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                      {/* [UX-3] 2-col: dob + nationality */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                          <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                            verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                            state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                        </FormField>
+                        <FormField label="Quốc tịch">
+                          <Input {...register('nationality')} disabled={!isEditing} size="md" />
+                        </FormField>
+                      </div>
+                      {/* [UX-3] 2-col: sex + phone */}
                       <div className="grid grid-cols-2 gap-2">
                         <FormField label="Giới tính">
                           <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
@@ -727,6 +746,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </FormField>
                         <FormField label="Số điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
                       </div>
+                      {/* [UX-3] 2-col: issue + expiry (already 2-col, keep) */}
                       <div className="grid grid-cols-2 gap-2">
                         <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
                         <FormField label="Ngày hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
@@ -736,16 +756,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
                 case 'nenkinBook':
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN SỔ NENKIN</div>
-                      <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
-                      <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
+                        <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
+                      </div>
                     </div>
                   );
 
                 case 'departureStamp':
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
                       <FormField label="Ngày xuất cảnh Nhật Bản">
                         <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
@@ -760,7 +782,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
                     : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
                       <div className="grid grid-cols-2 gap-2">
                         <FormField label="Quốc gia">
@@ -780,14 +802,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       <FormField label="Tên ngân hàng">
                         <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
                       </FormField>
-                      <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
+                        <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
+                      </div>
                       <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
-                      <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
                       <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
                       {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
                         <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
                       )}
-                      <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                      </div>
                       {isEditing && bankFields.length > 1 && (
                         <div className="pt-2 border-t">
                           <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
@@ -838,12 +864,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        {/* ── Panel 3: Client + Tax ──────────────────────────────────────── */}
-        <div className="col-span-1 md:col-span-5 flex flex-col gap-4 h-full min-h-0">
+        {/* ── Panel 3: Client + Tax ───────────────────────────────────────── */}
+        <div className="col-span-1 md:col-span-5 flex flex-col gap-3 h-full min-h-0">
 
-          {/* Panel 3A: Client summary + WorkflowPanel + finance */}
-          <div className="flex-[5] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-            {/* ── Client identity strip ── */}
+          {/* ════════════════════════════════════════════════════════════════
+              Panel 3A — Client + WorkflowPanel + [UX-1] TABS: Dates | Finance
+          ════════════════════════════════════════════════════════════════ */}
+          <div className="flex-[4] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+
+            {/* Client identity strip */}
             <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center">
               <div className="w-16 h-10 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
                 {watch('zairyuFrontUrl') ? (
@@ -867,7 +896,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {/* WorkflowPanel — always visible */}
+            <div className="px-3 pt-2 shrink-0">
               <WorkflowPanel
                 status={(watch('status') || 'DRAFT') as WorkflowStatus}
                 isEditing={isEditing}
@@ -879,9 +909,31 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   received2nd: watch('received2ndDate') as string | undefined,
                 }}
               />
+            </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Các mốc ngày xử lý</label>
+            {/* [UX-1] Tab bar: Dates | Finance */}
+            <div className="px-3 pt-2 shrink-0">
+              <div className="flex gap-1 border-b border-slate-100">
+                {(['dates', 'finance'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setPanel3aTab(tab)}
+                    className={`px-3 py-1.5 text-[10px] font-bold rounded-t-md transition-all border-b-2 -mb-px ${
+                      panel3aTab === tab
+                        ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {tab === 'dates' ? '📅 Mốc ngày xử lý' : '💰 Tài chính'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* [UX-1] Tab content */}
+            <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2 min-h-0">
+              {panel3aTab === 'dates' && (
                 <div className="grid grid-cols-2 gap-1.5">
                   <FormField label="Ngày nộp Lần 1">
                     <Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" />
@@ -896,66 +948,105 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     <Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" />
                   </FormField>
                 </div>
-              </div>
+              )}
 
-              <div className="border-t border-slate-100 pt-2 space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Thông tin Tài chính</label>
-                  {isEditing && (
-                    <Button type="button" variant="secondary" size="xs"
-                      onClick={() => {
-                        const r1 = parseFloat(String(watch('received1stJpy') || 0));
-                        const r2 = parseFloat(String(watch('received2ndJpy') || 0));
-                        const rate = parseFloat(String(watch('exchangeRate') || 165));
-                        const feeJpy = (r1 + r2) * 0.2;
-                        setValue('serviceFeeJpy', feeJpy);
-                        setValue('serviceFeeVnd', feeJpy * rate);
-                        if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                        toast.success('Đã tính phí dịch vụ (20%)');
-                      }}>
-                      Tính phí (20%)
-                    </Button>
-                  )}
+              {panel3aTab === 'finance' && (
+                <div className="space-y-2">
+                  <div className="flex justify-end">
+                    {isEditing && (
+                      <Button type="button" variant="secondary" size="xs"
+                        onClick={() => {
+                          const r1   = parseFloat(String(watch('received1stJpy') || 0));
+                          const r2   = parseFloat(String(watch('received2ndJpy') || 0));
+                          const rate = parseFloat(String(watch('exchangeRate') || 165));
+                          const feeJpy = (r1 + r2) * 0.2;
+                          setValue('serviceFeeJpy', feeJpy);
+                          setValue('serviceFeeVnd', feeJpy * rate);
+                          if (!watch('exchangeRate')) setValue('exchangeRate', rate);
+                          toast.success('Đã tính phí dịch vụ (20%)');
+                        }}>
+                        Tính phí (20%)
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="Dự kiến tổng">
+                      <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" />
+                    </FormField>
+                    <FormField label="Tỷ giá">
+                      <Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" />
+                    </FormField>
+                    <FormField label="Đã nhận Lần 1">
+                      <Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" />
+                    </FormField>
+                    <FormField label="Đã nhận Lần 2">
+                      <Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" />
+                    </FormField>
+                    <FormField label="Phí DV">
+                      <Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/30" />
+                    </FormField>
+                    <FormField label="Phí DV (VND)">
+                      <Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/30" />
+                    </FormField>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Dự kiến tổng">
-                    <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" />
-                  </FormField>
-                  <FormField label="Tỷ giá">
-                    <Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" />
-                  </FormField>
-                  <FormField label="Đã nhận Lần 1">
-                    <Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" />
-                  </FormField>
-                  <FormField label="Đã nhận Lần 2">
-                    <Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" />
-                  </FormField>
-                  <FormField label="Phí DV">
-                    <Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/30" />
-                  </FormField>
-                  <FormField label="Phí DV (VND)">
-                    <Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/30" />
-                  </FormField>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              Panel 3B — C.5: TaxOfficeCard / TaxOfficeForm / TaxOfficeDiffPanel
-          ══════════════════════════════════════════════════════════════════ */}
-          <div className="flex-[4] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+          {/* ════════════════════════════════════════════════════════════════
+              Panel 3B — C.5: TaxOffice  [UX-4] expanded + [UX-5] always-visible search btns
+          ════════════════════════════════════════════════════════════════ */}
+          <div className="flex-[6] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
 
-            {/* Header + tab switcher */}
+            {/* Header */}
             <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cục Thuế quản lý</span>
-              <div className="flex items-center gap-1">
-                {/* Tax office selector — always visible */}
+              <div className="flex items-center gap-1.5">
+                {/* [UX-5] Always-visible quick-search buttons */}
+                {selectedTaxOffice?.websiteUrl && (
+                  <a
+                    href={selectedTaxOffice.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600
+                               border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700
+                               px-2 py-0.5 rounded-md transition-all"
+                    title="Mở trang NTA tra cứu"
+                  >
+                    <Search className="w-2.5 h-2.5" /> NTA
+                  </a>
+                )}
+                {selectedTaxOffice?.mapUrl && (
+                  <a
+                    href={selectedTaxOffice.mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600
+                               border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700
+                               px-2 py-0.5 rounded-md transition-all"
+                    title="Xem bản đồ"
+                  >
+                    <MapPin className="w-2.5 h-2.5" /> Bản đồ
+                  </a>
+                )}
+                {/* [UX-5] Always-visible postal NTA search */}
+                <button
+                  type="button"
+                  onClick={() => handleNtaSearch(watch('postalCode'))}
+                  className="flex items-center gap-1 text-[9px] font-semibold text-indigo-600
+                             border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600
+                             px-2 py-0.5 rounded-md transition-all"
+                  title="Tra cứu cục thuế theo mã bưu điện khách hàng"
+                >
+                  <Search className="w-2.5 h-2.5" /> Tra cứu ZIP
+                </button>
+                {/* Tax office selector */}
                 {isEditing && (
                   <select
                     value={selectedTaxOfficeId || ''}
                     onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[120px]
+                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[110px]
                                focus:outline-none focus:border-indigo-400 font-medium"
                   >
                     <option value="">-- Chọn --</option>
@@ -964,7 +1055,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     ))}
                   </select>
                 )}
-                {/* View toggle buttons */}
+                {/* View toggle tabs */}
                 {(['card', 'form', 'diff'] as const).map(panel => (
                   <button
                     key={panel}
@@ -976,13 +1067,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                     }`}
                   >
-                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu NTA'}
+                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Panel body — swap based on taxPanel state */}
+            {/* Panel body */}
             <div className="flex-1 overflow-y-auto min-h-0">
               {taxPanel === 'card' && (
                 <TaxOfficeCard
@@ -993,7 +1084,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   className="border-0 rounded-none shadow-none"
                 />
               )}
-
               {taxPanel === 'form' && (
                 <div className="p-3">
                   <TaxOfficeForm
@@ -1005,7 +1095,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   />
                 </div>
               )}
-
               {taxPanel === 'diff' && (
                 <TaxOfficeDiffPanel
                   dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
@@ -1017,11 +1106,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               )}
             </div>
           </div>
-          {/* ═══════════════════════ end Panel 3B ═══════════════════════════ */}
         </div>
       </div>
 
-      {/* ── Lightbox ───────────────────────────────────────────────────────── */}
+      {/* ── Lightbox ─────────────────────────────────────────────────────────── */}
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
           <button className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2" onClick={() => setLightboxUrl(null)}>
@@ -1032,7 +1120,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {/* ── Crop modal ─────────────────────────────────────────────────────── */}
+      {/* ── Crop modal ──────────────────────────────────────────────────────── */}
       {cropImageSrc && (
         <ImageCropModal
           imageSrc={cropImageSrc}
@@ -1046,7 +1134,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     </form>
   );
 
-  // ─── OCR helper ───────────────────────────────────────────────────────────
+  // ─── OCR helper ──────────────────────────────────────────────────────────
   async function runOcrExtract(imageUrl: string) {
     setOcrStatus(prev => ({ ...prev, [activeDoc]: 'processing' }));
     const toastId = toast.loading('Đang trích xuất AI...');
