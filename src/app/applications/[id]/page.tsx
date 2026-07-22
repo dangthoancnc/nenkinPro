@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
@@ -12,11 +12,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
 import { BankAutocomplete } from '../components/BankAutocomplete';
 import ImageCropModal from '@/components/ImageCropModal';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { FormField } from '@/components/ui/FormField';
-import { WorkflowPanel } from '@/components/ui/WorkflowPanel';
+import { Button }         from '@/components/ui/Button';
+import { Input }          from '@/components/ui/Input';
+import { FormField }      from '@/components/ui/FormField';
+import { WorkflowPanel }  from '@/components/ui/WorkflowPanel';
 import type { WorkflowStatus } from '@/components/ui/WorkflowPanel';
+// ─── C.1 / C.2 / C.3 components ─────────────────────────────────────────────
+import { TaxOfficeCard }       from '@/components/ui/TaxOfficeCard';
+import type { TaxOfficeData }  from '@/components/ui/TaxOfficeCard';
+import { TaxOfficeForm }       from '@/components/ui/TaxOfficeForm';
+import type { TaxOfficeFormValues } from '@/components/ui/TaxOfficeForm';
+import { TaxOfficeDiffPanel }  from '@/components/ui/TaxOfficeDiffPanel';
 import { toast } from 'sonner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -46,6 +52,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const id = resolvedParams.id;
   const isNew = id === 'new';
 
+  // ── Core UI state
   const [loading,           setLoading]           = useState(!isNew);
   const [saving,            setSaving]            = useState(false);
   const [deleting,          setDeleting]          = useState(false);
@@ -56,18 +63,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [customerId,        setCustomerId]        = useState<string | null>(null);
   const [customer,          setCustomer]          = useState<any | null>(null);
   const [manualConfirmed,   setManualConfirmed]   = useState<boolean>(false);
-  const [taxOffices,        setTaxOffices]        = useState<Array<any>>([]);
-  const [isAddingTaxOffice, setIsAddingTaxOffice] = useState<boolean>(false);
-  const [creatingTaxOffice, setCreatingTaxOffice] = useState<boolean>(false);
   const [showPrintModal,    setShowPrintModal]    = useState<boolean>(false);
   const [verifiedFields,    setVerifiedFields]    = useState<Record<string, boolean>>({});
   const [cropFile,          setCropFile]          = useState<File | null>(null);
   const [cropDocKey,        setCropDocKey]        = useState<string>('');
   const [cropUrlField,      setCropUrlField]      = useState<string>('');
   const [cropImageSrc,      setCropImageSrc]      = useState<string | null>(null);
-  const [ntaSearchInfo,     setNtaSearchInfo]     = useState({
-    name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: ''
-  });
+
+  // ── C.1/C.2/C.3 Tax office state
+  const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
+  const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
+  const [taxFormSaving,     setTaxFormSaving]     = useState(false);
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -166,23 +172,63 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     fetchData();
     fetch('/api/tax-offices')
       .then(r => r.json())
-      .then(d => { if (d.success) setTaxOffices(d.data); })
+      .then(d => { if (d.success) setTaxOffices(d.data as TaxOfficeData[]); })
       .catch(console.error);
   }, [id, isNew, reset]);
 
+  // ── Derived: currently selected tax office ─────────────────────────────────
   const selectedTaxOfficeId = watch('taxOfficeId');
-  useEffect(() => {
-    const office = taxOffices.find(t => t.id === selectedTaxOfficeId);
-    if (office) {
-      setNtaSearchInfo({
-        name: office.name || '', postalCode: office.postalCode || '',
-        address: office.address || '', romajiAddress: office.romajiAddress || '',
-        phone: office.phone || '', websiteUrl: office.websiteUrl || '',
+  const selectedTaxOffice   = taxOffices.find(t => t.id === selectedTaxOfficeId) ?? null;
+
+  // ── C.2: Save tax office form (create or update) ───────────────────────────
+  const handleTaxFormSubmit = useCallback(async (values: TaxOfficeFormValues) => {
+    setTaxFormSaving(true);
+    const isUpdate = !!(selectedTaxOffice?.id);
+    const url      = isUpdate ? `/api/tax-offices/${selectedTaxOffice!.id}` : '/api/tax-offices';
+    const method   = isUpdate ? 'PUT' : 'POST';
+    const tid      = toast.loading(isUpdate ? 'Cập nhật Cục thuế...' : 'Tạo mới Cục thuế...');
+    try {
+      const res  = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(values),
       });
-    } else {
-      setNtaSearchInfo({ name: '', address: '', romajiAddress: '', postalCode: '', phone: '', websiteUrl: '' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Lỗi lưu');
+      // Refresh list
+      setTaxOffices(prev => {
+        const exists = prev.findIndex(t => t.id === data.data.id);
+        if (exists >= 0) { const next = [...prev]; next[exists] = data.data; return next; }
+        return [...prev, data.data].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setValue('taxOfficeId', data.data.id, { shouldDirty: true });
+      toast.success(
+        isUpdate ? `Đã cập nhật: ${data.data.name}` : `Đã tạo mới: ${data.data.name}`,
+        { id: tid },
+      );
+      setTaxPanel('card');
+    } catch (err: any) {
+      toast.error('Lỗi: ' + err.message, { id: tid });
+    } finally {
+      setTaxFormSaving(false);
     }
-  }, [selectedTaxOfficeId, taxOffices]);
+  }, [selectedTaxOffice, setValue]);
+
+  // ── C.3: Sync fields from NTA to DB ───────────────────────────────────────
+  const handleTaxSyncFields = useCallback(async (patch: Partial<TaxOfficeData>) => {
+    if (!selectedTaxOffice?.id) {
+      toast.warning('Chưa chọn Cục thuế', { description: 'Chọn Cục thuế trước khi đồng bộ.' });
+      return;
+    }
+    const res  = await fetch(`/api/tax-offices/${selectedTaxOffice.id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Lỗi đồng bộ');
+    setTaxOffices(prev => prev.map(t => t.id === data.data.id ? data.data : t));
+  }, [selectedTaxOffice]);
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   const onSubmit = async (data: WorkspaceFormValues) => {
@@ -822,8 +868,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-
-              {/* ── B.16: WorkflowPanel replaces raw <select> ── */}
               <WorkflowPanel
                 status={(watch('status') || 'DRAFT') as WorkflowStatus}
                 isEditing={isEditing}
@@ -897,89 +941,83 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          {/* Panel 3B: Tax office */}
+          {/* ═══════════════════════════════════════════════════════════════
+              Panel 3B — C.5: TaxOfficeCard / TaxOfficeForm / TaxOfficeDiffPanel
+          ══════════════════════════════════════════════════════════════════ */}
           <div className="flex-[4] flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-            <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cục Thuế quản lý</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-              <div className="flex gap-1.5">
-                <Button type="button" variant="secondary" size="xs" className="flex-1"
-                  onClick={() => handleNtaSearch(watch('postalCode'))}>
-                  Tra cứu từ mã bưu điện KH
-                </Button>
-                <Button type="button" variant="outline" size="xs" className="flex-1"
-                  onClick={() => window.open('https://www.nta.go.jp/about/organization/access/map.htm', '_blank')}>
-                  Tra cứu NTA thủ công
-                </Button>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <select {...register('taxOfficeId')} disabled={!isEditing}
-                  className="h-7 rounded-md border border-slate-200 px-2 text-xs bg-white flex-1 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 font-medium min-w-0">
-                  <option value="">-- Chọn Cục thuế --</option>
-                  {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                {isEditing && (
-                  <Button type="button" size="xs" variant={isAddingTaxOffice ? 'danger' : 'secondary'}
-                    onClick={() => setIsAddingTaxOffice(!isAddingTaxOffice)}>
-                    {isAddingTaxOffice ? 'Đóng' : '+ Mới'}
-                  </Button>
-                )}
-              </div>
 
-              {isAddingTaxOffice && isEditing && (
-                <div className="p-3 bg-indigo-50/20 border border-indigo-100 rounded-lg space-y-2">
-                  <div className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Đăng ký Cục thuế mới</div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {([
-                      { label: 'Tên Cục thuế *', key: 'name',          placeholder: 'VD: 小田原税務署' },
-                      { label: 'Mã bưu điện',    key: 'postalCode',    placeholder: 'VD: 250-8511' },
-                      { label: 'Địa chỉ (Kanji)',key: 'address',       placeholder: 'VD: 小田原市栄町440番地' },
-                      { label: 'Địa chỉ (Romaji)',key: 'romajiAddress',placeholder: 'VD: 440 Ogikubo Odawara-shi' },
-                      { label: 'Điện thoại',     key: 'phone',         placeholder: 'VD: 0465-35-4511' },
-                      { label: 'Website',        key: 'websiteUrl',    placeholder: 'VD: https://www.nta.go.jp/...' },
-                    ] as const).map(f => (
-                      <FormField key={f.key} label={f.label}>
-                        <Input size="sm" placeholder={f.placeholder}
-                          value={(ntaSearchInfo as any)[f.key]}
-                          onChange={e => setNtaSearchInfo(prev => ({ ...prev, [f.key]: e.target.value }))} />
-                      </FormField>
+            {/* Header + tab switcher */}
+            <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cục Thuế quản lý</span>
+              <div className="flex items-center gap-1">
+                {/* Tax office selector — always visible */}
+                {isEditing && (
+                  <select
+                    value={selectedTaxOfficeId || ''}
+                    onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
+                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[120px]
+                               focus:outline-none focus:border-indigo-400 font-medium"
+                  >
+                    <option value="">-- Chọn --</option>
+                    {taxOffices.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
-                  </div>
-                  <div className="flex justify-end gap-1.5 pt-1">
-                    <Button type="button" variant="outline" size="xs"
-                      onClick={() => { setIsAddingTaxOffice(false); setNtaSearchInfo({ name:'',address:'',romajiAddress:'',postalCode:'',phone:'',websiteUrl:'' }); }}>
-                      Hủy
-                    </Button>
-                    <Button type="button" variant="primary" size="xs" loading={creatingTaxOffice} loadingText="Đang lưu..."
-                      onClick={async () => {
-                        if (!ntaSearchInfo.name.trim()) { toast.warning('Vui lòng nhập tên Cục thuế.'); return; }
-                        setCreatingTaxOffice(true);
-                        const toastId = toast.loading('Đang đăng ký Cục thuế...');
-                        try {
-                          const res = await fetch('/api/tax-offices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ntaSearchInfo) });
-                          const d = await res.json();
-                          if (res.ok && d.success) {
-                            setTaxOffices(prev => prev.some(t => t.id === d.data.id) ? prev : [...prev, d.data].sort((a,b) => a.name.localeCompare(b.name)));
-                            setValue('taxOfficeId', d.data.id);
-                            setIsAddingTaxOffice(false);
-                            toast.success(`Đã đăng ký: ${d.data.name}`, { id: toastId });
-                          } else {
-                            toast.error('Lỗi đăng ký', { id: toastId, description: d.error || 'Vui lòng thử lại.' });
-                          }
-                        } catch {
-                          toast.error('Lỗi kết nối', { id: toastId, description: 'Không thể kết nối đến máy chủ.' });
-                        } finally {
-                          setCreatingTaxOffice(false);
-                        }
-                      }}>
-                      Lưu &amp; Áp dụng
-                    </Button>
-                  </div>
+                  </select>
+                )}
+                {/* View toggle buttons */}
+                {(['card', 'form', 'diff'] as const).map(panel => (
+                  <button
+                    key={panel}
+                    type="button"
+                    onClick={() => setTaxPanel(panel)}
+                    className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
+                      taxPanel === panel
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                  >
+                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu NTA'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Panel body — swap based on taxPanel state */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {taxPanel === 'card' && (
+                <TaxOfficeCard
+                  taxOffice={selectedTaxOffice}
+                  isEditing={isEditing}
+                  onEdit={() => setTaxPanel('form')}
+                  onDiff={() => setTaxPanel('diff')}
+                  className="border-0 rounded-none shadow-none"
+                />
+              )}
+
+              {taxPanel === 'form' && (
+                <div className="p-3">
+                  <TaxOfficeForm
+                    defaultValues={selectedTaxOffice ?? undefined}
+                    onSubmit={handleTaxFormSubmit}
+                    onCancel={() => setTaxPanel('card')}
+                    isSubmitting={taxFormSaving}
+                    className="border-0 shadow-none p-0"
+                  />
                 </div>
+              )}
+
+              {taxPanel === 'diff' && (
+                <TaxOfficeDiffPanel
+                  dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
+                  postalCode={watch('postalCode') as string | undefined}
+                  onSyncFields={handleTaxSyncFields}
+                  onClose={() => setTaxPanel('card')}
+                  className="border-0 rounded-none shadow-none"
+                />
               )}
             </div>
           </div>
+          {/* ═══════════════════════ end Panel 3B ═══════════════════════════ */}
         </div>
       </div>
 
