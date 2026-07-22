@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chi tiết Hồ sơ – Mockup v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+  :root {
+    --primary:   #4f46e5;
+    --primary-l: #eef2ff;
+    --emerald:   #10b981;
+    --amber:     #f59e0b;
+    --danger:    #ef4444;
+    --slate-nav: #0f172a;
+  }
+  body { background: #f1f5f9; overflow: hidden; height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 56px; background: var(--slate-nav); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 6px; }
+  .sidebar .logo { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .nav-item { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; color: #94a3b8; cursor: pointer; transition: all .15s; position: relative; }
+  .nav-item:hover { background: #1e293b; color: #e2e8f0; }
+  .nav-item.active { background: var(--primary); color: white; }
+  .nav-item svg { width: 18px; height: 18px; }
+
+  /* ── Topnav ── */
+  .topnav { height: 52px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+
+  /* ── Status badge ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; border: 1px solid; }
+  .badge-amber  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .badge-blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .badge-indigo { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+  .badge-emerald{ background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+  .badge-red    { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+
+  /* ── Button ── */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all .15s; white-space: nowrap; }
+  .btn-primary  { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-outline  { background: white; color: #475569; border-color: #cbd5e1; }
+  .btn-outline:hover { background: #f8fafc; }
+  .btn-danger   { background: white; color: var(--danger); border-color: #fecaca; }
+  .btn-danger:hover { background: #fef2f2; }
+  .btn-ghost    { background: transparent; color: #64748b; }
+  .btn-ghost:hover { background: #f1f5f9; }
+  .btn svg { width: 14px; height: 14px; }
+
+  /* ── Card ── */
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+  .card-header { padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+
+  /* ── Doc tab ── */
+  .doc-tab { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; border: 1px solid #e2e8f0; background: white; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all .12s; color: #475569; }
+  .doc-tab:hover { background: #f8fafc; }
+  .doc-tab.active { background: #eef2ff; border-color: #c7d2fe; color: var(--primary); }
+  .doc-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); }
+
+  /* ── Form input ── */
+  .form-group { display: flex; flex-direction: column; gap: 3px; }
+  .form-label { font-size: 10px; font-weight: 600; color: #64748b; }
+  .form-label span.req { color: var(--danger); margin-left: 2px; }
+  .form-input { height: 30px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 0 10px; font-size: 11px; color: #1e293b; background: #f8fafc; outline: none; width: 100%; transition: border .12s; }
+  .form-input:focus { border-color: var(--primary); background: white; }
+  .form-input.verified { border-color: #6ee7b7; background: #f0fdf4; }
+  .form-input-wrap { position: relative; }
+  .form-input-wrap .verify-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--emerald); width: 14px; height: 14px; }
+
+  /* ── Workflow steps ── */
+  .wf-steps { display: flex; align-items: center; gap: 0; }
+  .wf-step { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; position: relative; }
+  .wf-step::after { content: ''; position: absolute; top: 9px; left: 50%; width: 100%; height: 2px; background: #e2e8f0; z-index: 0; }
+  .wf-step:last-child::after { display: none; }
+  .wf-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #e2e8f0; background: white; z-index: 1; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+  .wf-dot.done  { border-color: var(--emerald); background: var(--emerald); color: white; }
+  .wf-dot.active{ border-color: var(--primary); background: var(--primary); color: white; }
+  .wf-dot.pending { border-color: #cbd5e1; background: #f8fafc; }
+  .wf-label { font-size: 8px; font-weight: 600; color: #94a3b8; text-align: center; line-height: 1.2; }
+  .wf-label.active { color: var(--primary); }
+  .wf-label.done   { color: var(--emerald); }
+
+  /* ── Tax diff row ── */
+  .diff-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .diff-cell { padding: 4px 8px; font-size: 10px; border-bottom: 1px solid #f1f5f9; }
+  .diff-cell.mismatch { background: #fffbeb; color: #92400e; }
+  .diff-cell.match    { color: #374151; }
+  .diff-label { font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; padding: 4px 8px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+
+  /* ── Section divider ── */
+  .sec-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); padding-bottom: 4px; border-bottom: 1px solid #e0e7ff; margin-bottom: 8px; }
+
+  /* ── Verify banner ── */
+  .verify-banner { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 7px; font-size: 10px; font-weight: 700; border: 1px solid; margin-bottom: 10px; }
+  .verify-banner.ok  { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+  .verify-banner.warn{ background: #fffbeb; border-color: #fde68a; color: #92400e; }
+
+  /* ── Client mini-card ── */
+  .client-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+  .client-avatar { width: 44px; height: 52px; border-radius: 6px; border: 1px solid #e2e8f0; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ── Finance grid ── */
+  .fin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .fin-item { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 6px 10px; }
+  .fin-label { font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+  .fin-value { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 1px; }
+  .fin-value.hi  { color: var(--emerald); }
+  .fin-value.sec { color: var(--primary); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════ -->
+<aside class="sidebar flex-shrink-0">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+  </div>
+  <!-- Home -->
+  <div class="nav-item" title="Tổng quan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <!-- Applications (active) -->
+  <div class="nav-item active" title="Hồ sơ">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  </div>
+  <!-- Customers -->
+  <div class="nav-item" title="Khách hàng">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+  </div>
+  <!-- Finance -->
+  <div class="nav-item" title="Tài chính">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
+  </div>
+  <!-- Settings -->
+  <div class="nav-item" style="margin-top:auto" title="Cài đặt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════
+     MAIN AREA
+═══════════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col overflow-hidden min-w-0">
+
+  <!-- ── Topnav ── -->
+  <div class="topnav flex-shrink-0">
+    <button style="width:28px;height:28px;border-radius:8px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Quay lại">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <!-- Breadcrumb -->
+    <span style="font-size:11px;color:#94a3b8;">Hồ sơ</span>
+    <span style="font-size:10px;color:#cbd5e1;">/</span>
+    <span style="font-size:12px;font-weight:700;color:#1e293b;">Chi tiết Hồ sơ</span>
+    <span style="font-size:9px;color:#94a3b8;font-family:monospace;background:#f1f5f9;padding:2px 6px;border-radius:4px;">98f2647c-ac1b…</span>
+    <!-- Status badge -->
+    <span class="badge badge-amber">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Bản nháp
+    </span>
+    <!-- Spacer -->
+    <div style="flex:1"></div>
+    <!-- Action buttons -->
+    <button class="btn btn-danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Xóa Hồ sơ
+    </button>
+    <button class="btn btn-outline">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      In biểu mẫu
+    </button>
+    <button class="btn btn-outline">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Sửa Hồ sơ
+    </button>
+    <!-- Avatar -->
+    <div style="width:30px;height:30px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;">SA</div>
+  </div>
+
+  <!-- ── Status alert bar ── -->
+  <div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:5px 16px;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:#92400e;flex-shrink:0;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Trạng thái hồ sơ: <strong>Cần duyệt</strong> — Vui lòng đối chiếu và xác nhận thông tin trước khi lưu.
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       3-PANEL LAYOUT: 4 | 5 | 3
+  ══════════════════════════════════════════════ -->
+  <div style="flex:1;display:grid;grid-template-columns:4fr 5fr 3fr;gap:10px;padding:10px;overflow:hidden;min-height:0;">
+
+    <!-- ═══════════════════════════════
+         PANEL 1 – Documents
+    ═══════════════════════════════ -->
+    <div class="card flex flex-col" style="overflow:hidden;">
+      <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <span class="card-title">Danh mục tài liệu</span>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          <div class="doc-tab active"><span class="dot"></span> Thẻ NK (Trước)</div>
+          <div class="doc-tab"><span class="dot"></span> Thẻ NK (Sau)</div>
+          <div class="doc-tab"><span class="dot"></span> Hộ chiếu</div>
+          <div class="doc-tab"><span class="dot"></span> Sổ Nenkin</div>
+          <div class="doc-tab" style="color:#64748b;">Dấu xuất cảnh</div>
+          <div class="doc-tab" style="border-style:dashed;border-color:#c7d2fe;color:var(--primary);background:#eef2ff;">+ Ngân hàng</div>
+        </div>
+      </div>
+
+      <!-- Doc viewer area -->
+      <div style="flex:1;padding:10px;background:#f8fafc;display:flex;flex-direction:column;gap:8px;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:11px;font-weight:700;color:#374151;">Thẻ Ngoại Kiều (Trước)</span>
+          <!-- Toolbar -->
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-outline" style="padding:3px 6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </button>
+            <button class="btn btn-outline" style="padding:3px 6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </button>
+            <button class="btn btn-outline" style="padding:3px 6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Image placeholder -->
+        <div style="flex:1;border-radius:10px;border:2px dashed #e2e8f0;background:white;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;min-height:0;">
+          <!-- Simulated card image -->
+          <div style="width:85%;max-width:340px;background:linear-gradient(135deg,#e0e7ff 0%,#f0fdf4 100%);border-radius:12px;border:1px solid #c7d2fe;padding:16px 20px;position:relative;">
+            <div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:#3730a3;">日本国政府 在留カード</div>
+            <div style="margin-top:10px;display:flex;gap:14px;">
+              <div style="width:48px;height:60px;background:#c7d2fe;border-radius:5px;display:flex;align-items:center;justify-content:center;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:11px;font-weight:700;color:#1e293b;">LO THI HIEN</div>
+                <div style="font-size:9px;color:#64748b;margin-top:2px;">2001年11月06日 / Nữ</div>
+                <div style="font-size:9px;color:#64748b;">ベトナム</div>
+                <div style="font-size:9px;font-weight:600;color:#3730a3;margin-top:4px;">SA85I56393LA</div>
+                <div style="font-size:8px;color:#64748b;margin-top:3px;">大阪府堺市西区…</div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:8px;right:10px;font-size:8px;color:#a5b4fc;">技術・実習 2号ロ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════
+         PANEL 2 – Form
+    ═══════════════════════════════ -->
+    <div class="card flex flex-col" style="overflow:hidden;">
+      <div class="card-header">
+        <span class="card-title">Thông tin chi tiết nhập liệu</span>
+        <span class="badge badge-indigo" style="font-size:9px;">Thẻ Ngoại Kiều</span>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:12px 14px;">
+
+        <!-- Verify banner -->
+        <div class="verify-banner warn">
+          <span style="display:flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Trạng thái đối chiếu:
+          </span>
+          <strong>CHƯA DUYỆT KHỚP</strong>
+        </div>
+
+        <div class="sec-title">THÔNG TIN THẺ NGOẠI KIỀU</div>
+
+        <!-- Full name -->
+        <div class="form-group" style="margin-bottom:8px;">
+          <label class="form-label">Họ và tên <span class="req">*</span></label>
+          <div class="form-input-wrap">
+            <input class="form-input" value="LO THI HIEN" readonly />
+            <svg class="verify-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+        </div>
+
+        <!-- DOB + Nationality -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="form-group">
+            <label class="form-label">Ngày sinh <span class="req">*</span></label>
+            <input class="form-input" value="2001/11/06" readonly />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quốc tịch</label>
+            <input class="form-input" value="Vietnam" readonly />
+          </div>
+        </div>
+
+        <!-- Card + MyNumber -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="form-group">
+            <label class="form-label">Số thẻ ngoại kiều</label>
+            <div class="form-input-wrap">
+              <input class="form-input verified" value="SA85I56393LA" readonly />
+              <svg class="verify-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mã số cá nhân (My Number)</label>
+            <input class="form-input" placeholder="—" readonly />
+          </div>
+        </div>
+
+        <!-- Address -->
+        <div class="form-group" style="margin-bottom:8px;">
+          <label class="form-label">Địa chỉ trên thẻ (Kanji)</label>
+          <div class="form-input-wrap">
+            <input class="form-input" value="大阪府堺市西区浜寺石津町東5丁10番5号" style="padding-right:52px;" readonly />
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:4px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- PostalCode -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Mã Bưu Điện</label>
+          <div class="form-input-wrap">
+            <input class="form-input" value="5928335" style="padding-right:30px;" readonly />
+            <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div style="border-top:1px dashed #e2e8f0;margin:12px 0;"></div>
+        <div class="sec-title">CỤC THUẾ QUẢN LÝ</div>
+
+        <!-- Tax office inline summary -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:11px;font-weight:700;color:#1e293b;">堺税務署</span>
+            <div style="display:flex;gap:4px;">
+              <button class="btn btn-ghost" style="padding:2px 8px;font-size:10px;">✏️ Sửa</button>
+              <button class="btn btn-ghost" style="padding:2px 8px;font-size:10px;">⚡ Đối chiếu</button>
+            </div>
+          </div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;">〒593-8511 大阪府堺市西区鳳東町4丁390-1</div>
+          <div style="font-size:9px;color:#64748b;">☎ 072-271-3441</div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <span style="font-size:9px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;font-weight:600;">〒 Tra cứu ZIP</span>
+            <span style="font-size:9px;background:#f0fdf4;color:#065f46;border:1px solid #a7f3d0;border-radius:4px;padding:1px 6px;font-weight:600;">🗺 Bản đồ</span>
+            <span style="font-size:9px;background:#fafafa;color:#475569;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;font-weight:600;">🔗 NTA</span>
+          </div>
+        </div>
+
+        <!-- Confirm checkbox -->
+        <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;display:flex;align-items:flex-start;gap:8px;">
+          <input type="checkbox" id="confirm" style="width:14px;height:14px;margin-top:1px;accent-color:var(--primary);cursor:pointer;" />
+          <label for="confirm" style="font-size:10px;font-weight:600;color:#3730a3;cursor:pointer;line-height:1.5;">
+            Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+          </label>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════
+         PANEL 3 – Client + Workflow + Dates/Finance
+    ═══════════════════════════════ -->
+    <div class="card flex flex-col" style="overflow:hidden;">
+
+      <!-- Client mini-card -->
+      <div class="client-card">
+        <div class="client-avatar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:12px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">LO THI HIEN</span>
+            <span style="font-size:9px;font-family:monospace;background:#f1f5f9;color:#64748b;border-radius:4px;padding:1px 5px;flex-shrink:0;">#KH002</span>
+          </div>
+          <div style="font-size:9px;color:#64748b;margin-top:2px;">NS: 06/11/2001 · 🇻🇳 Vietnam</div>
+        </div>
+        <span class="badge badge-amber" style="font-size:9px;flex-shrink:0;">Bản nháp</span>
+      </div>
+
+      <!-- Workflow steps -->
+      <div style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Tiến trình xử lý</div>
+        <div class="wf-steps">
+          <div class="wf-step">
+            <div class="wf-dot done">✓</div>
+            <div class="wf-label done">Tạo HS</div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-dot active">2</div>
+            <div class="wf-label active">Gửi L1</div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-dot pending">3</div>
+            <div class="wf-label">Nhận L1</div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-dot pending">4</div>
+            <div class="wf-label">Gửi L2</div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-dot pending">5</div>
+            <div class="wf-label">Nhận L2</div>
+          </div>
+          <div class="wf-step">
+            <div class="wf-dot pending">✓</div>
+            <div class="wf-label">Hoàn tất</div>
+          </div>
+        </div>
+        <!-- Status select -->
+        <select style="width:100%;margin-top:8px;height:26px;border:1px solid #e2e8f0;border-radius:7px;font-size:10px;font-weight:600;color:#374151;padding:0 8px;background:#f8fafc;">
+          <option>Bản nháp</option>
+          <option selected>Đã gửi Lần 1</option>
+          <option>Đã nhận Lần 1</option>
+          <option>Đã gửi Lần 2</option>
+          <option>Đã nhận Lần 2</option>
+          <option>Hoàn thành</option>
+        </select>
+      </div>
+
+      <!-- Tabs: Mốc ngày / Tài chính -->
+      <div style="display:flex;gap:0;padding:0 12px;border-bottom:1px solid #f1f5f9;">
+        <button id="tab-dates" onclick="switchTab('dates')" style="padding:6px 12px;font-size:10px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--primary);color:var(--primary);">📅 Mốc ngày</button>
+        <button id="tab-finance" onclick="switchTab('finance')" style="padding:6px 12px;font-size:10px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#94a3b8;">💰 Tài chính</button>
+      </div>
+
+      <!-- Tab content -->
+      <div style="flex:1;overflow-y:auto;padding:10px 12px;min-height:0;">
+
+        <!-- DATES tab -->
+        <div id="content-dates">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div class="form-group">
+              <label class="form-label">Nộp Lần 1</label>
+              <input class="form-input" type="date" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nhận Lần 1</label>
+              <input class="form-input" type="date" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nộp Lần 2</label>
+              <input class="form-input" type="date" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nhận Lần 2</label>
+              <input class="form-input" type="date" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ngày XC Nhật</label>
+              <input class="form-input" value="2025/04/22" readonly />
+            </div>
+          </div>
+        </div>
+
+        <!-- FINANCE tab (hidden) -->
+        <div id="content-finance" style="display:none;">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <button class="btn btn-outline" style="font-size:10px;padding:3px 8px;">Tính phí (20%)</button>
+          </div>
+          <div class="fin-row">
+            <div class="fin-item">
+              <div class="fin-label">Dự kiến tổng</div>
+              <div class="fin-value">— JPY</div>
+            </div>
+            <div class="fin-item">
+              <div class="fin-label">Tỷ giá</div>
+              <div class="fin-value sec">165 VND</div>
+            </div>
+            <div class="fin-item">
+              <div class="fin-label">Nhận Lần 1</div>
+              <div class="fin-value">¥ —</div>
+            </div>
+            <div class="fin-item">
+              <div class="fin-label">Nhận Lần 2</div>
+              <div class="fin-value">¥ —</div>
+            </div>
+            <div class="fin-item" style="grid-column:span 2;background:#f0fdf4;border-color:#a7f3d0;">
+              <div class="fin-label">Phí Dịch vụ (JPY)</div>
+              <div class="fin-value hi">¥ — JPY</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- end 3-panel -->
+</div><!-- end main area -->
+
+<script>
+function switchTab(tab) {
+  document.getElementById('content-dates').style.display   = tab === 'dates'   ? '' : 'none';
+  document.getElementById('content-finance').style.display = tab === 'finance' ? '' : 'none';
+  document.getElementById('tab-dates').style.borderBottomColor   = tab === 'dates'   ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-finance').style.borderBottomColor = tab === 'finance' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-dates').style.color   = tab === 'dates'   ? 'var(--primary)' : '#94a3b8';
+  document.getElementById('tab-finance').style.color = tab === 'finance' ? 'var(--primary)' : '#94a3b8';
+}
+</script>
+</body>
+</html>
