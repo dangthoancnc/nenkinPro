@@ -586,408 +586,399 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            PANEL 2 – col-span-5 – Form nhập liệu  +  Cục Thuế (cuộn chung)
+            RIGHT AREA – col-span-8 – (Top: Panel 2 + Panel 3) | (Bottom: Tax Office)
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="col-span-1 md:col-span-5 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-          <div className="p-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
-            {/* Tax selector always visible in header for quick switching */}
-            {isEditing && (
-              <select
-                value={selectedTaxOfficeId || ''}
-                onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-                className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[130px] focus:outline-none focus:border-indigo-400 font-medium"
-              >
-                <option value="">-- Cục thuế --</option>
-                {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            )}
-          </div>
+        <div className="col-span-1 md:col-span-8 flex flex-col h-full gap-3 min-h-0 overflow-hidden">
 
-          {/* scrollable body: form + divider + tax section */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* ── Top Row: Panel 2 (Form, col-5) + Panel 3 (Client/Workflow, col-3) ── */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-8 gap-3 min-h-0 overflow-hidden">
 
-            {/* ── Section A: Form fields (switches by activeDoc) ── */}
-            <div className="p-4">
-              {(() => {
-                switch (activeDoc) {
-                  case 'zairyuFront':
-                  case 'zairyuBack': {
-                    const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
-                    const allVerified = zFields.every(f => verifiedFields[f]);
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
-                        <div className={`p-1 px-2 rounded border flex items-center justify-between text-[10px] font-bold ${
-                          allVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'
-                        }`}>
-                          <span className="flex items-center gap-1">
-                            <CheckCircle className={`w-3.5 h-3.5 ${allVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
-                            Trạng thái duyệt:
-                          </span>
-                          <span>{allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
-                        </div>
-                        <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
-                          <Input {...register('fullName')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
-                            state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
-                        </FormField>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                            <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                              state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Số thẻ ngoại kiều">
-                            <Input {...register('cardNumber')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
-                              state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="My Number"><Input {...register('myNumber')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <FormField label="Địa chỉ trên thẻ (Kanji)">
-                          <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
-                            state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
-                            rightIcon={watch('zairyuAddress') ? (
-                              <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress')||'')}`, '_blank')} className="text-indigo-500 hover:text-indigo-700">
-                                <MapPin className="w-3.5 h-3.5" />
-                              </button>
-                            ) : undefined} />
-                        </FormField>
-                        <FormField label="Mã Bưu Điện">
-                          <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
-                            verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
-                            state={verifiedFields['postalCode'] ? 'verified' : 'default'}
-                            rightIcon={
-                              <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))} className="text-indigo-500 hover:text-indigo-700">
-                                <Search className="w-3.5 h-3.5" />
-                              </button>
-                            } />
-                        </FormField>
-                      </div>
-                    );
-                  }
+            {/* PANEL 2 – col-span-5 – Form nhập liệu */}
+            <div className="col-span-1 md:col-span-5 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+              <div className="p-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
+              </div>
 
-                  case 'passport':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN HỘ CHIẾU</div>
-                        <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
-                          <Input {...register('fullName')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
-                            state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
-                        </FormField>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                            <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                              state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Giới tính">
-                            <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="">Chọn...</option>
-                              <option value="Nam">Nam</option>
-                              <option value="Nữ">Nữ</option>
-                            </select>
-                          </FormField>
-                          <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                      </div>
-                    );
-
-                  case 'nenkinBook':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN SỔ NENKIN</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                      </div>
-                    );
-
-                  case 'departureStamp':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
-                        <FormField label="Ngày xuất cảnh Nhật Bản">
-                          <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
-                        </FormField>
-                      </div>
-                    );
-
-                  default: {
-                    if (!activeDoc.startsWith('bankPassbook_')) return null;
-                    const idx = parseInt(activeDoc.split('_')[1], 10);
-                    if (isNaN(idx) || !bankFields[idx]) return null;
-                    const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
-                      : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Quốc gia">
-                            <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="JAPAN">Nhật Bản</option>
-                              <option value="VIETNAM">Việt Nam</option>
-                            </select>
-                          </FormField>
-                          <FormField label="Mục đích">
-                            <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="BOTH">Chung cả 2 lần</option>
-                              <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
-                              <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
-                            </select>
-                          </FormField>
-                        </div>
-                        <FormField label="Tên ngân hàng">
-                          <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
-                        </FormField>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
-                        <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
-                        {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
-                          <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
-                        )}
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
-                        </div>
-                        {isEditing && bankFields.length > 1 && (
-                          <div className="pt-2 border-t">
-                            <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
-                              onClick={() => toast('Xóa tài khoản ngân hàng này?', {
-                                action: { label: 'Xóa', onClick: () => { removeBank(idx); setActiveDoc('zairyuFront'); toast.success('Đã xóa tài khoản'); } },
-                                cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
-                              })}>Xóa tài khoản này</Button>
+              <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                {(() => {
+                  switch (activeDoc) {
+                    case 'zairyuFront':
+                    case 'zairyuBack': {
+                      const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
+                      const allVerified = zFields.every(f => verifiedFields[f]);
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
+                          <div className={`p-1 px-2 rounded border flex items-center justify-between text-[10px] font-bold ${
+                            allVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'
+                          }`}>
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className={`w-3.5 h-3.5 ${allVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
+                              Trạng thái duyệt:
+                            </span>
+                            <span>{allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
                           </div>
-                        )}
-                      </div>
-                    );
-                  }
-                }
-              })()}
+                          <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
+                            <Input {...register('fullName')} disabled={!isEditing} size="md"
+                              verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
+                              state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
+                          </FormField>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                              <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                                verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                                state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                            </FormField>
+                            <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Số thẻ ngoại kiều">
+                              <Input {...register('cardNumber')} disabled={!isEditing} size="md"
+                                verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
+                                state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
+                            </FormField>
+                            <FormField label="My Number"><Input {...register('myNumber')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                          <FormField label="Địa chỉ trên thẻ (Kanji)">
+                            <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
+                              verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
+                              state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
+                              rightIcon={watch('zairyuAddress') ? (
+                                <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress')||'')}`, '_blank')} className="text-indigo-500 hover:text-indigo-700">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                </button>
+                              ) : undefined} />
+                          </FormField>
+                          <FormField label="Mã Bưu Điện">
+                            <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
+                              verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
+                              state={verifiedFields['postalCode'] ? 'verified' : 'default'}
+                              rightIcon={
+                                <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))} className="text-indigo-500 hover:text-indigo-700">
+                                  <Search className="w-3.5 h-3.5" />
+                                </button>
+                              } />
+                          </FormField>
+                        </div>
+                      );
+                    }
 
-              {/* Verify confirm – cuối form */}
-              {!isNew && (() => {
-                const required = ['fullName','dob','cardNumber','zairyuAddress','postalCode','taxOffice_name','taxOffice_postalCode','taxOffice_address','taxOffice_romajiAddress','taxOffice_phone','taxOffice_websiteUrl'];
-                const allVerified = required.every(f => verifiedFields[f]);
-                return (
-                  <div className="mt-4 space-y-2">
-                    <div className={`p-3 border rounded-lg flex items-center gap-2 transition-all ${
-                      allVerified ? 'bg-indigo-50/40 border-indigo-100' : 'bg-slate-50 border-slate-200 opacity-60'
-                    }`}>
-                      <input type="checkbox" id="manual-confirm"
-                        disabled={!isEditing || !allVerified}
-                        checked={manualConfirmed && allVerified}
-                        onChange={e => setManualConfirmed(e.target.checked)}
-                        className={`rounded w-4 h-4 ${allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`} />
-                      <label htmlFor="manual-confirm"
-                        className={`text-xs font-semibold select-none ${
-                          allVerified ? 'text-indigo-900 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
-                        }`}>
-                        Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
-                      </label>
-                    </div>
-                    {!allVerified && isEditing && (
-                      <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-md flex items-start gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                        <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
+                    case 'passport':
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN HỘ CHIẾU</div>
+                          <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
+                            <Input {...register('fullName')} disabled={!isEditing} size="md"
+                              verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
+                              state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
+                          </FormField>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                              <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                                verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                                state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                            </FormField>
+                            <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Giới tính">
+                              <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                                <option value="">Chọn...</option>
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                              </select>
+                            </FormField>
+                            <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
+                            <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                        </div>
+                      );
+
+                    case 'nenkinBook':
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN SỔ NENKIN</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
+                            <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                        </div>
+                      );
+
+                    case 'departureStamp':
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
+                          <FormField label="Ngày xuất cảnh Nhật Bản">
+                            <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
+                          </FormField>
+                        </div>
+                      );
+
+                    default: {
+                      if (!activeDoc.startsWith('bankPassbook_')) return null;
+                      const idx = parseInt(activeDoc.split('_')[1], 10);
+                      if (isNaN(idx) || !bankFields[idx]) return null;
+                      const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
+                        : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="text-xs font-semibold text-indigo-600 border-b pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Quốc gia">
+                              <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                                <option value="JAPAN">Nhật Bản</option>
+                                <option value="VIETNAM">Việt Nam</option>
+                              </select>
+                            </FormField>
+                            <FormField label="Mục đích">
+                              <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                                <option value="BOTH">Chung cả 2 lần</option>
+                                <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
+                                <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
+                              </select>
+                            </FormField>
+                          </div>
+                          <FormField label="Tên ngân hàng">
+                            <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
+                          </FormField>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
+                            <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
+                          </div>
+                          <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
+                          <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                          {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
+                            <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                          </div>
+                          {isEditing && bankFields.length > 1 && (
+                            <div className="pt-2 border-t">
+                              <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
+                                onClick={() => toast('Xóa tài khoản ngân hàng này?', {
+                                  action: { label: 'Xóa', onClick: () => { removeBank(idx); setActiveDoc('zairyuFront'); toast.success('Đã xóa tài khoản'); } },
+                                  cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
+                                })}>Xóa tài khoản này</Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  }
+                })()}
+
+                {!isNew && (() => {
+                  const required = ['fullName','dob','cardNumber','zairyuAddress','postalCode','taxOffice_name','taxOffice_postalCode','taxOffice_address','taxOffice_romajiAddress','taxOffice_phone','taxOffice_websiteUrl'];
+                  const allVerified = required.every(f => verifiedFields[f]);
+                  return (
+                    <div className="mt-4 space-y-2">
+                      <div className={`p-3 border rounded-lg flex items-center gap-2 transition-all ${
+                        allVerified ? 'bg-indigo-50/40 border-indigo-100' : 'bg-slate-50 border-slate-200 opacity-60'
+                      }`}>
+                        <input type="checkbox" id="manual-confirm"
+                          disabled={!isEditing || !allVerified}
+                          checked={manualConfirmed && allVerified}
+                          onChange={e => setManualConfirmed(e.target.checked)}
+                          className={`rounded w-4 h-4 ${allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`} />
+                        <label htmlFor="manual-confirm"
+                          className={`text-xs font-semibold select-none ${
+                            allVerified ? 'text-indigo-900 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
+                          }`}>
+                          Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+                        </label>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
+                      {!allVerified && isEditing && (
+                        <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-md flex items-start gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                          <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
-            {/* ── Divider + Section B: Cục Thuế ── */}
-            <div className="border-t border-slate-100 mx-3" />
-            <div className="pb-4">
-              {/* Sub-header */}
-              <div className="px-4 py-2 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-50">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">🏛 Cục Thuế quản lý</span>
-                  {selectedTaxOffice && (
-                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
-                      {selectedTaxOffice.name}
-                    </span>
-                  )}
+            {/* PANEL 3 – col-span-3 – Client info + WorkflowPanel + Dates/Finance */}
+            <div className="col-span-1 md:col-span-3 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+              <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center">
+                <div className="w-14 h-9 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
+                  {watch('zairyuFrontUrl') ? (
+                    <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
+                      <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
+                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                        <ZoomIn className="w-3 h-3" />
+                      </button></>
+                  ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {/* Always-visible quick-search */}
-                  {selectedTaxOffice?.websiteUrl && (
-                    <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
-                      <Search className="w-2.5 h-2.5" /> NTA
-                    </a>
-                  )}
-                  {selectedTaxOffice?.mapUrl && (
-                    <a href={(selectedTaxOffice as any).mapUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
-                      <MapPin className="w-2.5 h-2.5" /> Bản đồ
-                    </a>
-                  )}
-                  <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-                    className="flex items-center gap-1 text-[9px] font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-2 py-0.5 rounded-md transition-all">
-                    <Search className="w-2.5 h-2.5" /> Tra cứu ZIP
-                  </button>
-                  {/* View toggle */}
-                  {(['card', 'form', 'diff'] as const).map(panel => (
-                    <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-                      className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
-                        taxPanel === panel ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                <div className="flex-1 min-w-0 py-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
+                    <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+                  </div>
+                  <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2 flex-wrap">
+                    <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
+                    <span>QT: {watch('nationality') || '---'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-3 pt-2 shrink-0">
+                <WorkflowPanel
+                  status={(watch('status') || 'DRAFT') as WorkflowStatus}
+                  isEditing={isEditing}
+                  onChange={val => setValue('status', val as any, { shouldDirty: true })}
+                  dates={{
+                    sent1st:     watch('sent1stDate')     as string | undefined,
+                    received1st: watch('received1stDate') as string | undefined,
+                    sent2nd:     watch('sent2ndDate')     as string | undefined,
+                    received2nd: watch('received2ndDate') as string | undefined,
+                  }}
+                />
+              </div>
+
+              <div className="px-3 pt-2 shrink-0">
+                <div className="flex gap-1 border-b border-slate-100">
+                  {(['dates', 'finance'] as const).map(tab => (
+                    <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
+                      className={`px-3 py-1.5 text-[10px] font-bold rounded-t-md transition-all border-b-2 -mb-px ${
+                        panel3aTab === tab
+                          ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50'
+                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                       }`}>
-                      {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
+                      {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Tax content */}
-              <div className="px-1">
-                {taxPanel === 'card' && (
-                  <TaxOfficeCard
-                    taxOffice={selectedTaxOffice}
-                    isEditing={isEditing}
-                    onEdit={() => setTaxPanel('form')}
-                    onDiff={() => setTaxPanel('diff')}
-                    className="border-0 rounded-none shadow-none"
-                  />
-                )}
-                {taxPanel === 'form' && (
-                  <div className="p-3">
-                    <TaxOfficeForm
-                      initialData={selectedTaxOffice ?? undefined}
-                      onSubmit={handleTaxFormSubmit}
-                      onCancel={() => setTaxPanel('card')}
-                      isSubmitting={taxFormSaving}
-                      className="border-0 shadow-none p-0"
-                    />
+              <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2 min-h-0">
+                {panel3aTab === 'dates' && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
+                    <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
+                    <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
+                    <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
                   </div>
                 )}
-                {taxPanel === 'diff' && (
-                  <TaxOfficeDiffPanel
-                    dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
-                    postalCode={watch('postalCode') as string | undefined}
-                    onSyncFields={handleTaxSyncFields}
-                    onClose={() => setTaxPanel('card')}
-                    className="border-0 rounded-none shadow-none"
-                  />
+                {panel3aTab === 'finance' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-end">
+                      {isEditing && (
+                        <Button type="button" variant="secondary" size="xs"
+                          onClick={() => {
+                            const r1 = parseFloat(String(watch('received1stJpy') || 0));
+                            const r2 = parseFloat(String(watch('received2ndJpy') || 0));
+                            const rate = parseFloat(String(watch('exchangeRate') || 165));
+                            const feeJpy = (r1 + r2) * 0.2;
+                            setValue('serviceFeeJpy', feeJpy);
+                            setValue('serviceFeeVnd', feeJpy * rate);
+                            if (!watch('exchangeRate')) setValue('exchangeRate', rate);
+                            toast.success('Đã tính phí dịch vụ (20%)');
+                          }}>Tính phí (20%)</Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
+                      <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
+                      <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
+                      <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
+                      <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/30" /></FormField>
+                      <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/30" /></FormField>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            PANEL 3 – col-span-3 – Client info + WorkflowPanel + Dates/Finance
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="col-span-1 md:col-span-3 flex flex-col h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-
-          {/* Client identity strip */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50/30 flex gap-2.5 shrink-0 items-center">
-            <div className="w-14 h-9 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
-              {watch('zairyuFrontUrl') ? (
-                <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
-                  <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
-                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
-                    <ZoomIn className="w-3 h-3" />
-                  </button></>
-              ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
-            </div>
-            <div className="flex-1 min-w-0 py-0.5">
+          {/* ── Bottom Row: CỤC THUẾ QUẢN LÝ (col-span-8 full width) ── */}
+          <div className="shrink-0 bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col max-h-[320px]">
+            <div className="px-4 py-2 flex items-center justify-between bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">🏛 Cục Thuế quản lý</span>
+                {selectedTaxOffice && (
+                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                    {selectedTaxOffice.name}
+                  </span>
+                )}
+                {isEditing && (
+                  <select
+                    value={selectedTaxOfficeId || ''}
+                    onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
+                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[140px] focus:outline-none focus:border-indigo-400 font-medium ml-1"
+                  >
+                    <option value="">-- Đổi Cục thuế --</option>
+                    {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                )}
+              </div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-                <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
-              </div>
-              <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2 flex-wrap">
-                <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
-                <span>QT: {watch('nationality') || '---'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* WorkflowPanel */}
-          <div className="px-3 pt-2 shrink-0">
-            <WorkflowPanel
-              status={(watch('status') || 'DRAFT') as WorkflowStatus}
-              isEditing={isEditing}
-              onChange={val => setValue('status', val as any, { shouldDirty: true })}
-              dates={{
-                sent1st:     watch('sent1stDate')     as string | undefined,
-                received1st: watch('received1stDate') as string | undefined,
-                sent2nd:     watch('sent2ndDate')     as string | undefined,
-                received2nd: watch('received2ndDate') as string | undefined,
-              }}
-            />
-          </div>
-
-          {/* Tabs: Dates | Finance */}
-          <div className="px-3 pt-2 shrink-0">
-            <div className="flex gap-1 border-b border-slate-100">
-              {(['dates', 'finance'] as const).map(tab => (
-                <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-t-md transition-all border-b-2 -mb-px ${
-                    panel3aTab === tab
-                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                  }`}>
-                  {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
+                {selectedTaxOffice?.websiteUrl && (
+                  <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
+                    <Search className="w-2.5 h-2.5" /> NTA
+                  </a>
+                )}
+                {selectedTaxOffice?.mapUrl && (
+                  <a href={(selectedTaxOffice as any).mapUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
+                    <MapPin className="w-2.5 h-2.5" /> Bản đồ
+                  </a>
+                )}
+                <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
+                  className="flex items-center gap-1 text-[9px] font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-2 py-0.5 rounded-md transition-all">
+                  <Search className="w-2.5 h-2.5" /> Tra cứu ZIP
                 </button>
-              ))}
+                {(['card', 'form', 'diff'] as const).map(panel => (
+                  <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
+                    className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
+                      taxPanel === panel ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                    }`}>
+                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {taxPanel === 'card' && (
+                <TaxOfficeCard
+                  taxOffice={selectedTaxOffice}
+                  isEditing={isEditing}
+                  onEdit={() => setTaxPanel('form')}
+                  onDiff={() => setTaxPanel('diff')}
+                  className="border-0 rounded-none shadow-none"
+                />
+              )}
+              {taxPanel === 'form' && (
+                <div className="p-3">
+                  <TaxOfficeForm
+                    initialData={selectedTaxOffice ?? undefined}
+                    onSubmit={handleTaxFormSubmit}
+                    onCancel={() => setTaxPanel('card')}
+                    isSubmitting={taxFormSaving}
+                    className="border-0 shadow-none p-0"
+                  />
+                </div>
+              )}
+              {taxPanel === 'diff' && (
+                <TaxOfficeDiffPanel
+                  dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
+                  postalCode={watch('postalCode') as string | undefined}
+                  onSyncFields={handleTaxSyncFields}
+                  onClose={() => setTaxPanel('card')}
+                  className="border-0 rounded-none shadow-none"
+                />
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2 min-h-0">
-            {panel3aTab === 'dates' && (
-              <div className="grid grid-cols-2 gap-1.5">
-                <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-              </div>
-            )}
-            {panel3aTab === 'finance' && (
-              <div className="space-y-2">
-                <div className="flex justify-end">
-                  {isEditing && (
-                    <Button type="button" variant="secondary" size="xs"
-                      onClick={() => {
-                        const r1 = parseFloat(String(watch('received1stJpy') || 0));
-                        const r2 = parseFloat(String(watch('received2ndJpy') || 0));
-                        const rate = parseFloat(String(watch('exchangeRate') || 165));
-                        const feeJpy = (r1 + r2) * 0.2;
-                        setValue('serviceFeeJpy', feeJpy);
-                        setValue('serviceFeeVnd', feeJpy * rate);
-                        if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                        toast.success('Đã tính phí dịch vụ (20%)');
-                      }}>Tính phí (20%)</Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
-                  <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-                  <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                  <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                  <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/30" /></FormField>
-                  <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/30" /></FormField>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
