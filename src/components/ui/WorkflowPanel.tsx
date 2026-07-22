@@ -214,4 +214,10 @@ export function WorkflowPanel({
 
       {/* ── Hint when editing ── */}
       {isEditing && (
-        <p className="text-[9px] text-slate-400 text-center leading-none
+        <p className="text-[9px] text-slate-400 text-center leading-none">
+          Nhấp vào • trên timeline để chuyển bước nhanh
+        </p>
+      )}
+    </div>
+  );
+}
