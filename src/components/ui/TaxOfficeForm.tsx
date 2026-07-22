@@ -167,7 +167,7 @@ export function TaxOfficeForm({
       </div>
 
       {/* ── Form ─────────────────────────────────────────── */}
-      <form onSubmit={handleFormSubmit} noValidate>
+      <div className="space-y-0">
         <div className="px-3 py-3 space-y-0">
 
           {/* ─── Block 1: Thông tin cơ bản ─── */}
@@ -409,7 +409,8 @@ export function TaxOfficeForm({
             </button>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleFormSubmit}
               disabled={isSubmitting}
               className="flex items-center gap-1.5 text-[11px] font-bold text-white
                          bg-indigo-600 hover:bg-indigo-700
@@ -424,7 +425,7 @@ export function TaxOfficeForm({
             </button>
           </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }
