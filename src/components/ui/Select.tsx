@@ -274,7 +274,7 @@ export function Select({
 // ─── 2. <NativeSelect> ────────────────────────────────────────────────────────
 // Thin styled wrapper around <select> — works perfectly with react-hook-form
 export interface NativeSelectProps
-  extends SelectHTMLAttributes<HTMLSelectElement>,
+  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "size">,
     VariantProps<typeof triggerVariants> {
   options?: SelectOption[];
   placeholder?: string;

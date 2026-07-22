@@ -47,12 +47,15 @@ export function WorkflowPanel({
         )}
       </div>
       <WorkflowTimeline
-        status={status}
-        dates={dates}
+        currentStatus={status}
+        dates={dates ? {
+          sent1st: dates.sent1stDate,
+          received1st: dates.received1stDate,
+          sent2nd: dates.sent2ndDate,
+          received2nd: dates.received2ndDate,
+        } : undefined}
         interactive={isEditing}
         onStatusChange={onStatusChange}
-        showDateInputs={isEditing}
-        onDateChange={onDateChange}
       />
     </div>
   )

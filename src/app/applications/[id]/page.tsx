@@ -998,8 +998,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       {cropImageSrc && (
         <ImageCropModal
           imageSrc={cropImageSrc}
-          onComplete={handleCropComplete}
-          onCancel={() => {
+          onCropComplete={handleCropComplete}
+          onClose={() => {
             if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
             setCropImageSrc(null); setCropFile(null); setCropDocKey(''); setCropUrlField('');
           }}

@@ -195,12 +195,12 @@ export function ClientSummaryCard({
 
       {/* ── Workflow Timeline ──────────────────────────── */}
       <WorkflowTimeline
-        status={currentStatus}
+        currentStatus={currentStatus}
         dates={{
-          submitted_1: watch("sent1stDate")    || null,
-          received_1:  watch("received1stDate") || null,
-          submitted_2: watch("sent2ndDate")    || null,
-          received_2:  watch("received2ndDate") || null,
+          sent1st:     watch("sent1stDate")    || null,
+          received1st: watch("received1stDate") || null,
+          sent2nd:     watch("sent2ndDate")    || null,
+          received2nd: watch("received2ndDate") || null,
         }}
       />
 

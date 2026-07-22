@@ -16,7 +16,7 @@ export const customerSchema = z.object({
     id: z.string().optional(),
     purpose: z.string(), // 'FIRST_REFUND' | 'SECOND_REFUND' | 'BOTH'
     bankCountry: z.string(), // 'JAPAN' | 'VIETNAM'
-    bankPassbookUrls: z.array(z.string()).default([]),
+    bankPassbookUrls: z.array(z.string()).optional(),
     bankName: z.string().nullable().optional(),
     branchName: z.string().nullable().optional(),
     accountNumber: z.string().nullable().optional(),
