@@ -461,11 +461,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">○ Chưa có</span>
           )}
         </div>
-        <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-h-[280px] lg:min-h-0">
+        <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-h-[280px] lg:min-h-0 max-w-full">
           {currentDocUrl ? (
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full max-w-full max-h-full overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={currentDocUrl} alt={currentDocTitle} className="w-full h-full object-contain" />
+              <img src={currentDocUrl} alt={currentDocTitle} className="max-w-full max-h-full w-auto h-auto object-contain" />
               {/* ── Floating Toolbar — BOTTOM RIGHT ── */}
               <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-1 shadow-lg z-20">
                 {isEditing && (

@@ -37,7 +37,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-blue-50/50 text-slate-900">
+    <div className="flex min-h-screen md:min-h-0 md:h-screen bg-gradient-to-br from-slate-100 to-blue-50/50 text-slate-900 overflow-x-hidden">
       <div className="hidden md:block">
         <Sidebar 
           isOpen={isSidebarOpen} 
@@ -48,14 +48,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         />
       </div>
       <div 
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
+        className={`flex-1 flex flex-col min-h-screen md:min-h-0 md:h-screen transition-all duration-300 ${
           isPinned ? 'md:ml-64 ml-0' : 'md:ml-16 ml-0'
         }`}
       >
         <Suspense fallback={<div className="h-16 bg-card/80 border-b border-border sticky top-0 z-30" />}>
           <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
         </Suspense>
-        <main className="flex-1 p-3 pb-16 md:pb-3 md:p-3 overflow-x-hidden relative">
+        <main className="flex-1 p-2 sm:p-3 pb-16 md:pb-3 overflow-x-hidden relative min-h-0">
           {children}
         </main>
       </div>

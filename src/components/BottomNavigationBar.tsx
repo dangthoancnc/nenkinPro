@@ -8,37 +8,31 @@ import { Home } from 'lucide-react';
 export default function BottomNavigationBar() {
   const pathname = usePathname();
 
+  // Core navigation items for mobile bottom bar
+  const navItems = [
+    { name: 'Trang chủ', href: '/', icon: Home },
+    ...menuItems.slice(0, 5) // Dashboard, Applications, TaxOffices, etc.
+  ];
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
-      <div className="flex overflow-x-auto overflow-y-hidden pb-safe">
-        <ul className="flex w-full items-center justify-around">
-          <li className="flex-shrink-0">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-lg z-50 h-14">
+      <div className="flex w-full h-full items-center justify-between px-1">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+          return (
             <Link
-              href="/"
-              className={`flex flex-col items-center justify-center w-16 h-16 p-1 gap-1 transition-colors text-muted-foreground hover:text-foreground`}
+              key={item.href}
+              href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center h-full py-1 px-0.5 transition-all text-center min-w-0 ${
+                isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
+              }`}
             >
-              <Home className="w-5 h-5" />
-              <span className="text-[10px] text-center leading-tight truncate w-full px-1">Home</span>
+              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600 stroke-[2.5]' : 'text-slate-500'}`} />
+              <span className="text-[9px] leading-tight truncate w-full mt-0.5 block">{item.name}</span>
             </Link>
-          </li>
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.name} className="flex-shrink-0">
-                <Link
-                  href={item.href}
-                  className={`flex flex-col items-center justify-center w-16 h-16 p-1 gap-1 transition-colors ${
-                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[10px] text-center leading-tight truncate w-full px-1">{item.name}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+          );
+        })}
       </div>
     </nav>
   );
