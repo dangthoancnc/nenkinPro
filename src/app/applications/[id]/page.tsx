@@ -69,7 +69,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
   const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
-  const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('doc');
+  const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -995,11 +995,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE SEGMENTED CONTROL TAB BAR (< lg) ── */}
-      <div className="grid grid-cols-4 gap-1 w-full lg:hidden bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shrink-0 sticky top-0 z-30 shadow-xs">
+      <div className="grid grid-cols-3 gap-1 w-full lg:hidden bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shrink-0 sticky top-0 z-30 shadow-xs">
         {(
           [
-            { id: 'doc',      label: '🖼️ Ảnh' },
-            { id: 'form',     label: '📝 Nhập' },
+            { id: 'form',     label: '📝 Nhập liệu' },
             { id: 'progress', label: '👤 Tiến độ' },
             { id: 'tax',      label: '🏛️ Cục Thuế' },
           ] as const
@@ -1021,8 +1020,58 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
       {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
       <div className="flex-1 flex flex-col min-h-0 w-full max-w-full overflow-x-hidden lg:hidden pb-24">
+        {mobileTab === 'form' && (
+          <div className="flex-1 flex flex-col w-full max-w-full min-w-0 overflow-x-hidden gap-2">
+            {/* ── Compact Document Thumbnail Strip ── */}
+            <div className="bg-white/85 backdrop-blur-md border border-slate-200/70 rounded-xl p-2 shrink-0 min-w-0 max-w-full overflow-hidden">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tài liệu đính kèm</span>
+                <button type="button" onClick={() => setMobileTab('doc')}
+                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                  Xem chi tiết →
+                </button>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none min-w-0">
+                {dynamicDocuments.map(doc => {
+                  const docUrl = watch(doc.urlField as any) as string | undefined;
+                  const isActive = activeDoc === doc.key;
+                  return (
+                    <button
+                      key={doc.key}
+                      type="button"
+                      onClick={() => {
+                        setActiveDoc(doc.key);
+                        if (docUrl) setLightboxUrl(docUrl);
+                      }}
+                      className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                        isActive
+                          ? 'border-indigo-500 shadow-sm shadow-indigo-200'
+                          : 'border-slate-200/80 hover:border-slate-300'
+                      }`}
+                    >
+                      {docUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={docUrl} alt={doc.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                          <UploadCloud className="w-3.5 h-3.5 text-slate-300" />
+                        </div>
+                      )}
+                      {docUrl && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-tl-md flex items-center justify-center">
+                          <CheckCircle className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* ── Form Panel ── */}
+            <div className="flex-1 min-w-0">{panel2Node}</div>
+          </div>
+        )}
         {mobileTab === 'doc'      && <div className="flex-1 w-full max-w-full min-w-0 overflow-hidden">{panel1Node}</div>}
-        {mobileTab === 'form'     && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{panel2Node}</div>}
         {mobileTab === 'progress' && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{panel3Node}</div>}
         {mobileTab === 'tax'      && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{taxPanelNode}</div>}
       </div>
