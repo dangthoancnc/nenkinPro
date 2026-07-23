@@ -413,24 +413,28 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const statusCfg  = statusConfig[appStatus] ?? statusConfig['DRAFT'];
   const StatusIcon = statusCfg.icon;
 
-  // ── PANEL NODES FOR DESKTOP AND MOBILE ──
+  // ── SHARED PANEL STYLES (glassmorphism) ──
+  const glassPanel = 'flex flex-col bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-lg shadow-black/5 rounded-xl overflow-hidden';
+  const glassPanelHeader = 'px-3 pt-2.5 pb-2 border-b border-slate-100/80 shrink-0 bg-white/60';
 
-  // Panel 1: Document Selector & Image Viewer
+  // ─────────────────────────────────────────────
+  // PANEL 1 — Tài liệu & Ảnh
+  // ─────────────────────────────────────────────
   const panel1Node = (
-    <div className="flex flex-col min-h-0 h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+    <div className={`${glassPanel} min-h-0 h-full`}>
       {/* Tabs danh mục */}
-      <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 shrink-0 bg-slate-50">
-        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
+      <div className={glassPanelHeader}>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Danh mục tài liệu</div>
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
           {dynamicDocuments.map(doc => {
             const isActive = activeDoc === doc.key;
             const hasUrl   = !!watch(doc.urlField as any);
             return (
               <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
+                className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white/70 border border-slate-200/80 text-slate-700 hover:bg-slate-50'
                 }`}>
                 {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
                 <span className="truncate">{doc.title}</span>
@@ -440,7 +444,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           {isEditing && (
             <button type="button"
               onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-              className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
+              className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
               ＋ Thêm Ngân hàng
             </button>
           )}
@@ -448,22 +452,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Image viewer */}
-      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/50">
+      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/40">
         <div className="flex items-center justify-between mb-1.5 shrink-0">
           <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
           {currentDocUrl ? (
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ Đã tải</span>
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Đã tải</span>
           ) : (
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">○ Chưa có</span>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">○ Chưa có</span>
           )}
         </div>
-        <div className="flex-1 rounded-lg overflow-hidden bg-slate-900/5 border border-slate-200 flex items-center justify-center relative min-h-0 min-h-[300px] lg:min-h-0">
+        <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-h-[280px] lg:min-h-0">
           {currentDocUrl ? (
             <div className="relative w-full h-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={currentDocUrl} alt={currentDocTitle} className="w-full h-full object-contain" />
-              {/* Floating Toolbar – top right */}
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs border border-slate-200 rounded-lg p-1 shadow-sm z-20">
+              {/* ── Floating Toolbar — BOTTOM RIGHT ── */}
+              <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-1 shadow-lg z-20">
                 {isEditing && (
                   <>
                     <button type="button" title="Trích xuất AI"
@@ -478,22 +482,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         }
                         runOcrExtract(currentDocUrl);
                       }}
-                      className="w-7 h-7 flex items-center justify-center text-indigo-600 hover:bg-slate-100 rounded transition-all">
+                      className="w-7 h-7 flex items-center justify-center text-indigo-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                       <Sparkles className="w-4 h-4" />
                     </button>
                     <button type="button" title="Cắt ảnh"
                       onClick={() => { if (currentDocUrl) { setCropDocKey(activeDoc); setCropUrlField(currentDocField); setCropImageSrc(currentDocUrl); } }}
-                      className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                      className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                       <Crop className="w-4 h-4" />
                     </button>
                     <label className="cursor-pointer" title="Thay thế ảnh">
-                      <span className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                      <span className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                         <UploadCloud className="w-4 h-4" />
                       </span>
                       <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
                     </label>
                     <button type="button" title="Xóa ảnh"
-                      className="w-7 h-7 flex items-center justify-center text-red-600 hover:bg-red-50 rounded transition-all"
+                      className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-all"
                       onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
                         action: { label: 'Xóa', onClick: async () => {
                           const prev = getValues(currentDocField as any);
@@ -510,14 +514,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 )}
                 <button type="button" title="Phóng to"
                   onClick={() => setLightboxUrl(currentDocUrl || null)}
-                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                  className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                   <ZoomIn className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ) : isEditing ? (
             <label
-              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/30 transition-all text-slate-400 hover:text-indigo-600 bg-white border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-lg p-6"
+              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/40 transition-all text-slate-400 hover:text-indigo-600 bg-white/50 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 rounded-xl p-6"
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField); }}
             >
@@ -531,14 +535,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
             </label>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white rounded-lg p-6">
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white/50 rounded-xl p-6">
               <UploadCloud className="w-6 h-6" />
-              <span className="text-xs font-semibold text-slate-400 text-center">Chưa có ảnh<br/><span className="text-[10px] font-normal">Bật "Sửa hồ sơ" để tải lên</span></span>
+              <span className="text-xs font-semibold text-slate-400 text-center">Chưa có ảnh<br/><span className="text-[10px] font-normal">Bật &quot;Sửa hồ sơ&quot; để tải lên</span></span>
             </div>
           )}
           {/* OCR Overlay */}
           {ocrStatus[activeDoc] === 'processing' && (
-            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center z-30 rounded-lg">
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-30 rounded-xl">
               <span className="text-xs text-indigo-600 font-bold flex items-center gap-1.5 bg-white border border-indigo-100 px-3 py-1.5 rounded-full shadow-sm">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang quét OCR...
               </span>
@@ -549,11 +553,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 
-  // Panel 2: Form nhập liệu
+  // ─────────────────────────────────────────────
+  // PANEL 2 — Form nhập liệu
+  // ─────────────────────────────────────────────
   const panel2Node = (
-    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0 h-full">
-      <div className="px-3.5 py-2 border-b border-slate-100 shrink-0 bg-slate-50">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
+    <div className={`${glassPanel} min-h-0 h-full`}>
+      <div className={glassPanelHeader}>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thông tin chi tiết nhập liệu</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 min-h-0">
@@ -566,7 +572,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               return (
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
-                  <div className={`px-2.5 py-1.5 rounded border flex items-center justify-between text-[11px] font-bold ${
+                  <div className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-[11px] font-bold ${
                     allVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
                   }`}>
                     <span className="flex items-center gap-1.5">
@@ -580,7 +586,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
                       state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                   </FormField>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
                       <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
                         verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
@@ -588,7 +594,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     </FormField>
                     <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Số thẻ ngoại kiều">
                       <Input {...register('cardNumber')} disabled={!isEditing} size="md"
                         verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
@@ -606,7 +612,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </button>
                       ) : undefined} />
                   </FormField>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Mã Bưu Điện">
                       <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
                         verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
@@ -632,7 +638,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
                       state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                   </FormField>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
                       <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
                         verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
@@ -640,9 +646,9 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     </FormField>
                     <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Giới tính">
-                      <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                      <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
                         <option value="">Chọn...</option>
                         <option value="Nam">Nam</option>
                         <option value="Nữ">Nữ</option>
@@ -650,7 +656,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     </FormField>
                     <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
                     <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
                   </div>
@@ -661,7 +667,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               return (
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN SỔ NENKIN</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
                     <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
                   </div>
@@ -687,15 +693,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               return (
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Quốc gia">
-                      <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                      <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
                         <option value="JAPAN">Nhật Bản</option>
                         <option value="VIETNAM">Việt Nam</option>
                       </select>
                     </FormField>
                     <FormField label="Mục đích">
-                      <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                      <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
                         <option value="BOTH">Chung cả 2 lần</option>
                         <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
                         <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
@@ -705,7 +711,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <FormField label="Tên ngân hàng">
                     <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
                   </FormField>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
                     <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
                   </div>
@@ -714,7 +720,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
                     <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
                   </div>
                   {isEditing && bankFields.length > 1 && (
@@ -738,8 +744,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           const allVerified = required.every(f => verifiedFields[f]);
           return (
             <div className="mt-4 space-y-2">
-              <div className={`p-2.5 border rounded-md flex items-start gap-2 transition-all ${
-                allVerified ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-70'
+              <div className={`p-2.5 border rounded-lg flex items-start gap-2 transition-all ${
+                allVerified ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50/80 border-slate-200 opacity-70'
               }`}>
                 <input type="checkbox" id="manual-confirm"
                   disabled={!isEditing || !allVerified}
@@ -754,7 +760,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 </label>
               </div>
               {!allVerified && isEditing && (
-                <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded flex items-start gap-1.5 leading-snug">
+                <div className="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 p-2 rounded-lg flex items-start gap-1.5 leading-snug">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                   <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
                 </div>
@@ -766,12 +772,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 
-  // Panel 3: Client + Workflow + Tabs
+  // ─────────────────────────────────────────────
+  // PANEL 3 — Mini Profile + Workflow + Tabs
+  // ─────────────────────────────────────────────
   const panel3Node = (
-    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0 h-full">
-      {/* Client identity strip */}
-      <div className="p-2.5 border-b border-slate-100 bg-white flex items-center gap-2.5 shrink-0">
-        <div className="w-12 h-9 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
+    <div className={`${glassPanel} min-h-0 h-full`}>
+      {/* Mini profile strip */}
+      <div className="p-2.5 border-b border-slate-100/80 bg-white/50 flex items-center gap-2.5 shrink-0">
+        <div className="w-12 h-9 border border-slate-200/80 rounded-lg overflow-hidden bg-slate-100/80 flex items-center justify-center shrink-0 relative group">
           {watch('zairyuFrontUrl') ? (
             <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
               <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
@@ -783,7 +791,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-            <span className="font-mono text-[9px] text-slate-500 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+            <span className="font-mono text-[9px] text-slate-500 bg-slate-100/80 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
             NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'} &nbsp;|&nbsp; QT: {watch('nationality') || '---'}
@@ -792,7 +800,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Workflow progress bar */}
-      <div className="p-2.5 border-b border-slate-100 bg-white shrink-0">
+      <div className="p-2.5 border-b border-slate-100/80 bg-white/40 shrink-0">
         <WorkflowPanel
           status={(watch('status') || 'DRAFT') as WorkflowStatus}
           isEditing={isEditing}
@@ -807,7 +815,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Tabs: Mốc ngày / Tài chính */}
-      <div className="px-3 pt-1.5 border-b border-slate-100 bg-white flex gap-1 shrink-0">
+      <div className="px-3 pt-1.5 border-b border-slate-100/80 bg-white/40 flex gap-1 shrink-0">
         {(['dates', 'finance'] as const).map(tab => (
           <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
             className={`px-2.5 py-1.5 text-[11px] font-bold border-b-2 -mb-px transition-all ${
@@ -820,7 +828,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2.5 bg-white min-h-0">
+      <div className="flex-1 overflow-y-auto p-2.5 min-h-0">
         {panel3aTab === 'dates' && (
           <div className="grid grid-cols-2 gap-1.5">
             <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
@@ -849,8 +857,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
               <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
               <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-              <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/50" /></FormField>
-              <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/50" /></FormField>
+              <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
+              <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60" /></FormField>
             </div>
           </div>
         )}
@@ -858,14 +866,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 
-  // Tax Office Panel
+  // ─────────────────────────────────────────────
+  // TAX OFFICE PANEL
+  // ─────────────────────────────────────────────
   const taxPanelNode = (
-    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-      <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-slate-50 border-b border-slate-100 shrink-0">
+    <div className={`${glassPanel}`}>
+      <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
           {selectedTaxOffice && (
-            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
+            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
               {selectedTaxOffice.name}
             </span>
           )}
@@ -873,7 +883,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <select
               value={selectedTaxOfficeId || ''}
               onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-              className="h-6 rounded border border-slate-200 px-1.5 text-[11px] bg-white max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
+              className="h-6 rounded-lg border border-slate-200/80 px-1.5 text-[11px] bg-white/80 max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
             >
               <option value="">-- Đổi Cục thuế --</option>
               {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -882,19 +892,19 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
           <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-            className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
+            className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
             🔍 Tra cứu ZIP
           </button>
           {selectedTaxOffice?.websiteUrl && (
             <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-              className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
+              className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
               🔍 NTA
             </a>
           )}
           {(['card', 'form', 'diff'] as const).map(panel => (
             <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-              className={`px-2 py-1 text-[11px] font-bold rounded transition-all ${
-                taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
               }`}>
               {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
             </button>
@@ -902,7 +912,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="p-3 overflow-y-auto max-h-[350px] lg:max-h-[280px]">
+      <div className="p-3 overflow-y-auto max-h-[320px] lg:max-h-[260px]">
         {taxPanel === 'card' && (
           <TaxOfficeCard
             taxOffice={selectedTaxOffice}
@@ -937,13 +947,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-16 lg:pb-0">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 pt-1 pb-0.5">
         <div className="flex items-center gap-2 min-w-0">
           <button type="button" onClick={() => router.push('/applications')}
-            className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-xs">
+            className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-sm">
             <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
           </button>
           <div className="flex items-center gap-1.5 min-w-0">
@@ -981,23 +991,23 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE SEGMENTED CONTROL TAB BAR (< lg) ── */}
-      <div className="flex lg:hidden bg-slate-100/90 p-1 rounded-xl gap-1 border border-slate-200/80 shrink-0 sticky top-0 z-30 shadow-xs backdrop-blur-md">
+      <div className="flex lg:hidden bg-white/80 backdrop-blur-md p-1 rounded-xl gap-1 border border-slate-200/70 shrink-0 sticky top-0 z-30 shadow-sm">
         {(
           [
-            { id: 'doc',      label: '🖼️ Ảnh tài liệu' },
-            { id: 'form',     label: '📝 Nhập liệu'    },
-            { id: 'progress', label: '👤 Tiến độ'      },
-            { id: 'tax',      label: '🏛️ Cục Thuế'    },
+            { id: 'doc',      label: '🖼️ Ảnh' },
+            { id: 'form',     label: '📝 Nhập liệu' },
+            { id: 'progress', label: '👤 Tiến độ' },
+            { id: 'tax',      label: '🏛️ Cục Thuế' },
           ] as const
         ).map(tab => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setMobileTab(tab.id)}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-center truncate ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center truncate ${
               mobileTab === tab.id
-                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
             }`}
           >
             {tab.label}
@@ -1007,24 +1017,31 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
       {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
       <div className="flex-1 flex flex-col min-h-0 lg:hidden">
-        {mobileTab === 'doc'      && <div className="h-[460px]">{panel1Node}</div>}
-        {mobileTab === 'form'     && <div className="flex-1">{panel2Node}</div>}
-        {mobileTab === 'progress' && <div className="flex-1">{panel3Node}</div>}
-        {mobileTab === 'tax'      && <div className="flex-1">{taxPanelNode}</div>}
+        {mobileTab === 'doc'      && <div className="h-[480px] shrink-0">{panel1Node}</div>}
+        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px]">{panel2Node}</div>}
+        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px]">{panel3Node}</div>}
+        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px]">{taxPanelNode}</div>}
       </div>
 
-      {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
-      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
-        <div className="col-start-1 row-span-2 min-h-0 h-full">{panel1Node}</div>
-        <div className="col-start-2 row-start-1 grid grid-cols-8 gap-2.5 min-h-0 overflow-hidden">
-          <div className="col-span-5 min-h-0 h-full">{panel2Node}</div>
-          <div className="col-span-3 min-h-0 h-full">{panel3Node}</div>
+      {/* ── DESKTOP WORKSPACE: flex row 35% | 40% | 25% (lg:) ── */}
+      <div className="hidden lg:flex flex-row flex-1 gap-2.5 min-h-0 overflow-hidden">
+        {/* Panel 1 — 35% */}
+        <div className="w-[35%] shrink-0 min-h-0">
+          {panel1Node}
         </div>
-        <div className="col-start-2 row-start-2 min-h-0">{taxPanelNode}</div>
+        {/* Panel 2+Tax — 40% */}
+        <div className="w-[40%] shrink-0 flex flex-col gap-2.5 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0">{panel2Node}</div>
+          <div className="shrink-0">{taxPanelNode}</div>
+        </div>
+        {/* Panel 3 — 25% */}
+        <div className="flex-1 min-h-0">
+          {panel3Node}
+        </div>
       </div>
 
       {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
-      <div className="flex lg:hidden fixed bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg justify-between items-center z-40">
+      <div className="flex lg:hidden fixed bottom-0 left-0 right-0 px-3 py-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg justify-between items-center z-40">
         {!isEditing ? (
           <>
             <div className="flex items-center gap-2">
