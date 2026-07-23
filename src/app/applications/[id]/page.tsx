@@ -23,6 +23,7 @@ import { TaxOfficeForm }       from '@/components/ui/TaxOfficeForm';
 import type { TaxOfficeFormValues } from '@/components/ui/TaxOfficeForm';
 import { TaxOfficeDiffPanel }  from '@/components/ui/TaxOfficeDiffPanel';
 import { toast } from 'sonner';
+import PrintModal from './print-modal';
 
 const BASE_DOCUMENTS = [
   { key: 'zairyuFront',    title: 'Thẻ Ngoại Kiều (Trước)', urlField: 'zairyuFrontUrl' },
@@ -1130,6 +1131,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           }}
         />
       )}
+
+      {/* Print modal */}
+      <PrintModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        id={id}
+      />
     </form>
   );
 
