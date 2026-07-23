@@ -421,51 +421,55 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   // PANEL 1 — Tài liệu & Ảnh
   // ─────────────────────────────────────────────
   const panel1Node = (
-    <div className={`${glassPanel} min-h-0 h-full`}>
+    <div className={`${glassPanel} min-h-0 h-full min-w-0`}>
       {/* Tabs danh mục */}
-      <div className={glassPanelHeader}>
+      <div className={`${glassPanelHeader} min-w-0`}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Danh mục tài liệu</div>
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
-          {dynamicDocuments.map(doc => {
-            const isActive = activeDoc === doc.key;
-            const hasUrl   = !!watch(doc.urlField as any);
-            return (
-              <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-white/70 border border-slate-200/80 text-slate-700 hover:bg-slate-50'
-                }`}>
-                {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
-                <span className="truncate">{doc.title}</span>
+        <div className="relative min-w-0">
+          <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none min-w-0">
+            {dynamicDocuments.map(doc => {
+              const isActive = activeDoc === doc.key;
+              const hasUrl   = !!watch(doc.urlField as any);
+              return (
+                <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
+                  className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-white/70 border border-slate-200/80 text-slate-700 hover:bg-slate-50'
+                  }`}>
+                  {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
+                  <span className="truncate">{doc.title}</span>
+                </button>
+              );
+            })}
+            {isEditing && (
+              <button type="button"
+                onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
+                className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
+                ＋ Thêm Ngân hàng
               </button>
-            );
-          })}
-          {isEditing && (
-            <button type="button"
-              onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-              className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
-              ＋ Thêm Ngân hàng
-            </button>
-          )}
+            )}
+          </div>
+          {/* Scroll fade indicator — mobile only */}
+          <div className="sm:hidden absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-white/90 to-transparent pointer-events-none rounded-r-lg" />
         </div>
       </div>
 
       {/* Image viewer */}
-      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/40 max-w-full overflow-hidden">
-        <div className="flex items-center justify-between mb-1.5 shrink-0">
-          <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-2.5 bg-slate-100/40 max-w-full overflow-hidden">
+        <div className="flex items-center justify-between mb-1 shrink-0">
+          <span className="text-xs font-bold text-slate-800 truncate">{currentDocTitle}</span>
           {currentDocUrl ? (
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Đã tải</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải</span>
           ) : (
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">○ Chưa có</span>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có</span>
           )}
         </div>
-        <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-h-[280px] lg:min-h-0 max-w-full">
+        <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-w-0 max-w-full">
           {currentDocUrl ? (
-            <div className="relative w-full h-full max-w-full max-h-full overflow-hidden flex items-center justify-center">
+            <div className="relative w-full h-full min-w-0 overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={currentDocUrl} alt={currentDocTitle} className="max-w-full max-h-full w-auto h-auto object-contain" />
+              <img src={currentDocUrl} alt={currentDocTitle} className="block w-full h-auto object-contain" />
               {/* ── Floating Toolbar — BOTTOM RIGHT ── */}
               <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-1 shadow-lg z-20">
                 {isEditing && (
@@ -1017,10 +1021,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
       {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
       <div className="flex-1 flex flex-col min-h-0 w-full max-w-full overflow-x-hidden lg:hidden pb-24">
-        {mobileTab === 'doc'      && <div className="h-[calc(100vh-220px)] min-h-[400px] w-full max-w-full overflow-hidden">{panel1Node}</div>}
-        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{panel2Node}</div>}
-        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{panel3Node}</div>}
-        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{taxPanelNode}</div>}
+        {mobileTab === 'doc'      && <div className="flex-1 w-full max-w-full min-w-0 overflow-hidden">{panel1Node}</div>}
+        {mobileTab === 'form'     && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{panel2Node}</div>}
+        {mobileTab === 'progress' && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{panel3Node}</div>}
+        {mobileTab === 'tax'      && <div className="flex-1 w-full max-w-full min-w-0 overflow-x-hidden">{taxPanelNode}</div>}
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
