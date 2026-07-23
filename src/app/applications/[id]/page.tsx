@@ -897,13 +897,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          {/* Cục Thuế quản lý */}
+          {/* ── Bottom Row: CỤC THUẾ QUẢN LÝ (Trải dài xuyên bên dưới Panel Giữa và Panel Phải) ── */}
           <div className="shrink-0 flex flex-col bg-white/80 backdrop-blur-md border border-slate-200/70 shadow-lg shadow-black/5 rounded-xl overflow-hidden max-h-[300px]">
-            <div className="px-3 py-2 flex items-center justify-between bg-slate-50/70 border-b border-slate-100/80 shrink-0">
+            <div className="px-4 py-2 flex items-center justify-between bg-slate-50/70 border-b border-slate-100/80 shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">🏛 Cục Thuế</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
                 {selectedTaxOffice && (
-                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full truncate">
+                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full truncate">
                     {selectedTaxOffice.name}
                   </span>
                 )}
@@ -911,36 +911,36 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <select
                     value={selectedTaxOfficeId || ''}
                     onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[130px] focus:outline-none focus:border-indigo-400 font-medium"
+                    className="h-6 rounded border border-slate-200 px-1.5 text-[10px] bg-white max-w-[140px] focus:outline-none focus:border-indigo-400 font-medium ml-1"
                   >
                     <option value="">-- Đổi Cục thuế --</option>
                     {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {selectedTaxOffice?.websiteUrl && (
                   <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-0.5 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-1.5 py-0.5 rounded-md transition-all">
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
                     <Search className="w-2.5 h-2.5" /> NTA
                   </a>
                 )}
                 {selectedTaxOffice?.mapUrl && (
                   <a href={(selectedTaxOffice as any).mapUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-0.5 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-1.5 py-0.5 rounded-md transition-all">
-                    <MapPin className="w-2.5 h-2.5" /> Map
+                    className="flex items-center gap-1 text-[9px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white hover:border-slate-700 px-2 py-0.5 rounded-md transition-all">
+                    <MapPin className="w-2.5 h-2.5" /> Bản đồ
                   </a>
                 )}
                 <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-                  className="flex items-center gap-0.5 text-[9px] font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-1.5 py-0.5 rounded-md transition-all">
-                  <Search className="w-2.5 h-2.5" /> ZIP
+                  className="flex items-center gap-1 text-[9px] font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-2 py-0.5 rounded-md transition-all">
+                  <Search className="w-2.5 h-2.5" /> Tra cứu ZIP
                 </button>
                 {(['card', 'form', 'diff'] as const).map(panel => (
                   <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-                    className={`px-1.5 py-1 text-[9px] font-bold rounded transition-all ${
+                    className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
                       taxPanel === panel ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                     }`}>
-                    {panel === 'card' ? '📋' : panel === 'form' ? '✏️' : '⚡'}
+                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu NTA'}
                   </button>
                 ))}
               </div>
@@ -976,98 +976,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 />
               )}
             </div>
-          </div>
-
-          {/* Mini Profile */}
-          <div className="px-3 py-2.5 border-b border-slate-100/80 bg-slate-50/60 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-12 h-10 border border-slate-200/80 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
-                {watch('zairyuFrontUrl') ? (
-                  <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
-                    <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
-                      <ZoomIn className="w-3 h-3" />
-                    </button></>
-                ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-                  <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
-                </div>
-                <div className="text-[9px] text-slate-500 mt-0.5 flex gap-2 flex-wrap">
-                  <span>NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'}</span>
-                  <span>QT: {watch('nationality') || '---'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Workflow */}
-          <div className="px-3 pt-2.5 pb-2 border-b border-slate-100/80 shrink-0">
-            <WorkflowPanel
-              status={(watch('status') || 'DRAFT') as WorkflowStatus}
-              isEditing={isEditing}
-              onChange={val => setValue('status', val as any, { shouldDirty: true })}
-              dates={{
-                sent1st:     watch('sent1stDate')     as string | undefined,
-                received1st: watch('received1stDate') as string | undefined,
-                sent2nd:     watch('sent2ndDate')     as string | undefined,
-                received2nd: watch('received2ndDate') as string | undefined,
-              }}
-            />
-          </div>
-
-          {/* Tabs: Mốc ngày / Tài chính */}
-          <div className="px-3 pt-2 shrink-0">
-            <div className="flex gap-0.5 border-b border-slate-100">
-              {(['dates', 'finance'] as const).map(tab => (
-                <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-t-md transition-all border-b-2 -mb-px ${
-                    panel3aTab === tab
-                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50/60'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                  }`}>
-                  {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2 min-h-0">
-            {panel3aTab === 'dates' && (
-              <div className="grid grid-cols-2 gap-1.5">
-                <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-                <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-              </div>
-            )}
-            {panel3aTab === 'finance' && (
-              <div className="space-y-2">
-                {isEditing && (
-                  <Button type="button" variant="secondary" size="xs" className="w-full"
-                    onClick={() => {
-                      const r1 = parseFloat(String(watch('received1stJpy') || 0));
-                      const r2 = parseFloat(String(watch('received2ndJpy') || 0));
-                      const rate = parseFloat(String(watch('exchangeRate') || 165));
-                      const feeJpy = (r1 + r2) * 0.2;
-                      setValue('serviceFeeJpy', feeJpy);
-                      setValue('serviceFeeVnd', feeJpy * rate);
-                      if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                      toast.success('Đã tính phí dịch vụ (20%)');
-                    }}>Tính phí tự động (20%)</Button>
-                )}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
-                  <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-                  <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                  <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                  <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/50" /></FormField>
-                  <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/50" /></FormField>
-                </div>
-              </div>
-            )}
           </div>
 
         </div>
