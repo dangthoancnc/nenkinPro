@@ -458,29 +458,29 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      {/* ── WORKSPACE GRID (mockup_v3_font_standard layout) ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[360px_1fr] lg:grid-rows-[1fr_auto] gap-2.5 min-h-0 overflow-hidden">
+      {/* ── WORKSPACE GRID (Panel 1 = 35% (~1/3), Top Row = auto height) ── */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[35%_1fr] lg:grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
 
         {/* ═══════════════════════════════════════════════════════════════════
-            PANEL 1 – col-1, row-1/3 (360px, spans both rows) – Ảnh tài liệu
+            PANEL 1 – col-1, row-1/3 (35% ~1/3 width, spans full height) – Ảnh tài liệu
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="lg:col-start-1 lg:row-span-2 flex flex-col min-h-0 h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
 
           {/* Tabs danh mục */}
           <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 shrink-0 bg-slate-50">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
+            <div className="grid grid-cols-3 gap-1.5">
               {dynamicDocuments.map(doc => {
                 const isActive = activeDoc === doc.key;
                 const hasUrl   = !!watch(doc.urlField as any);
                 return (
                   <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                    className={`px-1.5 py-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 truncate ${
+                    className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 truncate ${
                       isActive
-                        ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}>
-                    {hasUrl && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                    {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
                     <span className="truncate">{doc.title}</span>
                   </button>
                 );
@@ -488,7 +488,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {isEditing && (
                 <button type="button"
                   onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-                  className="col-span-3 py-1 text-[10px] font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center">
+                  className="col-span-3 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center">
                   ＋ Thêm Ngân hàng
                 </button>
               )}
@@ -498,11 +498,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           {/* Image viewer */}
           <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/50">
             <div className="flex items-center justify-between mb-1.5 shrink-0">
-              <span className="text-xs font-bold text-slate-700">{currentDocTitle}</span>
+              <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
               {currentDocUrl ? (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">✓ Đã tải</span>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ Đã tải</span>
               ) : (
-                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">○ Chưa có</span>
+                <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">○ Chưa có</span>
               )}
             </div>
             <div className="flex-1 rounded-lg overflow-hidden bg-slate-900/5 border border-slate-200 flex items-center justify-center relative min-h-0">
@@ -510,7 +510,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 <div className="relative w-full h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={currentDocUrl} alt={currentDocTitle} className="w-full h-full object-contain" />
-                  {/* Floating Toolbar – top right per mockup */}
+                  {/* Floating Toolbar – top right */}
                   <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs border border-slate-200 rounded-lg p-1 shadow-sm z-20">
                     {isEditing && (
                       <>
@@ -526,22 +526,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             }
                             runOcrExtract(currentDocUrl);
                           }}
-                          className="w-6 h-6 flex items-center justify-center text-indigo-600 hover:bg-slate-100 rounded transition-all">
-                          <Sparkles className="w-3.5 h-3.5" />
+                          className="w-7 h-7 flex items-center justify-center text-indigo-600 hover:bg-slate-100 rounded transition-all">
+                          <Sparkles className="w-4 h-4" />
                         </button>
                         <button type="button" title="Cắt ảnh"
                           onClick={() => { if (currentDocUrl) { setCropDocKey(activeDoc); setCropUrlField(currentDocField); setCropImageSrc(currentDocUrl); } }}
-                          className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                          <Crop className="w-3.5 h-3.5" />
+                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                          <Crop className="w-4 h-4" />
                         </button>
                         <label className="cursor-pointer" title="Thay thế ảnh">
-                          <span className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                            <UploadCloud className="w-3.5 h-3.5" />
+                          <span className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                            <UploadCloud className="w-4 h-4" />
                           </span>
                           <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
                         </label>
                         <button type="button" title="Xóa ảnh"
-                          className="w-6 h-6 flex items-center justify-center text-red-600 hover:bg-red-50 rounded transition-all"
+                          className="w-7 h-7 flex items-center justify-center text-red-600 hover:bg-red-50 rounded transition-all"
                           onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
                             action: { label: 'Xóa', onClick: async () => {
                               const prev = getValues(currentDocField as any);
@@ -552,14 +552,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             }},
                             cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
                           })}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </>
                     )}
                     <button type="button" title="Phóng to"
                       onClick={() => setLightboxUrl(currentDocUrl || null)}
-                      className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                      <ZoomIn className="w-3.5 h-3.5" />
+                      className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                      <ZoomIn className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
