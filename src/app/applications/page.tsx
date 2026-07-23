@@ -157,22 +157,25 @@ function ApplicationsPageInner() {
   const paginatedApps = filteredApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
       {/* Compact Header */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Quản lý Hồ sơ Nenkin</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Quản lý Hồ sơ Nenkin</h1>
+          <p className="text-xs text-slate-500 hidden sm:block">Danh sách tất cả hồ sơ khách hàng xin hoàn thuế Nenkin.</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`p-1 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-xs text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700'}`}
               title="Xem dạng bảng"
             >
               <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`p-1 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-xs text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700'}`}
               title="Xem dạng lưới"
             >
               <LayoutGrid className="w-4 h-4" />
@@ -180,32 +183,36 @@ function ApplicationsPageInner() {
           </div>
           <button 
             onClick={() => setShowFilter(!showFilter)} 
-            className={`inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors border rounded-lg shadow-sm ${showFilter ? 'bg-primary/10 text-primary border-primary/20' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
+            className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors border rounded-lg shadow-xs ${showFilter ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
           >
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Lọc</span>
+            <Filter className="w-3.5 h-3.5" />
+            <span>Lọc</span>
           </button>
-          <Link href="/applications/new" className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors bg-primary text-white rounded-lg hover:bg-primary/90 shadow-sm shadow-primary/30">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Tạo mới</span>
+          <Link href="/applications/new" className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-bold transition-colors bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-xs">
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tạo mới</span>
           </Link>
         </div>
       </div>
 
-      {/* Stats Ribbon */}
-      <div className="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-slate-200 p-2 shadow-sm min-h-[40px]">
-        <div className="px-3 py-1 bg-slate-100 text-slate-700 rounded-md text-sm font-medium flex items-center gap-2">
-          Tổng <span className="bg-slate-200 px-1.5 py-0.5 rounded text-xs">{applications.length}</span>
-        </div>
-        <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-md text-sm font-medium flex items-center gap-2">
-          Cần duyệt <span className="bg-orange-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => a.status === 'PENDING').length}</span>
-        </div>
-        <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-md text-sm font-medium flex items-center gap-2">
-          Đang xử lý <span className="bg-amber-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => !['COMPLETED', 'CANCELLED', 'PENDING'].includes(a.status)).length}</span>
-        </div>
-        <div className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-md text-sm font-medium flex items-center gap-2">
-          Hoàn thành <span className="bg-emerald-100 px-1.5 py-0.5 rounded text-xs">{applications.filter(a => a.status === 'COMPLETED').length}</span>
-        </div>
+      {/* Stats Ribbon — Mobile Horizontal Scroll */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+        <button type="button" onClick={() => setFilterStatuses([])}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+          Tổng ({applications.length})
+        </button>
+        <button type="button" onClick={() => setFilterStatuses(['PENDING'])}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.includes('PENDING') ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>
+          Cần duyệt ({applications.filter(a => a.status === 'PENDING').length})
+        </button>
+        <button type="button" onClick={() => setFilterStatuses(['DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND'])}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.some(s => ['DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND'].includes(s)) ? 'bg-amber-600 text-white border-amber-600' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+          Đang xử lý ({applications.filter(a => !['COMPLETED', 'CANCELLED', 'PENDING'].includes(a.status)).length})
+        </button>
+        <button type="button" onClick={() => setFilterStatuses(['COMPLETED'])}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.includes('COMPLETED') ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+          Hoàn thành ({applications.filter(a => a.status === 'COMPLETED').length})
+        </button>
       </div>
 
       {/* Filter Slide-over/Popover */}
@@ -272,10 +279,69 @@ function ApplicationsPageInner() {
         </div>
       )}
 
-      {/* Main Table View */}
+      {/* ── MOBILE NATIVE CARD LIST (< md) ── */}
+      <div className="md:hidden flex flex-col gap-2">
+        {loading ? (
+          <div className="text-center py-8 text-xs text-slate-400">Đang tải dữ liệu...</div>
+        ) : filteredApplications.length === 0 ? (
+          <div className="text-center py-8 text-xs text-slate-400">Không tìm thấy hồ sơ phù hợp</div>
+        ) : (
+          paginatedApps.map((app) => {
+            const status = statusConfig[app.status];
+            const StatusIcon = status.icon;
+            const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
+            
+            return (
+              <Link key={app.id} href={`/applications/${app.id}`}
+                className="border border-slate-200/80 rounded-xl p-3 space-y-2 bg-white/95 shadow-xs hover:border-indigo-400 transition-all block active:scale-[0.99]">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                      {app.customer?.zairyuFrontUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={app.customer.zairyuFrontUrl} alt="Zairyu" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">N/A</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-900 truncate">{app.customer?.fullName || 'N/A'}</div>
+                      <div className="font-mono text-[10px] text-slate-400 truncate">#{app.customer?.code || app.id.slice(0,8)}</div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${status.color}`}>
+                    <StatusIcon className="w-2.5 h-2.5" />
+                    {status.label}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-600">
+                  <div className="flex items-center gap-1.5 truncate">
+                    {taxOffice?.name && (
+                      <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[10px] font-semibold truncate">
+                        🏛️ {taxOffice.name}
+                      </span>
+                    )}
+                    {app.customer?.bankName && (
+                      <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] truncate">
+                        🏦 {app.customer.bankName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-mono font-bold text-emerald-600 text-xs shrink-0">
+                    {app.totalExpectedJpy ? `¥${new Intl.NumberFormat('ja-JP').format(app.totalExpectedJpy)}` : '---'}
+                  </div>
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+
+      {/* ── DESKTOP TABLE VIEW (≥ md) ── */}
       {viewMode === 'table' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full overflow-x-auto">
-          <table className="w-full text-sm text-left min-w-[600px] md:min-w-0">
+        <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full overflow-x-auto">
+          <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
               <tr>
                 <th className="px-3 py-2.5 font-semibold w-14">Thẻ NK</th>
@@ -323,7 +389,7 @@ function ApplicationsPageInner() {
                   const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
                   
                   return (
-                    <tr key={app.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <tr key={app.id} className="hover:bg-slate-50/50 transition-colors group cursor-pointer" onClick={() => window.location.href = `/applications/${app.id}`}>
                       <td className="px-3 py-2.5">
                         <div className="w-10 h-7 rounded border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                           {app.customer?.zairyuFrontUrl ? (
@@ -335,10 +401,10 @@ function ApplicationsPageInner() {
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
-                        <Link href={`/applications/${app.id}`} className="flex flex-col hover:opacity-80 transition-opacity">
-                          <span className="font-semibold text-primary hover:underline">{app.customer?.fullName || 'N/A'}</span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{app.customer?.fullName || 'N/A'}</span>
                           <span className="text-xs text-slate-500 font-mono">{app.customer?.code || '---'}</span>
-                        </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${status.color}`}>
@@ -373,9 +439,9 @@ function ApplicationsPageInner() {
         </div>
       )}
 
-      {/* Grid View */}
+      {/* ── DESKTOP GRID VIEW (≥ md) ── */}
       {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {loading ? (
             <div className="py-8 text-center text-slate-500 col-span-full">
               <div className="animate-pulse flex flex-col items-center gap-2">
