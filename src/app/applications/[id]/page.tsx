@@ -416,16 +416,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   // RENDER – Phase 3: Glassmorphism 3-Panel Layout (35% | 40% | 25%)
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-[calc(100vh-65px)] flex flex-col gap-2 px-2 pb-2">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between shrink-0 pt-1.5">
-        <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0 pt-1.5 pb-0.5">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
           <button type="button" onClick={() => router.push('/applications')}
-            className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-sm">
+            className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-xs">
             <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <h1 className="text-sm font-bold tracking-tight text-slate-800">
               {isNew ? 'Tạo Hồ sơ mới' : 'Chi tiết Hồ sơ'}
             </h1>
@@ -437,7 +437,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!isEditing ? (
             <>
               {!isNew && <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
@@ -458,24 +458,24 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      {/* ── WORKSPACE GRID (Panel 1 = 35% (~1/3), Top Row = auto height) ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[35%_1fr] lg:grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
+      {/* ── WORKSPACE GRID (Mobile = vertical scroll stack, Desktop lg: = 35% left grid) ── */}
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[35%_1fr] lg:grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-visible lg:overflow-hidden">
 
         {/* ═══════════════════════════════════════════════════════════════════
-            PANEL 1 – col-1, row-1/3 (35% ~1/3 width, spans full height) – Ảnh tài liệu
+            PANEL 1 – col-1, row-1/3 (35% ~1/3 width on desktop, spans full height) – Ảnh tài liệu
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-start-1 lg:row-span-2 flex flex-col min-h-0 h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+        <div className="lg:col-start-1 lg:row-span-2 flex flex-col min-h-0 h-[360px] sm:h-[420px] lg:h-full shrink-0 lg:shrink bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
 
           {/* Tabs danh mục */}
           <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 shrink-0 bg-slate-50">
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
               {dynamicDocuments.map(doc => {
                 const isActive = activeDoc === doc.key;
                 const hasUrl   = !!watch(doc.urlField as any);
                 return (
                   <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                    className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 truncate ${
+                    className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -488,7 +488,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {isEditing && (
                 <button type="button"
                   onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-                  className="col-span-3 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center">
+                  className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
                   ＋ Thêm Ngân hàng
                 </button>
               )}
@@ -599,10 +599,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         {/* ═══════════════════════════════════════════════════════════════════
             TOP RIGHT – col-2, row-1 – PANEL 2 (Form 5fr) + PANEL 3 (3fr)
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-start-2 lg:row-start-1 grid grid-cols-1 md:grid-cols-8 gap-2.5 min-h-0 overflow-hidden">
+        <div className="lg:col-start-2 lg:row-start-1 grid grid-cols-1 xl:grid-cols-8 gap-2.5 min-h-0 overflow-visible lg:overflow-hidden">
 
-          {/* PANEL 2 FORM – col-span-5 */}
-          <div className="col-span-1 md:col-span-5 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+          {/* PANEL 2 FORM – xl:col-span-5 */}
+          <div className="col-span-1 xl:col-span-5 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
             <div className="px-3.5 py-2 border-b border-slate-100 shrink-0 bg-slate-50">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
             </div>
@@ -631,7 +631,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
                             state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                         </FormField>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
                             <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
                               verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
@@ -639,7 +639,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           </FormField>
                           <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Số thẻ ngoại kiều">
                             <Input {...register('cardNumber')} disabled={!isEditing} size="md"
                               verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
@@ -657,7 +657,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                               </button>
                             ) : undefined} />
                         </FormField>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Mã Bưu Điện">
                             <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
                               verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
@@ -683,7 +683,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
                             state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
                         </FormField>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
                             <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
                               verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
@@ -691,7 +691,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           </FormField>
                           <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Giới tính">
                             <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
                               <option value="">Chọn...</option>
@@ -701,7 +701,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           </FormField>
                           <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
                           <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
                         </div>
@@ -712,7 +712,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     return (
                       <div className="space-y-2.5">
                         <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN SỔ NENKIN</div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
                           <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
                         </div>
@@ -738,7 +738,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     return (
                       <div className="space-y-2.5">
                         <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Quốc gia">
                             <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
                               <option value="JAPAN">Nhật Bản</option>
@@ -756,7 +756,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         <FormField label="Tên ngân hàng">
                           <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
                         </FormField>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
                           <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
                         </div>
@@ -765,7 +765,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
                           <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
                         )}
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
                         </div>
                         {isEditing && bankFields.length > 1 && (
@@ -816,8 +816,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          {/* PANEL 3 – col-span-3 – CLIENT + WORKFLOW + TABS */}
-          <div className="col-span-1 md:col-span-3 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
+          {/* PANEL 3 – xl:col-span-3 – CLIENT + WORKFLOW + TABS */}
+          <div className="col-span-1 xl:col-span-3 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
 
             {/* Client identity strip */}
             <div className="p-2.5 border-b border-slate-100 bg-white flex items-center gap-2.5 shrink-0">
@@ -914,8 +914,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="lg:col-start-2 lg:row-start-2 min-h-0">
           <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="px-3.5 py-2 flex items-center justify-between bg-slate-50 border-b border-slate-100 shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-slate-50 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
                 {selectedTaxOffice && (
                   <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
@@ -933,7 +933,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   </select>
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
                 <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
                   className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
                   🔍 Tra cứu ZIP
@@ -954,7 +954,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 ))}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-3 overflow-y-auto max-h-[350px] lg:max-h-[280px]">
               {taxPanel === 'card' && (
                 <TaxOfficeCard
                   taxOffice={selectedTaxOffice}
