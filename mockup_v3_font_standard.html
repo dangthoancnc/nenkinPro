@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NenkinPro – Chi tiết Hồ sơ v3 (Font Standard)</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pri:#4f46e5;--pri-l:#eef2ff;--pri-b:#c7d2fe;
+  --em:#059669;--em-l:#ecfdf5;--em-b:#a7f3d0;
+  --am:#d97706;--am-l:#fffbeb;--am-b:#fde68a;
+  --rd:#dc2626;--rd-l:#fef2f2;
+  --s50:#f8fafc;--s100:#f1f5f9;--s200:#e2e8f0;--s300:#cbd5e1;
+  --s400:#94a3b8;--s500:#64748b;--s600:#475569;--s700:#334155;--s800:#1e293b;--s900:#0f172a;
+  --wh:#fff;
+  --r:10px;--rsm:6px;--rxs:4px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
+}
+html,body{height:100%;background:var(--s100);font-family:var(--font);font-size:14px}
+
+/* ─── SHELL ─── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR – 52px */
+.sb{
+  width:52px;background:var(--s900);display:flex;flex-direction:column;
+  align-items:center;padding:10px 0;gap:2px;flex-shrink:0;
+}
+.sb-logo{
+  width:34px;height:34px;background:var(--pri);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:900;font-size:14px;margin-bottom:12px;
+}
+.sb-ic{
+  width:34px;height:34px;border-radius:6px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;color:var(--s400);font-size:16px;transition:all .12s;
+}
+.sb-ic:hover{background:rgba(255,255,255,.07);color:#fff}
+.sb-ic.on{background:var(--pri);color:#fff}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+/* TOPNAV – 50px */
+.nav{
+  height:50px;background:var(--wh);border-bottom:1px solid var(--s200);
+  display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.nav-title{font-size:14px;font-weight:800;color:var(--s800);letter-spacing:-.3px;white-space:nowrap}
+.nav-search{
+  flex:1;max-width:260px;height:34px;border:1px solid var(--s200);border-radius:20px;
+  padding:0 11px;font-size:12px;color:var(--s500);background:var(--s50);
+  display:flex;align-items:center;gap:5px;
+}
+.nav-sp{flex:1}
+.av{
+  width:28px;height:34px;border-radius:50%;background:var(--pri);
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  font-size:12px;font-weight:800;flex-shrink:0;
+}
+.bell{font-size:16px;color:var(--s500);position:relative;cursor:pointer}
+.bell-dot{
+  width:7px;height:7px;background:var(--rd);border-radius:50%;
+  position:absolute;top:-1px;right:-1px;border:1.5px solid #fff;
+}
+
+/* ─── PAGE ─── */
+.page{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px 14px 10px;gap:8px}
+
+/* HEADER ROW */
+.ph{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ph-l{display:flex;align-items:center;gap:7px}
+.back{
+  width:27px;height:30px;border:1px solid var(--s200);border-radius:50%;
+  background:var(--wh);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--s600);box-shadow:var(--sh);font-size:14px;
+}
+.ptitle{font-size:16px;font-weight:800;color:var(--s800);letter-spacing:-.3px}
+.pid{font-family:monospace;font-size:11px;color:var(--s400)}
+.badge{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid;
+}
+.ba{background:#fffbeb;color:#92400e;border-color:#fde68a}
+.bi{background:var(--pri-l);color:#3730a3;border-color:var(--pri-b)}
+.be{background:var(--em-l);color:#064e3b;border-color:var(--em-b)}
+.bbl{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.ph-r{display:flex;align-items:center;gap:6px}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;gap:4px;border-radius:var(--rsm);
+  font-size:11.5px;font-weight:600;cursor:pointer;padding:0 11px;
+  height:34px;border:1px solid;transition:all .12s;white-space:nowrap;
+}
+.bp{background:var(--pri);color:#fff;border-color:var(--pri)}
+.bp:hover{background:#4338ca}
+.bs{background:var(--wh);color:var(--s700);border-color:var(--s200)}
+.bs:hover{background:var(--s50)}
+.bo{background:transparent;color:var(--s600);border-color:var(--s200)}
+.bd{background:var(--rd-l);color:var(--rd);border-color:#fecaca}
+.bxs{height:25px;font-size:12px;padding:0 7px}
+.bic{width:26px;height:28px;padding:0;justify-content:center;border-radius:var(--rsm)}
+
+/* STATUS BAR */
+.sbar{
+  padding:6px 12px;border-radius:var(--rsm);font-size:12px;font-weight:600;
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+  background:var(--am-l);color:#92400e;border:1px solid var(--am-b);
+}
+
+/* ─── LAYOUT: 3 columns, fixed proportions ─── */
+/*
+  Structure:
+  ┌────────────┬─────────────────────────────────────────┐
+  │            │ [Panel 2 Form]  │ [Panel 3 Client/WF]  │
+  │  Panel 1   ├──────────────────────────────────────────┤
+  │  (Ảnh)    │      [Cục Thuế – full width merge]       │
+  └────────────┴─────────────────────────────────────────┘
+  col 1: 360px  |  col 2+3: 1fr (split 5:3 internally)
+*/
+.workspace{
+  flex:1;display:grid;
+  /* col1=360px, col2+3=1fr */
+  grid-template-columns:360px 1fr;
+  grid-template-rows:1fr auto;   /* row1=flexible top, row2=tax (auto height) */
+  gap:10px;
+  min-height:0;overflow:hidden;
+}
+/* Panel 1 spans both rows */
+.p1{grid-column:1;grid-row:1/3}
+/* Top right: panel 2 + panel 3 */
+.top-right{grid-column:2;grid-row:1;display:grid;grid-template-columns:5fr 3fr;gap:10px;min-height:0;overflow:hidden}
+/* Tax row: full width of col 2 (which already is the merged area) */
+.tax-row{grid-column:2;grid-row:2;min-height:0}
+
+/* CARD */
+.card{
+  background:var(--wh);border:1px solid var(--s200);border-radius:var(--r);
+  box-shadow:var(--sh);display:flex;flex-direction:column;overflow:hidden;min-height:0;
+}
+.ch{
+  padding:9px 13px;border-bottom:1px solid var(--s100);
+  background:var(--s50);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ct{font-size:12px;font-weight:700;color:var(--s500);text-transform:uppercase;letter-spacing:.7px}
+.cb{flex:1;overflow-y:auto;padding:12px;min-height:0}
+
+/* ─── PANEL 1 ─── */
+.doc-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.dt{
+  padding:5px 4px;text-align:center;font-size:12px;font-weight:600;
+  border:1px solid var(--s200);border-radius:var(--rxs);cursor:pointer;
+  background:var(--wh);color:var(--s600);transition:all .12s;
+  display:flex;align-items:center;justify-content:center;gap:3px;overflow:hidden;
+}
+.dt.on{background:var(--pri-l);border-color:var(--pri-b);color:var(--pri)}
+.dt-dot{width:5px;height:5px;background:var(--em);border-radius:50%;flex-shrink:0}
+.dt-add{
+  grid-column:span 3;padding:5px;font-size:12px;font-weight:600;
+  border:1px dashed var(--pri-b);border-radius:var(--rxs);
+  color:var(--pri);background:#f5f3ff;cursor:pointer;text-align:center;
+  transition:background .12s;
+}
+.dt-add:hover{background:#ede9fe}
+
+.img-wrap{
+  flex:1;background:#f1f5f9;border-radius:var(--rsm);position:relative;
+  min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;
+}
+.img-bar{
+  position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:10;
+}
+.img-bar .bic{
+  background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+  border-color:rgba(0,0,0,.1);color:var(--s600);
+  box-shadow:0 1px 4px rgba(0,0,0,.12);
+}
+
+/* Fake ID card in image area */
+.idc{
+  width:88%;background:linear-gradient(135deg,#dbeafe,#e0e7ff);
+  border-radius:8px;border:1px solid #bfdbfe;padding:11px 13px;
+  display:flex;flex-direction:column;gap:5px;
+}
+.idc-badge{
+  align-self:flex-start;background:#dbeafe;color:#1e40af;
+  font-size:11px;font-weight:800;padding:2px 7px;border-radius:20px;border:1px solid #bfdbfe;
+}
+.idc-name{font-size:15px;font-weight:900;color:var(--s800)}
+.idc-row{display:flex;gap:12px}
+.idc-f{font-size:11px;color:var(--s400);line-height:1.3}
+.idc-v{font-size:12px;font-weight:700;color:var(--s700)}
+.idc-addr{font-size:12px;color:var(--s600);line-height:1.5}
+.idc-no{font-size:12px;font-weight:800;color:var(--pri)}
+
+/* ─── PANEL 2 FORM ─── */
+.stitle{font-size:12px;font-weight:800;color:var(--pri);padding-bottom:6px;border-bottom:1px solid var(--pri-b);margin-bottom:10px}
+.vbanner{
+  padding:6px 10px;border-radius:var(--rxs);margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12px;font-weight:700;border:1px solid;
+}
+.vok{background:var(--em-l);color:#065f46;border-color:var(--em-b)}
+.vwarn{background:var(--am-l);color:#92400e;border-color:var(--am-b)}
+
+.fg{display:flex;flex-direction:column;gap:3px}
+.fl{font-size:12px;font-weight:700;color:var(--s600)}
+.fl.req::after{content:' *';color:var(--rd)}
+.fr{display:grid;gap:7px;margin-bottom:7px}
+.c2{grid-template-columns:1fr 1fr}
+.c1{grid-template-columns:1fr}
+.iw{position:relative;display:flex;align-items:center}
+.fi{
+  width:100%;height:34px;border:1px solid var(--s200);border-radius:var(--rxs);
+  padding:0 9px;font-size:13px;color:var(--s800);background:var(--wh);
+  transition:border-color .12s;
+}
+.fi:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px rgba(79,70,229,.1)}
+.fi.vf{border-color:var(--em-b);background:var(--em-l);padding-right:26px}
+.fi.ir{padding-right:28px}
+.ir-ic{position:absolute;right:7px;color:var(--s400);cursor:pointer;font-size:14px}
+.ir-ic.v{color:var(--em)}
+
+.conf-card{
+  margin-top:11px;padding:9px 11px;border-radius:var(--rsm);
+  border:1px solid var(--pri-b);background:var(--pri-l);
+  display:flex;align-items:flex-start;gap:7px;
+}
+.conf-card input[type=checkbox]{width:13px;height:13px;margin-top:1px;accent-color:var(--pri)}
+.conf-card label{font-size:12px;color:#3730a3;font-weight:600;line-height:1.4;cursor:pointer}
+.warn-note{
+  padding:7px 9px;background:var(--am-l);border:1px solid var(--am-b);
+  border-radius:var(--rxs);font-size:12px;color:var(--am);margin-top:7px;
+  display:flex;align-items:flex-start;gap:5px;line-height:1.5;
+}
+
+/* ─── PANEL 3 (Client + Workflow + Tabs) ─── */
+.p3{display:flex;flex-direction:column;min-height:0;gap:0}
+.cli{
+  background:var(--wh);border:1px solid var(--s200);
+  border-radius:var(--r) var(--r) 0 0;
+  padding:9px 11px;display:flex;align-items:center;gap:9px;border-bottom:none;flex-shrink:0;
+}
+.cli-av{
+  width:46px;height:34px;border:1px solid var(--s200);border-radius:5px;
+  background:var(--s100);overflow:hidden;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--s400);
+}
+.cli-name{font-size:14px;font-weight:800;color:var(--s900);line-height:1.2}
+.cli-meta{font-size:11px;color:var(--s500);margin-top:1px}
+.cli-code{font-family:monospace;font-size:11px;background:var(--s100);color:var(--s500);padding:1px 5px;border-radius:4px}
+
+.wf-panel{
+  background:var(--wh);border:1px solid var(--s200);padding:9px 11px;flex-shrink:0;border-top:none;
+}
+.wf-label{font-size:11px;font-weight:700;color:var(--s500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.wf-steps{display:flex;align-items:center;margin-bottom:7px}
+.ws{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.ws::after{
+  content:'';position:absolute;top:8px;left:50%;right:-50%;
+  height:2px;background:var(--s200);z-index:0;
+}
+.ws:last-child::after{display:none}
+.wd{
+  width:17px;height:17px;border-radius:50%;border:2px solid var(--s300);
+  background:var(--wh);z-index:1;display:flex;align-items:center;
+  justify-content:center;font-size:10px;color:var(--s400);
+}
+.wd.done{background:var(--em);border-color:var(--em);color:#fff}
+.wd.act{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:0 0 0 3px rgba(79,70,229,.18)}
+.ws-n{font-size:11px;color:var(--s500);margin-top:3px;text-align:center;font-weight:600}
+.wf-sel{
+  width:100%;height:28px;border:1px solid var(--s200);border-radius:var(--rxs);
+  padding:0 8px;font-size:12px;font-weight:600;color:var(--s700);background:var(--s50);
+}
+
+.tab-bar{
+  display:flex;background:var(--wh);border:1px solid var(--s200);
+  border-top:none;border-bottom:none;padding:0 8px;flex-shrink:0;
+}
+.tb{
+  padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer;
+  border-bottom:2px solid transparent;color:var(--s500);transition:all .12s;
+}
+.tb.on{border-bottom-color:var(--pri);color:var(--pri)}
+.tab-body{
+  flex:1;overflow-y:auto;background:var(--wh);border:1px solid var(--s200);
+  border-top:none;border-radius:0 0 var(--r) var(--r);
+  padding:9px 11px;min-height:0;
+}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.df{display:flex;flex-direction:column;gap:3px}
+.dl{font-size:12px;font-weight:700;color:var(--s600)}
+.di{
+  height:34px;border:1px solid var(--s200);border-radius:var(--rxs);
+  padding:0 8px;font-size:12px;color:var(--s700);background:var(--wh);width:100%;
+}
+.div-line{height:1px;background:var(--s100);margin:8px 0}
+.fin-mini{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px}
+.fin-card{
+  background:var(--s50);border:1px solid var(--s200);border-radius:5px;
+  padding:6px 8px;
+}
+.fin-card.green{background:var(--em-l);border-color:var(--em-b)}
+.fin-l{font-size:11px;font-weight:700}
+.fin-v{font-size:14px;font-weight:800;color:var(--s800)}
+.fin-u{font-size:11px;color:var(--s400)}
+.fin-card.green .fin-l{color:var(--em)}
+.fin-card.green .fin-v{color:var(--em)}
+
+/* ─── TAX ROW (full width merge of col2) ─── */
+.tax-card{
+  background:var(--wh);border:1px solid var(--s200);border-radius:var(--r);
+  box-shadow:var(--sh);display:flex;flex-direction:column;overflow:hidden;height:100%;
+}
+.tax-head{
+  padding:8px 14px;background:var(--s50);border-bottom:1px solid var(--s100);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.tax-head-l{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.tax-head-r{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.tax-sel{
+  height:26px;border:1px solid var(--s200);border-radius:var(--rxs);
+  padding:0 6px;font-size:12px;background:var(--wh);color:var(--s700);
+}
+.tax-body{flex:1;overflow-y:auto;padding:10px 14px;min-height:0}
+/* Inside tax body: 3-col layout */
+.tax-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.tax-sec-title{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--s400);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--s100);
+}
+.tax-field{margin-bottom:7px}
+.tax-fl{font-size:11px;color:var(--s400);font-weight:700;margin-bottom:2px}
+.tax-fv{font-size:12px;font-weight:600;color:var(--s700)}
+.tax-fv.mis{
+  background:var(--am-l);border-left:3px solid var(--am);
+  padding:2px 6px;border-radius:2px;font-size:12px;color:var(--s700);
+}
+.diff-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  padding:5px 0;border-bottom:1px solid var(--s100);
+}
+.diff-src{font-size:11px;font-weight:700;color:var(--s400);margin-bottom:2px}
+.diff-val{font-size:12px;color:var(--s700);font-weight:600}
+.mail-card{
+  background:var(--pri-l);border:1px solid var(--pri-b);border-radius:var(--rsm);
+  padding:8px 11px;
+}
+.mail-title{font-size:11px;font-weight:800;color:var(--pri);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.mail-addr{font-size:13px;font-weight:700;color:var(--s800);line-height:1.6}
+.mail-link{font-size:12px;font-weight:700;color:var(--pri);text-decoration:underline;margin-top:3px;display:block}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--s200);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--s300)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<nav class="sb">
+  <div class="sb-logo">N</div>
+  <div class="sb-ic">🏠</div>
+  <div class="sb-ic on">📂</div>
+  <div class="sb-ic">👥</div>
+  <div class="sb-ic">📊</div>
+  <div class="sb-ic">🏦</div>
+  <div class="sb-ic" style="margin-top:auto">⚙️</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- TOPNAV -->
+<header class="nav">
+  <div class="nav-title">Hồ sơ Nenkin</div>
+  <div class="nav-search">🔍 <span style="font-size:12px;color:var(--s400)">Tìm kiếm khách hàng, hồ sơ…</span></div>
+  <div class="nav-sp"></div>
+  <div class="bell">🔔<div class="bell-dot"></div></div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <div class="av">SA</div>
+    <div><div style="font-size:12px;font-weight:600;color:var(--s700)">Super Admin</div><div style="font-size:11px;color:var(--s400)">Quản trị viên</div></div>
+  </div>
+</header>
+
+<!-- PAGE -->
+<div class="page">
+
+  <!-- PAGE HEADER -->
+  <div class="ph">
+    <div class="ph-l">
+      <button class="back">←</button>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span class="ptitle">Chi tiết Hồ sơ</span>
+        <span class="pid">ID: 98f2647c-ac1b-4fc2…</span>
+        <span class="badge ba">⏰ Bản nháp</span>
+      </div>
+    </div>
+    <div class="ph-r">
+      <button class="btn bd">🗑 Xóa Hồ sơ</button>
+      <button class="btn bs">🖨 In biểu mẫu</button>
+      <button class="btn bo">Hủy thao tác</button>
+      <button class="btn bp">💾 Lưu Hồ sơ</button>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="sbar">⚠️ Trạng thái hồ sơ: <strong>Cần duyệt</strong> — Xác nhận và đối chiếu thông tin trước khi phê duyệt.</div>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+
+    <!-- ══════════════════════════════
+         PANEL 1 – ẢNH TÀI LIỆU (360px, spans both rows)
+    ══════════════════════════════ -->
+    <div class="card p1">
+      <div class="ch">
+        <span class="ct">Danh mục tài liệu</span>
+      </div>
+      <div style="padding:9px 11px 7px;border-bottom:1px solid var(--s100);flex-shrink:0;background:var(--s50)">
+        <div class="doc-tabs">
+          <button class="dt on"><span class="dt-dot"></span>Thẻ NK (Trước)</button>
+          <button class="dt"><span class="dt-dot"></span>Thẻ NK (Sau)</button>
+          <button class="dt"><span class="dt-dot"></span>Hộ chiếu</button>
+          <button class="dt">Sổ Nenkin</button>
+          <button class="dt"><span class="dt-dot"></span>Dấu xuất cảnh</button>
+          <button class="dt"><span class="dt-dot"></span>NH (Lần 1)</button>
+        </div>
+        <button class="dt-add" style="margin-top:4px">＋ Thêm Ngân hàng</button>
+      </div>
+      <div style="flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:7px;min-height:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+          <span style="font-size:12px;font-weight:700;color:var(--s700)">Thẻ Ngoại Kiều (Trước)</span>
+          <span class="badge be" style="font-size:11px">✓ Đã tải</span>
+        </div>
+        <div class="img-wrap">
+          <div class="idc">
+            <div class="idc-badge">在留カード / RESIDENCE CARD</div>
+            <div class="idc-name">LO THI HIEN</div>
+            <div class="idc-row">
+              <div><div class="idc-f">生年月日 / DOB</div><div class="idc-v">2001年11月06日</div></div>
+              <div><div class="idc-f">性別 / SEX</div><div class="idc-v">女 F</div></div>
+              <div><div class="idc-f">国籍 / NAT.</div><div class="idc-v">ベトナム</div></div>
+            </div>
+            <div style="margin-top:3px"><div class="idc-f">在留資格 / STATUS</div><div class="idc-v">技能実習２号ロ</div></div>
+            <div style="margin-top:3px"><div class="idc-f">住居地 / ADDRESS</div>
+            <div class="idc-addr">大阪府堺市西区浜寺石津町東5丁10番5号</div></div>
+            <div class="idc-row" style="margin-top:5px">
+              <div><div class="idc-f">番号 / Card No.</div><div class="idc-no">SA85156393LA</div></div>
+              <div><div class="idc-f">有効期間 / Valid</div><div class="idc-v">2025.04.24</div></div>
+            </div>
+          </div>
+          <div class="img-bar">
+            <button class="btn bic" title="Trích xuất AI">✨</button>
+            <button class="btn bic" title="Cắt ảnh">✂️</button>
+            <button class="btn bic" title="Thay thế">⬆</button>
+            <button class="btn bic" style="color:var(--rd)" title="Xóa">🗑</button>
+            <button class="btn bic" title="Phóng to">🔍</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP RIGHT: panel2 + panel3 -->
+    <div class="top-right">
+
+      <!-- ══════════════════════════════
+           PANEL 2 – FORM NHẬP LIỆU
+      ══════════════════════════════ -->
+      <div class="card">
+        <div class="ch">
+          <span class="ct">Thông tin chi tiết nhập liệu</span>
+        </div>
+        <div class="cb">
+          <div class="stitle">THÔNG TIN THẺ NGOẠI KIỀU</div>
+          <div class="vbanner vwarn">
+            <span>⊙ Trạng thái duyệt:</span>
+            <strong>CHƯA DUYỆT KHỚP</strong>
+          </div>
+
+          <div class="fr c1">
+            <div class="fg">
+              <label class="fl req">Họ và tên</label>
+              <div class="iw">
+                <input class="fi vf" type="text" value="LO THI HIEN"/>
+                <span class="ir-ic v">✓</span>
+              </div>
+            </div>
+          </div>
+          <div class="fr c2">
+            <div class="fg">
+              <label class="fl req">Ngày sinh</label>
+              <div class="iw">
+                <input class="fi vf" type="date" value="2001-11-06"/>
+                <span class="ir-ic v">✓</span>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Quốc tịch</label>
+              <input class="fi" type="text" value="Vietnam"/>
+            </div>
+          </div>
+          <div class="fr c2">
+            <div class="fg">
+              <label class="fl">Số thẻ ngoại kiều</label>
+              <div class="iw">
+                <input class="fi ir" type="text" value="SA85156393LA"/>
+                <span class="ir-ic">○</span>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">My Number</label>
+              <input class="fi" type="text" placeholder="—"/>
+            </div>
+          </div>
+          <div class="fr c1">
+            <div class="fg">
+              <label class="fl">Địa chỉ trên thẻ (Kanji)</label>
+              <div class="iw">
+                <input class="fi ir" type="text" value="大阪府堺市西区浜寺石津町東5丁10番5号"/>
+                <span class="ir-ic" style="color:var(--pri)">📍</span>
+              </div>
+            </div>
+          </div>
+          <div class="fr c2">
+            <div class="fg">
+              <label class="fl">Mã Bưu Điện</label>
+              <div class="iw">
+                <input class="fi ir" type="text" value="5928335"/>
+                <span class="ir-ic" style="color:var(--pri)">🔍</span>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Điện thoại</label>
+              <input class="fi" type="text" placeholder="—"/>
+            </div>
+          </div>
+
+          <div class="conf-card">
+            <input type="checkbox" id="c1"/>
+            <label for="c1">Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu</label>
+          </div>
+          <div class="warn-note">
+            ⚠️ <span><strong>Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           PANEL 3 – CLIENT + WORKFLOW + TABS
+      ══════════════════════════════ -->
+      <div class="p3 card">
+        <!-- Client strip -->
+        <div class="cli">
+          <div class="cli-av">📷</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="cli-name">LO THI HIEN</span>
+              <span class="cli-code">#KH082</span>
+            </div>
+            <div class="cli-meta">NS: 6/11/2001 &nbsp;|&nbsp; QT: Vietnam</div>
+          </div>
+          <select class="wf-sel" style="width:82px;font-size:11px">
+            <option>Bản nháp</option>
+            <option>Gửi L1</option>
+            <option>Nhận L1</option>
+          </select>
+        </div>
+
+        <!-- Workflow steps -->
+        <div class="wf-panel">
+          <div class="wf-label">Tiến độ — Bước 1/6</div>
+          <div class="wf-steps">
+            <div class="ws"><div class="wd act">●</div><div class="ws-n">Nhập</div></div>
+            <div class="ws"><div class="wd">2</div><div class="ws-n">Nộp L1</div></div>
+            <div class="ws"><div class="wd">3</div><div class="ws-n">Nhận L1</div></div>
+            <div class="ws"><div class="wd">4</div><div class="ws-n">Nộp L2</div></div>
+            <div class="ws"><div class="wd">5</div><div class="ws-n">Nhận L2</div></div>
+            <div class="ws"><div class="wd">6</div><div class="ws-n">Xong</div></div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+          <button class="tb on">📅 Mốc ngày</button>
+          <button class="tb">💰 Tài chính</button>
+        </div>
+
+        <!-- Tab body -->
+        <div class="tab-body">
+          <div class="dg">
+            <div class="df"><div class="dl">Nộp Lần 1</div><input class="di" type="date"/></div>
+            <div class="df"><div class="dl">Nhận Lần 1</div><input class="di" type="date"/></div>
+            <div class="df"><div class="dl">Nộp Lần 2</div><input class="di" type="date"/></div>
+            <div class="df"><div class="dl">Nhận Lần 2</div><input class="di" type="date"/></div>
+          </div>
+          <div class="div-line"></div>
+          <div style="font-size:11px;font-weight:700;color:var(--s500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Tài chính tóm tắt</div>
+          <div class="fin-mini">
+            <div class="fin-card">
+              <div class="fin-l" style="color:var(--s500)">Dự kiến</div>
+              <div class="fin-v">—</div>
+              <div class="fin-u">JPY</div>
+            </div>
+            <div class="fin-card green">
+              <div class="fin-l">Phí DV</div>
+              <div class="fin-v">—</div>
+              <div class="fin-u" style="color:var(--em)">VND</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /top-right -->
+
+    <!-- ══════════════════════════════
+         TAX ROW – FULL WIDTH MERGE (col-span của right area)
+    ══════════════════════════════ -->
+    <div class="tax-row">
+      <div class="tax-card">
+        <div class="tax-head">
+          <div class="tax-head-l">
+            <span style="font-size:12px;font-weight:800;color:var(--s700)">🏛 Cục Thuế quản lý</span>
+            <span class="badge bi" style="font-size:11px">堺税務署</span>
+            <select class="tax-sel">
+              <option>-- Đổi Cục thuế --</option>
+              <option selected>堺税務署</option>
+              <option>大阪国税局</option>
+              <option>東京国税局</option>
+            </select>
+          </div>
+          <div class="tax-head-r">
+            <button class="btn bxs bs">🔍 Tra cứu ZIP</button>
+            <button class="btn bxs bs">🔍 NTA</button>
+            <button class="btn bxs bs">📋 Chi tiết</button>
+            <button class="btn bxs bp">✏️ Sửa</button>
+            <button class="btn bxs bo">⚡ Đối chiếu</button>
+          </div>
+        </div>
+
+        <!-- Tax body: 3-column layout -->
+        <div class="tax-body">
+          <div class="tax-cols">
+
+            <!-- Col 1: Thông tin Cục thuế -->
+            <div>
+              <div class="tax-sec-title">Thực tế (NTA)</div>
+              <div class="tax-field"><div class="tax-fl">Tên Cục thuế</div><div class="tax-fv">堺税務署</div></div>
+              <div class="tax-field"><div class="tax-fl">Mã bưu điện</div><div class="tax-fv">590-8550</div></div>
+              <div class="tax-field"><div class="tax-fl">Địa chỉ Kanji</div><div class="tax-fv">堺市南区若松台2丁29号</div></div>
+              <div class="tax-field"><div class="tax-fl">Điện thoại</div><div class="tax-fv">072-238-5551</div></div>
+            </div>
+
+            <!-- Col 2: Dữ liệu DB + diff -->
+            <div>
+              <div class="tax-sec-title">Đối chiếu (DB)</div>
+              <div class="diff-row">
+                <div><div class="diff-src">Tên Cục thuế</div><div class="diff-val">堺税務署</div></div>
+                <div><div class="diff-src">DB</div><div class="diff-val">堺税務署</div></div>
+              </div>
+              <div class="diff-row">
+                <div><div class="diff-src">Mã bưu điện</div><div class="diff-val">590-8550</div></div>
+                <div><div class="diff-src">DB</div><div class="diff-val tax-fv mis">548-8543</div></div>
+              </div>
+              <div class="diff-row">
+                <div><div class="diff-src">Địa chỉ</div><div class="diff-val" style="font-size:12px">堺市南区若松台2丁29号</div></div>
+                <div><div class="diff-src">DB</div><div class="diff-val" style="font-size:12px">堺市南区若松台2丁29号</div></div>
+              </div>
+            </div>
+
+            <!-- Col 3: Địa chỉ gửi hồ sơ -->
+            <div>
+              <div class="tax-sec-title">📮 Địa chỉ gửi hồ sơ – Tem phiếu</div>
+              <div class="mail-card">
+                <div class="mail-title">Địa chỉ nhận hồ sơ</div>
+                <div class="mail-addr">〒548-8543<br/>大阪市中央区大手前1丁目5番44号<br/>大阪合同庁舎第1号館</div>
+                <span class="mail-link">大阪国税局大手前業務センター 御中</span>
+                <button class="btn bxs bs" style="margin-top:6px">📋 Copy địa chỉ</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div><!-- /tax-row -->
+
+  </div><!-- /workspace -->
+</div><!-- /page -->
+</div><!-- /main -->
+</div><!-- /app -->
+</body>
+</html>
