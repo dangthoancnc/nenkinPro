@@ -1023,21 +1023,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px]">{taxPanelNode}</div>}
       </div>
 
-      {/* ── DESKTOP WORKSPACE: flex row 35% | 40% | 25% (lg:) ── */}
-      <div className="hidden lg:flex flex-row flex-1 gap-2.5 min-h-0 overflow-hidden">
-        {/* Panel 1 — 35% */}
-        <div className="w-[35%] shrink-0 min-h-0">
-          {panel1Node}
+      {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
+      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
+        <div className="col-start-1 row-span-2 min-h-0 h-full">{panel1Node}</div>
+        <div className="col-start-2 row-start-1 grid grid-cols-8 gap-2.5 min-h-0 overflow-hidden">
+          <div className="col-span-5 min-h-0 h-full">{panel2Node}</div>
+          <div className="col-span-3 min-h-0 h-full">{panel3Node}</div>
         </div>
-        {/* Panel 2+Tax — 40% */}
-        <div className="w-[40%] shrink-0 flex flex-col gap-2.5 min-h-0 overflow-hidden">
-          <div className="flex-1 min-h-0">{panel2Node}</div>
-          <div className="shrink-0">{taxPanelNode}</div>
-        </div>
-        {/* Panel 3 — 25% */}
-        <div className="flex-1 min-h-0">
-          {panel3Node}
-        </div>
+        <div className="col-start-2 row-start-2 min-h-0">{taxPanelNode}</div>
       </div>
 
       {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
