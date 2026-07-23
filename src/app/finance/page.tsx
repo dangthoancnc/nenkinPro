@@ -143,30 +143,30 @@ export default function FinancePage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Tài chính & Hoa hồng</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">Quản lý tỷ giá tiền tệ và kiểm soát tài chính các hồ sơ Nenkin.</p>
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Tài chính & Hoa hồng</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Quản lý tỷ giá tiền tệ và kiểm soát tài chính các hồ sơ Nenkin.</p>
       </div>
 
       {/* KPI Ribbons */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm p-3 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Phí Dự kiến (JPY)</span>
-          <span className="text-lg sm:text-xl font-bold text-indigo-700 mt-1">¥{totalExpectedServiceFeeJpy.toLocaleString()}</span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+        <div className="bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-xs p-2.5 sm:p-3 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase">Phí Dự kiến (JPY)</span>
+          <span className="text-sm sm:text-lg font-bold font-mono text-indigo-700 mt-0.5">¥{totalExpectedServiceFeeJpy.toLocaleString()}</span>
         </div>
-        <div className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm p-3 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Phí Dự kiến (VND)</span>
-          <span className="text-lg sm:text-xl font-bold text-blue-700 mt-1">{totalExpectedServiceFeeVnd.toLocaleString()} đ</span>
+        <div className="bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-xs p-2.5 sm:p-3 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase">Phí Dự kiến (VND)</span>
+          <span className="text-sm sm:text-lg font-bold font-mono text-blue-700 mt-0.5">{totalExpectedServiceFeeVnd.toLocaleString()} đ</span>
         </div>
-        <div className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm p-3 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Thực thu (VND)</span>
-          <span className="text-lg sm:text-xl font-bold text-emerald-700 mt-1">{totalCompletedServiceFeeVnd.toLocaleString()} đ</span>
+        <div className="bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-xs p-2.5 sm:p-3 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase">Thực thu (VND)</span>
+          <span className="text-sm sm:text-lg font-bold font-mono text-emerald-700 mt-0.5">{totalCompletedServiceFeeVnd.toLocaleString()} đ</span>
         </div>
-        <div className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm p-3 rounded-2xl flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Hoa hồng CTV (JPY)</span>
-          <span className="text-lg sm:text-xl font-bold text-rose-600 mt-1">¥{totalReferralBonusJpy.toLocaleString()}</span>
+        <div className="bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-xs p-2.5 sm:p-3 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase">Hoa hồng CTV (JPY)</span>
+          <span className="text-sm sm:text-lg font-bold font-mono text-rose-600 mt-0.5">¥{totalReferralBonusJpy.toLocaleString()}</span>
         </div>
       </div>
 
@@ -286,73 +286,75 @@ export default function FinancePage() {
                 </select>
               </div>
             </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-y-auto min-h-[300px]">
+            <CardContent className="p-0 flex-1 overflow-x-auto min-h-[300px]">
               {loading ? (
-                <div className="flex h-full items-center justify-center text-xs text-slate-400">Đang tải...</div>
+                <div className="flex h-full items-center justify-center text-xs text-slate-400 py-6">Đang tải...</div>
               ) : filteredApps.length > 0 ? (
-                <Table className="border-collapse">
-                  <TableHeader className="bg-slate-50/80 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8">Khách hàng</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center">Trạng thái</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Tổng nhận (JPY)</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Phí dịch vụ (JPY)</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center">Tỷ giá</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Phí dịch vụ (VND)</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Hoa hồng (JPY)</TableHead>
-                      <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredApps.map((app) => (
-                      <TableRow key={app.id} className="hover:bg-slate-50/50">
-                        <TableCell className="py-1.5 px-2">
-                          <div className="font-semibold text-xs text-slate-800">{app.customer?.fullName || 'N/A'}</div>
-                          <div className="text-[10px] text-slate-500 uppercase">{app.customer?.code || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell className="py-1.5 text-center">
-                          <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                            app.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border border-green-200' :
-                            app.status === 'PENDING' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                            app.status === 'DRAFT' ? 'bg-slate-100 text-slate-600' :
-                            'bg-blue-50 text-blue-700 border border-blue-100'
-                          }`}>
-                            {app.status === 'COMPLETED' ? 'H.Thành' :
-                             app.status === 'PENDING' ? 'C.Duyệt' :
-                             app.status === 'DRAFT' ? 'Nháp' :
-                             app.status === 'SENT_1ST' ? 'Nộp L1' :
-                             app.status === 'RECEIVED_1ST' ? 'Nhận L1' :
-                             app.status === 'SENT_2ND' ? 'Nộp L2' :
-                             app.status === 'RECEIVED_2ND' ? 'Nhận L2' :
-                             app.status === 'CANCELLED' ? 'Đã hủy' : app.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-1.5 text-right font-medium text-xs">
-                          ¥{((Number(app.received1stJpy) || 0) + (Number(app.received2ndJpy) || 0)).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="py-1.5 text-right text-xs">
-                          {app.serviceFeeJpy ? `¥${Number(app.serviceFeeJpy).toLocaleString()}` : '---'}
-                        </TableCell>
-                        <TableCell className="py-1.5 text-center text-xs text-slate-500 font-mono">
-                          {app.exchangeRate ? Number(app.exchangeRate).toFixed(1) : '---'}
-                        </TableCell>
-                        <TableCell className="py-1.5 text-right font-semibold text-xs text-indigo-900">
-                          {app.serviceFeeVnd ? `${Number(app.serviceFeeVnd).toLocaleString()} đ` : '---'}
-                        </TableCell>
-                        <TableCell className="py-1.5 text-right text-xs text-rose-600">
-                          {app.referralBonusJpy ? `¥${Number(app.referralBonusJpy).toLocaleString()}` : '---'}
-                        </TableCell>
-                        <TableCell className="py-1.5 text-center">
-                          <Link href={`/applications/${app.id}`} className="inline-flex items-center justify-center p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-indigo-600 transition-colors">
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Link>
-                        </TableCell>
+                <div className="w-full overflow-x-auto">
+                  <Table className="border-collapse min-w-[640px]">
+                    <TableHeader className="bg-slate-50/80 sticky top-0 z-10">
+                      <TableRow>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8">Khách hàng</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center">Trạng thái</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Tổng nhận (JPY)</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Phí dịch vụ (JPY)</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center">Tỷ giá</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Phí dịch vụ (VND)</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-right">Hoa hồng (JPY)</TableHead>
+                        <TableHead className="text-[10px] uppercase font-bold py-1.5 text-slate-600 h-8 text-center"></TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredApps.map((app) => (
+                        <TableRow key={app.id} className="hover:bg-slate-50/50">
+                          <TableCell className="py-1.5 px-2">
+                            <div className="font-semibold text-xs text-slate-800">{app.customer?.fullName || 'N/A'}</div>
+                            <div className="text-[10px] text-slate-500 uppercase">{app.customer?.code || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell className="py-1.5 text-center">
+                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                              app.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border border-green-200' :
+                              app.status === 'PENDING' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
+                              app.status === 'DRAFT' ? 'bg-slate-100 text-slate-600' :
+                              'bg-blue-50 text-blue-700 border border-blue-100'
+                            }`}>
+                              {app.status === 'COMPLETED' ? 'H.Thành' :
+                               app.status === 'PENDING' ? 'C.Duyệt' :
+                               app.status === 'DRAFT' ? 'Nháp' :
+                               app.status === 'SENT_1ST' ? 'Nộp L1' :
+                               app.status === 'RECEIVED_1ST' ? 'Nhận L1' :
+                               app.status === 'SENT_2ND' ? 'Nộp L2' :
+                               app.status === 'RECEIVED_2ND' ? 'Nhận L2' :
+                               app.status === 'CANCELLED' ? 'Đã hủy' : app.status}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right font-medium text-xs font-mono">
+                            ¥{((Number(app.received1stJpy) || 0) + (Number(app.received2ndJpy) || 0)).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right text-xs font-mono">
+                            {app.serviceFeeJpy ? `¥${Number(app.serviceFeeJpy).toLocaleString()}` : '---'}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-center text-xs text-slate-500 font-mono">
+                            {app.exchangeRate ? Number(app.exchangeRate).toFixed(1) : '---'}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right font-semibold text-xs text-indigo-900 font-mono">
+                            {app.serviceFeeVnd ? `${Number(app.serviceFeeVnd).toLocaleString()} đ` : '---'}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right text-xs text-rose-600 font-mono">
+                            {app.referralBonusJpy ? `¥${Number(app.referralBonusJpy).toLocaleString()}` : '---'}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-center">
+                            <Link href={`/applications/${app.id}`} className="inline-flex items-center justify-center p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-indigo-600 transition-colors">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-400 flex-col gap-2">
+                <div className="flex h-full items-center justify-center text-xs text-slate-400 flex-col gap-2 py-8">
                   <FileText className="w-8 h-8 text-slate-300" />
                   Không tìm thấy hồ sơ nào phù hợp
                 </div>

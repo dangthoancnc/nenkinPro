@@ -53,14 +53,14 @@ function HRPageInner() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Quản lý Nhân sự</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Quản lý danh sách nhân viên và cộng tác viên.</p>
+          <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Quản lý Nhân sự</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quản lý danh sách nhân viên và cộng tác viên.</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => setShowAddForm(!showAddForm)} className="gap-1.5 h-8 text-xs font-bold shrink-0" size="sm">
+          <Plus className="w-3.5 h-3.5" />
           {showAddForm ? 'Hủy thêm mới' : 'Thêm Nhân sự'}
         </Button>
       </div>
@@ -168,47 +168,36 @@ function HRPageInner() {
           </Table>
         </div>
 
-        <div className="md:hidden flex flex-col gap-4 p-4">
+        <div className="md:hidden flex flex-col gap-2.5 p-2.5">
           {loading ? (
-            <div className="text-center py-8 text-slate-500">Đang tải dữ liệu...</div>
+            <div className="text-center py-4 text-xs text-slate-500">Đang tải dữ liệu...</div>
           ) : filteredStaffs.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">Không tìm thấy dữ liệu</div>
+            <div className="text-center py-4 text-xs text-slate-500">Không tìm thấy dữ liệu</div>
           ) : (
             filteredStaffs.map((staff, index) => (
-              <div key={index} className="border border-white/50 rounded-2xl p-4 space-y-3 bg-white/40 backdrop-blur-md shadow-sm relative">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="text-xs text-slate-500 mb-0.5">{staff.id}</div>
-                    <div className="font-semibold text-slate-900">{staff.name}</div>
+              <div key={index} className="border border-slate-200/80 rounded-xl p-3 space-y-2 bg-white/90 shadow-xs">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0">
+                      {staff.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-900 truncate">{staff.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate">{staff.id} • {staff.email}</div>
+                    </div>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    staff.status === 'Hoạt động' ? 'bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300' :
-                    staff.status === 'Nghỉ phép' ? 'bg-amber-50/80 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300' :
-                    'bg-slate-100/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300'
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                    staff.status === 'Hoạt động' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                    staff.status === 'Nghỉ phép' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                    'bg-slate-100 text-slate-600'
                   }`}>
                     {staff.status}
                   </span>
                 </div>
                 
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Vai trò:</span>
-                  <span className="font-medium text-slate-900">{staff.role}</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Phòng ban:</span>
-                  <span className="text-slate-900">{staff.department}</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Email:</span>
-                  <span className="text-slate-900">{staff.email}</span>
-                </div>
-                
-                <div className="absolute top-2 right-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700 mt-8 rounded-xl">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                <div className="flex justify-between text-xs pt-1 border-t border-slate-100 text-slate-600">
+                  <span>Vai trò: <strong className="text-slate-800">{staff.role}</strong></span>
+                  <span>Phòng: <strong className="text-slate-800">{staff.department}</strong></span>
                 </div>
               </div>
             ))

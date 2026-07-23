@@ -85,35 +85,35 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Tổng quan (Dashboard)</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Theo dõi các chỉ số quan trọng và tiến độ hồ sơ Nenkin.</p>
+        <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Tổng quan (Dashboard)</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Theo dõi các chỉ số quan trọng và tiến độ hồ sơ Nenkin.</p>
       </div>
 
       {loading ? (
         <div className="text-center py-10">Đang tải...</div>
       ) : (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* KPI Cards — Mini-Ribbons on Mobile */}
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             {kpis.map((kpi, index) => {
               const Icon = iconMap[kpi.iconName] || Users;
               return (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{kpi.title}</p>
-                        <h3 className="text-2xl font-bold">{kpi.value}</h3>
+                <Card key={index} className="hover:shadow-md transition-shadow bg-white/85 backdrop-blur-md border border-slate-200/70">
+                  <CardContent className="p-3 sm:p-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">{kpi.title}</p>
+                        <h3 className="text-base sm:text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5 truncate">{kpi.value}</h3>
                       </div>
-                      <div className={"w-12 h-12 rounded-lg flex items-center justify-center " + kpi.bg}>
-                        <Icon className={"w-6 h-6 " + kpi.color} />
+                      <div className={"w-8 h-8 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center shrink-0 " + kpi.bg}>
+                        <Icon className={"w-4 h-4 sm:w-5 sm:h-5 " + kpi.color} />
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-emerald-500 font-medium">{kpi.trend}</span>
-                      <span className="text-slate-400 dark:text-slate-500 ml-2">so với tháng trước</span>
+                    <div className="mt-2 flex items-center text-[10px] sm:text-xs truncate">
+                      <span className="text-emerald-600 font-bold">{kpi.trend}</span>
+                      <span className="text-slate-400 dark:text-slate-500 ml-1 truncate">so với tháng trước</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -176,28 +176,25 @@ export default function Home() {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="md:hidden flex flex-col gap-4 p-4">
+                <div className="md:hidden flex flex-col gap-2 p-2.5">
                   {recentApplications.length === 0 ? (
-                    <div className="text-center py-4 text-slate-500">Không có dữ liệu</div>
+                    <div className="text-center py-4 text-xs text-slate-500">Không có dữ liệu</div>
                   ) : (
                     recentApplications.map((app, index) => (
-                      <div key={index} className="border rounded-lg p-4 space-y-3 bg-card shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium text-sm text-slate-500">{app.id}</div>
-                            <div className="font-semibold">{app.name}</div>
+                      <div key={index} className="border border-slate-200/80 rounded-xl p-3 space-y-2 bg-white/90 shadow-xs cursor-pointer hover:border-indigo-300 transition-colors"
+                        onClick={() => window.location.href = `/applications/${app.id}`}>
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0">
+                            <div className="font-mono text-[10px] text-slate-400 truncate">{app.id}</div>
+                            <div className="font-bold text-xs text-slate-800 truncate">{app.name}</div>
                           </div>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                            {app.status}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                            {statusMap[app.status] || app.status}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Ngày nộp:</span>
-                          <span>{app.date}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Dự kiến nhận:</span>
-                          <span className="font-medium">{app.amount}</span>
+                        <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                          <span className="text-slate-400 text-[11px]">Ngày nộp: {app.date}</span>
+                          <span className="font-bold font-mono text-slate-800">{app.amount}</span>
                         </div>
                       </div>
                     ))
@@ -244,19 +241,19 @@ export default function Home() {
           </div>
 
           {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Biểu đồ Tỷ giá JPY/VND</CardTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
+            <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
+              <CardHeader className="p-3 sm:p-4 pb-1">
+                <CardTitle className="text-xs sm:text-sm font-bold">Biểu đồ Tỷ giá JPY/VND</CardTitle>
               </CardHeader>
-              <CardContent className="h-48">
+              <CardContent className="h-44 sm:h-56 p-2 sm:p-4">
                 {isMounted && (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={exchangeRateData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                      <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                      <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
-                      <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                    <LineChart data={exchangeRateData} margin={{ top: 5, right: 15, bottom: 5, left: -20 }}>
+                      <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10 }} tickMargin={5} stroke="#94a3b8" />
+                      <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 10 }} stroke="#94a3b8" />
                       <RechartsTooltip />
                     </LineChart>
                   </ResponsiveContainer>
@@ -264,17 +261,17 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Doanh thu ước tính (Triệu VNĐ)</CardTitle>
+            <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
+              <CardHeader className="p-3 sm:p-4 pb-1">
+                <CardTitle className="text-xs sm:text-sm font-bold">Doanh thu ước tính (Triệu VNĐ)</CardTitle>
               </CardHeader>
-              <CardContent className="h-48">
+              <CardContent className="h-44 sm:h-56 p-2 sm:p-4">
                 {isMounted && (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenueData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                      <CartesianGrid stroke="#ccc" strokeDasharray="5 5" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} tickMargin={10} stroke="#94a3b8" />
-                      <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                    <BarChart data={revenueData} margin={{ top: 5, right: 15, bottom: 5, left: -20 }}>
+                      <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 10 }} tickMargin={5} stroke="#94a3b8" />
+                      <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
                       <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
                       <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
                     </BarChart>
