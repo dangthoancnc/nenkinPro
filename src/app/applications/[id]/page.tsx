@@ -991,11 +991,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE SEGMENTED CONTROL TAB BAR (< lg) ── */}
-      <div className="flex lg:hidden bg-white/80 backdrop-blur-md p-1 rounded-xl gap-1 border border-slate-200/70 shrink-0 sticky top-0 z-30 shadow-sm">
+      <div className="grid grid-cols-4 gap-1 w-full lg:hidden bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shrink-0 sticky top-0 z-30 shadow-xs">
         {(
           [
             { id: 'doc',      label: '🖼️ Ảnh' },
-            { id: 'form',     label: '📝 Nhập liệu' },
+            { id: 'form',     label: '📝 Nhập' },
             { id: 'progress', label: '👤 Tiến độ' },
             { id: 'tax',      label: '🏛️ Cục Thuế' },
           ] as const
@@ -1004,10 +1004,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             key={tab.id}
             type="button"
             onClick={() => setMobileTab(tab.id)}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center truncate ${
+            className={`w-full py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate ${
               mobileTab === tab.id
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
             {tab.label}
@@ -1016,11 +1016,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
-      <div className="flex-1 flex flex-col min-h-0 lg:hidden">
-        {mobileTab === 'doc'      && <div className="h-[480px] shrink-0">{panel1Node}</div>}
-        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px]">{panel2Node}</div>}
-        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px]">{panel3Node}</div>}
-        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px]">{taxPanelNode}</div>}
+      <div className="flex-1 flex flex-col min-h-0 w-full overflow-x-hidden lg:hidden pb-24">
+        {mobileTab === 'doc'      && <div className="h-[calc(100vh-220px)] min-h-[400px] w-full">{panel1Node}</div>}
+        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px] w-full">{panel2Node}</div>}
+        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px] w-full">{panel3Node}</div>}
+        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px] w-full">{taxPanelNode}</div>}
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
@@ -1034,14 +1034,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
-      <div className="flex lg:hidden fixed bottom-0 left-0 right-0 px-3 py-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg justify-between items-center z-40">
+      <div className="flex lg:hidden fixed bottom-14 left-0 right-0 px-3 py-2 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-md justify-between items-center z-40">
         {!isEditing ? (
           <>
-            <div className="flex items-center gap-2">
-              {!isNew && <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting}>Xóa</Button>}
-              {!isNew && <Button type="button" variant="secondary" size="sm" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3.5 h-3.5" />}>In</Button>}
+            <div className="flex items-center gap-1.5">
+              {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting}>Xóa</Button>}
+              {!isNew && <Button type="button" variant="secondary" size="xs" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
             </div>
-            <Button type="button" size="sm" className="px-5 font-bold" onClick={() => setIsEditing(true)}>✏️ Sửa Hồ sơ</Button>
+            <Button type="button" size="sm" className="px-4 font-bold text-xs" onClick={() => setIsEditing(true)}>✏️ Sửa Hồ sơ</Button>
           </>
         ) : (
           <>
