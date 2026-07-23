@@ -70,6 +70,17 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Mobile viewport overflow guard */
+  @media (max-width: 1023px) {
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+    }
+    img {
+      max-width: 100% !important;
+    }
+  }
 }
 
 /* Glassmorphism utilities */

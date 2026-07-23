@@ -414,8 +414,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const StatusIcon = statusCfg.icon;
 
   // ── SHARED PANEL STYLES (glassmorphism) ──
-  const glassPanel = 'flex flex-col bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-lg shadow-black/5 rounded-xl overflow-hidden';
-  const glassPanelHeader = 'px-3 pt-2.5 pb-2 border-b border-slate-100/80 shrink-0 bg-white/60';
+  const glassPanel = 'flex flex-col bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-lg shadow-black/5 rounded-xl overflow-hidden max-w-full';
+  const glassPanelHeader = 'px-3 pt-2.5 pb-2 border-b border-slate-100/80 shrink-0 bg-white/60 max-w-full overflow-hidden';
 
   // ─────────────────────────────────────────────
   // PANEL 1 — Tài liệu & Ảnh
@@ -452,7 +452,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Image viewer */}
-      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/40">
+      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/40 max-w-full overflow-hidden">
         <div className="flex items-center justify-between mb-1.5 shrink-0">
           <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
           {currentDocUrl ? (
@@ -947,7 +947,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0 max-w-full overflow-x-hidden">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 pt-1 pb-0.5">
@@ -1016,11 +1016,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
-      <div className="flex-1 flex flex-col min-h-0 w-full overflow-x-hidden lg:hidden pb-24">
-        {mobileTab === 'doc'      && <div className="h-[calc(100vh-220px)] min-h-[400px] w-full">{panel1Node}</div>}
-        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px] w-full">{panel2Node}</div>}
-        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px] w-full">{panel3Node}</div>}
-        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px] w-full">{taxPanelNode}</div>}
+      <div className="flex-1 flex flex-col min-h-0 w-full max-w-full overflow-x-hidden lg:hidden pb-24">
+        {mobileTab === 'doc'      && <div className="h-[calc(100vh-220px)] min-h-[400px] w-full max-w-full overflow-hidden">{panel1Node}</div>}
+        {mobileTab === 'form'     && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{panel2Node}</div>}
+        {mobileTab === 'progress' && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{panel3Node}</div>}
+        {mobileTab === 'tax'      && <div className="flex-1 min-h-[400px] w-full max-w-full overflow-x-hidden">{taxPanelNode}</div>}
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
