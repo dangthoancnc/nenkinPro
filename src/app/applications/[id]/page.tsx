@@ -69,6 +69,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
   const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
+  const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('doc');
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -412,32 +413,553 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const statusCfg  = statusConfig[appStatus] ?? statusConfig['DRAFT'];
   const StatusIcon = statusCfg.icon;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER – Phase 3: Glassmorphism 3-Panel Layout (35% | 40% | 25%)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── PANEL NODES FOR DESKTOP AND MOBILE ──
+
+  // Panel 1: Document Selector & Image Viewer
+  const panel1Node = (
+    <div className="flex flex-col min-h-0 h-full bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+      {/* Tabs danh mục */}
+      <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 shrink-0 bg-slate-50">
+        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
+          {dynamicDocuments.map(doc => {
+            const isActive = activeDoc === doc.key;
+            const hasUrl   = !!watch(doc.urlField as any);
+            return (
+              <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
+                className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}>
+                {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
+                <span className="truncate">{doc.title}</span>
+              </button>
+            );
+          })}
+          {isEditing && (
+            <button type="button"
+              onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
+              className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
+              ＋ Thêm Ngân hàng
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Image viewer */}
+      <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/50">
+        <div className="flex items-center justify-between mb-1.5 shrink-0">
+          <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
+          {currentDocUrl ? (
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ Đã tải</span>
+          ) : (
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">○ Chưa có</span>
+          )}
+        </div>
+        <div className="flex-1 rounded-lg overflow-hidden bg-slate-900/5 border border-slate-200 flex items-center justify-center relative min-h-0 min-h-[300px] lg:min-h-0">
+          {currentDocUrl ? (
+            <div className="relative w-full h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={currentDocUrl} alt={currentDocTitle} className="w-full h-full object-contain" />
+              {/* Floating Toolbar – top right */}
+              <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs border border-slate-200 rounded-lg p-1 shadow-sm z-20">
+                {isEditing && (
+                  <>
+                    <button type="button" title="Trích xuất AI"
+                      onClick={async () => {
+                        if (!currentDocUrl) return;
+                        if (ocrStatus[activeDoc] === 'done') {
+                          toast('Đã trích xuất trước đó', {
+                            description: 'Chạy lại?',
+                            action: { label: 'Chạy lại', onClick: () => runOcrExtract(currentDocUrl) },
+                            cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
+                          }); return;
+                        }
+                        runOcrExtract(currentDocUrl);
+                      }}
+                      className="w-7 h-7 flex items-center justify-center text-indigo-600 hover:bg-slate-100 rounded transition-all">
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                    <button type="button" title="Cắt ảnh"
+                      onClick={() => { if (currentDocUrl) { setCropDocKey(activeDoc); setCropUrlField(currentDocField); setCropImageSrc(currentDocUrl); } }}
+                      className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                      <Crop className="w-4 h-4" />
+                    </button>
+                    <label className="cursor-pointer" title="Thay thế ảnh">
+                      <span className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                        <UploadCloud className="w-4 h-4" />
+                      </span>
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
+                    </label>
+                    <button type="button" title="Xóa ảnh"
+                      className="w-7 h-7 flex items-center justify-center text-red-600 hover:bg-red-50 rounded transition-all"
+                      onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
+                        action: { label: 'Xóa', onClick: async () => {
+                          const prev = getValues(currentDocField as any);
+                          if (prev) fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prev }) }).catch(console.error);
+                          setValue(currentDocField as any, '');
+                          if (!isNew && customerId) await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [currentDocField]: '' }) });
+                          toast.success('Đã xóa ảnh tài liệu');
+                        }},
+                        cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
+                      })}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                <button type="button" title="Phóng to"
+                  onClick={() => setLightboxUrl(currentDocUrl || null)}
+                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : isEditing ? (
+            <label
+              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/30 transition-all text-slate-400 hover:text-indigo-600 bg-white border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-lg p-6"
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField); }}
+            >
+              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                <UploadCloud className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div className="text-center">
+                <span className="text-xs font-bold text-slate-600 block">Nhấp hoặc kéo thả ảnh</span>
+                <span className="text-[10px] text-slate-400">PNG, JPG, JPEG</span>
+              </div>
+              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
+            </label>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white rounded-lg p-6">
+              <UploadCloud className="w-6 h-6" />
+              <span className="text-xs font-semibold text-slate-400 text-center">Chưa có ảnh<br/><span className="text-[10px] font-normal">Bật "Sửa hồ sơ" để tải lên</span></span>
+            </div>
+          )}
+          {/* OCR Overlay */}
+          {ocrStatus[activeDoc] === 'processing' && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center z-30 rounded-lg">
+              <span className="text-xs text-indigo-600 font-bold flex items-center gap-1.5 bg-white border border-indigo-100 px-3 py-1.5 rounded-full shadow-sm">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang quét OCR...
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Panel 2: Form nhập liệu
+  const panel2Node = (
+    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0 h-full">
+      <div className="px-3.5 py-2 border-b border-slate-100 shrink-0 bg-slate-50">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 min-h-0">
+        {(() => {
+          switch (activeDoc) {
+            case 'zairyuFront':
+            case 'zairyuBack': {
+              const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
+              const allVerified = zFields.every(f => verifiedFields[f]);
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
+                  <div className={`px-2.5 py-1.5 rounded border flex items-center justify-between text-[11px] font-bold ${
+                    allVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}>
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle className={`w-3.5 h-3.5 ${allVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
+                      Trạng thái duyệt:
+                    </span>
+                    <span>{allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
+                  </div>
+                  <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
+                    <Input {...register('fullName')} disabled={!isEditing} size="md"
+                      verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
+                      state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
+                  </FormField>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                      <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                        state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                    </FormField>
+                    <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Số thẻ ngoại kiều">
+                      <Input {...register('cardNumber')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
+                        state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
+                    </FormField>
+                    <FormField label="My Number"><Input {...register('myNumber')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                  <FormField label="Địa chỉ trên thẻ (Kanji)">
+                    <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
+                      verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
+                      state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
+                      rightIcon={watch('zairyuAddress') ? (
+                        <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress')||'')}`, '_blank')} className="text-indigo-600 hover:text-indigo-800">
+                          <MapPin className="w-3.5 h-3.5" />
+                        </button>
+                      ) : undefined} />
+                  </FormField>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Mã Bưu Điện">
+                      <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
+                        verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
+                        state={verifiedFields['postalCode'] ? 'verified' : 'default'}
+                        rightIcon={
+                          <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
+                            <Search className="w-3.5 h-3.5" />
+                          </button>
+                        } />
+                    </FormField>
+                    <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                </div>
+              );
+            }
+
+            case 'passport':
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN HỘ CHIẾU</div>
+                  <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
+                    <Input {...register('fullName')} disabled={!isEditing} size="md"
+                      verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
+                      state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
+                  </FormField>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
+                      <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
+                        state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
+                    </FormField>
+                    <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Giới tính">
+                      <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                        <option value="">Chọn...</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                      </select>
+                    </FormField>
+                    <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                </div>
+              );
+
+            case 'nenkinBook':
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN SỔ NENKIN</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                </div>
+              );
+
+            case 'departureStamp':
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
+                  <FormField label="Ngày xuất cảnh Nhật Bản">
+                    <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
+                  </FormField>
+                </div>
+              );
+
+            default: {
+              if (!activeDoc.startsWith('bankPassbook_')) return null;
+              const idx = parseInt(activeDoc.split('_')[1], 10);
+              if (isNaN(idx) || !bankFields[idx]) return null;
+              const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
+                : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Quốc gia">
+                      <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                        <option value="JAPAN">Nhật Bản</option>
+                        <option value="VIETNAM">Việt Nam</option>
+                      </select>
+                    </FormField>
+                    <FormField label="Mục đích">
+                      <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
+                        <option value="BOTH">Chung cả 2 lần</option>
+                        <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
+                        <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
+                      </select>
+                    </FormField>
+                  </div>
+                  <FormField label="Tên ngân hàng">
+                    <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
+                  </FormField>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
+                  </div>
+                  <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
+                  <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                  {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
+                    <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                  </div>
+                  {isEditing && bankFields.length > 1 && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
+                        onClick={() => toast('Xóa tài khoản ngân hàng này?', {
+                          action: { label: 'Xóa', onClick: () => { removeBank(idx); setActiveDoc('zairyuFront'); toast.success('Đã xóa tài khoản'); } },
+                          cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
+                        })}>Xóa tài khoản này</Button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+          }
+        })()}
+
+        {/* Verify confirm */}
+        {!isNew && (() => {
+          const required = ['fullName','dob','cardNumber','zairyuAddress','postalCode','taxOffice_name','taxOffice_postalCode','taxOffice_address','taxOffice_romajiAddress','taxOffice_phone','taxOffice_websiteUrl'];
+          const allVerified = required.every(f => verifiedFields[f]);
+          return (
+            <div className="mt-4 space-y-2">
+              <div className={`p-2.5 border rounded-md flex items-start gap-2 transition-all ${
+                allVerified ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-70'
+              }`}>
+                <input type="checkbox" id="manual-confirm"
+                  disabled={!isEditing || !allVerified}
+                  checked={manualConfirmed && allVerified}
+                  onChange={e => setManualConfirmed(e.target.checked)}
+                  className={`rounded w-4 h-4 mt-0.5 ${allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`} />
+                <label htmlFor="manual-confirm"
+                  className={`text-xs font-semibold leading-snug select-none ${
+                    allVerified ? 'text-indigo-950 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
+                  }`}>
+                  Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+                </label>
+              </div>
+              {!allVerified && isEditing && (
+                <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded flex items-start gap-1.5 leading-snug">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+
+  // Panel 3: Client + Workflow + Tabs
+  const panel3Node = (
+    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0 h-full">
+      {/* Client identity strip */}
+      <div className="p-2.5 border-b border-slate-100 bg-white flex items-center gap-2.5 shrink-0">
+        <div className="w-12 h-9 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
+          {watch('zairyuFrontUrl') ? (
+            <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
+              <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                <ZoomIn className="w-3 h-3" />
+              </button></>
+          ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
+            <span className="font-mono text-[9px] text-slate-500 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+          </div>
+          <div className="text-[10px] text-slate-500 mt-0.5">
+            NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'} &nbsp;|&nbsp; QT: {watch('nationality') || '---'}
+          </div>
+        </div>
+      </div>
+
+      {/* Workflow progress bar */}
+      <div className="p-2.5 border-b border-slate-100 bg-white shrink-0">
+        <WorkflowPanel
+          status={(watch('status') || 'DRAFT') as WorkflowStatus}
+          isEditing={isEditing}
+          onChange={val => setValue('status', val as any, { shouldDirty: true })}
+          dates={{
+            sent1st:     watch('sent1stDate')     as string | undefined,
+            received1st: watch('received1stDate') as string | undefined,
+            sent2nd:     watch('sent2ndDate')     as string | undefined,
+            received2nd: watch('received2ndDate') as string | undefined,
+          }}
+        />
+      </div>
+
+      {/* Tabs: Mốc ngày / Tài chính */}
+      <div className="px-3 pt-1.5 border-b border-slate-100 bg-white flex gap-1 shrink-0">
+        {(['dates', 'finance'] as const).map(tab => (
+          <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
+            className={`px-2.5 py-1.5 text-[11px] font-bold border-b-2 -mb-px transition-all ${
+              panel3aTab === tab
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2.5 bg-white min-h-0">
+        {panel3aTab === 'dates' && (
+          <div className="grid grid-cols-2 gap-1.5">
+            <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
+            <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
+            <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
+            <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
+          </div>
+        )}
+        {panel3aTab === 'finance' && (
+          <div className="space-y-2">
+            {isEditing && (
+              <Button type="button" variant="secondary" size="xs" className="w-full"
+                onClick={() => {
+                  const r1 = parseFloat(String(watch('received1stJpy') || 0));
+                  const r2 = parseFloat(String(watch('received2ndJpy') || 0));
+                  const rate = parseFloat(String(watch('exchangeRate') || 165));
+                  const feeJpy = (r1 + r2) * 0.2;
+                  setValue('serviceFeeJpy', feeJpy);
+                  setValue('serviceFeeVnd', feeJpy * rate);
+                  if (!watch('exchangeRate')) setValue('exchangeRate', rate);
+                  toast.success('Đã tính phí dịch vụ (20%)');
+                }}>Tính phí (20%)</Button>
+            )}
+            <div className="grid grid-cols-2 gap-1.5">
+              <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
+              <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
+              <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
+              <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
+              <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/50" /></FormField>
+              <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/50" /></FormField>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Tax Office Panel
+  const taxPanelNode = (
+    <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+      <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-slate-50 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
+          {selectedTaxOffice && (
+            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
+              {selectedTaxOffice.name}
+            </span>
+          )}
+          {isEditing && (
+            <select
+              value={selectedTaxOfficeId || ''}
+              onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
+              className="h-6 rounded border border-slate-200 px-1.5 text-[11px] bg-white max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
+            >
+              <option value="">-- Đổi Cục thuế --</option>
+              {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
+          <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
+            className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
+            🔍 Tra cứu ZIP
+          </button>
+          {selectedTaxOffice?.websiteUrl && (
+            <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
+              className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
+              🔍 NTA
+            </a>
+          )}
+          {(['card', 'form', 'diff'] as const).map(panel => (
+            <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
+              className={`px-2 py-1 text-[11px] font-bold rounded transition-all ${
+                taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}>
+              {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-3 overflow-y-auto max-h-[350px] lg:max-h-[280px]">
+        {taxPanel === 'card' && (
+          <TaxOfficeCard
+            taxOffice={selectedTaxOffice}
+            isEditing={isEditing}
+            onEdit={() => setTaxPanel('form')}
+            onDiff={() => setTaxPanel('diff')}
+            className="border-0 rounded-none shadow-none p-0"
+          />
+        )}
+        {taxPanel === 'form' && (
+          <div className="p-3">
+            <TaxOfficeForm
+              initialData={selectedTaxOffice ?? undefined}
+              onSubmit={handleTaxFormSubmit}
+              onCancel={() => setTaxPanel('card')}
+              isSubmitting={taxFormSaving}
+              className="border-0 shadow-none p-0"
+            />
+          </div>
+        )}
+        {taxPanel === 'diff' && (
+          <TaxOfficeDiffPanel
+            dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
+            postalCode={watch('postalCode') as string | undefined}
+            onSyncFields={handleTaxSyncFields}
+            onClose={() => setTaxPanel('card')}
+            className="border-0 rounded-none shadow-none p-0"
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-16 lg:pb-0">
 
       {/* ── Header ── */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0 pt-1.5 pb-0.5">
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+      <div className="flex items-center justify-between gap-2 shrink-0 pt-1 pb-0.5">
+        <div className="flex items-center gap-2 min-w-0">
           <button type="button" onClick={() => router.push('/applications')}
             className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-xs">
             <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
           </button>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <h1 className="text-sm font-bold tracking-tight text-slate-800">
-              {isNew ? 'Tạo Hồ sơ mới' : 'Chi tiết Hồ sơ'}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="text-sm font-bold tracking-tight text-slate-800 truncate">
+              {isNew ? 'Tạo Hồ sơ mới' : (watch('fullName') || 'Chi tiết Hồ sơ')}
             </h1>
-            {!isNew && <span className="text-[9px] font-normal text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">ID: {id.slice(0,8)}…</span>}
             {!isNew && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusCfg.badgeColor}`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${statusCfg.badgeColor}`}>
                 <StatusIcon className="w-2.5 h-2.5" />{statusCfg.label}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+
+        {/* Desktop Header Actions */}
+        <div className="hidden lg:flex items-center gap-1.5 shrink-0">
           {!isEditing ? (
             <>
               {!isNew && <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
@@ -458,536 +980,69 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      {/* ── WORKSPACE GRID (Mobile = vertical scroll stack, Desktop lg: = 35% left grid) ── */}
-      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[35%_1fr] lg:grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-visible lg:overflow-hidden">
+      {/* ── MOBILE SEGMENTED CONTROL TAB BAR (< lg) ── */}
+      <div className="flex lg:hidden bg-slate-100/90 p-1 rounded-xl gap-1 border border-slate-200/80 shrink-0 sticky top-0 z-30 shadow-xs backdrop-blur-md">
+        {(
+          [
+            { id: 'doc',      label: '🖼️ Ảnh tài liệu' },
+            { id: 'form',     label: '📝 Nhập liệu'    },
+            { id: 'progress', label: '👤 Tiến độ'      },
+            { id: 'tax',      label: '🏛️ Cục Thuế'    },
+          ] as const
+        ).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setMobileTab(tab.id)}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-center truncate ${
+              mobileTab === tab.id
+                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            PANEL 1 – col-1, row-1/3 (35% ~1/3 width on desktop, spans full height) – Ảnh tài liệu
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-start-1 lg:row-span-2 flex flex-col min-h-0 h-[360px] sm:h-[420px] lg:h-full shrink-0 lg:shrink bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+      {/* ── MOBILE ACTIVE TAB PANEL (< lg) ── */}
+      <div className="flex-1 flex flex-col min-h-0 lg:hidden">
+        {mobileTab === 'doc'      && <div className="h-[460px]">{panel1Node}</div>}
+        {mobileTab === 'form'     && <div className="flex-1">{panel2Node}</div>}
+        {mobileTab === 'progress' && <div className="flex-1">{panel3Node}</div>}
+        {mobileTab === 'tax'      && <div className="flex-1">{taxPanelNode}</div>}
+      </div>
 
-          {/* Tabs danh mục */}
-          <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 shrink-0 bg-slate-50">
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Danh mục tài liệu</div>
-            <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
-              {dynamicDocuments.map(doc => {
-                const isActive = activeDoc === doc.key;
-                const hasUrl   = !!watch(doc.urlField as any);
-                return (
-                  <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                    className={`px-2 py-1.5 text-xs font-semibold rounded transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}>
-                    {hasUrl && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-300' : 'bg-emerald-500'}`} />}
-                    <span className="truncate">{doc.title}</span>
-                  </button>
-                );
-              })}
-              {isEditing && (
-                <button type="button"
-                  onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-                  className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-200 rounded text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
-                  ＋ Thêm Ngân hàng
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Image viewer */}
-          <div className="flex-1 flex flex-col min-h-0 p-2.5 bg-slate-100/50">
-            <div className="flex items-center justify-between mb-1.5 shrink-0">
-              <span className="text-sm font-bold text-slate-800">{currentDocTitle}</span>
-              {currentDocUrl ? (
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✓ Đã tải</span>
-              ) : (
-                <span className="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">○ Chưa có</span>
-              )}
-            </div>
-            <div className="flex-1 rounded-lg overflow-hidden bg-slate-900/5 border border-slate-200 flex items-center justify-center relative min-h-0">
-              {currentDocUrl ? (
-                <div className="relative w-full h-full">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={currentDocUrl} alt={currentDocTitle} className="w-full h-full object-contain" />
-                  {/* Floating Toolbar – top right */}
-                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs border border-slate-200 rounded-lg p-1 shadow-sm z-20">
-                    {isEditing && (
-                      <>
-                        <button type="button" title="Trích xuất AI"
-                          onClick={async () => {
-                            if (!currentDocUrl) return;
-                            if (ocrStatus[activeDoc] === 'done') {
-                              toast('Đã trích xuất trước đó', {
-                                description: 'Chạy lại?',
-                                action: { label: 'Chạy lại', onClick: () => runOcrExtract(currentDocUrl) },
-                                cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
-                              }); return;
-                            }
-                            runOcrExtract(currentDocUrl);
-                          }}
-                          className="w-7 h-7 flex items-center justify-center text-indigo-600 hover:bg-slate-100 rounded transition-all">
-                          <Sparkles className="w-4 h-4" />
-                        </button>
-                        <button type="button" title="Cắt ảnh"
-                          onClick={() => { if (currentDocUrl) { setCropDocKey(activeDoc); setCropUrlField(currentDocField); setCropImageSrc(currentDocUrl); } }}
-                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                          <Crop className="w-4 h-4" />
-                        </button>
-                        <label className="cursor-pointer" title="Thay thế ảnh">
-                          <span className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                            <UploadCloud className="w-4 h-4" />
-                          </span>
-                          <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
-                        </label>
-                        <button type="button" title="Xóa ảnh"
-                          className="w-7 h-7 flex items-center justify-center text-red-600 hover:bg-red-50 rounded transition-all"
-                          onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
-                            action: { label: 'Xóa', onClick: async () => {
-                              const prev = getValues(currentDocField as any);
-                              if (prev) fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prev }) }).catch(console.error);
-                              setValue(currentDocField as any, '');
-                              if (!isNew && customerId) await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [currentDocField]: '' }) });
-                              toast.success('Đã xóa ảnh tài liệu');
-                            }},
-                            cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
-                          })}>
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                    <button type="button" title="Phóng to"
-                      onClick={() => setLightboxUrl(currentDocUrl || null)}
-                      className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-all">
-                      <ZoomIn className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : isEditing ? (
-                <label
-                  className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/30 transition-all text-slate-400 hover:text-indigo-600 bg-white border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-lg p-6"
-                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField); }}
-                >
-                  <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                    <UploadCloud className="w-5 h-5 text-indigo-500" />
-                  </div>
-                  <div className="text-center">
-                    <span className="text-xs font-bold text-slate-600 block">Nhấp hoặc kéo thả ảnh</span>
-                    <span className="text-[10px] text-slate-400">PNG, JPG, JPEG</span>
-                  </div>
-                  <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
-                </label>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white rounded-lg p-6">
-                  <UploadCloud className="w-6 h-6" />
-                  <span className="text-xs font-semibold text-slate-400 text-center">Chưa có ảnh<br/><span className="text-[10px] font-normal">Bật "Sửa hồ sơ" để tải lên</span></span>
-                </div>
-              )}
-              {/* OCR Overlay */}
-              {ocrStatus[activeDoc] === 'processing' && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center z-30 rounded-lg">
-                  <span className="text-xs text-indigo-600 font-bold flex items-center gap-1.5 bg-white border border-indigo-100 px-3 py-1.5 rounded-full shadow-sm">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang quét OCR...
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
+      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
+        <div className="col-start-1 row-span-2 min-h-0 h-full">{panel1Node}</div>
+        <div className="col-start-2 row-start-1 grid grid-cols-8 gap-2.5 min-h-0 overflow-hidden">
+          <div className="col-span-5 min-h-0 h-full">{panel2Node}</div>
+          <div className="col-span-3 min-h-0 h-full">{panel3Node}</div>
         </div>
+        <div className="col-start-2 row-start-2 min-h-0">{taxPanelNode}</div>
+      </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP RIGHT – col-2, row-1 – PANEL 2 (Form 5fr) + PANEL 3 (3fr)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-start-2 lg:row-start-1 grid grid-cols-1 xl:grid-cols-8 gap-2.5 min-h-0 overflow-visible lg:overflow-hidden">
-
-          {/* PANEL 2 FORM – xl:col-span-5 */}
-          <div className="col-span-1 xl:col-span-5 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-            <div className="px-3.5 py-2 border-b border-slate-100 shrink-0 bg-slate-50">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thông tin chi tiết nhập liệu</span>
+      {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
+      <div className="flex lg:hidden fixed bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg justify-between items-center z-40">
+        {!isEditing ? (
+          <>
+            <div className="flex items-center gap-2">
+              {!isNew && <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting}>Xóa</Button>}
+              {!isNew && <Button type="button" variant="secondary" size="sm" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3.5 h-3.5" />}>In</Button>}
             </div>
-
-            <div className="flex-1 overflow-y-auto p-3 min-h-0">
-              {(() => {
-                switch (activeDoc) {
-                  case 'zairyuFront':
-                  case 'zairyuBack': {
-                    const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
-                    const allVerified = zFields.every(f => verifiedFields[f]);
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
-                        <div className={`px-2.5 py-1.5 rounded border flex items-center justify-between text-[11px] font-bold ${
-                          allVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
-                        }`}>
-                          <span className="flex items-center gap-1.5">
-                            <CheckCircle className={`w-3.5 h-3.5 ${allVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
-                            Trạng thái duyệt:
-                          </span>
-                          <span>{allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
-                        </div>
-                        <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
-                          <Input {...register('fullName')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
-                            state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
-                        </FormField>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                            <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                              state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Số thẻ ngoại kiều">
-                            <Input {...register('cardNumber')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
-                              state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="My Number"><Input {...register('myNumber')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <FormField label="Địa chỉ trên thẻ (Kanji)">
-                          <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
-                            state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
-                            rightIcon={watch('zairyuAddress') ? (
-                              <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress')||'')}`, '_blank')} className="text-indigo-600 hover:text-indigo-800">
-                                <MapPin className="w-3.5 h-3.5" />
-                              </button>
-                            ) : undefined} />
-                        </FormField>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Mã Bưu Điện">
-                            <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
-                              verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
-                              state={verifiedFields['postalCode'] ? 'verified' : 'default'}
-                              rightIcon={
-                                <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
-                                  <Search className="w-3.5 h-3.5" />
-                                </button>
-                              } />
-                          </FormField>
-                          <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  case 'passport':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN HỘ CHIẾU</div>
-                        <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
-                          <Input {...register('fullName')} disabled={!isEditing} size="md"
-                            verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
-                            state={errors.fullName ? 'error' : verifiedFields['fullName'] ? 'verified' : 'default'} />
-                        </FormField>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Ngày sinh" required errorMessage={errors.dob?.message as string}>
-                            <Input type="date" {...register('dob')} disabled={!isEditing} size="md"
-                              verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
-                              state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
-                          </FormField>
-                          <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Giới tính">
-                            <select {...register('sex')} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="">Chọn...</option>
-                              <option value="Nam">Nam</option>
-                              <option value="Nữ">Nữ</option>
-                            </select>
-                          </FormField>
-                          <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Hết hạn"><Input type="date" {...register('passportExpiryDate')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                      </div>
-                    );
-
-                  case 'nenkinBook':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN SỔ NENKIN</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                      </div>
-                    );
-
-                  case 'departureStamp':
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
-                        <FormField label="Ngày xuất cảnh Nhật Bản">
-                          <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
-                        </FormField>
-                      </div>
-                    );
-
-                  default: {
-                    if (!activeDoc.startsWith('bankPassbook_')) return null;
-                    const idx = parseInt(activeDoc.split('_')[1], 10);
-                    if (isNaN(idx) || !bankFields[idx]) return null;
-                    const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
-                      : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
-                    return (
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Quốc gia">
-                            <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="JAPAN">Nhật Bản</option>
-                              <option value="VIETNAM">Việt Nam</option>
-                            </select>
-                          </FormField>
-                          <FormField label="Mục đích">
-                            <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white w-full">
-                              <option value="BOTH">Chung cả 2 lần</option>
-                              <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
-                              <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
-                            </select>
-                          </FormField>
-                        </div>
-                        <FormField label="Tên ngân hàng">
-                          <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
-                        </FormField>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
-                          <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
-                        </div>
-                        <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
-                        <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
-                        {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
-                          <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
-                        </div>
-                        {isEditing && bankFields.length > 1 && (
-                          <div className="pt-2 border-t border-slate-100">
-                            <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
-                              onClick={() => toast('Xóa tài khoản ngân hàng này?', {
-                                action: { label: 'Xóa', onClick: () => { removeBank(idx); setActiveDoc('zairyuFront'); toast.success('Đã xóa tài khoản'); } },
-                                cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
-                              })}>Xóa tài khoản này</Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                }
-              })()}
-
-              {/* Verify confirm */}
-              {!isNew && (() => {
-                const required = ['fullName','dob','cardNumber','zairyuAddress','postalCode','taxOffice_name','taxOffice_postalCode','taxOffice_address','taxOffice_romajiAddress','taxOffice_phone','taxOffice_websiteUrl'];
-                const allVerified = required.every(f => verifiedFields[f]);
-                return (
-                  <div className="mt-4 space-y-2">
-                    <div className={`p-2.5 border rounded-md flex items-start gap-2 transition-all ${
-                      allVerified ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-70'
-                    }`}>
-                      <input type="checkbox" id="manual-confirm"
-                        disabled={!isEditing || !allVerified}
-                        checked={manualConfirmed && allVerified}
-                        onChange={e => setManualConfirmed(e.target.checked)}
-                        className={`rounded w-4 h-4 mt-0.5 ${allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`} />
-                      <label htmlFor="manual-confirm"
-                        className={`text-xs font-semibold leading-snug select-none ${
-                          allVerified ? 'text-indigo-950 cursor-pointer' : 'text-slate-500 cursor-not-allowed'
-                        }`}>
-                        Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
-                      </label>
-                    </div>
-                    {!allVerified && isEditing && (
-                      <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded flex items-start gap-1.5 leading-snug">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* PANEL 3 – xl:col-span-3 – CLIENT + WORKFLOW + TABS */}
-          <div className="col-span-1 xl:col-span-3 flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-0">
-
-            {/* Client identity strip */}
-            <div className="p-2.5 border-b border-slate-100 bg-white flex items-center gap-2.5 shrink-0">
-              <div className="w-12 h-9 border border-slate-200 rounded overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 relative group">
-                {watch('zairyuFrontUrl') ? (
-                  <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
-                    <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
-                      <ZoomIn className="w-3 h-3" />
-                    </button></>
-                ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-                  <span className="font-mono text-[9px] text-slate-500 bg-slate-100 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
-                </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'} &nbsp;|&nbsp; QT: {watch('nationality') || '---'}
-                </div>
-              </div>
-            </div>
-
-            {/* Workflow progress bar */}
-            <div className="p-2.5 border-b border-slate-100 bg-white shrink-0">
-              <WorkflowPanel
-                status={(watch('status') || 'DRAFT') as WorkflowStatus}
-                isEditing={isEditing}
-                onChange={val => setValue('status', val as any, { shouldDirty: true })}
-                dates={{
-                  sent1st:     watch('sent1stDate')     as string | undefined,
-                  received1st: watch('received1stDate') as string | undefined,
-                  sent2nd:     watch('sent2ndDate')     as string | undefined,
-                  received2nd: watch('received2ndDate') as string | undefined,
-                }}
-              />
-            </div>
-
-            {/* Tabs: Mốc ngày / Tài chính */}
-            <div className="px-3 pt-1.5 border-b border-slate-100 bg-white flex gap-1 shrink-0">
-              {(['dates', 'finance'] as const).map(tab => (
-                <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
-                  className={`px-2.5 py-1.5 text-[11px] font-bold border-b-2 -mb-px transition-all ${
-                    panel3aTab === tab
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
-                  }`}>
-                  {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-2.5 bg-white min-h-0">
-              {panel3aTab === 'dates' && (
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                  <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
-                  <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-                  <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-                </div>
-              )}
-              {panel3aTab === 'finance' && (
-                <div className="space-y-2">
-                  {isEditing && (
-                    <Button type="button" variant="secondary" size="xs" className="w-full"
-                      onClick={() => {
-                        const r1 = parseFloat(String(watch('received1stJpy') || 0));
-                        const r2 = parseFloat(String(watch('received2ndJpy') || 0));
-                        const rate = parseFloat(String(watch('exchangeRate') || 165));
-                        const feeJpy = (r1 + r2) * 0.2;
-                        setValue('serviceFeeJpy', feeJpy);
-                        setValue('serviceFeeVnd', feeJpy * rate);
-                        if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                        toast.success('Đã tính phí dịch vụ (20%)');
-                      }}>Tính phí (20%)</Button>
-                  )}
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
-                    <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-                    <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                    <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-                    <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/50" /></FormField>
-                    <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/50" /></FormField>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            TAX ROW – col-2, row-2 – CỤC THUẾ QUẢN LÝ (Merged across col-2)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-start-2 lg:row-start-2 min-h-0">
-          <div className="flex flex-col bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-slate-50 border-b border-slate-100 shrink-0">
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
-                {selectedTaxOffice && (
-                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
-                    {selectedTaxOffice.name}
-                  </span>
-                )}
-                {isEditing && (
-                  <select
-                    value={selectedTaxOfficeId || ''}
-                    onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-                    className="h-6 rounded border border-slate-200 px-1.5 text-[11px] bg-white max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
-                  >
-                    <option value="">-- Đổi Cục thuế --</option>
-                    {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                )}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
-                <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-                  className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
-                  🔍 Tra cứu ZIP
-                </button>
-                {selectedTaxOffice?.websiteUrl && (
-                  <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-                    className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-all">
-                    🔍 NTA
-                  </a>
-                )}
-                {(['card', 'form', 'diff'] as const).map(panel => (
-                  <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-                    className={`px-2 py-1 text-[11px] font-bold rounded transition-all ${
-                      taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}>
-                    {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="p-3 overflow-y-auto max-h-[350px] lg:max-h-[280px]">
-              {taxPanel === 'card' && (
-                <TaxOfficeCard
-                  taxOffice={selectedTaxOffice}
-                  isEditing={isEditing}
-                  onEdit={() => setTaxPanel('form')}
-                  onDiff={() => setTaxPanel('diff')}
-                  className="border-0 rounded-none shadow-none"
-                />
-              )}
-              {taxPanel === 'form' && (
-                <div className="p-3">
-                  <TaxOfficeForm
-                    initialData={selectedTaxOffice ?? undefined}
-                    onSubmit={handleTaxFormSubmit}
-                    onCancel={() => setTaxPanel('card')}
-                    isSubmitting={taxFormSaving}
-                    className="border-0 shadow-none p-0"
-                  />
-                </div>
-              )}
-              {taxPanel === 'diff' && (
-                <TaxOfficeDiffPanel
-                  dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
-                  postalCode={watch('postalCode') as string | undefined}
-                  onSyncFields={handleTaxSyncFields}
-                  onClose={() => setTaxPanel('card')}
-                  className="border-0 rounded-none shadow-none"
-                />
-              )}
-            </div>
-          </div>
-
-        </div>
+            <Button type="button" size="sm" className="px-5 font-bold" onClick={() => setIsEditing(true)}>✏️ Sửa Hồ sơ</Button>
+          </>
+        ) : (
+          <>
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => { if (isNew) router.push('/applications'); else { setIsEditing(false); reset(); } }}>
+              Hủy
+            </Button>
+            <Button type="submit" size="sm" className="px-6 font-bold bg-indigo-600 hover:bg-indigo-700" loading={saving} loadingText="Đang lưu..." iconLeft={<Save className="w-3.5 h-3.5" />}>
+              💾 Lưu Hồ sơ
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Lightbox */}
