@@ -22,6 +22,8 @@ export default function Home() {
   const [kpis, setKpis] = useState<{ title: string; value: string; trend: string; iconName: string; color: string; bg: string }[]>([]);
   const [recentApplications, setRecentApplications] = useState<{ id: string; name: string; status: string; date: string; amount: string }[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ date: string; rate: number }[]>([]);
+  const [dcomLiveRate, setDcomLiveRate] = useState<number | null>(null);
+  const [dcomLastUpdated, setDcomLastUpdated] = useState<string | null>(null);
   const [revenueData, setRevenueData] = useState<{ month: string; revenue: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -53,26 +55,30 @@ export default function Home() {
           setRevenueData(dashboardJson.data.revenueData || []);
         }
         
-        if (ratesJson.success && ratesJson.data.length > 0) {
-          const formattedRates = ratesJson.data.map((r: any) => {
-            const d = new Date(r.date);
-            return {
-              date: `${d.getDate()}/${d.getMonth() + 1}`,
-              rate: parseFloat(r.jpyToVnd)
-            };
-          });
-          setExchangeRateData(formattedRates);
-        } else {
-          // Fallback data if DB is empty
-          setExchangeRateData([
-            { date: '01/05', rate: 165.2 },
-            { date: '05/05', rate: 164.8 },
-            { date: '10/05', rate: 166.5 },
-            { date: '15/05', rate: 167.1 },
-            { date: '20/05', rate: 168.0 },
-            { date: '25/05', rate: 169.2 },
-            { date: '30/05', rate: 170.5 },
-          ]);
+        if (ratesJson.success) {
+          if (ratesJson.currentDcomRate) setDcomLiveRate(ratesJson.currentDcomRate);
+          if (ratesJson.lastUpdatedTime) setDcomLastUpdated(ratesJson.lastUpdatedTime);
+
+          if (ratesJson.data && ratesJson.data.length > 0) {
+            const formattedRates = ratesJson.data.map((r: any) => {
+              const d = new Date(r.date);
+              return {
+                date: `${d.getDate()}/${d.getMonth() + 1}`,
+                rate: parseFloat(r.jpyToVnd)
+              };
+            });
+            setExchangeRateData(formattedRates);
+          } else {
+            setExchangeRateData([
+              { date: '01/05', rate: 160.5 },
+              { date: '05/05', rate: 160.8 },
+              { date: '10/05', rate: 161.2 },
+              { date: '15/05', rate: 161.0 },
+              { date: '20/05', rate: 161.5 },
+              { date: '25/05', rate: 161.0 },
+              { date: 'hôm nay', rate: ratesJson.currentDcomRate || 161.0 },
+            ]);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -244,17 +250,26 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
               <CardHeader className="p-3 sm:p-4 pb-1">
-                <CardTitle className="text-xs sm:text-sm font-bold">Biểu đồ Tỷ giá JPY/VND</CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-xs sm:text-sm font-bold text-slate-800">Biểu đồ Tỷ giá JPY/VND (DCOM)</CardTitle>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Nguồn: DCOM Money Express {dcomLastUpdated ? `• ${dcomLastUpdated}` : ''}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    1 JPY = {dcomLiveRate ? dcomLiveRate.toFixed(1) : '161.0'} VND
+                  </span>
+                </div>
               </CardHeader>
               <CardContent className="h-44 sm:h-56 p-2 sm:p-4">
                 {isMounted && (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={exchangeRateData} margin={{ top: 5, right: 15, bottom: 5, left: -20 }}>
-                      <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} name="Tỷ giá DCOM (VND)" />
                       <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} tickMargin={5} stroke="#94a3b8" />
-                      <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                      <RechartsTooltip />
+                      <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                      <RechartsTooltip formatter={(value: any) => [`1 JPY = ${value} VND`, 'Tỷ giá DCOM']} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}

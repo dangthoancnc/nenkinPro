@@ -50,10 +50,13 @@ export default function FinancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const fetchData = async () => {
+  const [dcomLiveRate, setDcomLiveRate] = useState<number | null>(null);
+  const [dcomTime, setDcomTime] = useState<string | null>(null);
+
+  const fetchData = async (forceRefresh = false) => {
     try {
       const [ratesRes, appsRes] = await Promise.all([
-        fetch('/api/exchange-rates?limit=14'),
+        fetch(`/api/exchange-rates?limit=14${forceRefresh ? '&refresh=true' : ''}`),
         fetch('/api/applications')
       ]);
 
@@ -61,12 +64,11 @@ export default function FinancePage() {
         const rJson = await ratesRes.json();
         if (rJson.success) {
           setRates(rJson.data);
-          // Set today's rate if available
-          const todayStr = new Date().toISOString().split('T')[0];
-          const todayRate = rJson.data.find((r: any) => r.date.startsWith(todayStr));
-          if (todayRate) {
-            setRateVal(Number(todayRate.jpyToVnd).toString());
+          if (rJson.currentDcomRate) {
+            setDcomLiveRate(rJson.currentDcomRate);
+            setRateVal(rJson.currentDcomRate.toString());
           }
+          if (rJson.lastUpdatedTime) setDcomTime(rJson.lastUpdatedTime);
         }
       }
 
@@ -79,6 +81,12 @@ export default function FinancePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSyncDcom = async () => {
+    setUpdatingRate(true);
+    await fetchData(true);
+    setUpdatingRate(false);
   };
 
   useEffect(() => {
@@ -175,15 +183,20 @@ export default function FinancePage() {
         {/* Left: Exchange Rate & Charts */}
         <div className="lg:col-span-4 space-y-4">
           {/* Rate Update Form */}
-          <Card className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm rounded-2xl overflow-hidden p-3">
-            <CardHeader className="p-0 pb-3 flex flex-row items-center justify-between">
+          <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70 shadow-xs rounded-xl overflow-hidden p-3">
+            <CardHeader className="p-0 pb-2.5 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-indigo-600" />
-                  Cập nhật tỷ giá
+                <CardTitle className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+                  Cập nhật tỷ giá DCOM
                 </CardTitle>
-                <CardDescription className="text-[10px] text-slate-500">Tỷ giá JPY → VND hôm nay</CardDescription>
+                <CardDescription className="text-[10px] text-slate-500">Nguồn: DCOM Money Express {dcomTime ? `• ${dcomTime}` : ''}</CardDescription>
               </div>
+              <button type="button" onClick={handleSyncDcom} disabled={updatingRate}
+                className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 hover:bg-emerald-100 transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {updatingRate ? 'Đang tải...' : 'Lấy DCOM realtime'}
+              </button>
             </CardHeader>
             <CardContent className="p-0">
               <form onSubmit={handleUpdateRate} className="space-y-2">
@@ -198,25 +211,37 @@ export default function FinancePage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Tỷ giá (VND)</label>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Tỷ giá (VND/JPY)</label>
                     <Input 
                       type="number"
-                      step="0.01"
-                      placeholder="VD: 170.5"
+                      step="0.1"
+                      placeholder="VD: 161.0"
                       value={rateVal}
                       onChange={(e) => setRateVal(e.target.value)}
-                      className="h-8 py-0.5 text-xs rounded-lg"
+                      className="h-8 py-0.5 text-xs rounded-lg font-mono font-bold"
                     />
                   </div>
                 </div>
-                <Button 
-                  type="submit" 
-                  disabled={updatingRate} 
-                  className="w-full h-8 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white mt-1 gap-1.5"
-                >
-                  {updatingRate ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  Cập nhật tỷ giá
-                </Button>
+                <div className="flex gap-2 pt-1">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    disabled={updatingRate} 
+                    onClick={handleSyncDcom}
+                    className="flex-1 h-8 text-xs font-semibold rounded-lg gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${updatingRate ? 'animate-spin' : ''}`} />
+                    DCOM Realtime
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updatingRate} 
+                    className="flex-1 h-8 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Lưu Tỷ giá
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
