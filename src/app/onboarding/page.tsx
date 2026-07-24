@@ -63,7 +63,7 @@ function WizardContent() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
-  const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null } | null>(null);
+  const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null; isUpdated?: boolean } | null>(null);
 
   // Step 1 State: Personal & Contact Info
   const [fullName, setFullName] = useState('');
@@ -291,7 +291,8 @@ function WizardContent() {
       setCreatedData({
         code: data.customer.code,
         cardNumber: data.customer.cardNumber,
-        referralType: data.customer.referralType
+        referralType: data.customer.referralType,
+        isUpdated: data.isUpdated,
       });
       sessionStorage.removeItem('onboarding_draft_id');
     } catch (err: unknown) {
@@ -356,8 +357,14 @@ function WizardContent() {
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-bold text-slate-900">Gửi Hồ Sơ Thành Công!</h2>
-                <p className="text-xs text-slate-500">Thông tin của quý khách đã được ghi nhận an toàn vào hệ thống.</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {createdData.isUpdated ? 'Cập Nhật Hồ Sơ Thành Công!' : 'Gửi Hồ Sơ Thành Công!'}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {createdData.isUpdated
+                    ? 'Hệ thống nhận thấy quý khách đã có sẵn hồ sơ. Thông tin & tài liệu mới đã được cập nhật bổ sung!'
+                    : 'Thông tin của quý khách đã được ghi nhận an toàn vào hệ thống.'}
+                </p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-left text-xs">
