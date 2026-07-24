@@ -76,6 +76,18 @@ function WizardContent() {
     setStep(2);
   };
 
+  const [draftId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      let d = sessionStorage.getItem('onboarding_draft_id');
+      if (!d) {
+        d = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        sessionStorage.setItem('onboarding_draft_id', d);
+      }
+      return d;
+    }
+    return `draft_${Date.now()}`;
+  });
+
   const handleNextStep2 = async () => {
     if (!zairyuFront) {
       alert('Vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card).');
@@ -88,6 +100,7 @@ function WizardContent() {
       fd.append('action', 'uploadAndExtract');
       fd.append('documentType', 'zairyuFront');
       fd.append('source', 'onboarding');
+      fd.append('customerId', draftId);
       if (securityPhoto) {
         fd.append('securityFile', securityPhoto);
       }
@@ -124,6 +137,7 @@ function WizardContent() {
     fd.append('action', 'upload');
     fd.append('documentType', documentType);
     fd.append('source', 'onboarding');
+    fd.append('customerId', draftId);
     // For subsequent files, we don't need to re-upload securityPhoto since it was uploaded with zairyuFront
     
     const res = await fetch('/api/ocr', {

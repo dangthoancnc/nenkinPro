@@ -86,6 +86,9 @@ export default function PortalDashboard() {
       
       formData.append('documentType', docType);
       formData.append('action', 'upload');
+      if (customer?.id) {
+        formData.append('customerId', customer.id);
+      }
       
       // If secFile is passed in extra arguments
       if (arguments.length > 2 && arguments[2]) {
