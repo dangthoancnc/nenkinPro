@@ -1,9 +1,59 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw } from 'lucide-react';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
+
+// Reusable Image Preview Item with Thumbnail and Red Delete Button
+function ImageThumbnailItem({
+  file,
+  url,
+  label,
+  onDelete
+}: {
+  file: File | null;
+  url: string;
+  label: string;
+  onDelete: () => void;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (file) {
+      const u = URL.createObjectURL(file);
+      setObjectUrl(u);
+      return () => URL.revokeObjectURL(u);
+    } else if (url) {
+      setObjectUrl(url);
+    } else {
+      setObjectUrl('');
+    }
+  }, [file, url]);
+
+  if (!objectUrl) return null;
+
+  return (
+    <div className="relative border-2 border-indigo-300 rounded-xl overflow-hidden bg-slate-900 shadow-md group">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={objectUrl} alt={label} className="w-full h-36 object-contain bg-slate-950" />
+      <div className="absolute inset-x-0 bottom-0 bg-slate-900/80 backdrop-blur-xs p-1.5 flex items-center justify-between text-[11px] text-white">
+        <span className="truncate font-semibold max-w-[160px]">{file ? file.name : label}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold shrink-0"
+          title="Xóa ảnh này"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Xóa
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function WizardContent() {
   const searchParams = useSearchParams();
@@ -23,23 +73,27 @@ function WizardContent() {
   const [dob, setDob] = useState('');
   const [refCode, setRefCode] = useState(ref || '');
 
-  // Step 2 State: Zairyu Card (Card Number & Address auto-extracted or manual)
+  // Step 2 State: Zairyu Card (Front & Back)
   const [zairyuFront, setZairyuFront] = useState<File | null>(null);
   const [zairyuFrontUrl, setZairyuFrontUrl] = useState('');
+  const [zairyuBack, setZairyuBack] = useState<File | null>(null);
+  const [zairyuBackUrl, setZairyuBackUrl] = useState('');
+
   const [cardNumber, setCardNumber] = useState('');
   const [zairyuAddress, setZairyuAddress] = useState('');
 
-  // Step 3 State: Passport, Nenkin & Departure (Optional / Flexible)
+  // Step 3 State: Passport & Nenkin Book
   const [passport, setPassport] = useState<File | null>(null);
-  const [nenkinBook, setNenkinBook] = useState<File | null>(null);
-  const [nenkinNumber, setNenkinNumber] = useState('');
-  const [departureDate, setDepartureDate] = useState('');
   const [passportUrl, setPassportUrl] = useState('');
+  const [nenkinBook, setNenkinBook] = useState<File | null>(null);
   const [nenkinBookUrl, setNenkinBookUrl] = useState('');
+  const [nenkinNumber, setNenkinNumber] = useState('');
 
-  // Step 4 State: Bank Passbook
-  const [bankPassbook, setBankPassbook] = useState<File | null>(null);
-  const [bankPassbookUrl, setBankPassbookUrl] = useState('');
+  // Step 4 State: Bank Passbook (Up to 2 pages)
+  const [bankPassbook1, setBankPassbook1] = useState<File | null>(null);
+  const [bankPassbook1Url, setBankPassbook1Url] = useState('');
+  const [bankPassbook2, setBankPassbook2] = useState<File | null>(null);
+  const [bankPassbook2Url, setBankPassbook2Url] = useState('');
 
   // Security Photo State
   const [securityPhoto, setSecurityPhoto] = useState<File | null>(null);
@@ -76,9 +130,11 @@ function WizardContent() {
       setSecurityPhoto(secFile);
     }
     if (captureType === 'zairyuFront') setZairyuFront(docFile);
+    if (captureType === 'zairyuBack') setZairyuBack(docFile);
     if (captureType === 'passport') setPassport(docFile);
     if (captureType === 'nenkin') setNenkinBook(docFile);
-    if (captureType === 'bank') setBankPassbook(docFile);
+    if (captureType === 'bank1') setBankPassbook1(docFile);
+    if (captureType === 'bank2') setBankPassbook2(docFile);
     setCaptureOpen(false);
   };
 
@@ -98,59 +154,7 @@ function WizardContent() {
     setStep(2);
   };
 
-  const handleNextStep2 = async () => {
-    if (!zairyuFront) {
-      // Allow manual entry if user doesn't have card photo right now
-      if (cardNumber.trim()) {
-        setStep(3);
-        return;
-      }
-      alert('Vui lòng tải lên ảnh mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ ngoại kiều.');
-      return;
-    }
-
-    setLoading(true);
-    setOcrError(null);
-    try {
-      const fd = new FormData();
-      fd.append('file', zairyuFront);
-      fd.append('action', 'uploadAndExtract');
-      fd.append('documentType', 'zairyuFront');
-      fd.append('source', 'onboarding');
-      fd.append('customerId', draftId);
-      if (securityPhoto) {
-        fd.append('securityFile', securityPhoto);
-      }
-
-      const res = await fetch('/api/ocr', {
-        method: 'POST',
-        body: fd
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
-        setLoading(false);
-        return;
-      }
-
-      setZairyuFrontUrl(data.publicUrl);
-      if (data.securityPhotoUrl) {
-        setSecurityPhotoUrl(data.securityPhotoUrl);
-      }
-      if (data.extractedData) {
-        if (data.extractedData.cardNumber) setCardNumber(data.extractedData.cardNumber);
-        if (data.extractedData.address) setZairyuAddress(data.extractedData.address);
-      }
-      setStep(3);
-    } catch (err: unknown) {
-      setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUploadFile = async (file: File, documentType: string) => {
+  const handleUploadSingleFile = async (file: File, documentType: string) => {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('action', 'upload');
@@ -164,19 +168,75 @@ function WizardContent() {
     return data.publicUrl;
   };
 
+  const handleNextStep2 = async () => {
+    if (!zairyuFront && !zairyuFrontUrl) {
+      if (cardNumber.trim()) {
+        setStep(3);
+        return;
+      }
+      alert('Vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ.');
+      return;
+    }
+
+    setLoading(true);
+    setOcrError(null);
+    try {
+      if (zairyuFront) {
+        const fd = new FormData();
+        fd.append('file', zairyuFront);
+        fd.append('action', 'uploadAndExtract');
+        fd.append('documentType', 'zairyuFront');
+        fd.append('source', 'onboarding');
+        fd.append('customerId', draftId);
+        if (securityPhoto) {
+          fd.append('securityFile', securityPhoto);
+        }
+
+        const res = await fetch('/api/ocr', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
+          setLoading(false);
+          return;
+        }
+
+        setZairyuFrontUrl(data.publicUrl);
+        if (data.securityPhotoUrl) setSecurityPhotoUrl(data.securityPhotoUrl);
+        if (data.extractedData) {
+          if (data.extractedData.cardNumber) setCardNumber(data.extractedData.cardNumber);
+          if (data.extractedData.address) setZairyuAddress(data.extractedData.address);
+        }
+      }
+
+      if (zairyuBack) {
+        const bUrl = await handleUploadSingleFile(zairyuBack, 'zairyuBack');
+        setZairyuBackUrl(bUrl);
+      }
+
+      setStep(3);
+    } catch (err: unknown) {
+      setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNextStep3 = async () => {
     setLoading(true);
     try {
-      let pUrl = '';
-      let nUrl = '';
-      if (passport) pUrl = await handleUploadFile(passport, 'passport');
-      if (nenkinBook) nUrl = await handleUploadFile(nenkinBook, 'nenkin');
-      setPassportUrl(pUrl);
-      setNenkinBookUrl(nUrl);
+      if (passport) {
+        const pUrl = await handleUploadSingleFile(passport, 'passport');
+        setPassportUrl(pUrl);
+      }
+      if (nenkinBook) {
+        const nUrl = await handleUploadSingleFile(nenkinBook, 'nenkin');
+        setNenkinBookUrl(nUrl);
+      }
       setStep(4);
     } catch (err: unknown) {
       console.error(err);
-      setStep(4); // Non-blocking: continue even if file upload warning
+      setStep(4);
     } finally {
       setLoading(false);
     }
@@ -185,14 +245,17 @@ function WizardContent() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      let bUrl = '';
-      if (bankPassbook) {
-        try {
-          bUrl = await handleUploadFile(bankPassbook, 'bankPassbook_0');
-          setBankPassbookUrl(bUrl);
-        } catch (e) {
-          console.error(e);
-        }
+      const bankUrls: string[] = [];
+      if (bankPassbook1Url) bankUrls.push(bankPassbook1Url);
+      if (bankPassbook1) {
+        const url1 = await handleUploadSingleFile(bankPassbook1, 'bankPassbook_0').catch(console.error);
+        if (url1 && !bankUrls.includes(url1)) bankUrls.push(url1);
+      }
+
+      if (bankPassbook2Url) bankUrls.push(bankPassbook2Url);
+      if (bankPassbook2) {
+        const url2 = await handleUploadSingleFile(bankPassbook2, 'bankPassbook_1').catch(console.error);
+        if (url2 && !bankUrls.includes(url2)) bankUrls.push(url2);
       }
 
       const payload = {
@@ -203,10 +266,11 @@ function WizardContent() {
         dob,
         ref: refCode,
         zairyuFrontUrl,
-        zairyuBackUrl: '',
+        zairyuBackUrl,
         passportUrl,
         nenkinBookUrl,
-        bankPassbookUrl: bUrl || bankPassbookUrl,
+        bankPassbookUrl: bankUrls[0] || '',
+        bankPassbookUrls: bankUrls,
         cardNumber,
         zairyuAddress,
         securityPhotoUrl,
@@ -272,7 +336,7 @@ function WizardContent() {
         {!createdData && (
           <div className="bg-slate-900 text-white p-4 border-b border-slate-800">
             <div className="flex justify-between items-center text-xs font-semibold mb-2">
-              <span className="text-indigo-400">HƯỚNG DẪN TỰ ĐĂNG KÝ (4 BƯỚC)</span>
+              <span className="text-indigo-400 uppercase tracking-wider">Tự đăng ký hồ sơ (4 Bước)</span>
               <span className="text-slate-400">Bước {step} / 4</span>
             </div>
             <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -293,7 +357,7 @@ function WizardContent() {
               </div>
               <div className="space-y-1">
                 <h2 className="text-xl font-bold text-slate-900">Gửi Hồ Sơ Thành Công!</h2>
-                <p className="text-xs text-slate-500">Chất lượng thông tin đã được ghi nhận vào hệ thống.</p>
+                <p className="text-xs text-slate-500">Thông tin của quý khách đã được ghi nhận an toàn vào hệ thống.</p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-left text-xs">
@@ -308,7 +372,7 @@ function WizardContent() {
                 {createdData.referralType === 'CUSTOMER' && (
                   <div className="bg-emerald-50 text-emerald-700 p-2 rounded-lg text-[11px] font-semibold flex items-center gap-1.5">
                     <Gift className="w-4 h-4 shrink-0 text-emerald-600" />
-                    <span>Quý khách đã được áp dụng giảm ngay 2.000 JPY phí dịch vụ nhờ mã giới thiệu!</span>
+                    <span>Quý khách được áp dụng giảm 2.000 JPY phí dịch vụ nhờ mã giới thiệu!</span>
                   </div>
                 )}
               </div>
@@ -331,10 +395,10 @@ function WizardContent() {
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thông tin cá nhân & Liên hệ</h2>
-                    <p className="text-xs text-slate-500">Vui lòng điền thông tin để nhân viên dễ dàng hỗ trợ bạn.</p>
+                    <p className="text-xs text-slate-500">Vui lòng điền thông tin cơ bản để nhân viên thuận tiện liên hệ hỗ trợ.</p>
                   </div>
 
-                  {/* Koyama Referral Discount Banner */}
+                  {/* Koyama Referral Banner */}
                   <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-2.5">
                     <Gift className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                     <div className="text-xs text-indigo-900 leading-snug">
@@ -423,83 +487,122 @@ function WizardContent() {
                     onClick={handleNextStep1}
                     className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
                   >
-                    Tiếp Theo: Tải Thẻ Ngoại Kiều <ChevronRight className="w-4 h-4" />
+                    Tiếp Theo: Thẻ Ngoại Kiều <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}
 
-              {/* STEP 2: Zairyu Card Upload & Smart Guidance */}
+              {/* STEP 2: Zairyu Card (Front & Back with Real Thumbnail & Red Delete) */}
               {step === 2 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 2: Thẻ Ngoại Kiều (Zairyu Card)</h2>
-                    <p className="text-xs text-slate-500">AI sẽ tự động đọc địa chỉ Kanji để ghép đúng Cục Thuế quản lý cho bạn.</p>
                   </div>
 
                   {/* Japanese Style Guidance Box */}
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
                     <div className="font-bold flex items-center gap-1 text-amber-800">
-                      <HelpCircle className="w-4 h-4 text-amber-600" /> Hướng dẫn chụp ảnh chuẩn Nhật:
+                      <HelpCircle className="w-4 h-4 text-amber-600" /> Hướng dẫn chụp ảnh chuẩn:
                     </div>
                     <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-800">
                       <li>Đặt thẻ nằm phẳng trên mặt bàn có màu tương phản.</li>
-                      <li>Tránh ánh đèn chiếu trực tiếp làm chói bóng hoặc che mất dòng địa chỉ Kanji.</li>
+                      <li>Tránh ánh đèn chiếu trực tiếp làm chói bóng hoặc che mất địa chỉ.</li>
                     </ul>
                   </div>
 
                   {/* OCR Error Notification Banner */}
                   {ocrError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2 animate-shake">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                       <div>{ocrError}</div>
                     </div>
                   )}
 
-                  {/* File Capture Input */}
-                  <div className="space-y-2">
-                    <input
-                      id="zairyuInput"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) setZairyuFront(file);
-                      }}
-                    />
+                  {/* Front & Back Dropzones */}
+                  <div className="space-y-3">
+                    {/* Front Dropzone */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Mặt Trước Thẻ Ngoại Kiều *</label>
+                      <input
+                        id="zairyuFrontInput"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) setZairyuFront(file);
+                        }}
+                      />
 
-                    <div
-                      onClick={() => handleTriggerCapture('zairyuFront', 'zairyuInput')}
-                      className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-2xl p-6 text-center cursor-pointer transition-all hover:bg-indigo-50/80"
-                    >
-                      {zairyuFront ? (
-                        <div className="space-y-2">
-                          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-                          <div className="text-xs font-bold text-slate-800 truncate">{zairyuFront.name}</div>
-                          <span className="text-[11px] text-indigo-600 font-semibold underline">Nhấp để chọn ảnh khác</span>
-                        </div>
+                      {zairyuFront || zairyuFrontUrl ? (
+                        <ImageThumbnailItem
+                          file={zairyuFront}
+                          url={zairyuFrontUrl}
+                          label="Mặt Trước Thẻ Ngoại Kiều"
+                          onDelete={() => {
+                            setZairyuFront(null);
+                            setZairyuFrontUrl('');
+                          }}
+                        />
                       ) : (
-                        <div className="space-y-2">
-                          <Camera className="w-10 h-10 text-indigo-500 mx-auto" />
-                          <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Trước Thẻ Ngoại Kiều</div>
-                          <p className="text-[11px] text-slate-400">Hệ thống sẽ tự động trích xuất thông tin</p>
+                        <div
+                          onClick={() => handleTriggerCapture('zairyuFront', 'zairyuFrontInput')}
+                          className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-4 text-center cursor-pointer transition-all"
+                        >
+                          <Camera className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
+                          <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Trước</div>
                         </div>
                       )}
                     </div>
 
-                    <div className="text-center text-xs text-slate-400 font-medium">-- Hoặc nhập tay nếu chưa có ảnh --</div>
+                    {/* Back Dropzone */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Mặt Sau Thẻ Ngoại Kiều (Tùy chọn)</label>
+                      <input
+                        id="zairyuBackInput"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) setZairyuBack(file);
+                        }}
+                      />
+
+                      {zairyuBack || zairyuBackUrl ? (
+                        <ImageThumbnailItem
+                          file={zairyuBack}
+                          url={zairyuBackUrl}
+                          label="Mặt Sau Thẻ Ngoại Kiều"
+                          onDelete={() => {
+                            setZairyuBack(null);
+                            setZairyuBackUrl('');
+                          }}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => handleTriggerCapture('zairyuBack', 'zairyuBackInput')}
+                          className="border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50/50 rounded-xl p-3 text-center cursor-pointer transition-all"
+                        >
+                          <UploadCloud className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                          <div className="text-xs font-semibold text-slate-600">Tải Ảnh Mặt Sau (Nếu có)</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-center text-xs text-slate-400 font-medium pt-1">-- Hoặc nhập tay nếu chưa có ảnh --</div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
-                        placeholder="Số thẻ Zairyu (VD: AB12345678CD)"
+                        placeholder="Số thẻ (VD: AB12345678CD)"
                         value={cardNumber}
                         onChange={e => setCardNumber(e.target.value.toUpperCase())}
                         className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
                       />
                       <input
                         type="text"
-                        placeholder="Địa chỉ Kanji Nhật Bản..."
+                        placeholder="Địa chỉ Kanji..."
                         value={zairyuAddress}
                         onChange={e => setZairyuAddress(e.target.value)}
                         className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
@@ -507,7 +610,7 @@ function WizardContent() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setStep(1)}
                       className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
@@ -519,26 +622,31 @@ function WizardContent() {
                       disabled={loading}
                       className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      {loading ? 'AI Đang Bóc Tách...' : 'Tiếp Theo: Hộ Chiếu & Nenkin'} <ChevronRight className="w-4 h-4" />
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                        </>
+                      ) : (
+                        <>
+                          Tiếp Theo: Hộ Chiếu & Nenkin <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 3: Passport & Nenkin Book (Optional / Flexible) */}
+              {/* STEP 3: Passport & Nenkin Book */}
               {step === 3 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 3: Hộ Chiếu & Sổ Nenkin (Không bắt buộc)</h2>
-                    <p className="text-xs text-slate-500">Bạn có thể tải ảnh hoặc điền thông tin nếu nhớ. Nhân viên sẽ bổ sung giúp bạn sau.</p>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 3: Hộ Chiếu & Sổ Nenkin</h2>
+                    <p className="text-xs text-slate-500">Tùy chọn tải ảnh hoặc điền thông tin nếu nhớ.</p>
                   </div>
 
                   {/* Passport Upload */}
                   <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                      <span>📘 Trang Ảnh Hộ Chiếu (Passport)</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Tùy chọn</span>
-                    </div>
+                    <label className="block text-xs font-bold text-slate-800">📘 Trang Ảnh Hộ Chiếu (Passport)</label>
                     <input
                       id="passportInput"
                       type="file"
@@ -549,22 +657,31 @@ function WizardContent() {
                         if (file) setPassport(file);
                       }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleTriggerCapture('passport', 'passportInput')}
-                      className="w-full py-2 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5"
-                    >
-                      <UploadCloud className="w-4 h-4 text-indigo-500" />
-                      {passport ? passport.name : 'Tải Lên Ảnh Hộ Chiếu'}
-                    </button>
+
+                    {passport || passportUrl ? (
+                      <ImageThumbnailItem
+                        file={passport}
+                        url={passportUrl}
+                        label="Trang Hộ Chiếu"
+                        onDelete={() => {
+                          setPassport(null);
+                          setPassportUrl('');
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleTriggerCapture('passport', 'passportInput')}
+                        className="w-full py-2.5 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5"
+                      >
+                        <UploadCloud className="w-4 h-4 text-indigo-500" /> Tải Lên Ảnh Hộ Chiếu
+                      </button>
+                    )}
                   </div>
 
-                  {/* Nenkin Book Upload / Number */}
+                  {/* Nenkin Book Upload */}
                   <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                      <span>📙 Sổ Nenkin HOẶC Mã Số Nenkin (10 chữ số)</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Tùy chọn</span>
-                    </div>
+                    <label className="block text-xs font-bold text-slate-800">📙 Sổ Nenkin HOẶC Mã Số Nenkin</label>
                     <input
                       id="nenkinInput"
                       type="file"
@@ -575,26 +692,38 @@ function WizardContent() {
                         if (file) setNenkinBook(file);
                       }}
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleTriggerCapture('nenkin', 'nenkinInput')}
-                        className="py-2 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5 truncate"
-                      >
-                        <UploadCloud className="w-4 h-4 text-indigo-500 shrink-0" />
-                        {nenkinBook ? nenkinBook.name : 'Tải Ảnh Sổ'}
-                      </button>
-                      <input
-                        type="text"
-                        placeholder="Mã Nenkin (10 số)..."
-                        value={nenkinNumber}
-                        onChange={e => setNenkinNumber(e.target.value)}
-                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+
+                    {nenkinBook || nenkinBookUrl ? (
+                      <ImageThumbnailItem
+                        file={nenkinBook}
+                        url={nenkinBookUrl}
+                        label="Sổ Nenkin"
+                        onDelete={() => {
+                          setNenkinBook(null);
+                          setNenkinBookUrl('');
+                        }}
                       />
-                    </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTriggerCapture('nenkin', 'nenkinInput')}
+                          className="py-2.5 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5 truncate"
+                        >
+                          <UploadCloud className="w-4 h-4 text-indigo-500 shrink-0" /> Tải Ảnh Sổ
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Mã Nenkin (10 số)..."
+                          value={nenkinNumber}
+                          onChange={e => setNenkinNumber(e.target.value)}
+                          className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setStep(2)}
                       className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
@@ -606,52 +735,101 @@ function WizardContent() {
                       disabled={loading}
                       className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      {loading ? 'Đang Lưu...' : 'Tiếp Theo: Ngân Hàng Hoàn Thuế'} <ChevronRight className="w-4 h-4" />
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                        </>
+                      ) : (
+                        <>
+                          Tiếp Theo: Ngân Hàng Nhận Tiền <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 4: Bank Passbook & Complete */}
+              {/* STEP 4: Bank Passbook (Up to 2 pages with Thumbnails & Red Delete) */}
               {step === 4 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 4: Sổ Ngân Hàng Nhận Tiền</h2>
-                    <p className="text-xs text-slate-500">Tải trang đầu sổ ngân hàng Việt Nam hoặc Yucho để nhận tiền hoàn thuế.</p>
+                    <p className="text-xs text-slate-500">Có thể tải up to 2 trang đại diện sổ Yucho hoặc Ngân hàng Việt Nam.</p>
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
-                    <input
-                      id="bankInput"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) setBankPassbook(file);
-                      }}
-                    />
+                  <div className="space-y-3">
+                    {/* Bank Passbook Page 1 */}
+                    <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700">Trang 1 Sổ Ngân Hàng (Tên / STK)</label>
+                      <input
+                        id="bankInput1"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) setBankPassbook1(file);
+                        }}
+                      />
 
-                    <div
-                      onClick={() => handleTriggerCapture('bank', 'bankInput')}
-                      className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white rounded-xl p-5 text-center cursor-pointer transition-all"
-                    >
-                      {bankPassbook ? (
-                        <div className="space-y-1">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-                          <div className="text-xs font-bold text-slate-800 truncate">{bankPassbook.name}</div>
-                        </div>
+                      {bankPassbook1 || bankPassbook1Url ? (
+                        <ImageThumbnailItem
+                          file={bankPassbook1}
+                          url={bankPassbook1Url}
+                          label="Trang 1 Sổ Ngân Hàng"
+                          onDelete={() => {
+                            setBankPassbook1(null);
+                            setBankPassbook1Url('');
+                          }}
+                        />
                       ) : (
-                        <div className="space-y-1">
-                          <UploadCloud className="w-8 h-8 text-indigo-500 mx-auto" />
-                          <div className="text-xs font-bold text-slate-800">Tải Ảnh Trang Đầu Sổ Ngân Hàng</div>
-                          <p className="text-[10px] text-slate-400">Vietcombank, MB Bank, Yucho Bank...</p>
+                        <div
+                          onClick={() => handleTriggerCapture('bank1', 'bankInput1')}
+                          className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white rounded-xl p-4 text-center cursor-pointer transition-all"
+                        >
+                          <UploadCloud className="w-7 h-7 text-indigo-500 mx-auto mb-1" />
+                          <div className="text-xs font-bold text-slate-800">Tải Ảnh Trang 1 Sổ Ngân Hàng</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bank Passbook Page 2 */}
+                    <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700">Trang 2 Sổ Ngân Hàng (Tùy chọn)</label>
+                      <input
+                        id="bankInput2"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) setBankPassbook2(file);
+                        }}
+                      />
+
+                      {bankPassbook2 || bankPassbook2Url ? (
+                        <ImageThumbnailItem
+                          file={bankPassbook2}
+                          url={bankPassbook2Url}
+                          label="Trang 2 Sổ Ngân Hàng"
+                          onDelete={() => {
+                            setBankPassbook2(null);
+                            setBankPassbook2Url('');
+                          }}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => handleTriggerCapture('bank2', 'bankInput2')}
+                          className="border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-white rounded-xl p-3 text-center cursor-pointer transition-all"
+                        >
+                          <UploadCloud className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                          <div className="text-xs font-semibold text-slate-600">Tải Ảnh Trang 2 (Nếu có)</div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setStep(3)}
                       className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
@@ -663,7 +841,15 @@ function WizardContent() {
                       disabled={loading}
                       className="w-2/3 py-3 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.99]"
                     >
-                      {loading ? 'Đang Gửi Hồ Sơ...' : '🚀 Hoàn Tất & Gửi Hồ Sơ'}
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                        </>
+                      ) : (
+                        <>
+                          🚀 Hoàn Tất & Gửi Hồ Sơ
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

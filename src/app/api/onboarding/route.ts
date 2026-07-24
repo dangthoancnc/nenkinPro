@@ -15,6 +15,7 @@ const onboardingSchema = z.object({
   passportUrl: z.string().max(2048).nullable().optional(),
   nenkinBookUrl: z.string().max(2048).nullable().optional(),
   bankPassbookUrl: z.string().max(2048).nullable().optional(),
+  bankPassbookUrls: z.array(z.string()).optional(),
   cardNumber: z.string().max(255).nullable().optional(),
   zairyuAddress: z.string().max(255).nullable().optional(),
   securityPhotoUrl: z.string().max(2048).nullable().optional(),
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       passportUrl,
       nenkinBookUrl,
       bankPassbookUrl,
+      bankPassbookUrls: inputBankUrls,
       cardNumber,
       zairyuAddress,
       securityPhotoUrl,
@@ -91,12 +93,23 @@ export async function POST(req: Request) {
     // Auto-generate customer code
     const generateCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = 'KH-';
+      let res = 'KH-';
       for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+        res += chars.charAt(Math.floor(Math.random() * chars.length));
       }
-      return result;
+      return res;
     };
+
+    // Consolidate bank passbook URLs
+    const finalBankUrls: string[] = [];
+    if (Array.isArray(inputBankUrls)) {
+      finalBankUrls.push(...inputBankUrls.filter(Boolean));
+    }
+    if (bankPassbookUrl && !finalBankUrls.includes(bankPassbookUrl)) {
+      finalBankUrls.push(bankPassbookUrl);
+    }
+
+    const cleanCardNumber = cardNumber?.trim() || null;
 
     let customer;
     let attempts = 0;
@@ -118,7 +131,7 @@ export async function POST(req: Request) {
             passwordPin: passwordPin,
             status: 'PENDING',
             createdById: createdById,
-            cardNumber: cardNumber || null,
+            cardNumber: cleanCardNumber,
             zairyuAddress: zairyuAddress || null,
             zairyuFrontUrl: zairyuFrontUrl || null,
             zairyuBackUrl: zairyuBackUrl || null,
@@ -127,20 +140,27 @@ export async function POST(req: Request) {
             securityPhotoUrl: securityPhotoUrl || null,
             referralType: referralType,
             referredByCustomerId: referredByCustomerId,
-            ...(bankPassbookUrl ? {
+            ...(finalBankUrls.length > 0 ? {
               bankAccounts: {
                 create: [{
                   bankCountry: 'VIETNAM',
                   purpose: 'BOTH',
-                  bankPassbookUrls: [bankPassbookUrl],
+                  bankPassbookUrls: finalBankUrls,
                 }]
               }
             } : {})
           }
         });
         break;
-      } catch (error: unknown) {
-        if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
+      } catch (error: any) {
+        // If code or referralCode collided, retry with a new code
+        if (error?.code === 'P2002') {
+          const target = error?.meta?.target;
+          const isCardNumber = Array.isArray(target) ? target.includes('cardNumber') : String(target).includes('cardNumber');
+          if (isCardNumber) {
+            // Card number already exists, save as null or continue with warning
+            return NextResponse.json({ success: false, error: `Số thẻ ngoại kiều ${cleanCardNumber} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.` }, { status: 400 });
+          }
           attempts++;
           continue;
         }
@@ -149,14 +169,17 @@ export async function POST(req: Request) {
     }
 
     if (!customer) {
-      throw new Error('Failed to create customer with unique code');
+      throw new Error('Không thể tạo mã khách hàng duy nhất, vui lòng thử lại');
     }
 
-    // Move any temp draft files to official customer ID
-    if (zairyuFrontUrl) await moveStorageFile(zairyuFrontUrl, customer.id, 'zairyuFront');
-    if (passportUrl) await moveStorageFile(passportUrl, customer.id, 'passport');
-    if (nenkinBookUrl) await moveStorageFile(nenkinBookUrl, customer.id, 'nenkin');
-    if (bankPassbookUrl) await moveStorageFile(bankPassbookUrl, customer.id, 'bankPassbook_0');
+    // Move temp draft files to official customer ID
+    if (zairyuFrontUrl) await moveStorageFile(zairyuFrontUrl, customer.id, 'zairyuFront').catch(console.error);
+    if (zairyuBackUrl) await moveStorageFile(zairyuBackUrl, customer.id, 'zairyuBack').catch(console.error);
+    if (passportUrl) await moveStorageFile(passportUrl, customer.id, 'passport').catch(console.error);
+    if (nenkinBookUrl) await moveStorageFile(nenkinBookUrl, customer.id, 'nenkin').catch(console.error);
+    for (let i = 0; i < finalBankUrls.length; i++) {
+      await moveStorageFile(finalBankUrls[i], customer.id, `bankPassbook_${i}`).catch(console.error);
+    }
 
     // Create application with referral tracking
     const application = await prisma.nenkinApplication.create({
