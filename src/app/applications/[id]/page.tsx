@@ -809,7 +809,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <WorkflowPanel
           status={(watch('status') || 'DRAFT') as WorkflowStatus}
           isEditing={isEditing}
-          onChange={val => setValue('status', val as any, { shouldDirty: true })}
+          onChange={val => {
+            setValue('status', val as any, { shouldDirty: true });
+          }}
+          onAutoFillDate={(field, val) => {
+            setValue(field as any, val, { shouldDirty: true });
+            if (field === 'sent1stDate') setValue('status', 'SENT_1ST', { shouldDirty: true });
+            else if (field === 'received1stDate') setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+            else if (field === 'sent2ndDate') setValue('status', 'SENT_2ND', { shouldDirty: true });
+            else if (field === 'received2ndDate') setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+          }}
           dates={{
             sent1st:     watch('sent1stDate')     as string | undefined,
             received1st: watch('received1stDate') as string | undefined,
@@ -819,27 +828,105 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         />
       </div>
 
-      {/* Tabs: Mốc ngày / Tài chính */}
+      {/* Tabs: Mốc ngày / Tài chính / Lịch sử */}
       <div className="px-3 pt-1.5 border-b border-slate-100/80 bg-white/40 flex gap-1 shrink-0">
-        {(['dates', 'finance'] as const).map(tab => (
-          <button key={tab} type="button" onClick={() => setPanel3aTab(tab)}
-            className={`px-2.5 py-1.5 text-[11px] font-bold border-b-2 -mb-px transition-all ${
-              panel3aTab === tab
+        {(['dates', 'finance', 'history'] as const).map(tab => (
+          <button key={tab} type="button" onClick={() => setPanel3aTab(tab as any)}
+            className={`px-2 py-1 text-[11px] font-bold border-b-2 -mb-px transition-all ${
+              panel3aTab === (tab as any)
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}>
-            {tab === 'dates' ? '📅 Mốc ngày' : '💰 Tài chính'}
+            {tab === 'dates' ? '📅 Mốc ngày' : tab === 'finance' ? '💰 Tài chính' : '📜 Lịch sử'}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto p-2.5 min-h-0">
         {panel3aTab === 'dates' && (
-          <div className="grid grid-cols-2 gap-1.5">
-            <FormField label="Nộp Lần 1"><Input type="date" {...register('sent1stDate')} disabled={!isEditing} size="sm" /></FormField>
-            <FormField label="Nhận Lần 1"><Input type="date" {...register('received1stDate')} disabled={!isEditing} size="sm" /></FormField>
-            <FormField label="Nộp Lần 2"><Input type="date" {...register('sent2ndDate')} disabled={!isEditing} size="sm" /></FormField>
-            <FormField label="Nhận Lần 2"><Input type="date" {...register('received2ndDate')} disabled={!isEditing} size="sm" /></FormField>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              <FormField label="Nộp Lần 1">
+                <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
+                  const val = e.target.value;
+                  setValue('sent1stDate', val, { shouldDirty: true });
+                  if (val && ['DRAFT', 'PENDING'].includes(watch('status') || '')) {
+                    setValue('status', 'SENT_1ST', { shouldDirty: true });
+                    toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 1');
+                  }
+                }} disabled={!isEditing} size="sm" />
+              </FormField>
+              <FormField label="Nhận Lần 1">
+                <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
+                  const val = e.target.value;
+                  setValue('received1stDate', val, { shouldDirty: true });
+                  const s1 = watch('sent1stDate');
+                  if (val && s1 && new Date(val) < new Date(s1)) {
+                    toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Nộp Lần 1');
+                  }
+                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
+                    setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                    toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 1');
+                  }
+                }} disabled={!isEditing} size="sm" />
+              </FormField>
+              <FormField label="Nộp Lần 2">
+                <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
+                  const val = e.target.value;
+                  setValue('sent2ndDate', val, { shouldDirty: true });
+                  const r1 = watch('received1stDate');
+                  if (val && r1 && new Date(val) < new Date(r1)) {
+                    toast.warning('Ngày Nộp Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
+                  }
+                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
+                    setValue('status', 'SENT_2ND', { shouldDirty: true });
+                    toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 2');
+                  }
+                }} disabled={!isEditing} size="sm" />
+              </FormField>
+              <FormField label="Nhận Lần 2">
+                <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
+                  const val = e.target.value;
+                  setValue('received2ndDate', val, { shouldDirty: true });
+                  const s2 = watch('sent2ndDate');
+                  if (val && s2 && new Date(val) < new Date(s2)) {
+                    toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Nộp Lần 2');
+                  }
+                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
+                    setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+                    toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 2');
+                  }
+                }} disabled={!isEditing} size="sm" />
+              </FormField>
+            </div>
+            {isEditing && (
+              <div className="pt-1 flex flex-wrap gap-1">
+                <button type="button" onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setValue('sent1stDate', today, { shouldDirty: true });
+                  setValue('status', 'SENT_1ST', { shouldDirty: true });
+                  toast.success('Đã nộp Lần 1 hôm nay!');
+                }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
+                  + Hôm nay Nộp L1
+                </button>
+                <button type="button" onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setValue('received1stDate', today, { shouldDirty: true });
+                  setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                  toast.success('Đã nhận Lần 1 hôm nay!');
+                }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
+                  + Hôm nay Nhận L1
+                </button>
+                <button type="button" onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setValue('sent2ndDate', today, { shouldDirty: true });
+                  setValue('status', 'SENT_2ND', { shouldDirty: true });
+                  toast.success('Đã nộp Lần 2 hôm nay!');
+                }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
+                  + Hôm nay Nộp L2
+                </button>
+              </div>
+            )}
           </div>
         )}
         {panel3aTab === 'finance' && (
@@ -864,6 +951,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
               <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
               <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60" /></FormField>
+            </div>
+          </div>
+        )}
+        {(panel3aTab as any) === 'history' && (
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nhật ký xử lý hồ sơ</div>
+            <div className="border border-slate-200 rounded-lg bg-white divide-y divide-slate-100 max-h-[160px] overflow-y-auto">
+              <div className="p-2 text-[11px] text-slate-600 flex justify-between items-center bg-slate-50">
+                <span className="font-semibold text-indigo-700">Khởi tạo hồ sơ</span>
+                <span className="text-[9px] font-mono text-slate-400">Hệ thống</span>
+              </div>
+              <div className="p-2 text-[11px] text-slate-600 flex justify-between items-center">
+                <span>Trạng thái: <strong className="text-slate-800">{watch('status') || 'DRAFT'}</strong></span>
+                <span className="text-[9px] font-mono text-slate-400">Vừa xong</span>
+              </div>
             </div>
           </div>
         )}

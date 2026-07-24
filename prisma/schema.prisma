@@ -244,10 +244,25 @@ model NenkinApplication {
   taxRepresentativeId String?
   taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
 
+  histories           ApplicationHistory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("nenkin_applications")
+}
+
+model ApplicationHistory {
+  id            String             @id @default(uuid())
+  applicationId String
+  application   NenkinApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actorName     String
+  action        String
+  description   String
+  createdAt     DateTime           @default(now())
+
+  @@index([applicationId])
+  @@map("nenkin_application_histories")
 }
 
 model TaxRepresentative {
