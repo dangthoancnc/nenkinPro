@@ -7,8 +7,9 @@ export async function POST(req: Request) {
     const { phone, fullName, cardNumber } = body;
 
     const cleanCard = typeof cardNumber === 'string' ? cardNumber.trim() : null;
-    const cleanPhone = typeof phone === 'string' ? phone.trim() : null;
+    const rawPhone = typeof phone === 'string' ? phone.trim() : null;
     const cleanName = typeof fullName === 'string' ? fullName.trim() : null;
+    const phoneDigits = rawPhone ? rawPhone.replace(/\D/g, '') : '';
 
     let existingCustomer = null;
 
@@ -19,18 +20,26 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!existingCustomer && cleanPhone && cleanName) {
+    if (!existingCustomer && phoneDigits && phoneDigits.length >= 8) {
+      // Find customer by matching phone digits
+      const allCustomers = await prisma.customer.findMany({
+        where: { phone: { not: null } },
+        select: { id: true, code: true, fullName: true, phone: true }
+      });
+
+      existingCustomer = allCustomers.find(c => {
+        if (!c.phone) return false;
+        const dbPhoneDigits = c.phone.replace(/\D/g, '');
+        return dbPhoneDigits.includes(phoneDigits) || phoneDigits.includes(dbPhoneDigits);
+      }) || null;
+    }
+
+    if (!existingCustomer && cleanName && cleanName.length >= 3) {
       existingCustomer = await prisma.customer.findFirst({
         where: {
-          phone: cleanPhone,
           fullName: { equals: cleanName, mode: 'insensitive' }
         },
-        select: { code: true, fullName: true, phone: true }
-      });
-    } else if (!existingCustomer && cleanPhone) {
-      existingCustomer = await prisma.customer.findFirst({
-        where: { phone: cleanPhone },
-        select: { code: true, fullName: true, phone: true }
+        select: { id: true, code: true, fullName: true, phone: true }
       });
     }
 

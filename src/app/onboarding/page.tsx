@@ -145,17 +145,20 @@ function WizardContent() {
     setCaptureOpen(false);
   };
 
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
   const handleNextStep1 = async () => {
+    setGeneralError(null);
     if (!fullName.trim()) {
-      alert('Vui lòng nhập Họ và Tên của bạn.');
+      setGeneralError('Quý khách vui lòng nhập Họ và Tên của mình.');
       return;
     }
     if (!phone.trim() && !zaloContact.trim()) {
-      alert('Vui lòng nhập Số điện thoại hoặc Zalo để nhân viên có thể liên hệ hỗ trợ.');
+      setGeneralError('Quý khách vui lòng nhập Số điện thoại hoặc Zalo để nhân viên thuận tiện liên hệ hỗ trợ.');
       return;
     }
     if (!dob) {
-      alert('Vui lòng chọn Ngày tháng năm sinh.');
+      setGeneralError('Quý khách vui lòng chọn Ngày tháng năm sinh.');
       return;
     }
 
@@ -199,6 +202,7 @@ function WizardContent() {
   };
 
   const handleNextStep2 = async () => {
+    setGeneralError(null);
     if (!zairyuFront && !zairyuFrontUrl) {
       if (cardNumber.trim()) {
         setLoading(true);
@@ -225,7 +229,7 @@ function WizardContent() {
         setStep(3);
         return;
       }
-      alert('Vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ.');
+      setGeneralError('Quý khách vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ ngoại kiều.');
       return;
     }
 
@@ -284,6 +288,7 @@ function WizardContent() {
 
   const handleNextStep3 = async () => {
     setLoading(true);
+    setGeneralError(null);
     try {
       if (passport) {
         const pUrl = await handleUploadSingleFile(passport, 'passport');
@@ -304,6 +309,7 @@ function WizardContent() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setGeneralError(null);
     setExistingCustomerData(null);
     try {
       const bankUrls: string[] = [];
@@ -346,10 +352,10 @@ function WizardContent() {
 
       const data = await res.json();
 
-      if (data.isExistingCustomer) {
+      if (data.isExistingCustomer || res.status === 409) {
         setExistingCustomerData({
-          customerCode: data.customerCode,
-          message: data.error
+          customerCode: data.customerCode || 'KH-XXXXXX',
+          message: data.error || `Hồ sơ của quý khách (${fullName}) đã tồn tại trong hệ thống. Vì lý do bảo mật, vui lòng Đăng Nhập để xem/bổ sung tài liệu.`
         });
         return;
       }
@@ -365,7 +371,16 @@ function WizardContent() {
       });
       sessionStorage.removeItem('onboarding_draft_id');
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('tồn tại') || msg.includes('duplicate') || msg.includes('P2002') || msg.includes('KH-')) {
+        const codeMatch = msg.match(/KH-[A-Z0-9]+/);
+        setExistingCustomerData({
+          customerCode: codeMatch ? codeMatch[0] : 'Đã tồn tại',
+          message: `Hồ sơ của quý khách (${fullName}) đã tồn tại trong hệ thống. Vì lý do bảo mật, quý khách vui lòng Đăng Nhập Cổng Khách Hàng để xem hoặc bổ sung tài liệu.`
+        });
+      } else {
+        setGeneralError('Hệ thống đang xử lý hoặc kết nối chập chờn. Quý khách vui lòng thử lại sau ít phút hoặc liên hệ Nhân viên qua Zalo để được hỗ trợ trực tiếp!');
+      }
     } finally {
       setLoading(false);
     }
@@ -419,6 +434,21 @@ function WizardContent() {
         )}
 
         <div className="p-4 md:p-6 space-y-5">
+          {/* GENERAL ERROR BANNER */}
+          {generalError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 text-xs text-red-700 flex items-start gap-2.5 shadow-xs">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{generalError}</div>
+              <button
+                type="button"
+                onClick={() => setGeneralError(null)}
+                className="text-red-400 hover:text-red-600 font-bold p-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* EXISTING CUSTOMER PROTECTION ALERT */}
           {existingCustomerData ? (
             <div className="text-center space-y-4 py-4">
