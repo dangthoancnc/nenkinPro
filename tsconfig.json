@@ -40,6 +40,9 @@
   ],
   "exclude": [
     "node_modules",
+    "e2e",
+    "scratch",
+    "scripts",
     "nenkin_202606*",
     "nenkin_202607*",
     "nenkinv2_202607*"
