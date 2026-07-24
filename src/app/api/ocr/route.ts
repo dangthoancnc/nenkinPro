@@ -6,6 +6,7 @@ import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
 import prisma from '@/lib/prisma';
 import crypto from 'node:crypto';
 import { checkUploadRateLimit } from '@/lib/auth/rateLimit';
+import { uploadCustomerDocument } from '@/lib/storageHelper';
 
 function validateMagicBytes(buffer: ArrayBuffer): { isValid: boolean; ext: string | null; mimeType: string | null } {
   const arr = new Uint8Array(buffer).subarray(0, 4);
@@ -85,25 +86,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Định dạng tệp không hợp lệ. Chỉ chấp nhận JPEG, PNG, PDF.' }, { status: 400 });
       }
 
-      const prefix = customerId || 'anonymous';
-      const secFileName = `${prefix}/securityPhoto/${Date.now()}_${crypto.randomUUID()}.${magic.ext}`;
+      const targetId = customerId || `draft_${crypto.randomUUID()}`;
       
       try {
-        // TODO: [Tech Debt] Remove this mock from production code. Mocking should be done at the infrastructure level (e.g., MSW or Playwright page.route), not inside application code.
         if (process.env.NODE_ENV === 'test') {
-          securityPhotoUrl = secFileName;
+          securityPhotoUrl = `${targetId}/securityPhoto.${magic.ext}`;
         } else {
-          const { error: secUploadError } = await supabase.storage
-            .from('customer-documents')
-            .upload(secFileName, secBuffer, { contentType: magic.mimeType! });
-          
-          if (!secUploadError) {
-            const { data } = supabase.storage
-              .from('customer-documents')
-              .getPublicUrl(secFileName);
-            securityPhotoUrl = data.publicUrl; // Store full public URL
+          const uploadedUrl = await uploadCustomerDocument(targetId, 'securityPhoto', secBuffer, magic.mimeType!, magic.ext!);
+          if (uploadedUrl) {
+            securityPhotoUrl = uploadedUrl;
           } else {
-            console.error('Security photo upload error:', secUploadError);
+            console.error('Security photo upload error');
           }
         }
       } catch (uploadError) {
@@ -124,26 +117,16 @@ export async function POST(request: Request) {
       mimeType = magic.mimeType!;
       
       if (action.includes('upload')) {
-        const prefix = customerId || 'anonymous';
-        const fileName = `${prefix}/${documentType}/${Date.now()}_${crypto.randomUUID()}.${magic.ext}`;
+        const targetId = customerId || `draft_${crypto.randomUUID()}`;
         
-        // TODO: [Tech Debt] Remove this mock from production code. Mocking should be done at the infrastructure level (e.g., MSW or Playwright page.route), not inside application code.
         if (process.env.NODE_ENV === 'test') {
-          publicUrl = fileName;
+          publicUrl = `${targetId}/${documentType}.${magic.ext}`;
         } else {
-          const { error: uploadError } = await supabase.storage
-            .from('customer-documents')
-            .upload(fileName, buffer, { contentType: mimeType });
-
-          if (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            return NextResponse.json({ error: `Supabase Error: ${uploadError.message}` }, { status: 500 });
+          const uploadedUrl = await uploadCustomerDocument(targetId, documentType, buffer, mimeType, magic.ext!);
+          if (!uploadedUrl) {
+            return NextResponse.json({ error: 'Supabase Error: Không thể tải ảnh lên bộ lưu trữ.' }, { status: 500 });
           }
-
-          const { data } = supabase.storage
-            .from('customer-documents')
-            .getPublicUrl(fileName);
-          publicUrl = data.publicUrl; // Store full public URL
+          publicUrl = uploadedUrl;
         }
       }
     } else if (imageUrl) {
