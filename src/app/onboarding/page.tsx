@@ -202,6 +202,15 @@ function WizardContent() {
           return;
         }
 
+        if (data.isExistingCustomer) {
+          setExistingCustomerData({
+            customerCode: data.existingCustomerCode,
+            message: data.existingCustomerMessage
+          });
+          setLoading(false);
+          return;
+        }
+
         setZairyuFrontUrl(data.publicUrl);
         if (data.securityPhotoUrl) setSecurityPhotoUrl(data.securityPhotoUrl);
         if (data.extractedData) {

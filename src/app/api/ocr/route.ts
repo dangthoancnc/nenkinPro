@@ -273,7 +273,7 @@ export async function POST(request: Request) {
 
       // === 3. Save to OcrResult if we have a customerId ===
       // customerId is already parsed at the top of the function
-      if (customerId && extractedData && !extractedData.error) {
+      if (customerId && extractedData && !(extractedData as any).error) {
         try {
           await prisma.ocrResult.upsert({
             where: { customerId_documentType: { customerId, documentType } },
@@ -286,11 +286,45 @@ export async function POST(request: Request) {
       }
     }
 
+    // === 4. Early Duplicate Check for Onboarding Zairyu Upload ===
+    let existingCustomer: { code: string; fullName: string } | null = null;
+    if (source === 'onboarding' && extractedData && documentType === 'zairyuFront') {
+      const data = extractedData as Record<string, unknown>;
+      const cleanCardNumber = typeof data.cardNumber === 'string' ? data.cardNumber.trim() : null;
+      const cleanFullName = typeof data.fullName === 'string' ? data.fullName.trim() : null;
+      const dobStr = typeof data.dob === 'string' ? data.dob.trim() : null;
+
+      if (cleanCardNumber) {
+        existingCustomer = await prisma.customer.findUnique({
+          where: { cardNumber: cleanCardNumber },
+          select: { code: true, fullName: true }
+        });
+      }
+
+      if (!existingCustomer && cleanFullName && dobStr) {
+        const parsedDob = new Date(dobStr);
+        if (!isNaN(parsedDob.getTime())) {
+          existingCustomer = await prisma.customer.findFirst({
+            where: {
+              fullName: { equals: cleanFullName, mode: 'insensitive' },
+              dob: parsedDob
+            },
+            select: { code: true, fullName: true }
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       publicUrl,
       securityPhotoUrl: securityPhotoUrl || undefined,
-      extractedData
+      extractedData,
+      isExistingCustomer: !!existingCustomer,
+      existingCustomerCode: existingCustomer?.code || null,
+      existingCustomerMessage: existingCustomer
+        ? `Hồ sơ của quý khách (${existingCustomer.fullName}) đã tồn tại trong hệ thống với Mã hồ sơ: ${existingCustomer.code}. Vì lý do bảo mật, vui lòng Đăng Nhập để xem/bổ sung tài liệu.`
+        : null
     });
   } catch (error) {
     console.error('OCR Route Error:', error);
