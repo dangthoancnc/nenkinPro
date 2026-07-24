@@ -14,6 +14,7 @@ const onboardingSchema = z.object({
   zairyuBackUrl: z.string().max(2048).nullable().optional(),
   passportUrl: z.string().max(2048).nullable().optional(),
   nenkinBookUrl: z.string().max(2048).nullable().optional(),
+  nenkinNumber: z.string().max(255).nullable().optional(),
   bankPassbookUrl: z.string().max(2048).nullable().optional(),
   bankPassbookUrls: z.array(z.string()).optional(),
   cardNumber: z.string().max(255).nullable().optional(),
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       zairyuBackUrl,
       passportUrl,
       nenkinBookUrl,
+      nenkinNumber,
       bankPassbookUrl,
       bankPassbookUrls: inputBankUrls,
       cardNumber,
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
     const cleanCardNumber = cardNumber?.trim() || null;
     const cleanFullName = fullName?.trim() || '';
     const cleanPhone = phone?.trim() || null;
+    const cleanNenkinNumber = nenkinNumber?.trim() || null;
 
     // --- STRICT DEDUPLICATION CHECK ---
     let existingCustomer = null;
@@ -167,6 +170,7 @@ export async function POST(req: Request) {
           zairyuBackUrl: zairyuBackUrl || null,
           passportUrl: passportUrl || null,
           nenkinBookUrl: nenkinBookUrl || null,
+          nenkinNumber: cleanNenkinNumber,
           securityPhotoUrl: securityPhotoUrl || null,
           referralType: referralType,
           referredByCustomerId: referredByCustomerId,

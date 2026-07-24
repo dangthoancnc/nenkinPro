@@ -336,6 +336,7 @@ function WizardContent() {
         zairyuBackUrl,
         passportUrl,
         nenkinBookUrl,
+        nenkinNumber,
         bankPassbookUrl: bankUrls[0] || '',
         bankPassbookUrls: bankUrls,
         cardNumber,
