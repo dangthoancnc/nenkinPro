@@ -169,6 +169,11 @@ model Customer {
   createdBy   User?   @relation(fields: [createdById], references: [id])
   createdById String?
 
+  zaloContact            String?
+  facebookContact        String?
+  referralCode           String?        @unique
+  referredByCode         String?
+
   referralType          ReferralType?
   referredByCustomerId  String?
   referredByCustomer    Customer?  @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id], onDelete: SetNull)

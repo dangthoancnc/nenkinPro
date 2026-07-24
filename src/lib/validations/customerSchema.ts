@@ -49,6 +49,10 @@ export const customerSchema = z.object({
   departureDate: z.string().nullable().optional(),
   headOfHouseholdName: z.string().nullable().optional(),
   relationshipToHead: z.string().nullable().optional(),
+  zaloContact: z.string().nullable().optional(),
+  facebookContact: z.string().nullable().optional(),
+  referralCode: z.string().nullable().optional(),
+  referredByCode: z.string().nullable().optional(),
 });
 
 export type CustomerFormValues = z.infer<typeof customerSchema>;

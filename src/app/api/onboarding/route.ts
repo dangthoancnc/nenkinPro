@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { moveStorageFile } from '@/lib/storageHelper';
 
 const onboardingSchema = z.object({
   fullName: z.string().max(255).nullable().optional(),
   phone: z.string().max(255).nullable().optional(),
   dob: z.coerce.date().min(new Date('1800-01-01')).max(new Date('2100-01-01')).optional().nullable(),
   ref: z.string().max(255).nullable().optional(),
+  zaloContact: z.string().max(255).nullable().optional(),
+  facebookContact: z.string().max(255).nullable().optional(),
   zairyuFrontUrl: z.string().max(2048).nullable().optional(),
   zairyuBackUrl: z.string().max(2048).nullable().optional(),
   passportUrl: z.string().max(2048).nullable().optional(),
   nenkinBookUrl: z.string().max(2048).nullable().optional(),
-  bankPassbookUrl: z.string().max(2048).nullable().optional(), // Still accepted from onboarding form, will be converted to bankPassbookUrls
+  bankPassbookUrl: z.string().max(2048).nullable().optional(),
   cardNumber: z.string().max(255).nullable().optional(),
   zairyuAddress: z.string().max(255).nullable().optional(),
   securityPhotoUrl: z.string().max(2048).nullable().optional(),
+  draftId: z.string().max(255).nullable().optional(),
 }).strict();
 
 export async function POST(req: Request) {
@@ -36,6 +40,8 @@ export async function POST(req: Request) {
       phone,
       dob,
       ref,
+      zaloContact,
+      facebookContact,
       zairyuFrontUrl,
       zairyuBackUrl,
       passportUrl,
@@ -43,54 +49,46 @@ export async function POST(req: Request) {
       bankPassbookUrl,
       cardNumber,
       zairyuAddress,
-      securityPhotoUrl
+      securityPhotoUrl,
     } = result.data;
 
     const parsedDob = dob || new Date();
-
-    // Auto-generate passwordPin from birth year
     const passwordPin = parsedDob.getFullYear().toString();
 
-    // 1. Resolve referral code (staffCode or customer code)
+    // Resolve referral code if provided
     let createdById: string | null = null;
     let referralType: 'STAFF' | 'CUSTOMER' | null = null;
     let referredByCustomerId: string | null = null;
 
-    if (ref) {
-      // First, try to find a staff member by staffCode
+    if (ref && ref.trim()) {
+      const cleanRef = ref.trim().toUpperCase();
       const staffUser = await prisma.user.findUnique({
-        where: { staffCode: ref.toUpperCase() }
+        where: { staffCode: cleanRef }
       });
 
       if (staffUser) {
         createdById = staffUser.id;
         referralType = 'STAFF';
       } else {
-        // If not a staff code, try customer code
         const referringCustomer = await prisma.customer.findUnique({
-          where: { code: ref.toUpperCase() }
+          where: { code: cleanRef }
         });
 
         if (referringCustomer) {
           referredByCustomerId = referringCustomer.id;
           referralType = 'CUSTOMER';
-          // Also assign to the same staff that manages the referring customer
           createdById = referringCustomer.createdById;
-        } else {
-          return NextResponse.json(
-            { success: false, error: 'Mã giới thiệu không hợp lệ. Vui lòng kiểm tra lại mã nhân viên hoặc mã khách hàng.' },
-            { status: 400 }
-          );
         }
       }
-    } else {
-      return NextResponse.json(
-        { success: false, error: 'Vui lòng nhập mã giới thiệu (mã nhân viên hoặc mã khách hàng).' },
-        { status: 400 }
-      );
     }
 
-    // 2. Auto-generate customer code (robust collision handling)
+    // Default createdById to first admin user if not specified
+    if (!createdById) {
+      const firstAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+      if (firstAdmin) createdById = firstAdmin.id;
+    }
+
+    // Auto-generate customer code
     const generateCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
       let result = 'KH-';
@@ -112,6 +110,10 @@ export async function POST(req: Request) {
             code,
             fullName: fullName || '',
             phone: phone || null,
+            zaloContact: zaloContact || null,
+            facebookContact: facebookContact || null,
+            referralCode: code,
+            referredByCode: ref || null,
             dob: parsedDob,
             passwordPin: passwordPin,
             status: 'PENDING',
@@ -139,16 +141,8 @@ export async function POST(req: Request) {
         break;
       } catch (error: unknown) {
         if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
-          const target = (error as { meta?: { target?: string | string[] } }).meta?.target;
-          const isCodeCollision = Array.isArray(target)
-            ? target.includes('code')
-            : (typeof target === 'string' && target.includes('code'));
-          if (isCodeCollision) {
-            attempts++;
-            continue;
-          } else {
-            return NextResponse.json({ success: false, error: 'Thông tin bị trùng (Unique constraint failed)' }, { status: 400 });
-          }
+          attempts++;
+          continue;
         }
         throw error;
       }
@@ -158,8 +152,13 @@ export async function POST(req: Request) {
       throw new Error('Failed to create customer with unique code');
     }
 
+    // Move any temp draft files to official customer ID
+    if (zairyuFrontUrl) await moveStorageFile(zairyuFrontUrl, customer.id, 'zairyuFront');
+    if (passportUrl) await moveStorageFile(passportUrl, customer.id, 'passport');
+    if (nenkinBookUrl) await moveStorageFile(nenkinBookUrl, customer.id, 'nenkin');
+    if (bankPassbookUrl) await moveStorageFile(bankPassbookUrl, customer.id, 'bankPassbook_0');
 
-    // 3. Create application with referral tracking
+    // Create application with referral tracking
     const application = await prisma.nenkinApplication.create({
       data: {
         customerId: customer.id,
@@ -168,6 +167,16 @@ export async function POST(req: Request) {
         referralDiscountJpy: referralType === 'CUSTOMER' ? 2000 : null,
       }
     });
+
+    // Record initial history entry
+    await prisma.applicationHistory.create({
+      data: {
+        applicationId: application.id,
+        actorName: 'Khách hàng tự đăng ký',
+        action: 'TỰ_ĐĂNG_KÝ',
+        description: `Khách hàng ${customer.fullName} (${customer.code}) tự khởi tạo hồ sơ trực tuyến.`
+      }
+    }).catch(console.error);
 
     return NextResponse.json({
       success: true,

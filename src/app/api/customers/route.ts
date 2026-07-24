@@ -78,6 +78,10 @@ export async function POST(req: Request) {
         // Additional fields
         nenkinNumber: body.nenkinNumber || null,
         nenkinKatakanaName: body.nenkinKatakanaName || null,
+        zaloContact: body.zaloContact || null,
+        facebookContact: body.facebookContact || null,
+        referralCode: code,
+        referredByCode: body.referredByCode || null,
 
         // 20 New fields
         lastName: body.lastName || null,

@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle } from 'lucide-react';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
 function WizardContent() {
@@ -12,27 +12,33 @@ function WizardContent() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null } | null>(null);
 
-  // Step 1 State
+  // Step 1 State: Personal & Contact Info
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [zaloContact, setZaloContact] = useState('');
+  const [facebookContact, setFacebookContact] = useState('');
   const [dob, setDob] = useState('');
   const [refCode, setRefCode] = useState(ref || '');
 
-  // Step 2 State
+  // Step 2 State: Zairyu Card (Card Number & Address auto-extracted or manual)
   const [zairyuFront, setZairyuFront] = useState<File | null>(null);
   const [zairyuFrontUrl, setZairyuFrontUrl] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [zairyuAddress, setZairyuAddress] = useState('');
 
-  // Step 3 State
+  // Step 3 State: Passport, Nenkin & Departure (Optional / Flexible)
   const [passport, setPassport] = useState<File | null>(null);
   const [nenkinBook, setNenkinBook] = useState<File | null>(null);
-  const [bankPassbook, setBankPassbook] = useState<File | null>(null);
-
+  const [nenkinNumber, setNenkinNumber] = useState('');
+  const [departureDate, setDepartureDate] = useState('');
   const [passportUrl, setPassportUrl] = useState('');
   const [nenkinBookUrl, setNenkinBookUrl] = useState('');
+
+  // Step 4 State: Bank Passbook
+  const [bankPassbook, setBankPassbook] = useState<File | null>(null);
   const [bankPassbookUrl, setBankPassbookUrl] = useState('');
 
   // Security Photo State
@@ -42,6 +48,18 @@ function WizardContent() {
   // Capture Overlay State
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureType, setCaptureType] = useState('');
+
+  const [draftId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      let d = sessionStorage.getItem('onboarding_draft_id');
+      if (!d) {
+        d = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        sessionStorage.setItem('onboarding_draft_id', d);
+      }
+      return d;
+    }
+    return `draft_${Date.now()}`;
+  });
 
   const handleTriggerCapture = (type: string, inputId: string) => {
     const isDesktop = window.innerWidth > 768;
@@ -64,36 +82,35 @@ function WizardContent() {
     setCaptureOpen(false);
   };
 
-  const handleCancel = () => {
-    router.push('/');
-  };
-
   const handleNextStep1 = () => {
-    if (!fullName || !phone || !dob || !refCode) {
-      alert('Vui lòng điền đầy đủ thông tin cơ bản và mã nhân viên.');
+    if (!fullName.trim()) {
+      alert('Vui lòng nhập Họ và Tên của bạn.');
+      return;
+    }
+    if (!phone.trim() && !zaloContact.trim()) {
+      alert('Vui lòng nhập Số điện thoại hoặc Zalo để nhân viên có thể liên hệ hỗ trợ.');
+      return;
+    }
+    if (!dob) {
+      alert('Vui lòng chọn Ngày tháng năm sinh.');
       return;
     }
     setStep(2);
   };
 
-  const [draftId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      let d = sessionStorage.getItem('onboarding_draft_id');
-      if (!d) {
-        d = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        sessionStorage.setItem('onboarding_draft_id', d);
-      }
-      return d;
-    }
-    return `draft_${Date.now()}`;
-  });
-
   const handleNextStep2 = async () => {
     if (!zairyuFront) {
-      alert('Vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card).');
+      // Allow manual entry if user doesn't have card photo right now
+      if (cardNumber.trim()) {
+        setStep(3);
+        return;
+      }
+      alert('Vui lòng tải lên ảnh mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ ngoại kiều.');
       return;
     }
+
     setLoading(true);
+    setOcrError(null);
     try {
       const fd = new FormData();
       fd.append('file', zairyuFront);
@@ -112,7 +129,9 @@ function WizardContent() {
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.error || 'Xử lý thẻ Zairyu thất bại');
+        setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
+        setLoading(false);
+        return;
       }
 
       setZairyuFrontUrl(data.publicUrl);
@@ -125,7 +144,7 @@ function WizardContent() {
       }
       setStep(3);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : String(err));
+      setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
     } finally {
       setLoading(false);
     }
@@ -138,16 +157,10 @@ function WizardContent() {
     fd.append('documentType', documentType);
     fd.append('source', 'onboarding');
     fd.append('customerId', draftId);
-    // For subsequent files, we don't need to re-upload securityPhoto since it was uploaded with zairyuFront
-    
-    const res = await fetch('/api/ocr', {
-      method: 'POST',
-      body: fd
-    });
+
+    const res = await fetch('/api/ocr', { method: 'POST', body: fd });
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || `Tải lên ${documentType} thất bại`);
-    }
+    if (!res.ok) throw new Error(data.error || `Tải lên ${documentType} thất bại`);
     return data.publicUrl;
   };
 
@@ -156,19 +169,14 @@ function WizardContent() {
     try {
       let pUrl = '';
       let nUrl = '';
-      let bUrl = '';
-      
       if (passport) pUrl = await handleUploadFile(passport, 'passport');
       if (nenkinBook) nUrl = await handleUploadFile(nenkinBook, 'nenkin');
-      if (bankPassbook) bUrl = await handleUploadFile(bankPassbook, 'bank');
-      
       setPassportUrl(pUrl);
       setNenkinBookUrl(nUrl);
-      setBankPassbookUrl(bUrl);
-      
       setStep(4);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : String(err));
+      console.error(err);
+      setStep(4); // Non-blocking: continue even if file upload warning
     } finally {
       setLoading(false);
     }
@@ -177,39 +185,51 @@ function WizardContent() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      let bUrl = '';
+      if (bankPassbook) {
+        try {
+          bUrl = await handleUploadFile(bankPassbook, 'bankPassbook_0');
+          setBankPassbookUrl(bUrl);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       const payload = {
         fullName,
         phone,
+        zaloContact,
+        facebookContact,
         dob,
         ref: refCode,
         zairyuFrontUrl,
-        zairyuBackUrl: '', 
+        zairyuBackUrl: '',
         passportUrl,
         nenkinBookUrl,
-        bankPassbookUrl,
+        bankPassbookUrl: bUrl || bankPassbookUrl,
         cardNumber,
         zairyuAddress,
-        securityPhotoUrl
+        securityPhotoUrl,
+        draftId,
       };
 
       const res = await fetch('/api/onboarding', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gửi hồ sơ thất bại');
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Lỗi khi gửi hồ sơ');
       }
 
       setCreatedData({
         code: data.customer.code,
-        cardNumber: data.customer.cardNumber || null,
-        referralType: data.customer.referralType || null,
+        cardNumber: data.customer.cardNumber,
+        referralType: data.customer.referralType
       });
-      setStep(5); 
+      sessionStorage.removeItem('onboarding_draft_id');
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
@@ -217,227 +237,454 @@ function WizardContent() {
     }
   };
 
-  if (step === 5) {
-    return (
-      <div className="p-10 max-w-lg mx-auto bg-white rounded-2xl shadow-xl text-center border-t-4 border-amber-400">
-        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 className="w-10 h-10" />
-        </div>
-        <h2 className="text-3xl font-bold text-slate-800 mb-4">Đăng ký thành công!</h2>
-        {createdData && (
-          <div className="mb-6 space-y-3">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-              <p className="text-xs text-indigo-600 font-medium mb-1">Mã hồ sơ của bạn</p>
-              <p className="text-2xl font-bold font-mono text-indigo-700">{createdData.code}</p>
-            </div>
-            {createdData.cardNumber && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                <p className="text-xs text-emerald-600 font-medium mb-1">Số thẻ ngoại kiều</p>
-                <p className="text-lg font-bold font-mono text-emerald-700">{createdData.cardNumber}</p>
-              </div>
-            )}
-          </div>
-        )}
-        <p className="text-slate-600 mb-8 leading-relaxed text-sm">
-          Hồ sơ của bạn đã được gửi thành công và đang chờ xét duyệt. Bạn có thể tra cứu hồ sơ tại trang chủ bằng Số thẻ ngoại kiều hoặc Mã hồ sơ, kết hợp với Năm sinh (4 số) làm mật khẩu.
-        </p>
-        <button onClick={() => router.push('/')} className="bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-          Trở về trang chủ
-        </button>
-      </div>
-    );
-  }
-
-  const stepTitles = ["Thông tin cơ bản", "Tải lên Thẻ Ngoại Kiều", "Tài liệu khác", "Xác nhận & Gửi"];
-
   return (
-    <div className="p-8 max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 relative">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2 text-slate-900">
-          <ShieldCheck className="w-8 h-8 text-indigo-600" />
-          <h1 className="text-2xl font-extrabold tracking-tight">Tạo Hồ Sơ Mới</h1>
-        </div>
-        <button onClick={handleCancel} className="text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1 text-sm font-medium bg-slate-50 hover:bg-red-50 px-3 py-1.5 rounded-full">
-          <X className="w-4 h-4" /> Hủy
-        </button>
-      </div>
-      
-      {/* Progress */}
-      <div className="mb-10">
-        <div className="flex justify-between relative">
-          <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
-          <div className="absolute top-1/2 left-0 h-1 bg-indigo-500 -z-10 -translate-y-1/2 rounded-full transition-all duration-500" style={{ width: `${((step - 1) / 3) * 100}%` }}></div>
-          {[1, 2, 3, 4].map(s => (
-            <div key={s} className="flex flex-col items-center gap-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm transition-colors duration-300 ${step >= s ? 'bg-slate-900 text-white ring-4 ring-slate-100' : 'bg-white text-slate-400 border-2 border-slate-200'}`}>
-                {step > s ? <CheckCircle2 className="w-5 h-5 text-indigo-500" /> : s}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="text-center mt-4 font-medium text-slate-600 text-sm">
-          Bước {step}: <span className="text-slate-900 font-bold">{stepTitles[step-1]}</span>
-        </div>
-      </div>
-
-      {step === 1 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-1.5 text-sm font-semibold text-slate-700">Họ và tên</label>
-              <input type="text" autoComplete="name" className="w-full border-slate-300 border p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="VD: NGUYEN VAN A" />
-            </div>
-            <div>
-              <label className="block mb-1.5 text-sm font-semibold text-slate-700">Số điện thoại</label>
-              <input type="tel" autoComplete="tel" name="phone" className="w-full border-slate-300 border p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white" value={phone} onChange={e => setPhone(e.target.value)} placeholder="090-1234-5678" />
-            </div>
-            <div>
-              <label className="block mb-1.5 text-sm font-semibold text-slate-700">Ngày sinh (Được dùng làm mật khẩu tra cứu)</label>
-              <input type="date" autoComplete="bday" className="w-full border-slate-300 border p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white" value={dob} onChange={e => setDob(e.target.value)} />
-            </div>
-            <div>
-              <label className="block mb-1.5 text-sm font-semibold text-slate-700">Mã giới thiệu (*)</label>
-              <input type="text" autoComplete="off" className="w-full border-slate-300 border p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-slate-50 focus:bg-white" value={refCode} onChange={e => setRefCode(e.target.value)} placeholder="Mã NV hoặc mã KH giới thiệu" />
-            </div>
-          </div>
-          <div className="pt-4 flex gap-3">
-            <button onClick={handleCancel} className="w-1/3 bg-slate-100 text-slate-700 p-3.5 rounded-xl font-bold hover:bg-slate-200 transition-colors">Hủy</button>
-            <button onClick={handleNextStep1} className="w-2/3 bg-slate-900 text-white p-3.5 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-md flex items-center justify-center gap-2">
-              Tiếp tục <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100 text-sm text-blue-800 mb-6 flex items-start gap-3">
-            <UploadCloud className="w-5 h-5 flex-shrink-0 mt-0.5 text-blue-600" />
-            <p>Vui lòng chụp rõ nét mặt trước Thẻ Ngoại Kiều (Zairyu Card). Hệ thống sẽ tự động nhận diện thông tin.</p>
-          </div>
-          <div>
-            <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 p-4 rounded-xl">
-              <button onClick={() => handleTriggerCapture('zairyuFront', 'zairyuUpload')} className="bg-white border border-slate-300 p-3 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center shrink-0">
-                <Camera className="w-6 h-6 text-slate-600" />
-              </button>
-              <div className="flex-1">
-                <input id="zairyuUpload" type="file" accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    setZairyuFront(e.target.files[0]);
-                  }
-                }} />
-                {zairyuFront ? (
-                  <p className="text-sm font-semibold text-emerald-600 line-clamp-1">{zairyuFront.name}</p>
-                ) : (
-                  <p className="text-sm text-slate-500">Chưa chọn file (Nhấn icon Camera hoặc mở trên Mobile)</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="pt-6 flex gap-3">
-            <button onClick={() => setStep(1)} disabled={loading} className="w-1/3 bg-white border border-slate-300 text-slate-700 p-3.5 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Quay lại</button>
-            <button onClick={handleNextStep2} disabled={loading} className="w-2/3 bg-slate-900 text-white p-3.5 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-md disabled:opacity-50 flex justify-center items-center gap-2">
-              {loading ? (
-                <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang quét dữ liệu...</>
-              ) : <><FileText className="w-5 h-5" /> Quét & Tiếp tục</>}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <p className="text-slate-500 text-sm mb-4">Bạn có thể tải lên các giấy tờ dưới đây nếu có sẵn. Nếu chưa có, bạn có thể bổ sung sau.</p>
-          <div className="space-y-5">
-            <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-center gap-4">
-              <button onClick={() => handleTriggerCapture('passport', 'passportUpload')} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                <Camera className="w-5 h-5 text-slate-500" />
-              </button>
-              <div className="flex-1">
-                <input id="passportUpload" type="file" accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files && e.target.files.length > 0) setPassport(e.target.files[0]);
-                }} />
-                {passport ? <p className="text-sm font-semibold text-emerald-600">{passport.name}</p> : <p className="text-sm text-slate-500">Chưa tải lên Hộ chiếu</p>}
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-center gap-4">
-              <button onClick={() => handleTriggerCapture('nenkin', 'nenkinUpload')} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                <Camera className="w-5 h-5 text-slate-500" />
-              </button>
-              <div className="flex-1">
-                <input id="nenkinUpload" type="file" accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files && e.target.files.length > 0) setNenkinBook(e.target.files[0]);
-                }} />
-                {nenkinBook ? <p className="text-sm font-semibold text-emerald-600">{nenkinBook.name}</p> : <p className="text-sm text-slate-500">Chưa tải lên Sổ Nenkin</p>}
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-center gap-4">
-              <button onClick={() => handleTriggerCapture('bank', 'bankUpload')} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:bg-slate-100 transition-colors">
-                <Camera className="w-5 h-5 text-slate-500" />
-              </button>
-              <div className="flex-1">
-                <input id="bankUpload" type="file" accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files && e.target.files.length > 0) setBankPassbook(e.target.files[0]);
-                }} />
-                {bankPassbook ? <p className="text-sm font-semibold text-emerald-600">{bankPassbook.name}</p> : <p className="text-sm text-slate-500">Chưa tải lên Sổ / Thẻ Ngân hàng</p>}
-              </div>
-            </div>
-          </div>
-          <div className="pt-6 flex gap-3">
-            <button onClick={() => setStep(2)} disabled={loading} className="w-1/3 bg-white border border-slate-300 text-slate-700 p-3.5 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Quay lại</button>
-            <button onClick={handleNextStep3} disabled={loading} className="w-2/3 bg-slate-900 text-white p-3.5 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-md disabled:opacity-50 flex justify-center items-center gap-2">
-              {loading ? (
-                <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang tải lên...</>
-              ) : <><UploadCloud className="w-5 h-5" /> Tiếp tục</>}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm space-y-3 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -z-0"></div>
-            
-            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500 font-medium">Họ và tên:</span> <span className="font-bold text-slate-900">{fullName}</span></p>
-            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500 font-medium">Điện thoại:</span> <span className="font-bold text-slate-900">{phone}</span></p>
-            <p className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500 font-medium">Ngày sinh:</span> <span className="font-bold text-slate-900">{dob}</span></p>
-            
-            <p className="flex justify-between border-b border-slate-200 pb-2 pt-2"><span className="text-slate-500 font-medium">Số thẻ Zairyu:</span> <span className="font-bold text-slate-900">{cardNumber || 'Chưa cập nhật'}</span></p>
-            <p className="flex flex-col border-b border-slate-200 pb-2"><span className="text-slate-500 font-medium mb-1">Địa chỉ:</span> <span className="font-bold text-slate-900">{zairyuAddress || 'Chưa cập nhật'}</span></p>
-            
-            {refCode && (
-              <p className="flex justify-between pt-2"><span className="text-slate-500 font-medium">Mã giới thiệu:</span> <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{refCode}</span></p>
-            )}
-          </div>
-          <div className="pt-4 flex gap-3">
-            <button onClick={() => setStep(3)} disabled={loading} className="w-1/3 bg-white border border-slate-300 text-slate-700 p-3.5 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Quay lại</button>
-            <button onClick={handleSubmit} disabled={loading} className="w-2/3 bg-indigo-600 text-white p-3.5 rounded-xl font-extrabold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex justify-center items-center gap-2">
-              {loading ? (
-                <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang nộp hồ sơ...</>
-              ) : <><ShieldCheck className="w-5 h-5" /> Nộp Hồ Sơ Ngay</>}
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 md:p-8">
+      {/* Capture Overlay Modal */}
       <DocumentCaptureOverlay
         isOpen={captureOpen}
-        onClose={() => setCaptureOpen(false)}
-        onCapture={handleCaptureSubmit}
         documentType={captureType}
+        onCapture={handleCaptureSubmit}
+        onClose={() => setCaptureOpen(false)}
       />
+
+      {/* Header */}
+      <div className="max-w-xl mx-auto w-full flex items-center justify-between py-2">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-md">
+            VN
+          </div>
+          <div>
+            <h1 className="font-bold text-slate-900 text-sm md:text-base leading-tight">VietNenkin Portal</h1>
+            <p className="text-[11px] text-slate-500">Nộp hồ sơ xin hoàn thuế Nenkin tự động</p>
+          </div>
+        </div>
+        <button
+          onClick={() => router.push('/')}
+          className="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Main Form Container */}
+      <div className="max-w-xl mx-auto w-full my-auto bg-white rounded-2xl border border-slate-200/80 shadow-xl overflow-hidden">
+        {/* Progress Bar Header */}
+        {!createdData && (
+          <div className="bg-slate-900 text-white p-4 border-b border-slate-800">
+            <div className="flex justify-between items-center text-xs font-semibold mb-2">
+              <span className="text-indigo-400">HƯỚNG DẪN TỰ ĐĂNG KÝ (4 BƯỚC)</span>
+              <span className="text-slate-400">Bước {step} / 4</span>
+            </div>
+            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-300"
+                style={{ width: `${(step / 4) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 md:p-6 space-y-5">
+          {/* SUCCESS SCREEN */}
+          {createdData ? (
+            <div className="text-center space-y-4 py-6">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-bounce">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold text-slate-900">Gửi Hồ Sơ Thành Công!</h2>
+                <p className="text-xs text-slate-500">Chất lượng thông tin đã được ghi nhận vào hệ thống.</p>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-left text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-200">
+                  <span className="text-slate-500">Mã Hồ Sơ Tra Cứu:</span>
+                  <span className="font-mono font-bold text-indigo-600 text-sm">{createdData.code}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-200">
+                  <span className="text-slate-500">Mã PIN Đăng Nhập Portal:</span>
+                  <span className="font-mono font-bold text-slate-800">{dob ? dob.slice(0, 4) : 'Năm sinh'}</span>
+                </div>
+                {createdData.referralType === 'CUSTOMER' && (
+                  <div className="bg-emerald-50 text-emerald-700 p-2 rounded-lg text-[11px] font-semibold flex items-center gap-1.5">
+                    <Gift className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>Quý khách đã được áp dụng giảm ngay 2.000 JPY phí dịch vụ nhờ mã giới thiệu!</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Nhân viên phụ trách sẽ kiểm tra thông tin và liên hệ với quý khách qua Zalo/SĐT trong thời gian sớm nhất.
+              </p>
+
+              <button
+                onClick={() => router.push('/portal/login')}
+                className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 shadow-md transition-all active:scale-[0.99]"
+              >
+                Đăng Nhập Cổng Tra Cứu Tiến Độ
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* STEP 1: Personal & Contact Info */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thông tin cá nhân & Liên hệ</h2>
+                    <p className="text-xs text-slate-500">Vui lòng điền thông tin để nhân viên dễ dàng hỗ trợ bạn.</p>
+                  </div>
+
+                  {/* Koyama Referral Discount Banner */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-2.5">
+                    <Gift className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                    <div className="text-xs text-indigo-900 leading-snug">
+                      <span className="font-bold">Ưu đãi mã giới thiệu:</span> Nhập mã giới thiệu từ bạn bè hoặc CTV để nhận ngay <span className="font-bold text-emerald-600">giảm 2.000 JPY</span> phí dịch vụ!
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên *</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: NGUYEN VAN A"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value.toUpperCase())}
+                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại *</label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="080... hoặc 09..."
+                            value={phone}
+                            onChange={e => setPhone(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Zalo (Số / Link)</label>
+                        <div className="relative">
+                          <MessageSquare className="w-4 h-4 text-blue-500 absolute left-3 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="Zalo SĐT..."
+                            value={zaloContact}
+                            onChange={e => setZaloContact(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
+                        <input
+                          type="date"
+                          value={dob}
+                          onChange={e => setDob(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Messenger</label>
+                        <input
+                          type="text"
+                          placeholder="Link m.me/..."
+                          value={facebookContact}
+                          onChange={e => setFacebookContact(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Mã Giới Thiệu (Tùy chọn)</label>
+                      <input
+                        type="text"
+                        placeholder="Mã CTV hoặc Mã khách hàng (VD: KH-123456)"
+                        value={refCode}
+                        onChange={e => setRefCode(e.target.value.toUpperCase())}
+                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleNextStep1}
+                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                  >
+                    Tiếp Theo: Tải Thẻ Ngoại Kiều <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: Zairyu Card Upload & Smart Guidance */}
+              {step === 2 && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 2: Thẻ Ngoại Kiều (Zairyu Card)</h2>
+                    <p className="text-xs text-slate-500">AI sẽ tự động đọc địa chỉ Kanji để ghép đúng Cục Thuế quản lý cho bạn.</p>
+                  </div>
+
+                  {/* Japanese Style Guidance Box */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                    <div className="font-bold flex items-center gap-1 text-amber-800">
+                      <HelpCircle className="w-4 h-4 text-amber-600" /> Hướng dẫn chụp ảnh chuẩn Nhật:
+                    </div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-800">
+                      <li>Đặt thẻ nằm phẳng trên mặt bàn có màu tương phản.</li>
+                      <li>Tránh ánh đèn chiếu trực tiếp làm chói bóng hoặc che mất dòng địa chỉ Kanji.</li>
+                    </ul>
+                  </div>
+
+                  {/* OCR Error Notification Banner */}
+                  {ocrError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2 animate-shake">
+                      <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                      <div>{ocrError}</div>
+                    </div>
+                  )}
+
+                  {/* File Capture Input */}
+                  <div className="space-y-2">
+                    <input
+                      id="zairyuInput"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setZairyuFront(file);
+                      }}
+                    />
+
+                    <div
+                      onClick={() => handleTriggerCapture('zairyuFront', 'zairyuInput')}
+                      className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-2xl p-6 text-center cursor-pointer transition-all hover:bg-indigo-50/80"
+                    >
+                      {zairyuFront ? (
+                        <div className="space-y-2">
+                          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                          <div className="text-xs font-bold text-slate-800 truncate">{zairyuFront.name}</div>
+                          <span className="text-[11px] text-indigo-600 font-semibold underline">Nhấp để chọn ảnh khác</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Camera className="w-10 h-10 text-indigo-500 mx-auto" />
+                          <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Trước Thẻ Ngoại Kiều</div>
+                          <p className="text-[11px] text-slate-400">Hệ thống sẽ tự động trích xuất thông tin</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-center text-xs text-slate-400 font-medium">-- Hoặc nhập tay nếu chưa có ảnh --</div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Số thẻ Zairyu (VD: AB12345678CD)"
+                        value={cardNumber}
+                        onChange={e => setCardNumber(e.target.value.toUpperCase())}
+                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Địa chỉ Kanji Nhật Bản..."
+                        value={zairyuAddress}
+                        onChange={e => setZairyuAddress(e.target.value)}
+                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
+                    >
+                      Quay Lại
+                    </button>
+                    <button
+                      onClick={handleNextStep2}
+                      disabled={loading}
+                      className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {loading ? 'AI Đang Bóc Tách...' : 'Tiếp Theo: Hộ Chiếu & Nenkin'} <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Passport & Nenkin Book (Optional / Flexible) */}
+              {step === 3 && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 3: Hộ Chiếu & Sổ Nenkin (Không bắt buộc)</h2>
+                    <p className="text-xs text-slate-500">Bạn có thể tải ảnh hoặc điền thông tin nếu nhớ. Nhân viên sẽ bổ sung giúp bạn sau.</p>
+                  </div>
+
+                  {/* Passport Upload */}
+                  <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>📘 Trang Ảnh Hộ Chiếu (Passport)</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Tùy chọn</span>
+                    </div>
+                    <input
+                      id="passportInput"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setPassport(file);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleTriggerCapture('passport', 'passportInput')}
+                      className="w-full py-2 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5"
+                    >
+                      <UploadCloud className="w-4 h-4 text-indigo-500" />
+                      {passport ? passport.name : 'Tải Lên Ảnh Hộ Chiếu'}
+                    </button>
+                  </div>
+
+                  {/* Nenkin Book Upload / Number */}
+                  <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>📙 Sổ Nenkin HOẶC Mã Số Nenkin (10 chữ số)</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Tùy chọn</span>
+                    </div>
+                    <input
+                      id="nenkinInput"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setNenkinBook(file);
+                      }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTriggerCapture('nenkin', 'nenkinInput')}
+                        className="py-2 px-3 border border-slate-300 rounded-xl bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5 truncate"
+                      >
+                        <UploadCloud className="w-4 h-4 text-indigo-500 shrink-0" />
+                        {nenkinBook ? nenkinBook.name : 'Tải Ảnh Sổ'}
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Mã Nenkin (10 số)..."
+                        value={nenkinNumber}
+                        onChange={e => setNenkinNumber(e.target.value)}
+                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setStep(2)}
+                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
+                    >
+                      Quay Lại
+                    </button>
+                    <button
+                      onClick={handleNextStep3}
+                      disabled={loading}
+                      className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {loading ? 'Đang Lưu...' : 'Tiếp Theo: Ngân Hàng Hoàn Thuế'} <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: Bank Passbook & Complete */}
+              {step === 4 && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 4: Sổ Ngân Hàng Nhận Tiền</h2>
+                    <p className="text-xs text-slate-500">Tải trang đầu sổ ngân hàng Việt Nam hoặc Yucho để nhận tiền hoàn thuế.</p>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+                    <input
+                      id="bankInput"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setBankPassbook(file);
+                      }}
+                    />
+
+                    <div
+                      onClick={() => handleTriggerCapture('bank', 'bankInput')}
+                      className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white rounded-xl p-5 text-center cursor-pointer transition-all"
+                    >
+                      {bankPassbook ? (
+                        <div className="space-y-1">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                          <div className="text-xs font-bold text-slate-800 truncate">{bankPassbook.name}</div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <UploadCloud className="w-8 h-8 text-indigo-500 mx-auto" />
+                          <div className="text-xs font-bold text-slate-800">Tải Ảnh Trang Đầu Sổ Ngân Hàng</div>
+                          <p className="text-[10px] text-slate-400">Vietcombank, MB Bank, Yucho Bank...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setStep(3)}
+                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
+                    >
+                      Quay Lại
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={loading}
+                      className="w-2/3 py-3 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.99]"
+                    >
+                      {loading ? 'Đang Gửi Hồ Sơ...' : '🚀 Hoàn Tất & Gửi Hồ Sơ'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="max-w-xl mx-auto w-full text-center py-4 text-[11px] text-slate-400">
+        © 2026 VietNenkin. Bảo mật thông tin chuẩn ISO/IEC 27001.
+      </div>
     </div>
   );
 }
 
 export default function OnboardingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <Suspense fallback={<div className="text-center py-20 text-slate-500 font-medium">Đang tải trình duyệt hồ sơ...</div>}>
-        <WizardContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin w-8 h-8 border-b-2 border-indigo-600 rounded-full"></div></div>}>
+      <WizardContent />
+    </Suspense>
   );
 }
