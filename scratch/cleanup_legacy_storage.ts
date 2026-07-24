@@ -2,46 +2,50 @@ import 'dotenv/config';
 import { supabaseAdmin } from '../src/lib/supabaseAdmin';
 
 const BUCKET_NAME = 'customer-documents';
-const LEGACY_FOLDERS = ['bank', 'departure', 'passport', 'nenkin', 'zairyuFront', 'zairyuBack', 'anonymous'];
 
-async function cleanupStorage() {
-  console.log(`Starting cleanup on bucket: ${BUCKET_NAME}...`);
+async function auditBucket() {
+  console.log('Auditing root of bucket:', BUCKET_NAME);
+  const { data: rootItems, error } = await supabaseAdmin.storage
+    .from(BUCKET_NAME)
+    .list('', { limit: 100 });
 
-  for (const folder of LEGACY_FOLDERS) {
-    try {
-      console.log(`Listing files in legacy folder: '${folder}'...`);
-      const { data: files, error: listErr } = await supabaseAdmin.storage
-        .from(BUCKET_NAME)
-        .list(folder, { limit: 1000 });
+  if (error) {
+    console.error('List error:', error);
+    return;
+  }
 
-      if (listErr) {
-        console.error(`Error listing folder '${folder}':`, listErr.message);
-        continue;
+  console.log('ROOT ITEMS FOUND:', rootItems);
+
+  for (const item of rootItems || []) {
+    if (item.name.includes('.')) {
+      // It's a root file, remove it
+      console.log('Removing root file:', item.name);
+      await supabaseAdmin.storage.from(BUCKET_NAME).remove([item.name]);
+    } else {
+      // It's a folder. Check if it's a legacy folder (not UUID and not draft_)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.name);
+      const isDraft = item.name.startsWith('draft_');
+
+      if (!isUuid && !isDraft) {
+        console.log(`Cleaning legacy folder '${item.name}'...`);
+        const { data: subFiles } = await supabaseAdmin.storage
+          .from(BUCKET_NAME)
+          .list(item.name, { limit: 1000 });
+
+        if (subFiles && subFiles.length > 0) {
+          const filePaths = subFiles.map(f => `${item.name}/${f.name}`);
+          console.log(`Deleting ${filePaths.length} files in '${item.name}'...`, filePaths);
+          const { error: delErr } = await supabaseAdmin.storage
+            .from(BUCKET_NAME)
+            .remove(filePaths);
+          if (delErr) console.error('Delete error:', delErr);
+          else console.log(`Deleted all files in '${item.name}'`);
+        }
       }
-
-      if (!files || files.length === 0) {
-        console.log(`Folder '${folder}' is empty or does not exist.`);
-        continue;
-      }
-
-      console.log(`Found ${files.length} items in legacy folder '${folder}'. Removing...`);
-      const filePaths = files.map(f => `${folder}/${f.name}`);
-      
-      const { data: removed, error: removeErr } = await supabaseAdmin.storage
-        .from(BUCKET_NAME)
-        .remove(filePaths);
-
-      if (removeErr) {
-        console.error(`Failed to remove items in '${folder}':`, removeErr.message);
-      } else {
-        console.log(`Successfully removed ${removed?.length || 0} legacy items from '${folder}'.`);
-      }
-    } catch (err) {
-      console.error(`Unexpected error cleaning folder '${folder}':`, err);
     }
   }
 
-  console.log('Cleanup finished successfully!');
+  console.log('Audit and deep cleanup finished!');
 }
 
-cleanupStorage();
+auditBucket();

@@ -59,16 +59,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ success: false, error: 'Không tìm thấy khách hàng' }, { status: 404 });
     }
 
-    // Move any newly added document files from anonymous to customerId, and delete old replaced files
+    // Move any newly added document files to customerId, and delete old replaced files
     const docFields = ['zairyuFrontUrl', 'zairyuBackUrl', 'passportUrl', 'departureStampUrl', 'nenkinBookUrl'] as const;
     for (const field of docFields) {
       const newVal = body[field];
       const oldVal = existingCustomer[field];
       if (newVal !== undefined && newVal !== oldVal) {
-        if (newVal && newVal.includes('/customer-documents/anonymous/')) {
-          body[field] = await moveStorageFile(newVal, id, field.replace('Url', ''));
+        if (newVal) {
+          const docType = field.replace('Url', '');
+          body[field] = await moveStorageFile(newVal, id, docType);
         }
-        if (oldVal) {
+        if (oldVal && oldVal !== body[field]) {
           await deleteStorageFile(oldVal);
         }
       }
@@ -82,7 +83,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const acc = bankAccounts[i];
         if (acc.bankPassbookUrls && Array.isArray(acc.bankPassbookUrls)) {
           const processedUrls = await Promise.all(acc.bankPassbookUrls.map(async (url: string) => {
-            if (url && url.includes('/customer-documents/anonymous/')) {
+            if (url) {
               return await moveStorageFile(url, id, `bankPassbook_${i}`);
             }
             return url;
