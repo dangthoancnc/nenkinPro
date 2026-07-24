@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Printer, Loader2, FileImage } from 'lucide-react';
-import { PrintContainer, PrintField, ImagePrintContainer } from '@/components/PrintOverlay';
+import { PrintContainer, PrintField, ImagePrintContainer, A4_W, A4_H } from '@/components/PrintOverlay';
 
 interface PrintModalProps {
   isOpen: boolean;
@@ -18,9 +18,9 @@ const DOCUMENT_TYPES = [
     name: 'TỔNG HỢP (LẦN 1)',
     category: 'LẦN 1',
     pages: [
-      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_donxin_p1' },
-      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fieldType: 'lan1_donxin_p2' },
-      { pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_uyquyen' },
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_p1' },
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fallbackType: 'lan1_p2' },
+      { templateName: 'ininjyo_yoshiki_lan_1', pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_uyquyen' },
       { isImage: true, imageKey: 'zairyu' },
       { isImage: true, imageKey: 'passport' },
       { isImage: true, imageKey: 'bank_first' },
@@ -33,8 +33,8 @@ const DOCUMENT_TYPES = [
     name: '1. Đơn xin Nenkin (Lần 1)',
     category: 'LẦN 1',
     pages: [
-      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_donxin_p1' },
-      { pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fieldType: 'lan1_donxin_p2' }
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_p1' },
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fallbackType: 'lan1_p2' }
     ]
   },
   {
@@ -42,7 +42,7 @@ const DOCUMENT_TYPES = [
     name: '2. Giấy ủy quyền (Lần 1)',
     category: 'LẦN 1',
     pages: [
-      { pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fieldType: 'lan1_uyquyen' }
+      { templateName: 'ininjyo_yoshiki_lan_1', pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_uyquyen' }
     ]
   },
   {
@@ -92,10 +92,10 @@ const DOCUMENT_TYPES = [
     name: 'TỔNG HỢP (LẦN 2)',
     category: 'LẦN 2',
     pages: [
-      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fieldType: 'lan2_donxin1' },
-      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fieldType: 'lan2_donxin2' },
-      { pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fieldType: 'lan2_donxin3' },
-      { pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fieldType: 'lan2_uyquyen' },
+      { templateName: 'giay_uy_thac_lan_2', pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fallbackType: 'lan2_uyquyen' },
+      { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fallbackType: 'lan2_donxin1' },
+      { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fallbackType: 'lan2_donxin2' },
+      { templateName: 'bang_3', pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fallbackType: 'lan2_donxin3' },
       { isImage: true, imageKey: 'zairyu' },
       { isImage: true, imageKey: 'passport' },
       { isImage: true, imageKey: 'bank_second' },
@@ -107,8 +107,8 @@ const DOCUMENT_TYPES = [
     name: '1. Đơn xin Lần 2 (Tờ 1, 2)',
     category: 'LẦN 2',
     pages: [
-      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fieldType: 'lan2_donxin1' },
-      { pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fieldType: 'lan2_donxin2' }
+      { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fallbackType: 'lan2_donxin1' },
+      { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fallbackType: 'lan2_donxin2' }
     ]
   },
   {
@@ -116,7 +116,7 @@ const DOCUMENT_TYPES = [
     name: '2. Đơn xin Lần 2 (Tờ 3)',
     category: 'LẦN 2',
     pages: [
-      { pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fieldType: 'lan2_donxin3' }
+      { templateName: 'bang_3', pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fallbackType: 'lan2_donxin3' }
     ]
   },
   {
@@ -124,7 +124,7 @@ const DOCUMENT_TYPES = [
     name: '3. Giấy ủy thác (Lần 2)',
     category: 'LẦN 2',
     pages: [
-      { pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fieldType: 'lan2_uyquyen' }
+      { templateName: 'giay_uy_thac_lan_2', pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fallbackType: 'lan2_uyquyen' }
     ]
   },
   {
@@ -171,6 +171,7 @@ const DOCUMENT_TYPES = [
 
 export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
   const [appData, setAppData] = useState<any | null>(null);
+  const [allConfigs, setAllConfigs] = useState<Record<string, Record<string, any>>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>(DOCUMENT_TYPES[0].id);
   const [zoomWidth, setZoomWidth] = useState<number>(800);
@@ -178,15 +179,26 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
   useEffect(() => {
     if (!id || !isOpen) return;
 
-    async function fetchApp() {
+    async function initData() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/applications/${id}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [appRes, configRes] = await Promise.all([
+          fetch(`/api/applications/${id}`),
+          fetch('/api/templates/mapping?template=all')
+        ]);
+
+        if (appRes.ok) {
+          const data = await appRes.json();
           setAppData(data);
         } else {
           alert('Không tìm thấy dữ liệu hồ sơ để in!');
+        }
+
+        if (configRes.ok) {
+          const cfgData = await configRes.json();
+          if (cfgData.success && cfgData.data) {
+            setAllConfigs(cfgData.data);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch print data:', error);
@@ -194,7 +206,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
         setLoading(false);
       }
     }
-    fetchApp();
+    initData();
   }, [id, isOpen]);
 
   const handlePrint = () => {
@@ -208,7 +220,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center max-w-xs w-full">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-3" />
-          <p className="text-slate-700 font-bold text-sm">Đang nạp mẫu hồ sơ in...</p>
+          <p className="text-slate-700 font-bold text-sm">Đang tải biểu mẫu & tọa độ...</p>
         </div>
       </div>
     );
@@ -220,7 +232,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
   const rep = appData.taxRepresentative || {};
   const mappedData = appData.mappedData || {};
 
-  // Clean strings helpers
+  // String helpers
   const cleanStr = (str: string | null | undefined) => str?.replace(/[\s-]/g, '') || '';
   const cleanPost = (str: string | null | undefined) => str?.replace(/-/g, '') || '';
   
@@ -280,16 +292,54 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
     }
   };
 
-  const renderMappedFields = (formType: string) => {
+  const getValueForTag = (tagId: string, coord: any): string => {
+    const baseKey = tagId.split('#')[0];
+    
+    if (baseKey.startsWith('static_')) {
+      return coord.value || '';
+    }
+
+    if (mappedData[tagId] !== undefined && mappedData[tagId] !== '') {
+      return mappedData[tagId];
+    }
+
+    if (mappedData[baseKey] !== undefined && mappedData[baseKey] !== '') {
+      return mappedData[baseKey];
+    }
+
+    // Common aliases
+    const aliases: Record<string, string[]> = {
+      bank_name: ['bankName', 'bank_first_name'],
+      bank_branch: ['branchName', 'bank_first_branch'],
+      bank_account_type: ['bankAccountType'],
+      taxRep_fullName: ['rep_fullName', 'taxRep_fullNameKana'],
+      taxRep_address: ['rep_address'],
+      taxRep_phone: ['rep_phone'],
+      taxOfficeName: ['office_name'],
+      taxOfficeAddress: ['office_address'],
+      address_jp: ['address', 'zairyuAddress'],
+    };
+
+    const list = aliases[baseKey] || aliases[tagId];
+    if (list) {
+      for (const a of list) {
+        if (mappedData[a] !== undefined && mappedData[a] !== '') return mappedData[a];
+      }
+    }
+
+    return '';
+  };
+
+  const renderFallbackFields = (formType: string) => {
     switch (formType) {
-      case 'lan1_donxin_p1':
+      case 'lan1_p1':
         return (
           <>
             <PrintField x={65} y={15} value={mappedData.applyDate_y} charSpacing={15} />
             <PrintField x={75} y={15} value={mappedData.applyDate_m} charSpacing={15} />
             <PrintField x={85} y={15} value={mappedData.applyDate_d} charSpacing={15} />
             
-            <PrintField x={22} y={23.5} value={customer.fullName} className="text-xl uppercase tracking-widest" />
+            <PrintField x={22} y={57.3} value={customer.fullName} className="text-xl uppercase tracking-widest" />
             <PrintField x={28} y={27} value={cleanStr(mappedData.dob_y)} charSpacing={16} />
             <PrintField x={40} y={27} value={mappedData.dob_m} charSpacing={16} />
             <PrintField x={48} y={27} value={mappedData.dob_d} charSpacing={16} />
@@ -324,7 +374,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
           </>
         );
 
-      case 'lan1_donxin_p2':
+      case 'lan1_p2':
         return (
           <>
             {customer.workHistories?.slice(0, 5).map((wh: any, idx: number) => {
@@ -487,6 +537,72 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
     }
   };
 
+  const renderPageFields = (templateName: string, pageNumber: number, fallbackType: string) => {
+    const config = allConfigs[templateName];
+    if (config && Object.keys(config).length > 0) {
+      const pageEntries = Object.entries(config).filter(([_, coord]) => coord.page === pageNumber);
+      if (pageEntries.length > 0) {
+        return (
+          <>
+            {pageEntries.map(([tagId, coord]) => {
+              const xPercent = (coord.x / A4_W) * 100;
+              const yPercent = ((A4_H - coord.y) / A4_H) * 100;
+              const baseKey = tagId.split('#')[0];
+
+              if (coord.type === 'line' || baseKey.startsWith('line_')) {
+                return (
+                  <PrintField
+                    key={tagId}
+                    x={xPercent}
+                    y={yPercent}
+                    type="line"
+                    width={coord.width}
+                    thickness={coord.thickness}
+                  />
+                );
+              }
+
+              if (coord.type === 'circle' || baseKey.startsWith('circle_')) {
+                const isStatic = baseKey.startsWith('static_') || baseKey.startsWith('circle_');
+                const val = getValueForTag(tagId, coord);
+                if (isStatic || val === 'true' || val === '○' || val === '1' || !!val) {
+                  return (
+                    <PrintField
+                      key={tagId}
+                      x={xPercent}
+                      y={yPercent}
+                      type="circle"
+                      width={coord.width || 20}
+                      height={coord.height || 20}
+                      thickness={coord.thickness || 1}
+                    />
+                  );
+                }
+                return null;
+              }
+
+              const textValue = getValueForTag(tagId, coord);
+              if (!textValue) return null;
+
+              return (
+                <PrintField
+                  key={tagId}
+                  x={xPercent}
+                  y={yPercent}
+                  value={textValue}
+                  size={coord.size || 12}
+                  width={coord.width}
+                />
+              );
+            })}
+          </>
+        );
+      }
+    }
+
+    return renderFallbackFields(fallbackType);
+  };
+
   const activeDoc = DOCUMENT_TYPES.find(d => d.id === activeTab) || DOCUMENT_TYPES[0];
 
   return (
@@ -629,7 +745,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
               return (
                 <div key={`${activeDoc.id}-${idx}`} className="print:break-after-page mb-8 print:mb-0">
                   <PrintContainer pdfFile={page.pdfFile} pageNumber={page.pageNumber}>
-                    {renderMappedFields(page.fieldType)}
+                    {renderPageFields(page.templateName, page.pageNumber, page.fallbackType)}
                   </PrintContainer>
                 </div>
               );

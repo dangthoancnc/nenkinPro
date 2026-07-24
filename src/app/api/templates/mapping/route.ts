@@ -1,25 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { requireRole } from '@/lib/auth/authorization';
+import { requireStaff, requireRole } from '@/lib/auth/authorization';
 
 export async function GET(request: NextRequest) {
-  const { user, error } = await requireRole(['ADMIN']);
+  const { user, error } = await requireStaff();
   if (error || !user) return error;
 
   try {
     const searchParams = request.nextUrl.searchParams;
-    const templateName = searchParams.get('template'); // e.g. don_xin_lan_1
+    const templateName = searchParams.get('template'); // e.g. don_xin_lan_1, or 'all'
+
+    const templatesDir = path.join(process.cwd(), 'public', 'templates');
+
+    if (templateName === 'all') {
+      const result: Record<string, any> = {};
+      if (fs.existsSync(templatesDir)) {
+        const files = fs.readdirSync(templatesDir);
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const name = file.replace('.json', '');
+            try {
+              const content = JSON.parse(fs.readFileSync(path.join(templatesDir, file), 'utf-8'));
+              result[name] = content;
+            } catch (e) {
+              // ignore invalid json
+            }
+          }
+        }
+      }
+      return NextResponse.json({ success: true, data: result });
+    }
 
     if (!templateName) {
-      // List all pdfs
-      const templatesDir = path.join(process.cwd(), 'public', 'forms');
-      const files = fs.readdirSync(templatesDir);
-      const pdfs = files.filter(f => f.endsWith('.pdf') && !f.includes('_grid')).map(f => f.replace('.pdf', ''));
+      // List all pdfs in /public/forms
+      const formsDir = path.join(process.cwd(), 'public', 'forms');
+      let pdfs: string[] = [];
+      if (fs.existsSync(formsDir)) {
+        const files = fs.readdirSync(formsDir);
+        pdfs = files.filter(f => f.endsWith('.pdf') && !f.includes('_grid')).map(f => f.replace('.pdf', ''));
+      }
       return NextResponse.json({ success: true, data: pdfs });
     }
 
-    const configPath = path.join(process.cwd(), 'public', 'templates', `${templateName}.json`);
+    const configPath = path.join(templatesDir, `${templateName}.json`);
     let config = {};
     if (fs.existsSync(configPath)) {
       config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
