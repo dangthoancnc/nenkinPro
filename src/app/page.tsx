@@ -93,15 +93,14 @@ export default function Home() {
           </p>
           <form onSubmit={handleCreateApp} className="space-y-3">
             <div>
-              <label htmlFor="refCode" className="block text-sm font-medium text-slate-700 mb-1">Mã giới thiệu (*)</label>
+              <label htmlFor="refCode" className="block text-sm font-medium text-slate-700 mb-1">Mã giới thiệu (Tùy chọn - Nhập để giảm 2.000 JPY)</label>
               <input 
                 id="refCode"
                 type="text" 
                 value={refCode}
                 onChange={(e) => setRefCode(e.target.value)}
-                required
                 autoComplete="off"
-                placeholder="Mã NV hoặc mã KH giới thiệu" 
+                placeholder="Mã NV hoặc mã KH giới thiệu (Nếu có)" 
                 className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
               />
             </div>
