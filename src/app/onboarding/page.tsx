@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert } from 'lucide-react';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
 // Reusable Image Preview Item with Thumbnail and Red Delete Button
@@ -63,7 +63,8 @@ function WizardContent() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
-  const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null; isUpdated?: boolean } | null>(null);
+  const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null } | null>(null);
+  const [existingCustomerData, setExistingCustomerData] = useState<{ customerCode: string; message: string } | null>(null);
 
   // Step 1 State: Personal & Contact Info
   const [fullName, setFullName] = useState('');
@@ -244,6 +245,7 @@ function WizardContent() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setExistingCustomerData(null);
     try {
       const bankUrls: string[] = [];
       if (bankPassbook1Url) bankUrls.push(bankPassbook1Url);
@@ -284,6 +286,15 @@ function WizardContent() {
       });
 
       const data = await res.json();
+
+      if (data.isExistingCustomer) {
+        setExistingCustomerData({
+          customerCode: data.customerCode,
+          message: data.error
+        });
+        return;
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Lỗi khi gửi hồ sơ');
       }
@@ -291,8 +302,7 @@ function WizardContent() {
       setCreatedData({
         code: data.customer.code,
         cardNumber: data.customer.cardNumber,
-        referralType: data.customer.referralType,
-        isUpdated: data.isUpdated,
+        referralType: data.customer.referralType
       });
       sessionStorage.removeItem('onboarding_draft_id');
     } catch (err: unknown) {
@@ -334,7 +344,7 @@ function WizardContent() {
       {/* Main Form Container */}
       <div className="max-w-xl mx-auto w-full my-auto bg-white rounded-2xl border border-slate-200/80 shadow-xl overflow-hidden">
         {/* Progress Bar Header */}
-        {!createdData && (
+        {!createdData && !existingCustomerData && (
           <div className="bg-slate-900 text-white p-4 border-b border-slate-800">
             <div className="flex justify-between items-center text-xs font-semibold mb-2">
               <span className="text-indigo-400 uppercase tracking-wider">Tự đăng ký hồ sơ (4 Bước)</span>
@@ -350,21 +360,46 @@ function WizardContent() {
         )}
 
         <div className="p-4 md:p-6 space-y-5">
-          {/* SUCCESS SCREEN */}
-          {createdData ? (
+          {/* EXISTING CUSTOMER PROTECTION ALERT */}
+          {existingCustomerData ? (
+            <div className="text-center space-y-4 py-4">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <ShieldAlert className="w-10 h-10" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold text-slate-900">Hồ Sơ Đã Tồn Tại Trong Hệ Thống!</h2>
+                <p className="text-xs text-slate-500">Mã hồ sơ: <span className="font-mono font-bold text-indigo-600 text-sm">{existingCustomerData.customerCode}</span></p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 text-left leading-relaxed">
+                🛡️ {existingCustomerData.message}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  onClick={() => router.push(`/portal/login?code=${existingCustomerData.customerCode}`)}
+                  className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 shadow-md transition-all flex items-center justify-center gap-2"
+                >
+                  <KeyRound className="w-4 h-4" /> Đăng Nhập Cổng Khách Hàng (Portal)
+                </button>
+
+                <button
+                  onClick={() => router.push('/login')}
+                  className="w-full py-2.5 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <UserCheck className="w-4 h-4 text-slate-500" /> Đăng Nhập Nhân Viên Phụ Trách
+                </button>
+              </div>
+            </div>
+          ) : createdData ? (
+            /* SUCCESS SCREEN */
             <div className="text-center space-y-4 py-6">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-bounce">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-bold text-slate-900">
-                  {createdData.isUpdated ? 'Cập Nhật Hồ Sơ Thành Công!' : 'Gửi Hồ Sơ Thành Công!'}
-                </h2>
-                <p className="text-xs text-slate-500">
-                  {createdData.isUpdated
-                    ? 'Hệ thống nhận thấy quý khách đã có sẵn hồ sơ. Thông tin & tài liệu mới đã được cập nhật bổ sung!'
-                    : 'Thông tin của quý khách đã được ghi nhận an toàn vào hệ thống.'}
-                </p>
+                <h2 className="text-xl font-bold text-slate-900">Gửi Hồ Sơ Thành Công!</h2>
+                <p className="text-xs text-slate-500">Thông tin của quý khách đã được ghi nhận an toàn vào hệ thống.</p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-left text-xs">
@@ -756,7 +791,7 @@ function WizardContent() {
                 </div>
               )}
 
-              {/* STEP 4: Bank Passbook (Up to 2 pages with Thumbnails & Red Delete) */}
+              {/* STEP 4: Bank Passbook */}
               {step === 4 && (
                 <div className="space-y-4">
                   <div className="space-y-1">

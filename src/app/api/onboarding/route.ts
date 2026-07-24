@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     const cleanFullName = fullName?.trim() || '';
     const cleanPhone = phone?.trim() || null;
 
-    // --- SMART DEDUPLICATION ---
+    // --- STRICT DEDUPLICATION & PROTECTION PROTOCOL ---
     // Check if customer already exists by cardNumber OR phone + fullName
     let existingCustomer = null;
 
@@ -121,99 +121,79 @@ export async function POST(req: Request) {
       });
     }
 
-    let customer;
-    let isUpdated = false;
-
+    // STRICT POLICY: If customer already exists, DO NOT OVERWRITE DATA!
+    // Direct them to log in to Customer Portal or Staff Login
     if (existingCustomer) {
-      // UPDATE EXISTING CUSTOMER (Deduplicated)
-      isUpdated = true;
-      customer = await prisma.customer.update({
-        where: { id: existingCustomer.id },
-        data: {
-          fullName: cleanFullName || existingCustomer.fullName,
-          phone: cleanPhone || existingCustomer.phone,
-          zaloContact: zaloContact || existingCustomer.zaloContact,
-          facebookContact: facebookContact || existingCustomer.facebookContact,
-          zairyuAddress: zairyuAddress || existingCustomer.zairyuAddress,
-          zairyuFrontUrl: zairyuFrontUrl || existingCustomer.zairyuFrontUrl,
-          zairyuBackUrl: zairyuBackUrl || existingCustomer.zairyuBackUrl,
-          passportUrl: passportUrl || existingCustomer.passportUrl,
-          nenkinBookUrl: nenkinBookUrl || existingCustomer.nenkinBookUrl,
-          securityPhotoUrl: securityPhotoUrl || existingCustomer.securityPhotoUrl,
-          ...(finalBankUrls.length > 0 ? {
-            bankAccounts: {
-              create: [{
-                bankCountry: 'VIETNAM',
-                purpose: 'BOTH',
-                bankPassbookUrls: finalBankUrls,
-              }]
-            }
-          } : {})
-        }
-      });
-    } else {
-      // CREATE NEW CUSTOMER (with unique code generator)
-      const generateCode = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let res = 'KH-';
-        for (let i = 0; i < 6; i++) {
-          res += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return res;
-      };
+      return NextResponse.json({
+        success: false,
+        isExistingCustomer: true,
+        customerCode: existingCustomer.code,
+        error: `Hồ sơ của quý khách đã tồn tại trong hệ thống với Mã hồ sơ: ${existingCustomer.code}. Vì lý do bảo mật, quý khách vui lòng Đăng Nhập để xem/bổ sung tài liệu hoặc liên hệ Nhân viên phụ trách hỗ trợ.`
+      }, { status: 409 });
+    }
 
-      let attempts = 0;
-      const maxAttempts = 5;
+    // CREATE NEW CUSTOMER (with unique code generator)
+    const generateCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let res = 'KH-';
+      for (let i = 0; i < 6; i++) {
+        res += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return res;
+    };
 
-      while (attempts < maxAttempts) {
-        try {
-          const code = generateCode();
-          customer = await prisma.customer.create({
-            data: {
-              code,
-              fullName: cleanFullName,
-              phone: cleanPhone,
-              zaloContact: zaloContact || null,
-              facebookContact: facebookContact || null,
-              referralCode: code,
-              referredByCode: ref || null,
-              dob: parsedDob,
-              passwordPin: passwordPin,
-              status: 'PENDING',
-              createdById: createdById,
-              cardNumber: cleanCardNumber,
-              zairyuAddress: zairyuAddress || null,
-              zairyuFrontUrl: zairyuFrontUrl || null,
-              zairyuBackUrl: zairyuBackUrl || null,
-              passportUrl: passportUrl || null,
-              nenkinBookUrl: nenkinBookUrl || null,
-              securityPhotoUrl: securityPhotoUrl || null,
-              referralType: referralType,
-              referredByCustomerId: referredByCustomerId,
-              ...(finalBankUrls.length > 0 ? {
-                bankAccounts: {
-                  create: [{
-                    bankCountry: 'VIETNAM',
-                    purpose: 'BOTH',
-                    bankPassbookUrls: finalBankUrls,
-                  }]
-                }
-              } : {})
-            }
-          });
-          break;
-        } catch (error: any) {
-          if (error?.code === 'P2002') {
-            attempts++;
-            continue;
+    let customer;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      try {
+        const code = generateCode();
+        customer = await prisma.customer.create({
+          data: {
+            code,
+            fullName: cleanFullName,
+            phone: cleanPhone,
+            zaloContact: zaloContact || null,
+            facebookContact: facebookContact || null,
+            referralCode: code,
+            referredByCode: ref || null,
+            dob: parsedDob,
+            passwordPin: passwordPin,
+            status: 'PENDING',
+            createdById: createdById,
+            cardNumber: cleanCardNumber,
+            zairyuAddress: zairyuAddress || null,
+            zairyuFrontUrl: zairyuFrontUrl || null,
+            zairyuBackUrl: zairyuBackUrl || null,
+            passportUrl: passportUrl || null,
+            nenkinBookUrl: nenkinBookUrl || null,
+            securityPhotoUrl: securityPhotoUrl || null,
+            referralType: referralType,
+            referredByCustomerId: referredByCustomerId,
+            ...(finalBankUrls.length > 0 ? {
+              bankAccounts: {
+                create: [{
+                  bankCountry: 'VIETNAM',
+                  purpose: 'BOTH',
+                  bankPassbookUrls: finalBankUrls,
+                }]
+              }
+            } : {})
           }
-          throw error;
+        });
+        break;
+      } catch (error: any) {
+        if (error?.code === 'P2002') {
+          attempts++;
+          continue;
         }
+        throw error;
       }
+    }
 
-      if (!customer) {
-        throw new Error('Không thể khởi tạo mã khách hàng duy nhất. Vui lòng thử lại.');
-      }
+    if (!customer) {
+      throw new Error('Không thể khởi tạo mã khách hàng duy nhất. Vui lòng thử lại.');
     }
 
     // Move temp draft files to official customer ID
@@ -225,37 +205,28 @@ export async function POST(req: Request) {
       await moveStorageFile(finalBankUrls[i], customer.id, `bankPassbook_${i}`).catch(console.error);
     }
 
-    // Check if an existing application exists or create new
-    let application = await prisma.nenkinApplication.findFirst({
-      where: { customerId: customer.id }
+    // Create new application
+    const application = await prisma.nenkinApplication.create({
+      data: {
+        customerId: customer.id,
+        status: 'PENDING',
+        referralBonusJpy: referralType === 'STAFF' ? 2000 : null,
+        referralDiscountJpy: referralType === 'CUSTOMER' ? 2000 : null,
+      }
     });
 
-    if (!application) {
-      application = await prisma.nenkinApplication.create({
-        data: {
-          customerId: customer.id,
-          status: 'PENDING',
-          referralBonusJpy: referralType === 'STAFF' ? 2000 : null,
-          referralDiscountJpy: referralType === 'CUSTOMER' ? 2000 : null,
-        }
-      });
-    }
-
-    // Record history entry
+    // Record initial history entry
     await prisma.applicationHistory.create({
       data: {
         applicationId: application.id,
         actorName: 'Khách hàng tự đăng ký',
-        action: isUpdated ? 'CẬP_NHẬT_HỒ_SƠ' : 'TỰ_ĐĂNG_KÝ',
-        description: isUpdated
-          ? `Khách hàng ${customer.fullName} (${customer.code}) cập nhật thêm tài liệu/thông tin mới.`
-          : `Khách hàng ${customer.fullName} (${customer.code}) tự khởi tạo hồ sơ trực tuyến.`
+        action: 'TỰ_ĐĂNG_KÝ',
+        description: `Khách hàng ${customer.fullName} (${customer.code}) tự khởi tạo hồ sơ trực tuyến.`
       }
     }).catch(console.error);
 
     return NextResponse.json({
       success: true,
-      isUpdated,
       customer: {
         id: customer.id,
         code: customer.code,
@@ -268,7 +239,7 @@ export async function POST(req: Request) {
         referralBonusJpy: application.referralBonusJpy,
         referralDiscountJpy: application.referralDiscountJpy,
       }
-    }, { status: isUpdated ? 200 : 201 });
+    }, { status: 201 });
   } catch (error: unknown) {
     console.error('Onboarding API Error:', error);
     return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
