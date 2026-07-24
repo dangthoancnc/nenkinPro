@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert } from 'lucide-react';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
-// Reusable Image Preview Item with Thumbnail and Red Delete Button
+// Reusable Image Preview Item with Thumbnail (Fit 100% full photo without cropping) and Red Delete Button
 function ImageThumbnailItem({
   file,
   url,
@@ -34,21 +34,27 @@ function ImageThumbnailItem({
   if (!objectUrl) return null;
 
   return (
-    <div className="relative border-2 border-indigo-300 rounded-xl overflow-hidden bg-slate-900 shadow-md group">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={objectUrl} alt={label} className="w-full h-36 object-contain bg-slate-950" />
-      <div className="absolute inset-x-0 bottom-0 bg-slate-900/80 backdrop-blur-xs p-1.5 flex items-center justify-between text-[11px] text-white">
-        <span className="truncate font-semibold max-w-[160px]">{file ? file.name : label}</span>
+    <div className="relative border-2 border-indigo-400 rounded-xl overflow-hidden bg-slate-950 shadow-lg group my-1">
+      {/* Fit 100% full photo aspect ratio without cropping so user can inspect every corner */}
+      <div className="w-full flex items-center justify-center p-1.5 bg-slate-950">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={objectUrl} alt={label} className="w-full h-auto max-h-[420px] object-contain rounded-lg shadow-md" />
+      </div>
+      <div className="bg-slate-900 border-t border-slate-800 p-2 flex items-center justify-between text-xs text-white">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="truncate font-semibold text-slate-200 text-xs">{file ? file.name : label}</span>
+        </div>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold shrink-0"
+          className="px-2.5 py-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-lg transition-all flex items-center gap-1 text-xs font-bold shrink-0 shadow-sm"
           title="Xóa ảnh này"
         >
-          <Trash2 className="w-3.5 h-3.5" /> Xóa
+          <Trash2 className="w-3.5 h-3.5" /> Xóa ảnh
         </button>
       </div>
     </div>
