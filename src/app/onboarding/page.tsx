@@ -145,7 +145,7 @@ function WizardContent() {
     setCaptureOpen(false);
   };
 
-  const handleNextStep1 = () => {
+  const handleNextStep1 = async () => {
     if (!fullName.trim()) {
       alert('Vui lòng nhập Họ và Tên của bạn.');
       return;
@@ -158,6 +158,29 @@ function WizardContent() {
       alert('Vui lòng chọn Ngày tháng năm sinh.');
       return;
     }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/onboarding/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, fullName })
+      });
+      const data = await res.json();
+      if (data.isExisting) {
+        setExistingCustomerData({
+          customerCode: data.customerCode,
+          message: data.message
+        });
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error('Check duplicate error:', err);
+    } finally {
+      setLoading(false);
+    }
+
     setStep(2);
   };
 
@@ -178,6 +201,27 @@ function WizardContent() {
   const handleNextStep2 = async () => {
     if (!zairyuFront && !zairyuFrontUrl) {
       if (cardNumber.trim()) {
+        setLoading(true);
+        try {
+          const res = await fetch('/api/onboarding/check-duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardNumber, phone, fullName })
+          });
+          const data = await res.json();
+          if (data.isExisting) {
+            setExistingCustomerData({
+              customerCode: data.customerCode,
+              message: data.message
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
         setStep(3);
         return;
       }

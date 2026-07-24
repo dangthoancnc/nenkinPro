@@ -102,13 +102,13 @@ export async function POST(req: Request) {
     const cleanFullName = fullName?.trim() || '';
     const cleanPhone = phone?.trim() || null;
 
-    // --- STRICT DEDUPLICATION & PROTECTION PROTOCOL ---
-    // Check if customer already exists by cardNumber OR phone + fullName
+    // --- STRICT DEDUPLICATION CHECK ---
     let existingCustomer = null;
 
     if (cleanCardNumber) {
       existingCustomer = await prisma.customer.findUnique({
-        where: { cardNumber: cleanCardNumber }
+        where: { cardNumber: cleanCardNumber },
+        select: { id: true, code: true, fullName: true }
       });
     }
 
@@ -117,18 +117,22 @@ export async function POST(req: Request) {
         where: {
           phone: cleanPhone,
           fullName: { equals: cleanFullName, mode: 'insensitive' }
-        }
+        },
+        select: { id: true, code: true, fullName: true }
+      });
+    } else if (!existingCustomer && cleanPhone) {
+      existingCustomer = await prisma.customer.findFirst({
+        where: { phone: cleanPhone },
+        select: { id: true, code: true, fullName: true }
       });
     }
 
-    // STRICT POLICY: If customer already exists, DO NOT OVERWRITE DATA!
-    // Direct them to log in to Customer Portal or Staff Login
     if (existingCustomer) {
       return NextResponse.json({
         success: false,
         isExistingCustomer: true,
         customerCode: existingCustomer.code,
-        error: `Hồ sơ của quý khách đã tồn tại trong hệ thống với Mã hồ sơ: ${existingCustomer.code}. Vì lý do bảo mật, quý khách vui lòng Đăng Nhập để xem/bổ sung tài liệu hoặc liên hệ Nhân viên phụ trách hỗ trợ.`
+        error: `Hồ sơ của quý khách (${existingCustomer.fullName}) đã tồn tại trong hệ thống với Mã hồ sơ: ${existingCustomer.code}. Vì lý do bảo mật, vui lòng Đăng Nhập để xem/bổ sung tài liệu.`
       }, { status: 409 });
     }
 
@@ -149,39 +153,40 @@ export async function POST(req: Request) {
     while (attempts < maxAttempts) {
       try {
         const code = generateCode();
-        customer = await prisma.customer.create({
-          data: {
-            code,
-            fullName: cleanFullName,
-            phone: cleanPhone,
-            zaloContact: zaloContact || null,
-            facebookContact: facebookContact || null,
-            referralCode: code,
-            referredByCode: ref || null,
-            dob: parsedDob,
-            passwordPin: passwordPin,
-            status: 'PENDING',
-            createdById: createdById,
-            cardNumber: cleanCardNumber,
-            zairyuAddress: zairyuAddress || null,
-            zairyuFrontUrl: zairyuFrontUrl || null,
-            zairyuBackUrl: zairyuBackUrl || null,
-            passportUrl: passportUrl || null,
-            nenkinBookUrl: nenkinBookUrl || null,
-            securityPhotoUrl: securityPhotoUrl || null,
-            referralType: referralType,
-            referredByCustomerId: referredByCustomerId,
-            ...(finalBankUrls.length > 0 ? {
-              bankAccounts: {
-                create: [{
-                  bankCountry: 'VIETNAM',
-                  purpose: 'BOTH',
-                  bankPassbookUrls: finalBankUrls,
-                }]
-              }
-            } : {})
-          }
-        });
+        const createData: any = {
+          code,
+          fullName: cleanFullName,
+          phone: cleanPhone,
+          dob: parsedDob,
+          passwordPin: passwordPin,
+          status: 'PENDING',
+          createdById: createdById,
+          cardNumber: cleanCardNumber,
+          zairyuAddress: zairyuAddress || null,
+          zairyuFrontUrl: zairyuFrontUrl || null,
+          zairyuBackUrl: zairyuBackUrl || null,
+          passportUrl: passportUrl || null,
+          nenkinBookUrl: nenkinBookUrl || null,
+          securityPhotoUrl: securityPhotoUrl || null,
+          referralType: referralType,
+          referredByCustomerId: referredByCustomerId,
+          zaloContact: zaloContact || null,
+          facebookContact: facebookContact || null,
+          referralCode: code,
+          referredByCode: ref || null,
+        };
+
+        if (finalBankUrls.length > 0) {
+          createData.bankAccounts = {
+            create: [{
+              bankCountry: 'VIETNAM',
+              purpose: 'BOTH',
+              bankPassbookUrls: finalBankUrls,
+            }]
+          };
+        }
+
+        customer = await prisma.customer.create({ data: createData });
         break;
       } catch (error: any) {
         if (error?.code === 'P2002') {
