@@ -49,20 +49,22 @@ export default function SettingsPage() {
           </Card>
         </Link>
 
-        {/* Finance Placeholder Card */}
-        <Card className="p-6 h-full bg-white/40 backdrop-blur-xl border border-white/30 shadow-md rounded-3xl opacity-70">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-200/50 flex items-center justify-center shrink-0">
-              <Banknote className="w-6 h-6 text-slate-500" />
+        {/* AI FAQ Knowledge Base Card */}
+        <Link href="/settings/ai-faq" className="block group">
+          <Card className="p-6 h-full bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl hover:border-amber-400 hover:shadow-2xl transition-all cursor-pointer">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50/80 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
+                <Settings className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 transition-colors">Ngân hàng Câu hỏi Trợ lý AI</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-3">
+                  Thiết lập và chỉnh sửa danh sách câu hỏi gợi ý, nội dung câu trả lời kịch bản soạn sẵn cho Trợ lý AI & Khung Chat khách hàng.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Tỷ giá & Hoa hồng</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                (Tính năng đang phát triển) Thiết lập tỷ giá DCOM tự động và công thức tính phí hoa hồng.
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
       </div>
     </div>
   );

@@ -95,17 +95,32 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 • Quý khách được hỗ trợ tư vấn 1-1 và theo dõi tiến độ hồ sơ 24/7 trực tiếp trên Hệ thống Web Portal.`,
   };
 
-  // 1-Click FAQ Chips
-  const FAQ_CHIPS = [
-    { label: '📌 Điều kiện làm Nenkin', key: 'dieu-kien', query: 'Điều kiện để làm thủ tục Nenkin Nhật Bản là gì?' },
-    { label: '💰 Lấy được bao nhiêu tiền?', key: 'bao-nhieu', query: 'Số tiền lấy lại được là bao nhiêu (Lần 1 80% & Thuế 20.42%)?' },
-    { label: '📑 Giấy tờ thủ tục cần gì?', key: 'giay-to', query: 'Hồ sơ lấy Nenkin gồm những giấy tờ gì?' },
-    { label: '⏳ Thời gian mất bao lâu?', key: 'thoi-gian', query: 'Thời gian làm thủ tục lấy Nenkin & hoàn thuế mất bao lâu?' },
-    { label: '📲 Hướng dẫn tra cứu tiến độ', key: 'tra-cuu', query: 'Hướng dẫn tra cứu tiến độ hồ sơ Nenkin' },
-    { label: '🏢 Phí dịch vụ & Quyền lợi', key: 'phi-dich-vu', query: 'Chính sách phí dịch vụ VietNenkin Duyên' },
-  ];
+  const [dynamicFaqs, setDynamicFaqs] = useState<{ id: string; key: string; label: string; answer: string; keywords: string[] }[]>([]);
 
-  const handleSendMessage = async (textToSend?: string, keyToSend?: string) => {
+  useEffect(() => {
+    fetch('/api/faq')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setDynamicFaqs(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // 1-Click FAQ Chips (Use dynamic DB FAQs if available, else static default)
+  const FAQ_CHIPS = dynamicFaqs.length > 0
+    ? dynamicFaqs.map(f => ({ label: f.label, key: f.key, query: f.label, answer: f.answer }))
+    : [
+        { label: '📌 Điều kiện làm Nenkin', key: 'dieu-kien', query: 'Điều kiện để làm thủ tục Nenkin Nhật Bản là gì?', answer: '' },
+        { label: '💰 Lấy được bao nhiêu tiền?', key: 'bao-nhieu', query: 'Số tiền lấy lại được là bao nhiêu (Lần 1 80% & Thuế 20.42%)?', answer: '' },
+        { label: '📑 Giấy tờ thủ tục cần gì?', key: 'giay-to', query: 'Hồ sơ lấy Nenkin gồm những giấy tờ gì?', answer: '' },
+        { label: '⏳ Thời gian mất bao lâu?', key: 'thoi-gian', query: 'Thời gian làm thủ tục lấy Nenkin & hoàn thuế mất bao lâu?', answer: '' },
+        { label: '📲 Hướng dẫn tra cứu tiến độ', key: 'tra-cuu', query: 'Hướng dẫn tra cứu tiến độ hồ sơ Nenkin', answer: '' },
+        { label: '🏢 Phí dịch vụ & Quyền lợi', key: 'phi-dich-vu', query: 'Chính sách phí dịch vụ VietNenkin Duyên', answer: '' },
+      ];
+
+  const handleSendMessage = async (textToSend?: string, keyToSend?: string, directAnswer?: string) => {
     const query = (textToSend || inputMsg).trim();
     if (!query || loading) return;
 
@@ -118,6 +133,22 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 
     setMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInputMsg('');
+
+    // IF DIRECT ANSWER PASSED FROM DYNAMIC DB FAQ -> REPLY INSTANTLY (0ms)!
+    if (directAnswer) {
+      setTimeout(() => {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'ai',
+            text: directAnswer,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }, 50);
+      return;
+    }
 
     // IF INSTANT PRE-COMPILED ANSWER EXISTS -> REPLY INSTANTLY (0ms latency)!
     if (keyToSend && LOCAL_PRECOMPILED_ANSWERS[keyToSend]) {
@@ -335,7 +366,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSendMessage(chip.query, chip.key)}
+                    onClick={() => handleSendMessage(chip.query, chip.key, chip.answer)}
                     className="px-2.5 py-1 bg-slate-800 hover:bg-indigo-600/30 text-[10px] font-medium text-slate-300 hover:text-indigo-300 rounded-xl border border-slate-700 hover:border-indigo-500/50 transition-colors inline-flex items-center gap-1 shrink-0"
                   >
                     {chip.label}

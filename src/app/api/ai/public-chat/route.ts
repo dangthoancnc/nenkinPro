@@ -68,6 +68,8 @@ Hồ sơ Nenkin được chia làm 2 Giai đoạn nhận tiền:
   },
 ];
 
+import prisma from '@/lib/prisma';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -79,8 +81,29 @@ export async function POST(request: NextRequest) {
 
     const cleanMsg = message.toLowerCase().trim();
 
-    // ── BƯỚC 1: KIỂM TRA KHO CÂU HỎI SOẠN SẴN (PRE-COMPILED MATCH) ──
-    // Trả lời siêu tốc 0ms không gọi Gemini
+    // ── BƯỚC 1: KIỂM TRA KHO CÂU HỎI SOẠN SẴN DỮ LIỆU ĐỘNG TỪ DATABASE ──
+    try {
+      const dbFaqs = await (prisma as any).faqItem.findMany({
+        where: { isActive: true },
+        orderBy: { order: 'asc' },
+      });
+
+      for (const item of dbFaqs) {
+        if (item.keywords && Array.isArray(item.keywords)) {
+          if (item.keywords.some((kw: string) => cleanMsg.includes(kw.toLowerCase().trim()))) {
+            return NextResponse.json({
+              success: true,
+              reply: item.answer,
+              isPrecompiled: true,
+            });
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn('DB FAQ fetch fallback to hardcoded dictionary:', dbErr);
+    }
+
+    // Static dictionary fallback
     for (const item of PRECOMPILED_DICTIONARY) {
       if (item.keywords.some(kw => cleanMsg.includes(kw))) {
         return NextResponse.json({
