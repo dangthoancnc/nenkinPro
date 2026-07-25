@@ -123,40 +123,9 @@ export async function DELETE(
 
     const customer = application.customer;
     if (customer) {
-      // Gather all image URLs
-      const urls: string[] = [];
-      if (customer.zairyuFrontUrl) urls.push(customer.zairyuFrontUrl);
-      if (customer.zairyuBackUrl) urls.push(customer.zairyuBackUrl);
-      if (customer.passportUrl) urls.push(customer.passportUrl);
-      if (customer.nenkinBookUrl) urls.push(customer.nenkinBookUrl);
-      if (customer.departureStampUrl) urls.push(customer.departureStampUrl);
-      
-      if (customer.bankAccounts) {
-        for (const bank of customer.bankAccounts) {
-          if (bank.bankPassbookUrls && Array.isArray(bank.bankPassbookUrls)) {
-            urls.push(...bank.bankPassbookUrls);
-          }
-        }
-      }
-
-      // Convert URLs to Supabase storage paths
-      const paths = urls
-        .map(url => {
-          const searchStr = '/public/customer-documents/';
-          const idx = url.indexOf(searchStr);
-          return idx !== -1 ? url.substring(idx + searchStr.length) : null;
-        })
-        .filter((path): path is string => !!path);
-
-      // Remove from Supabase Storage
-      if (paths.length > 0) {
-        const { error: storageError } = await supabaseAdmin.storage
-          .from('customer-documents')
-          .remove(paths);
-        if (storageError) {
-          console.error('Failed to delete files from Supabase Storage:', storageError);
-        }
-      }
+      // Delete complete customer folder from Supabase Storage (prevents orphan files/folders)
+      const { deleteCustomerFolder } = await import('@/lib/storageHelper');
+      await deleteCustomerFolder(customer.id).catch(console.error);
 
       // Delete customer (Cascades to NenkinApplication and other tables)
       await prisma.customer.delete({

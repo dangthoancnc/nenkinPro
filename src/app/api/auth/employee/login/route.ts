@@ -45,9 +45,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Email hoặc mật khẩu không chính xác.' }, { status: 401 });
     }
 
-    // Clear old session cookie and revoke any active sessions from database
+    // Clear old session cookie
     await clearSessionCookie();
-    await revokeAllUserSessions(user.id);
 
     // Create secure session
     const token = await createSession(user.id);
