@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
-  Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical,
+  Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +17,7 @@ interface ChatMessage {
   content: string;
   time: string;
   createdAt?: string;
+  type?: string;
 }
 
 interface ChatConversation {
@@ -30,6 +31,9 @@ interface ChatConversation {
   lastMessage: string;
   updatedAt?: string;
   isArchived?: boolean;
+  assignedUserId?: string | null;
+  assignedUserName?: string | null;
+  supportStatus?: 'UNASSIGNED' | 'ASSIGNED' | 'RESOLVED';
   isOnline?: boolean;
   lastActiveText?: string;
   membersCount?: number;
@@ -245,6 +249,33 @@ export default function MessengerPage() {
       }
     } catch (err: any) {
       toast.error('Lỗi: ' + err.message);
+    }
+  };
+
+  // Handler: Claim / Release / Resolve Conversation Assignment
+  const handleAssignConversation = async (
+    conversationId: string,
+    action: 'claim' | 'release' | 'resolve'
+  ) => {
+    try {
+      const res = await fetch('/api/messenger/conversations/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (action === 'claim') toast.success('⚡ Đã tiếp nhận phụ trách cuộc trò chuyện!');
+        else if (action === 'release') toast.info('🔓 Đã trả cuộc trò chuyện về Hàng Đợi Chờ');
+        else if (action === 'resolve') toast.success('✅ Đã đánh dấu hoàn thành phiên tư vấn!');
+        
+        loadConversations(true, true);
+        if (activeChatId) loadRealMessages(activeChatId, true);
+      } else {
+        toast.error(data.error || 'Thao tác thất bại');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
     }
   };
 
@@ -472,7 +503,15 @@ export default function MessengerPage() {
                     <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
                       {chat.name}
                       {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
-                      {chat.isArchived && <span className="px-1 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded">Đã lưu trữ</span>}
+                      {chat.isArchived ? (
+                        <span className="px-1 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded">Đã lưu trữ</span>
+                      ) : chat.supportStatus === 'UNASSIGNED' ? (
+                        <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[8px] font-bold rounded border border-amber-300">Chờ nhận</span>
+                      ) : chat.supportStatus === 'ASSIGNED' ? (
+                        <span className="px-1 py-0.2 bg-blue-100 text-blue-800 text-[8px] font-bold rounded">{chat.assignedUserName || 'Đã có NV'}</span>
+                      ) : chat.supportStatus === 'RESOLVED' ? (
+                        <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 text-[8px] font-bold rounded">Đã xong</span>
+                      ) : null}
                     </h4>
                     {chat.code && <span className="text-[9px] font-mono text-slate-400">#{chat.code}</span>}
                   </div>
@@ -503,6 +542,21 @@ export default function MessengerPage() {
                     {activeChat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 text-[9px] border border-teal-200">Hỗ trợ Trực tiếp</span>}
                     {activeChat.type === 'CTV' && <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[9px] border border-amber-200">CTV</span>}
                     {activeChat.type === 'GROUP' && <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 text-[9px] border border-purple-200">Nhóm Chat ({activeChat.membersCount || 2} TV)</span>}
+                    
+                    {/* Support Status Badge */}
+                    {activeChat.supportStatus === 'UNASSIGNED' ? (
+                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300">
+                        🟡 Chờ Tiếp Nhận
+                      </span>
+                    ) : activeChat.supportStatus === 'ASSIGNED' ? (
+                      <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-bold text-[9px] border border-blue-300">
+                        🔵 Phụ trách: {activeChat.assignedUserName || 'Chuyên viên'}
+                      </span>
+                    ) : activeChat.supportStatus === 'RESOLVED' ? (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9px] border border-emerald-300">
+                        🟢 Đã hoàn thành
+                      </span>
+                    ) : null}
                   </h3>
                   <p className="text-[10px] flex items-center gap-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
@@ -514,8 +568,41 @@ export default function MessengerPage() {
                 </div>
               </div>
 
-              {/* Header Action Buttons (Archive & Delete) */}
-              <div className="flex items-center gap-1">
+              {/* Header Action Buttons (Claim / Release / Resolve / Archive / Delete) */}
+              <div className="flex items-center gap-1.5">
+                {activeChat.supportStatus === 'UNASSIGNED' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAssignConversation(activeChat.id, 'claim')}
+                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 animate-pulse"
+                    title="Tiếp nhận phụ trách cuộc trò chuyện này"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Tiếp Nhận Chat</span>
+                  </button>
+                ) : activeChat.supportStatus === 'ASSIGNED' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleAssignConversation(activeChat.id, 'release')}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-200 transition-all"
+                      title="Trả cuộc trò chuyện về hàng đợi chờ"
+                    >
+                      <Unlock className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Trả Hàng Đợi</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAssignConversation(activeChat.id, 'resolve')}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-all"
+                      title="Đánh dấu hoàn thành hỗ trợ"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>Hoàn Thành</span>
+                    </button>
+                  </>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={() => handleToggleArchive(activeChat.id, activeChat.isArchived || false)}
@@ -556,11 +643,22 @@ export default function MessengerPage() {
               ) : messages.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400">Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi tin nhắn đầu tiên!</div>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex group items-center gap-1.5 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
-                  >
+                messages.map((msg) => {
+                  if (msg.type === 'SYSTEM' || msg.senderName === 'SYSTEM' || msg.content.startsWith('⚡') || msg.content.startsWith('🔓') || msg.content.startsWith('🔄') || msg.content.startsWith('✅')) {
+                    return (
+                      <div key={msg.id} className="flex justify-center my-2">
+                        <span className="px-3 py-1 bg-slate-200/80 text-slate-700 text-[10px] font-bold rounded-full border border-slate-300 shadow-2xs">
+                          {msg.content}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex group items-center gap-1.5 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
+                    >
                     {/* Delete Message Button on Hover */}
                     {msg.isMe && (
                       <button
@@ -613,8 +711,9 @@ export default function MessengerPage() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
-                  </div>
-                ))
+                    </div>
+                  );
+                })
               )}
               <div ref={messagesEndRef} />
             </div>
