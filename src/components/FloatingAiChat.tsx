@@ -21,6 +21,8 @@ export function FloatingAiChat() {
   const [mode, setMode] = useState<'ai' | 'handover'>('ai'); // 'ai' or 'handover'
   const [inputMsg, setInputMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [supportConvId, setSupportConvId] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
@@ -37,6 +39,56 @@ export function FloatingAiChat() {
   const [handoverLoading, setHandoverLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Restore support conversation ID from sessionStorage
+  useEffect(() => {
+    try {
+      const savedConvId = sessionStorage.getItem('vietnenkin_support_conv_id');
+      if (savedConvId) {
+        setSupportConvId(savedConvId);
+        setHandoverDone(true);
+      }
+    } catch {}
+  }, []);
+
+  // Poll for Staff reply messages every 3 seconds if supportConvId is active
+  useEffect(() => {
+    if (!supportConvId) return;
+
+    const fetchStaffMessages = async () => {
+      try {
+        const res = await fetch(`/api/public/support-request/messages?conversationId=${supportConvId}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const apiMsgs: ChatMessage[] = data.data.map((m: any) => ({
+            id: m.id,
+            sender: m.sender,
+            text: m.sender === 'staff' ? `💬 [Tư vấn viên ${m.senderName}]:\n${m.text}` : m.text,
+            timestamp: m.timestamp,
+          }));
+
+          setMessages(prev => {
+            // Keep init message and merge new API messages
+            const initMsg = prev.find(p => p.id === 'init-1');
+            const merged = initMsg ? [initMsg] : [];
+            const existingIds = new Set(merged.map(m => m.id));
+
+            for (const apiMsg of apiMsgs) {
+              if (!existingIds.has(apiMsg.id)) {
+                merged.push(apiMsg);
+                existingIds.add(apiMsg.id);
+              }
+            }
+            return merged;
+          });
+        }
+      } catch {}
+    };
+
+    fetchStaffMessages();
+    const interval = setInterval(fetchStaffMessages, 3000);
+    return () => clearInterval(interval);
+  }, [supportConvId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -164,6 +216,18 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
       return;
     }
 
+    // IF ACTIVE SUPPORT CONVERSATION WITH STAFF EXISTS -> SEND TO SUPPORT CHAT
+    if (supportConvId) {
+      try {
+        await fetch('/api/public/support-request/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId: supportConvId, content: query }),
+        });
+      } catch {}
+      return;
+    }
+
     // Otherwise, query API (which also checks server-side precompiled dictionary before Gemini)
     setLoading(true);
     try {
@@ -218,6 +282,11 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
       const data = await res.json();
 
       if (res.ok && data.success) {
+        const convId = data.data?.id;
+        if (convId) {
+          setSupportConvId(convId);
+          try { sessionStorage.setItem('vietnenkin_support_conv_id', convId); } catch {}
+        }
         setHandoverDone(true);
         toast.success('Đã gửi yêu cầu kết nối! Chuyên viên sẽ nhắn tin hỗ trợ quý khách ngay.');
         setMessages(prev => [
