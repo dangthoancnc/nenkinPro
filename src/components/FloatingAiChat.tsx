@@ -205,18 +205,19 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 
     setHandoverLoading(true);
     try {
-      // Connect to messenger conversation API
-      const res = await fetch('/api/messenger/conversations', {
+      // Connect to public support request API (No staff login required)
+      const res = await fetch('/api/public/support-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Yêu cầu hỗ trợ: ${customerName.trim()}`,
-          type: 'CUSTOMER_SUPPORT',
-          initialMessage: `Khách hàng [${customerName.trim()}] (SĐT/Zalo: ${customerContact.trim()}) yêu cầu gặp Tư vấn viên từ Website.`,
+          name: customerName.trim(),
+          contact: customerContact.trim(),
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+
+      if (res.ok && data.success) {
         setHandoverDone(true);
         toast.success('Đã gửi yêu cầu kết nối! Chuyên viên sẽ nhắn tin hỗ trợ quý khách ngay.');
         setMessages(prev => [
@@ -229,7 +230,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
           },
         ]);
       } else {
-        toast.error('Gửi yêu cầu thất bại, vui lòng thử lại sau.');
+        toast.error(data.error || 'Gửi yêu cầu thất bại, vui lòng thử lại sau.');
       }
     } catch (err: any) {
       toast.error('Lỗi kết nối: ' + err.message);
