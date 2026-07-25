@@ -511,20 +511,35 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
               </div>
 
               {handoverDone ? (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center space-y-2">
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center space-y-3">
                   <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
                   <h5 className="text-xs font-bold text-emerald-300">Yêu cầu đã được ghi nhận!</h5>
-                  <p className="text-[11px] text-slate-300">
-                    Chuyên viên sẽ liên hệ lại qua Zalo / Số điện thoại <strong>{customerContact}</strong> của bạn ngay lập tức.
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Chuyên viên VietNenkin sẽ liên hệ lại qua Zalo / Số điện thoại <strong>{customerContact || 'của bạn'}</strong> trong ít phút.
                   </p>
-                  <Button
-                    type="button"
-                    size="xs"
-                    onClick={() => setMode('ai')}
-                    className="bg-slate-800 hover:bg-slate-700 text-xs font-bold border border-slate-700 mt-2"
-                  >
-                    Quay lại Hỏi đáp AI
-                  </Button>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="xs"
+                      onClick={() => setMode('ai')}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 rounded-xl shadow-sm"
+                    >
+                      💬 Trở lại Cửa Sổ Chat Trực Tiếp
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={() => {
+                        setHandoverDone(false);
+                        setSupportConvId(null);
+                        try { sessionStorage.removeItem('vietnenkin_support_conv_id'); } catch {}
+                      }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 h-8 rounded-xl"
+                    >
+                      ✏️ Nhập Họ Tên & SĐT Khác
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleRequestHandover} className="space-y-3 pt-2">
