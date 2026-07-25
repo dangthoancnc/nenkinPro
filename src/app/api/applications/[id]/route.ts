@@ -75,24 +75,34 @@ export async function PUT(
   try {
     const { id } = await params;
     const { user, error } = await requireApplicationAccess(id);
-    if (error || !user) return error;
     const body = await request.json();
     const { status, revisionNote, ...payload } = body;
-    
+    const dateFields = ['noticeDate', 'applyDate', 'sent1stDate', 'received1stDate', 'sent2ndDate', 'received2ndDate'];
+    const formattedData: Record<string, any> = {};
+    Object.keys(payload).forEach(key => {
+      if (payload[key] !== undefined) {
+        if (dateFields.includes(key)) {
+          formattedData[key] = payload[key] ? new Date(payload[key]) : null;
+        } else {
+          formattedData[key] = payload[key];
+        }
+      }
+    });
+
     let updatedApplication;
     if (status) {
-      updatedApplication = await updateApplicationStatus(id, status, user.id, payload, revisionNote);
+      updatedApplication = await updateApplicationStatus(id, status, user.id, formattedData, revisionNote);
     } else {
       updatedApplication = await prisma.nenkinApplication.update({
         where: { id },
-        data: body,
+        data: formattedData,
       });
     }
 
     return NextResponse.json(updatedApplication);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating application:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
   }
 }
 
