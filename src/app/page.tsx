@@ -28,16 +28,17 @@ export default function Home() {
     setTrackError('');
     setTrackLoading(true);
     try {
-      const res = await fetch('/api/portal/auth/login', {
+      const res = await fetch('/api/auth/customer/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', cardNumber: appCode, passwordPin: pin })
+        body: JSON.stringify({ loginId: appCode.trim(), pinCode: pin.trim() })
       });
       const data = await res.json();
       if (data.success) {
-        router.push('/portal/dashboard');
+        router.push('/customer/portal');
+        router.refresh();
       } else {
-        setTrackError(data.error || 'Thông tin không chính xác.');
+        setTrackError(data.error || 'Thông tin tra cứu không chính xác.');
       }
     } catch {
       setTrackError('Lỗi kết nối máy chủ.');
@@ -123,11 +124,11 @@ export default function Home() {
             <h2 className="text-xl font-bold text-slate-900">Theo dõi hồ sơ</h2>
           </div>
           <p className="text-sm text-slate-600 mb-5">
-            Vui lòng nhập mã hồ sơ và mật khẩu đã được cấp để kiểm tra trạng thái tiến trình xử lý hồ sơ.
+            Nhập mã số hồ sơ và mã PIN bảo mật đã được cấp để kiểm tra tiến trình xử lý.
           </p>
           <form onSubmit={handleTrackApp} className="space-y-3">
             <div>
-              <label htmlFor="appCode" className="block text-sm font-medium text-slate-700 mb-1">Số thẻ ngoại kiều hoặc Mã hồ sơ</label>
+              <label htmlFor="appCode" className="block text-sm font-medium text-slate-700 mb-1">Mã số hồ sơ / Mã tra cứu</label>
               <input 
                 id="appCode"
                 name="zairyu_track_id"
@@ -136,12 +137,12 @@ export default function Home() {
                 onChange={(e) => setAppCode(e.target.value)}
                 required
                 autoComplete="new-password"
-                placeholder="VD: AB12345678CD hoặc KH-XXXXXX" 
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                placeholder="Nhập mã hồ sơ (VD: KH001)..." 
+                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-sm"
               />
             </div>
             <div>
-              <label htmlFor="pin" className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu (Năm sinh 4 số)</label>
+              <label htmlFor="pin" className="block text-sm font-medium text-slate-700 mb-1">Mã PIN bảo mật</label>
               <div className="relative">
                 <input 
                   id="pin"
@@ -151,8 +152,8 @@ export default function Home() {
                   onChange={(e) => setPin(e.target.value)}
                   required
                   autoComplete="new-password"
-                  placeholder="VD: 1995" 
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all pr-12"
+                  placeholder="Nhập mã PIN đã được cấp..." 
+                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all pr-12 text-sm"
                 />
                 <button 
                   type="button" 
@@ -169,9 +170,9 @@ export default function Home() {
             <button 
               type="submit"
               disabled={trackLoading}
-              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors border border-slate-300 disabled:opacity-50"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors border border-emerald-600 shadow-sm disabled:opacity-50 text-sm"
             >
-              {trackLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Đang kiểm tra...</> : 'Kiểm tra ngay'}
+              {trackLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Đang kiểm tra...</> : 'Đăng nhập tra cứu tiến độ →'}
             </button>
           </form>
         </section>

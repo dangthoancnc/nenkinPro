@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 };
 
 import LayoutWrapper from "@/components/LayoutWrapper";
+import { FloatingAiChat } from "@/components/FloatingAiChat";
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <LayoutWrapper>{children}</LayoutWrapper>
+        <FloatingAiChat />
         <Toaster
           position="top-right"
           richColors
