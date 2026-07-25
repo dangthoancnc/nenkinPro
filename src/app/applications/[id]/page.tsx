@@ -1263,7 +1263,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-55px)] flex flex-col gap-1.5 p-2 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0 max-w-full overflow-x-hidden">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1.5 p-1 overflow-hidden relative max-w-full overflow-x-hidden">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
@@ -1401,8 +1401,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <div className="col-span-3 min-h-0 h-full overflow-hidden">{panel3Node}</div>
           </div>
 
-          {/* Bottom Section: Cố định khung Cục thuế quản lý (Locked height 265px ~ 1/3 màn hình) */}
-          <div className="shrink-0 h-[265px] min-h-[265px] max-h-[265px] overflow-hidden">{taxPanelNode}</div>
+          {/* Bottom Section: Cố định khung Cục thuế quản lý (Fit 100% viewport height without page scroll) */}
+          <div className="shrink-0 h-[210px] min-h-[210px] max-h-[210px] overflow-hidden">{taxPanelNode}</div>
         </div>
       </div>
 
