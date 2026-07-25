@@ -89,10 +89,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const now = Date.now();
     const formatted = conversations.map((c: any) => {
       const lastMsg = c.messages?.[0]?.content || 'Chưa có tin nhắn';
       const custParticipant = c.participants?.find((p: any) => p.customer)?.customer;
       const userParticipant = c.participants?.find((p: any) => p.user && p.user.id !== user.id)?.user;
+
+      const diffSec = c.updatedAt ? Math.floor((now - new Date(c.updatedAt).getTime()) / 1000) : 999;
+      const isOnline = diffSec < 25; // Active heartbeat within last 25 seconds
 
       return {
         id: c.id,
@@ -102,6 +106,8 @@ export async function GET(request: NextRequest) {
         phone: custParticipant?.phone || '',
         lastMessage: lastMsg,
         updatedAt: c.updatedAt,
+        isOnline,
+        lastActiveText: isOnline ? 'Trực tuyến' : `Hoạt động ${diffSec < 60 ? `${diffSec}s trước` : `${Math.floor(diffSec / 60)} phút trước`}`,
         membersCount: c.participants?.length || 0,
         members: c.participants?.map((p: any) => p.user?.name || p.customer?.fullName).filter(Boolean) || [],
       };

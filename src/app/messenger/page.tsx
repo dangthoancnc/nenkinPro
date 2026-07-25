@@ -21,12 +21,15 @@ interface ChatMessage {
 interface ChatConversation {
   id: string;
   name: string;
-  type: 'CUSTOMER' | 'CTV' | 'GROUP';
+  type: 'CUSTOMER' | 'CUSTOMER_SUPPORT' | 'CTV' | 'GROUP';
   code?: string;
   phone?: string;
   email?: string;
   role?: string;
   lastMessage: string;
+  updatedAt?: string;
+  isOnline?: boolean;
+  lastActiveText?: string;
   membersCount?: number;
   members?: string[];
 }
@@ -64,17 +67,42 @@ export default function MessengerPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Load real conversations from DB
-  const loadConversations = () => {
-    setLoadingChats(true);
+  const loadConversations = (keepActive: boolean = true) => {
     fetch('/api/messenger/conversations')
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
-          setConversations(data.data);
-          if (data.data.length > 0 && !activeChat) {
-            const first = data.data.find((c: ChatConversation) => c.type === 'CUSTOMER') || data.data[0];
-            setActiveChat(first);
-            loadRealMessages(first.id);
+          const list: ChatConversation[] = data.data;
+          setConversations(list);
+
+          // Check if specific conversationId requested in URL
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlConvId = urlParams.get('conversationId');
+
+          if (urlConvId) {
+            const matched = list.find(c => c.id === urlConvId);
+            if (matched) {
+              setActiveChat(matched);
+              loadRealMessages(matched.id);
+              if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER') setChatCategory('CUSTOMER');
+              else if (matched.type === 'CTV') setChatCategory('CTV');
+              else if (matched.type === 'GROUP') setChatCategory('GROUP');
+              return;
+            }
+          }
+
+          if (!keepActive || !activeChat) {
+            if (list.length > 0) {
+              const first = list.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') || list[0];
+              setActiveChat(first);
+              loadRealMessages(first.id);
+            }
+          } else {
+            // Update activeChat with fresh online status
+            const freshActive = list.find(c => c.id === activeChat.id);
+            if (freshActive) {
+              setActiveChat(freshActive);
+            }
           }
         }
       })
@@ -83,8 +111,14 @@ export default function MessengerPage() {
   };
 
   useEffect(() => {
-    loadConversations();
+    loadConversations(false);
     loadMembersForModal();
+
+    // Auto refresh conversation list every 5 seconds to update live online/inactive statuses
+    const interval = setInterval(() => {
+      loadConversations(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // 2. Fetch real members for Group modal
@@ -196,7 +230,7 @@ export default function MessengerPage() {
   };
 
   const filteredChats = conversations
-    .filter(c => c.type === chatCategory)
+    .filter(c => chatCategory === 'CUSTOMER' ? (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') : c.type === chatCategory)
     .filter(c =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -239,14 +273,14 @@ export default function MessengerPage() {
             type="button"
             onClick={() => {
               setChatCategory('CUSTOMER');
-              const first = conversations.find(c => c.type === 'CUSTOMER');
+              const first = conversations.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT');
               if (first) { setActiveChat(first); loadRealMessages(first.id); }
             }}
             className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
-            👤 Khách ({conversations.filter(c => c.type === 'CUSTOMER').length})
+            👤 Khách ({conversations.filter(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT').length})
           </button>
           <button
             type="button"
@@ -315,11 +349,16 @@ export default function MessengerPage() {
                   chat.type === 'GROUP' ? 'bg-purple-100 text-purple-700' : chat.type === 'CTV' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'
                 }`}>
                   {chat.type === 'GROUP' ? <Users className="w-4 h-4" /> : (chat.name?.[0] || 'K')}
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white absolute bottom-0 right-0" />
+                  <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
+                    chat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                  }`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-xs text-slate-800 truncate">{chat.name}</h4>
+                    <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
+                      {chat.name}
+                      {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
+                    </h4>
                     {chat.code && <span className="text-[9px] font-mono text-slate-400">#{chat.code}</span>}
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5">{chat.lastMessage}</p>
@@ -346,11 +385,16 @@ export default function MessengerPage() {
                 <div>
                   <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
                     {activeChat.name}
+                    {activeChat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 text-[9px] border border-teal-200">Hỗ trợ Trực tiếp</span>}
                     {activeChat.type === 'CTV' && <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[9px] border border-amber-200">CTV</span>}
                     {activeChat.type === 'GROUP' && <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 text-[9px] border border-purple-200">Nhóm Chat ({activeChat.membersCount || 2} TV)</span>}
                   </h3>
-                  <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Trực tuyến {activeChat.role ? `• ${activeChat.role}` : ''}
+                  <p className="text-[10px] flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                    <span className={activeChat.isOnline ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                      {activeChat.lastActiveText || (activeChat.isOnline ? 'Trực tuyến' : 'Không hoạt động')}
+                    </span>
+                    {activeChat.role ? ` • ${activeChat.role}` : ''}
                   </p>
                 </div>
               </div>

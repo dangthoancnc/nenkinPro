@@ -87,7 +87,33 @@ export function FloatingAiChat() {
 
     fetchStaffMessages();
     const interval = setInterval(fetchStaffMessages, 3000);
-    return () => clearInterval(interval);
+
+    // Send heartbeat active ping every 8 seconds
+    const sendHeartbeat = () => {
+      fetch('/api/public/support-request/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: supportConvId, status: 'active' }),
+      }).catch(() => {});
+    };
+
+    sendHeartbeat();
+    const heartbeatInterval = setInterval(sendHeartbeat, 8000);
+
+    // Send closed status if guest closes tab or browser
+    const handleBeforeUnload = () => {
+      try {
+        const payload = JSON.stringify({ conversationId: supportConvId, status: 'closed' });
+        navigator.sendBeacon('/api/public/support-request/heartbeat', payload);
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [supportConvId]);
 
   useEffect(() => {

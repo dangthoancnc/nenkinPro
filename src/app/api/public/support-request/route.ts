@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
               title: `💬 Yêu cầu tư vấn mới từ Website`,
               content: `Khách hàng ${cleanName} (${cleanContact}) vừa gửi yêu cầu hỗ trợ trực tiếp.`,
               type: 'CHAT_MESSAGE',
-              link: '/messenger',
+              link: `/messenger?conversationId=${conversation.id}`,
             },
           });
         }
