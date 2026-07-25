@@ -70,19 +70,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
 
-    // Update conversation
-    if ((prisma as any).conversation) {
-      await (prisma as any).conversation.update({
-        where: { id: conversationId },
-        data: {
-          assignedUserId: updatedAssignedUserId,
-          assignedUserName: updatedAssignedUserName,
-          supportStatus: updatedSupportStatus,
-        },
-      });
-    } else {
+    // Update conversation (try Prisma update first, fallback to Raw SQL if Prisma client memory cache is stale)
+    try {
+      if ((prisma as any).conversation) {
+        await (prisma as any).conversation.update({
+          where: { id: conversationId },
+          data: {
+            assignedUserId: updatedAssignedUserId,
+            assignedUserName: updatedAssignedUserName,
+            supportStatus: updatedSupportStatus,
+          },
+        });
+      } else {
+        throw new Error('Fallback to raw SQL');
+      }
+    } catch {
       await prisma.$executeRawUnsafe(
-        `UPDATE public.nenkin_conversations SET "assignedUserId" = $1, "assignedUserName" = $2, "supportStatus" = $3 WHERE id = $4`,
+        `UPDATE public.nenkin_conversations SET "assignedUserId" = $1, "assignedUserName" = $2, "supportStatus" = $3, "updatedAt" = NOW() WHERE id = $4`,
         updatedAssignedUserId,
         updatedAssignedUserName,
         updatedSupportStatus,
