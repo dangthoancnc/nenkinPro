@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
-  UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X,
+  UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,7 @@ interface ChatMessage {
   isMe: boolean;
   content: string;
   time: string;
+  createdAt?: string;
 }
 
 interface ChatConversation {
@@ -30,6 +31,15 @@ interface ChatConversation {
   members?: string[];
 }
 
+interface MemberItem {
+  id: string;
+  name: string;
+  role?: string;
+  code?: string;
+  phone?: string;
+  type: 'STAFF' | 'CUSTOMER';
+}
+
 export default function MessengerPage() {
   const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP'>('CUSTOMER');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -37,139 +47,152 @@ export default function MessengerPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Group creation modal state
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberCategoryTab, setMemberCategoryTab] = useState<'STAFF' | 'CUSTOMER'>('STAFF');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [availableStaffs, setAvailableStaffs] = useState<MemberItem[]>([]);
+  const [availableCustomers, setAvailableCustomers] = useState<MemberItem[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Sample CTVs & Customers for Group Creation
-  const availableMembers = [
-    { id: 'ctv1', name: 'Nguyễn Văn Long (CTV Tokyo)', role: 'Cộng tác viên' },
-    { id: 'ctv2', name: 'Đào Thị Duyên (CTV Osaka)', role: 'Cộng tác viên' },
-    { id: 'ctv3', name: 'Trần Văn Minh (CTV Nagoya)', role: 'Cộng tác viên' },
-    { id: 'nv1', name: 'Super Admin (Quản trị)', role: 'Quản trị viên' },
-  ];
-
-  useEffect(() => {
-    fetch('/api/customers')
+  // 1. Load real conversations from DB
+  const loadConversations = () => {
+    setLoadingChats(true);
+    fetch('/api/messenger/conversations')
       .then(res => res.json())
       .then(data => {
-        const list = Array.isArray(data) ? data : data.data || [];
-        
-        // 1. Customer chats
-        const customerChats: ChatConversation[] = list.map((c: any) => ({
-          id: c.id,
-          name: c.fullName,
-          type: 'CUSTOMER',
-          code: c.code,
-          phone: c.phone || 'Chưa có SĐT',
-          email: c.email || '',
-          lastMessage: 'Đã tạo hồ sơ Nenkin mới',
-        }));
+        if (data.success && Array.isArray(data.data)) {
+          setConversations(data.data);
+          if (data.data.length > 0 && !activeChat) {
+            const first = data.data.find((c: ChatConversation) => c.type === 'CUSTOMER') || data.data[0];
+            setActiveChat(first);
+            loadRealMessages(first.id);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingChats(false));
+  };
 
-        // 2. CTV chats
-        const ctvChats: ChatConversation[] = [
-          { id: 'ctv_1', name: 'Nguyễn Văn Long', type: 'CTV', code: 'CTV001', role: 'Cộng tác viên (Tokyo)', phone: '080-1234-5678', lastMessage: 'Hôm nay em nộp 2 hồ sơ mới ạ.' },
-          { id: 'ctv_2', name: 'Đào Thị Duyên', type: 'CTV', code: 'CTV002', role: 'Cộng tác viên (Osaka)', phone: '090-8765-4321', lastMessage: 'Tiền hoa hồng Lần 1 đã nhận chưa ạ?' },
-          { id: 'ctv_3', name: 'Trần Văn Minh', type: 'CTV', code: 'CTV003', role: 'Cộng tác viên (Nagoya)', phone: '070-1122-3344', lastMessage: 'Gửi anh bảng tra cứu ZIP Cục thuế.' },
-        ];
+  useEffect(() => {
+    loadConversations();
+    loadMembersForModal();
+  }, []);
 
-        // 3. Group chats
-        const groupChats: ChatConversation[] = [
-          { id: 'grp_1', name: '👥 Nhóm Quyết Toán Nenkin Tokyo', type: 'GROUP', lastMessage: 'Admin: Đã cập nhật xong bảng 1, 2, 3 cho khách', membersCount: 5, members: ['Super Admin', 'Nguyễn Văn Long', 'LÔ THỊ HIÊN'] },
-          { id: 'grp_2', name: '📢 Thông Báo Chung CTV VietNenkin', type: 'GROUP', lastMessage: 'Tỷ giá Yên hôm nay: 165.5 VND/JPY', membersCount: 12, members: ['Toàn bộ CTV & Admin'] },
-        ];
-
-        const allChats = [...customerChats, ...ctvChats, ...groupChats];
-        setConversations(allChats);
-
-        // Set default active chat based on selected category
-        const initialActive = customerChats[0] || ctvChats[0] || groupChats[0];
-        if (initialActive) {
-          setActiveChat(initialActive);
-          loadMessages(initialActive);
+  // 2. Fetch real members for Group modal
+  const loadMembersForModal = () => {
+    fetch('/api/messenger/members')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data) {
+          setAvailableStaffs(d.data.staffs || []);
+          setAvailableCustomers(d.data.customers || []);
         }
       })
       .catch(console.error);
-  }, []);
+  };
 
-  const loadMessages = (chat: ChatConversation) => {
-    if (chat.type === 'GROUP') {
-      setMessages([
-        { id: 'g1', senderName: 'Super Admin', isMe: false, content: `Chào mừng mọi người đến với ${chat.name}!`, time: '09:00' },
-        { id: 'g2', senderName: 'Nguyễn Văn Long', isMe: false, content: 'Dạ em đã cập nhật danh sách khách hàng mới lên hệ thống rồi ạ.', time: '09:05' },
-        { id: 'g3', senderName: 'Tôi', isMe: true, content: 'Ok em, anh đang kiểm tra và trích xuất AI cho bộ hồ sơ này.', time: '09:10' },
-      ]);
-    } else if (chat.type === 'CTV') {
-      setMessages([
-        { id: 'c1', senderName: chat.name, isMe: false, content: `Chào anh! Em là CTV ${chat.name} (${chat.code}).`, time: '08:30' },
-        { id: 'c2', senderName: 'Tôi', isMe: true, content: 'Chào em, hồ sơ em gửi hôm qua anh đã cho chạy trích xuất AI xong rồi nhé.', time: '08:32' },
-        { id: 'c3', senderName: chat.name, isMe: false, content: 'Dạ tuyệt quá ạ! Cảm ơn anh.', time: '08:35' },
-      ]);
-    } else {
-      setMessages([
-        { id: '1', senderName: chat.name, isMe: false, content: `Xin chào! Tôi là ${chat.name}, tôi đã gửi thông tin hồ sơ.`, time: '10:15' },
-        { id: '2', senderName: 'Nhân viên hỗ trợ', isMe: true, content: 'Chào bạn! Hệ thống AI đã trích xuất xong thông tin. Chúng tôi đang kiểm tra hồ sơ.', time: '10:16' },
-      ]);
-    }
+  // 3. Load real messages from DB
+  const loadRealMessages = (conversationId: string) => {
+    setLoadingMessages(true);
+    fetch(`/api/messenger/messages?conversationId=${conversationId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setMessages(data.data);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMessages(false));
   };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // 4. Send real message
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeChat) return;
 
-    const newMsg: ChatMessage = {
-      id: Date.now().toString(),
-      senderName: 'Tôi',
-      isMe: true,
-      content: inputText.trim(),
-      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages(prev => [...prev, newMsg]);
+    const textToSend = inputText.trim();
     setInputText('');
 
-    setTimeout(() => {
-      const replyMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        senderName: activeChat.type === 'GROUP' ? 'Cộng tác viên' : activeChat.name,
-        isMe: false,
-        content: activeChat.type === 'GROUP'
-          ? 'Đã nhận thông tin trao đổi trong nhóm!'
-          : 'Dạ em cảm ơn anh/chị, em đã nắm thông tin rồi ạ.',
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, replyMsg]);
-    }, 1200);
+    try {
+      const res = await fetch('/api/messenger/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: activeChat.id,
+          content: textToSend,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.data) {
+        setMessages(prev => [...prev, data.data]);
+        // Update last message on left panel
+        setConversations(prev =>
+          prev.map(c => (c.id === activeChat.id ? { ...c, lastMessage: textToSend } : c))
+        );
+      } else {
+        toast.error('Không thể gửi tin nhắn: ' + (data.error || 'Lỗi hệ thống'));
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
+    }
   };
 
-  const handleCreateGroup = (e: React.FormEvent) => {
+  // 5. Create real Group Chat
+  const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupName.trim()) {
       toast.warning('Vui lòng nhập tên nhóm chat');
       return;
     }
 
-    const newGroup: ChatConversation = {
-      id: `grp_${Date.now()}`,
-      name: `👥 ${groupName.trim()}`,
-      type: 'GROUP',
-      lastMessage: 'Vừa tạo nhóm chat mới',
-      membersCount: selectedMembers.length + 1,
-      members: ['Tôi', ...selectedMembers.map(id => availableMembers.find(m => m.id === id)?.name || id)],
-    };
+    if (selectedUserIds.length === 0 && selectedCustomerIds.length === 0) {
+      toast.warning('Vui lòng chọn ít nhất 1 thành viên tham gia nhóm');
+      return;
+    }
 
-    setConversations([newGroup, ...conversations]);
-    setActiveChat(newGroup);
-    loadMessages(newGroup);
-    setShowCreateGroupModal(false);
-    setGroupName('');
-    setSelectedMembers([]);
-    toast.success(`Đã tạo thành công nhóm chat: ${newGroup.name}`);
+    setCreatingGroup(true);
+    try {
+      const res = await fetch('/api/messenger/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `👥 ${groupName.trim()}`,
+          type: 'GROUP',
+          userIds: selectedUserIds,
+          customerIds: selectedCustomerIds,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Đã tạo thành công nhóm chat: ${groupName.trim()}`);
+        setShowCreateGroupModal(false);
+        setGroupName('');
+        setSelectedUserIds([]);
+        setSelectedCustomerIds([]);
+        loadConversations();
+      } else {
+        toast.error('Tạo nhóm thất bại: ' + (data.error || 'Lỗi hệ thống'));
+      }
+    } catch (err: any) {
+      toast.error('Lỗi: ' + err.message);
+    } finally {
+      setCreatingGroup(false);
+    }
   };
 
   const filteredChats = conversations
@@ -178,6 +201,13 @@ export default function MessengerPage() {
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  // Filter members in modal
+  const filteredModalMembers = (memberCategoryTab === 'STAFF' ? availableStaffs : availableCustomers).filter(m =>
+    m.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+    m.code?.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+    (m.phone && m.phone.includes(memberSearchQuery))
+  );
 
   return (
     <div className="h-[calc(100vh-100px)] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex min-h-0">
@@ -210,7 +240,7 @@ export default function MessengerPage() {
             onClick={() => {
               setChatCategory('CUSTOMER');
               const first = conversations.find(c => c.type === 'CUSTOMER');
-              if (first) { setActiveChat(first); loadMessages(first); }
+              if (first) { setActiveChat(first); loadRealMessages(first.id); }
             }}
             className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
@@ -223,7 +253,7 @@ export default function MessengerPage() {
             onClick={() => {
               setChatCategory('CTV');
               const first = conversations.find(c => c.type === 'CTV');
-              if (first) { setActiveChat(first); loadMessages(first); }
+              if (first) { setActiveChat(first); loadRealMessages(first.id); }
             }}
             className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'CTV' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
@@ -236,7 +266,7 @@ export default function MessengerPage() {
             onClick={() => {
               setChatCategory('GROUP');
               const first = conversations.find(c => c.type === 'GROUP');
-              if (first) { setActiveChat(first); loadMessages(first); }
+              if (first) { setActiveChat(first); loadRealMessages(first.id); }
             }}
             className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'GROUP' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
@@ -262,7 +292,12 @@ export default function MessengerPage() {
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
-          {filteredChats.length === 0 ? (
+          {loadingChats ? (
+            <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mb-2" />
+              <span className="text-xs">Đang nạp cuộc trò chuyện...</span>
+            </div>
+          ) : filteredChats.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-400">Chưa có cuộc trò chuyện nào</div>
           ) : (
             filteredChats.map((chat) => (
@@ -270,7 +305,7 @@ export default function MessengerPage() {
                 key={chat.id}
                 onClick={() => {
                   setActiveChat(chat);
-                  loadMessages(chat);
+                  loadRealMessages(chat.id);
                 }}
                 className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
                   activeChat?.id === chat.id ? 'bg-indigo-50/80 border-l-4 border-indigo-600' : 'hover:bg-white'
@@ -312,7 +347,7 @@ export default function MessengerPage() {
                   <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
                     {activeChat.name}
                     {activeChat.type === 'CTV' && <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[9px] border border-amber-200">CTV</span>}
-                    {activeChat.type === 'GROUP' && <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 text-[9px] border border-purple-200">Nhóm Chat ({activeChat.membersCount || 3} TV)</span>}
+                    {activeChat.type === 'GROUP' && <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 text-[9px] border border-purple-200">Nhóm Chat ({activeChat.membersCount || 2} TV)</span>}
                   </h3>
                   <p className="text-[10px] text-slate-500 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Trực tuyến {activeChat.role ? `• ${activeChat.role}` : ''}
@@ -323,32 +358,41 @@ export default function MessengerPage() {
 
             {/* Messages Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}
-                >
+              {loadingMessages ? (
+                <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin text-indigo-600 mb-1" />
+                  <span className="text-[11px]">Đang tải tin nhắn...</span>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400">Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi tin nhắn đầu tiên!</div>
+              ) : (
+                messages.map((msg) => (
                   <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 ${
-                      msg.isMe
-                        ? 'bg-indigo-600 text-white rounded-br-none'
-                        : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-none'
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                   >
-                    {!msg.isMe && (
-                      <span className="text-[9px] font-bold text-indigo-600 block">{msg.senderName}</span>
-                    )}
-                    <p className="leading-relaxed">{msg.content}</p>
-                    <span
-                      className={`text-[8px] font-mono block text-right ${
-                        msg.isMe ? 'text-indigo-200' : 'text-slate-400'
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 ${
+                        msg.isMe
+                          ? 'bg-indigo-600 text-white rounded-br-none'
+                          : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-none'
                       }`}
                     >
-                      {msg.time}
-                    </span>
+                      {!msg.isMe && (
+                        <span className="text-[9px] font-bold text-indigo-600 block">{msg.senderName}</span>
+                      )}
+                      <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      <span
+                        className={`text-[8px] font-mono block text-right ${
+                          msg.isMe ? 'text-indigo-200' : 'text-slate-400'
+                        }`}
+                      >
+                        {msg.time}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -393,9 +437,9 @@ export default function MessengerPage() {
 
           {activeChat.type === 'GROUP' ? (
             <div className="space-y-2 text-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thành viên nhóm ({activeChat.members?.length || 3})</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thành viên nhóm ({activeChat.members?.length || 1})</span>
               <div className="space-y-1.5">
-                {(activeChat.members || ['Super Admin', 'Nguyễn Văn Long', 'LÔ THỊ HIÊN']).map((m, idx) => (
+                {(activeChat.members || ['Tôi']).map((m, idx) => (
                   <div key={idx} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-slate-800">{m}</span>
                     <span className="text-[9px] text-slate-400">Thành viên</span>
@@ -421,10 +465,12 @@ export default function MessengerPage() {
         </div>
       )}
 
-      {/* ── CREATE GROUP MODAL ── */}
+      {/* ── ADVANCED CREATE GROUP MODAL WITH MEMBER SEARCH & CATEGORIZATION ── */}
       {showCreateGroupModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+            
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-purple-600" /> Tạo Nhóm Chat Mới
@@ -435,40 +481,118 @@ export default function MessengerPage() {
             </div>
 
             <form onSubmit={handleCreateGroup} className="space-y-3">
+              {/* Group Title Input */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Tên Nhóm Chat</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Tên Nhóm Chat</label>
                 <Input
                   type="text"
                   value={groupName}
                   onChange={e => setGroupName(e.target.value)}
                   placeholder="Ví dụ: Nhóm Quyết Toán CTV Tokyo..."
-                  className="text-xs"
+                  className="text-xs font-semibold"
                 />
               </div>
 
+              {/* Categorized Member Picker */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Thêm Thành Viên (CTV / Staff)</label>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
-                  {availableMembers.map(m => (
-                    <label key={m.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-100 text-xs cursor-pointer hover:bg-indigo-50/50">
-                      <span className="font-semibold text-slate-800">{m.name}</span>
-                      <input
-                        type="checkbox"
-                        checked={selectedMembers.includes(m.id)}
-                        onChange={e => {
-                          if (e.target.checked) setSelectedMembers([...selectedMembers, m.id]);
-                          else setSelectedMembers(selectedMembers.filter(id => id !== m.id));
-                        }}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
-                  ))}
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Thêm Thành Viên Vào Nhóm</label>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                    Đã chọn: {selectedUserIds.length + selectedCustomerIds.length} người
+                  </span>
+                </div>
+
+                {/* Member Category Switcher Tabs */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setMemberCategoryTab('STAFF')}
+                    className={`py-1 text-xs font-bold rounded-lg transition-all ${
+                      memberCategoryTab === 'STAFF' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    🤝 CTV & Nhân viên ({availableStaffs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemberCategoryTab('CUSTOMER')}
+                    className={`py-1 text-xs font-bold rounded-lg transition-all ${
+                      memberCategoryTab === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    👤 Khách hàng ({availableCustomers.length})
+                  </button>
+                </div>
+
+                {/* Member Search Bar */}
+                <div className="relative mb-2">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="text"
+                    value={memberSearchQuery}
+                    onChange={e => setMemberSearchQuery(e.target.value)}
+                    placeholder={`Tìm tên ${memberCategoryTab === 'STAFF' ? 'CTV / Nhân viên' : 'Khách hàng'}...`}
+                    className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-lg h-8"
+                  />
+                </div>
+
+                {/* Checkable List */}
+                <div className="space-y-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
+                  {filteredModalMembers.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-400">Không tìm thấy thành viên phù hợp</div>
+                  ) : (
+                    filteredModalMembers.map(m => {
+                      const isSelected = m.type === 'STAFF'
+                        ? selectedUserIds.includes(m.id)
+                        : selectedCustomerIds.includes(m.id);
+
+                      return (
+                        <label
+                          key={m.id}
+                          className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                            isSelected ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-slate-100 hover:bg-slate-100/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                              m.type === 'STAFF' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'
+                            }`}>
+                              {m.name?.[0] || 'U'}
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-800 block text-xs">{m.name}</span>
+                              <span className="text-[9px] text-slate-400 font-mono">
+                                {m.role || `Mã #${m.code || '---'}`} {m.phone ? `• SĐT: ${m.phone}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={e => {
+                              if (m.type === 'STAFF') {
+                                if (e.target.checked) setSelectedUserIds(prev => [...prev, m.id]);
+                                else setSelectedUserIds(prev => prev.filter(id => id !== m.id));
+                              } else {
+                                if (e.target.checked) setSelectedCustomerIds(prev => [...prev, m.id]);
+                                else setSelectedCustomerIds(prev => prev.filter(id => id !== m.id));
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button type="button" variant="outline" size="xs" onClick={() => setShowCreateGroupModal(false)}>Hủy</Button>
-                <Button type="submit" size="xs" className="bg-purple-600 hover:bg-purple-700 font-bold px-4">Tạo Nhóm Chat</Button>
+                <Button type="submit" size="xs" loading={creatingGroup} loadingText="Đang tạo nhóm..." className="bg-purple-600 hover:bg-purple-700 font-bold px-4">
+                  Tạo Nhóm Chat
+                </Button>
               </div>
             </form>
           </div>
