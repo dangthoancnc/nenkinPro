@@ -1228,7 +1228,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="p-3 overflow-y-auto max-h-[320px] lg:max-h-[260px]">
+      <div className="p-2 overflow-y-auto h-[calc(100%-40px)]">
         {taxPanel === 'card' && (
           <TaxOfficeCard
             taxOffice={selectedTaxOffice}
@@ -1401,8 +1401,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <div className="col-span-3 min-h-0 h-full overflow-hidden">{panel3Node}</div>
           </div>
 
-          {/* Bottom Section: Cố định khung Cục thuế quản lý (Locked height 210px) */}
-          <div className="shrink-0 h-[210px] min-h-[210px] max-h-[210px] overflow-hidden">{taxPanelNode}</div>
+          {/* Bottom Section: Cố định khung Cục thuế quản lý (Locked height 265px ~ 1/3 màn hình) */}
+          <div className="shrink-0 h-[265px] min-h-[265px] max-h-[265px] overflow-hidden">{taxPanelNode}</div>
         </div>
       </div>
 

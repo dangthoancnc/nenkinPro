@@ -294,10 +294,10 @@ export function TaxOfficeCard({
       {!taxOffice ? (
         <EmptyState isEditing={isEditing} onEdit={onEdit} />
       ) : (
-        <div className="p-3">
+        <div className="p-2">
 
           {/* ═══ 2-COLUMN GRID ═══════════════════════════════ */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 items-start">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 items-start">
 
             {/* ── LEFT: Thông tin cục thuế ── */}
             <section className="flex flex-col gap-2">
