@@ -66,14 +66,18 @@ export default function MessengerPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Load real conversations from DB
-  const loadConversations = (keepActive: boolean = true) => {
+  // 1. Load real conversations from DB (silent = true prevents screen flicker)
+  const loadConversations = (keepActive: boolean = true, silent: boolean = true) => {
+    if (!silent) setLoadingChats(true);
     fetch('/api/messenger/conversations')
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
           const list: ChatConversation[] = data.data;
-          setConversations(list);
+          setConversations(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(list)) return prev;
+            return list;
+          });
 
           // Check if specific conversationId requested in URL
           const urlParams = new URLSearchParams(window.location.search);
@@ -81,9 +85,9 @@ export default function MessengerPage() {
 
           if (urlConvId) {
             const matched = list.find(c => c.id === urlConvId);
-            if (matched) {
+            if (matched && matched.id !== activeChat?.id) {
               setActiveChat(matched);
-              loadRealMessages(matched.id);
+              loadRealMessages(matched.id, false);
               if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER') setChatCategory('CUSTOMER');
               else if (matched.type === 'CTV') setChatCategory('CTV');
               else if (matched.type === 'GROUP') setChatCategory('GROUP');
@@ -95,28 +99,30 @@ export default function MessengerPage() {
             if (list.length > 0) {
               const first = list.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') || list[0];
               setActiveChat(first);
-              loadRealMessages(first.id);
+              loadRealMessages(first.id, false);
             }
           } else {
-            // Update activeChat with fresh online status
+            // Update activeChat with fresh online status silently
             const freshActive = list.find(c => c.id === activeChat.id);
-            if (freshActive) {
+            if (freshActive && (freshActive.isOnline !== activeChat.isOnline || freshActive.lastMessage !== activeChat.lastMessage)) {
               setActiveChat(freshActive);
             }
           }
         }
       })
       .catch(console.error)
-      .finally(() => setLoadingChats(false));
+      .finally(() => {
+        if (!silent) setLoadingChats(false);
+      });
   };
 
   useEffect(() => {
-    loadConversations(false);
+    loadConversations(false, false);
     loadMembersForModal();
 
-    // Auto refresh conversation list every 5 seconds to update live online/inactive statuses
+    // Auto refresh conversation list every 5 seconds silently without screen flicker
     const interval = setInterval(() => {
-      loadConversations(true);
+      loadConversations(true, true);
     }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -134,19 +140,36 @@ export default function MessengerPage() {
       .catch(console.error);
   };
 
-  // 3. Load real messages from DB
-  const loadRealMessages = (conversationId: string) => {
-    setLoadingMessages(true);
+  // 3. Load real messages from DB (silent = true avoids spinner flicker)
+  const loadRealMessages = (conversationId: string, silent: boolean = false) => {
+    if (!silent) setLoadingMessages(true);
     fetch(`/api/messenger/messages?conversationId=${conversationId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
-          setMessages(data.data);
+          setMessages(prev => {
+            // Only update state if content actually changed to avoid re-rendering DOM
+            if (JSON.stringify(prev) === JSON.stringify(data.data)) return prev;
+            return data.data;
+          });
         }
       })
       .catch(console.error)
-      .finally(() => setLoadingMessages(false));
+      .finally(() => {
+        if (!silent) setLoadingMessages(false);
+      });
   };
+
+  // Auto poll for new messages in active chat every 3 seconds silently
+  useEffect(() => {
+    if (!activeChat?.id) return;
+
+    const msgInterval = setInterval(() => {
+      loadRealMessages(activeChat.id, true);
+    }, 3000);
+
+    return () => clearInterval(msgInterval);
+  }, [activeChat?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
