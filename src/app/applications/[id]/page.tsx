@@ -256,6 +256,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         serviceFeeJpy:    data.serviceFeeJpy    ? parseFloat(String(data.serviceFeeJpy))    : null,
         exchangeRate:     data.exchangeRate     ? parseFloat(String(data.exchangeRate))     : null,
         serviceFeeVnd:    data.serviceFeeVnd    ? parseFloat(String(data.serviceFeeVnd))    : null,
+        noticeDate:       data.noticeDate       ? new Date(data.noticeDate).toISOString()     : null,
+        noticeImageUrl:   data.noticeImageUrl   || null,
+        withheldTax:      data.withheldTax      ? parseFloat(String(data.withheldTax))      : null,
+        coverageMonths:   data.coverageMonths   ? parseInt(String(data.coverageMonths), 10)  : null,
+        lastCoverageMonth: data.lastCoverageMonth || null,
+        paymentsMultiplier: data.paymentsMultiplier ? parseFloat(String(data.paymentsMultiplier)) : null,
+        averageStandardRemuneration: data.averageStandardRemuneration ? parseFloat(String(data.averageStandardRemuneration)) : null,
+        lumpSumWithdrawalNumber: data.lumpSumWithdrawalNumber || null,
       };
       if (isNew) {
         const cRes = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customerPayload) });
@@ -343,8 +351,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         setValue(urlField as any, data.publicUrl);
         setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
         if (data.extractedData && !data.extractedData.error) applyExtracted(docKey, data.extractedData);
-        if (!isNew && customerId)
-          await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: data.publicUrl }) });
+        if (!isNew) {
+          if (urlField === 'noticeImageUrl') {
+            await fetch(`/api/applications/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noticeImageUrl: data.publicUrl }) });
+          } else if (customerId) {
+            await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: data.publicUrl }) });
+          }
+        }
       } else {
         toast.error('Lỗi upload ảnh', { description: data.error || 'Không thể tải ảnh lên.' });
         setOcrStatus(prev => ({ ...prev, [docKey]: 'error' }));
@@ -566,7 +579,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           const prev = getValues(currentDocField as any);
                           if (prev) fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prev }) }).catch(console.error);
                           setValue(currentDocField as any, '');
-                          if (!isNew && customerId) await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [currentDocField]: '' }) });
+                          if (!isNew) {
+                            if (currentDocField === 'noticeImageUrl') {
+                              await fetch(`/api/applications/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noticeImageUrl: '' }) });
+                            } else if (customerId) {
+                              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [currentDocField]: '' }) });
+                            }
+                          }
                           toast.success('Đã xóa ảnh tài liệu');
                         }},
                         cancel: { label: 'Hủy', onClick: () => {} }, duration: 8000,
