@@ -25,7 +25,7 @@ const HANDLES = [
 export default function ImageCropModal({ imageSrc, onClose, onCropComplete }: ImageCropModalProps) {
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [rotation, setRotation] = useState<number>(0);
-  const [box, setBox] = useState({ x: 10, y: 10, w: 80, h: 80 });
+  const [box, setBox] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ mx: number; my: number; x: number; y: number; w: number; h: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -89,7 +89,7 @@ export default function ImageCropModal({ imageSrc, onClose, onCropComplete }: Im
   // Handle Rotation change
   const handleRotate = () => {
     setRotation((r) => (r + 90) % 360);
-    setBox({ x: 10, y: 10, w: 80, h: 80 }); // Reset box to prevent overflow
+    setBox({ x: 0, y: 0, w: 100, h: 100 }); // Reset box to 100% full bounds
   };
 
   // Mouse / Touch Drag Start
@@ -382,14 +382,23 @@ export default function ImageCropModal({ imageSrc, onClose, onCropComplete }: Im
 
         {/* Footer actions */}
         <div className="p-3 bg-slate-50 border-t flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleRotate}
-            className="flex items-center gap-2 hover:bg-slate-200/50 text-xs py-1 h-8 shadow-xs border-slate-200"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            Xoay ảnh 90°
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRotate}
+              className="flex items-center gap-2 hover:bg-slate-200/50 text-xs py-1 h-8 shadow-xs border-slate-200"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              Xoay ảnh 90°
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setBox({ x: 0, y: 0, w: 100, h: 100 })}
+              className="flex items-center gap-1.5 hover:bg-slate-200/50 text-xs py-1 h-8 shadow-xs border-slate-200 text-slate-700"
+            >
+              🖼️ 100% Ảnh gốc
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Button

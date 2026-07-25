@@ -323,6 +323,10 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       }, { status: 400 });
     }
 
+    // Delete complete customer folder from Supabase Storage (prevents orphan files/folders)
+    const { deleteCustomerFolder } = await import('@/lib/storageHelper');
+    await deleteCustomerFolder(id).catch(console.error);
+
     await prisma.customer.delete({
       where: { id }
     });

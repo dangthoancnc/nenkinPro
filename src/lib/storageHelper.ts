@@ -78,26 +78,52 @@ export async function deleteStorageFile(url: string) {
 }
 
 /**
+ * Liệt kê đệ quy toàn bộ file (bao gồm các thư mục con như customerId/departure/file.jpg)
+ */
+export async function listAllFilesRecursively(prefix: string): Promise<string[]> {
+  const allPaths: string[] = [];
+  try {
+    const { data: items, error } = await supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .list(prefix, { limit: 1000 });
+
+    if (error || !items) return [];
+
+    for (const item of items) {
+      const itemPath = prefix ? `${prefix}/${item.name}` : item.name;
+      // Dynamic folder detection in Supabase storage (folders have no id or mimetype === 'folder')
+      if (!item.id || item.metadata?.mimetype === 'folder' || !item.metadata) {
+        const subFiles = await listAllFilesRecursively(itemPath);
+        allPaths.push(...subFiles);
+      } else {
+        allPaths.push(itemPath);
+      }
+    }
+  } catch (err) {
+    console.error('Error listing files recursively:', err);
+  }
+  return allPaths;
+}
+
+/**
  * Xóa toàn bộ thư mục lưu trữ của một khách hàng (khi xóa khách hàng hoặc dọn dẹp nháp)
  */
 export async function deleteCustomerFolder(customerId: string): Promise<boolean> {
   if (!customerId) return false;
   try {
-    const { data: files, error: listError } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .list(customerId);
+    const allFilePaths = await listAllFilesRecursively(customerId);
 
-    if (listError || !files || files.length === 0) return true;
+    if (allFilePaths.length === 0) return true;
 
-    const filePaths = files.map(f => `${customerId}/${f.name}`);
     const { error: removeError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
-      .remove(filePaths);
+      .remove(allFilePaths);
 
     if (removeError) {
       console.error(`Failed to delete folder for customer ${customerId}:`, removeError);
       return false;
     }
+    console.log(`Successfully deleted folder ${customerId} with ${allFilePaths.length} files recursively.`);
     return true;
   } catch (err) {
     console.error(`Error deleting customer folder ${customerId}:`, err);

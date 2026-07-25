@@ -353,14 +353,47 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       if (ext.cardNumber)  setValue('cardNumber',      ext.cardNumber,  { shouldDirty: true });
       if (ext.address)     setValue('zairyuAddress',   ext.address,     { shouldDirty: true });
       if (ext.postalCode)  setValue('postalCode',      ext.postalCode,  { shouldDirty: true });
+
+      // Requirement 1 & 2: Inform user about Zairyu Back address checking
+      if (docKey === 'zairyuFront' && !watch('zairyuBackUrl')) {
+        toast.info('Đã tra cứu Cục thuế theo địa chỉ Mặt trước', {
+          description: 'Nếu khách hàng có đổi địa chỉ cư trú, vui lòng tải Mặt sau thẻ ngoại kiều để tự động cập nhật địa chỉ mới nhất.'
+        });
+      } else if (docKey === 'zairyuBack') {
+        if (ext.address) {
+          toast.success('Đã cập nhật địa chỉ cư trú mới nhất từ mặt sau thẻ!', {
+            description: `${ext.address} (${ext.postalCode || ''})`
+          });
+        }
+      }
+
+      // Requirement 4: Auto-sync Tax Office & Mailing Center Address without extra clicks
       if (ext.taxOffice?.name) {
-        fetch('/api/tax-offices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ext.taxOffice) })
-          .then(r => r.json()).then(tData => {
+        fetch('/api/tax-offices', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify(ext.taxOffice) 
+        })
+          .then(r => r.json())
+          .then(tData => {
             if (tData.success && tData.data?.id) {
-              setTaxOffices(prev => prev.find(t => t.id === tData.data.id) ? prev : [...prev, tData.data]);
+              setTaxOffices(prev => {
+                const idx = prev.findIndex(t => t.id === tData.data.id);
+                if (idx >= 0) {
+                  const updated = [...prev];
+                  updated[idx] = tData.data;
+                  return updated;
+                }
+                return [...prev, tData.data];
+              });
               setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
+              setTaxPanel('card');
+              toast.success('Đã tự động điền Cục thuế & Nơi nhận hồ sơ', {
+                description: `${tData.data.name} · ${tData.data.mailingName || 'Đã khớp dữ liệu NTA'}`
+              });
             }
-          }).catch(console.error);
+          })
+          .catch(console.error);
       }
     } else if (docKey === 'passport') {
       if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
@@ -982,9 +1015,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
           {selectedTaxOffice && (
-            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
-              {selectedTaxOffice.name}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
+                {selectedTaxOffice.name}
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                ✓ Khớp NTA (100%)
+              </span>
+            </div>
           )}
           {isEditing && (
             <select

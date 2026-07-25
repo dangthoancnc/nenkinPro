@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma';
 import crypto from 'node:crypto';
 import { checkUploadRateLimit } from '@/lib/auth/rateLimit';
 import { uploadCustomerDocument } from '@/lib/storageHelper';
+import { fetchNtaTaxOfficeByZip } from '@/lib/ntaHelper';
 
 function validateMagicBytes(buffer: ArrayBuffer): { isValid: boolean; ext: string | null; mimeType: string | null } {
   const arr = new Uint8Array(buffer).subarray(0, 4);
@@ -252,22 +253,46 @@ export async function POST(request: Request) {
           if (zip) data.postalCode = zip;
         }
 
-        // Auto-infer accurate Tax Office without hallucination
-        if (typeof data.address === 'string') {
-          const inferredTaxOffice = await inferTaxOfficeWithAI(
-            data.address, 
-            (data.postalCode as string) || '', 
+        // Auto-lookup accurate Tax Office & Mailing Center from NTA (National Tax Agency)
+        const zipForNta = (data.postalCode as string) || '';
+        let ntaOffice = null;
+
+        if (zipForNta) {
+          const cleanZip = zipForNta.replace(/[-\s]/g, '');
+          if (cleanZip.length === 7) {
+            ntaOffice = await fetchNtaTaxOfficeByZip(cleanZip).catch(() => null);
+          }
+        }
+
+        if (!ntaOffice && typeof data.address === 'string' && data.address.trim()) {
+          const inferred = await inferTaxOfficeWithAI(
+            data.address,
+            zipForNta,
             apiKeys[0] || process.env.GEMINI_API_KEY || ''
-          );
-          if (inferredTaxOffice) {
-            data.taxOffice = {
-              name: inferredTaxOffice.name,
-              postalCode: inferredTaxOffice.zip,
-              address: inferredTaxOffice.address,
-              mailingName: inferredTaxOffice.name,
-              mailingPostalCode: inferredTaxOffice.zip
+          ).catch(() => null);
+
+          if (inferred?.zip) {
+            ntaOffice = await fetchNtaTaxOfficeByZip(inferred.zip).catch(() => null);
+          }
+          if (!ntaOffice && inferred?.name) {
+            ntaOffice = {
+              name: inferred.name,
+              postalCode: inferred.zip || zipForNta,
+              address: inferred.address || (data.address as string),
+              mailingName: inferred.name,
+              mailingPostalCode: inferred.zip || zipForNta,
+              mailingAddress: inferred.address || (data.address as string),
+              phone: '',
+              jurisdiction: '',
+              consultationPhone: '',
+              generalPhone: '',
+              ntaPageUrl: ''
             };
           }
+        }
+
+        if (ntaOffice) {
+          data.taxOffice = ntaOffice;
         }
       }
 

@@ -18,6 +18,7 @@ const onboardingSchema = z.object({
   bankPassbookUrls: z.array(z.string()).optional(),
   cardNumber: z.string().max(255).nullable().optional(),
   zairyuAddress: z.string().max(255).nullable().optional(),
+  taxOfficeId: z.string().max(255).nullable().optional(),
   securityPhotoUrl: z.string().max(2048).nullable().optional(),
   draftId: z.string().max(255).nullable().optional(),
 }).strict();
@@ -163,6 +164,7 @@ export async function POST(req: Request) {
           createdById: createdById,
           cardNumber: cleanCardNumber,
           zairyuAddress: zairyuAddress || null,
+          taxOfficeId: result.data.taxOfficeId || null,
           zairyuFrontUrl: zairyuFrontUrl || null,
           zairyuBackUrl: zairyuBackUrl || null,
           passportUrl: passportUrl || null,
