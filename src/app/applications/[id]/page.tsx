@@ -23,6 +23,7 @@ import { TaxOfficeForm }       from '@/components/ui/TaxOfficeForm';
 import type { TaxOfficeFormValues } from '@/components/ui/TaxOfficeForm';
 import { TaxOfficeDiffPanel }  from '@/components/ui/TaxOfficeDiffPanel';
 import { toast } from 'sonner';
+import { SettlementModal } from '@/components/SettlementModal';
 import PrintModal from './print-modal';
 
 const BASE_DOCUMENTS = [
@@ -74,6 +75,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
   const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
   const [historyList,       setHistoryList]       = useState<any[]>([]);
+  const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -1180,6 +1182,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               <FormField label="Phí (JPY)"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
               <FormField label="Phí (VNĐ)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" /></FormField>
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              className="w-full mt-1.5 bg-indigo-50/70 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-1.5"
+              onClick={() => setShowSettlementModal(true)}
+            >
+              💬 Mẫu thông báo Quyết toán (Dành cho NV)
+            </Button>
           </div>
         )}
         {(panel3aTab as any) === 'history' && (
@@ -1517,6 +1529,25 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         isOpen={showPrintModal}
         onClose={() => setShowPrintModal(false)}
         id={id}
+      />
+
+      {/* Settlement Notification Draft Modal (Dành cho Nhân viên) */}
+      <SettlementModal
+        isOpen={showSettlementModal}
+        onClose={() => setShowSettlementModal(false)}
+        customerEmail={customer?.email || undefined}
+        inputData={{
+          customerName: watch('fullName') || 'Khách hàng',
+          customerCode: watch('code') || id.slice(0, 8),
+          totalExpectedJpy: watch('totalExpectedJpy'),
+          received1stJpy: watch('received1stJpy'),
+          withheldTax: watch('withheldTax') || watch('tax2ndJpy'),
+          received2ndJpy: watch('received2ndJpy'),
+          exchangeRate: watch('exchangeRate') || 165,
+          serviceFeeJpy: watch('serviceFeeJpy'),
+          serviceFeeVnd: watch('serviceFeeVnd'),
+          referralBonusJpy: (watch as any)('referralBonusJpy') || 2000,
+        }}
       />
     </form>
   );
