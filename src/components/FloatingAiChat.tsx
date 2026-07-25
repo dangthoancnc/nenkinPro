@@ -44,15 +44,68 @@ export function FloatingAiChat() {
     }
   }, [messages, isOpen]);
 
+  // Pre-compiled instant answers for 0ms response (no API waiting)
+  const LOCAL_PRECOMPILED_ANSWERS: Record<string, string> = {
+    'dieu-kien': `📌 **ĐIỀU KIỆN ĐỂ LẤY LẠI TIỀN NENKIN NHẬT BẢN:**
+
+1️⃣ **Không mang quốc tịch Nhật Bản** (Là lao động, thực tập sinh, kỹ sư Việt Nam).
+2️⃣ **Đã đóng BHXH (Nenkin)** từ **6 tháng trở lên** tại Nhật Bản.
+3️⃣ **Đã về nước** và cắt đăng ký cư trú (hoặc đã xuất cảnh rời Nhật).
+4️⃣ **Thời gian quy định**:
+   • *Lần 1 (Bảo hiểm 80%)*: Chưa quá **2 năm** kể từ ngày rời Nhật Bản.
+   • *Lần 2 (Hoàn thuế 20.42%)*: Chưa quá **5 năm** kể từ ngày rời Nhật Bản.`,
+
+    'bao-nhieu': `💰 **TỔNG SỐ TIỀN BẠN SẼ NHẬN ĐƯỢC:**
+
+Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
+
+1️⃣ **Giai đoạn 1 (Lần 1 - 80% Bảo hiểm):**
+   • Nhận lại **80% tổng số tiền bảo hiểm** bạn đã đóng.
+   • Cục BHXH Nhật Bản (*Japan Pension Service*) chuyển **trực tiếp vào Tài khoản Ngân hàng cá nhân** của bạn tại Việt Nam (hoặc Nhật).
+
+2️⃣ **Giai đoạn 2 (Lần 2 - 20.42% Thuế khấu trừ):**
+   • Cục Thuế giữ lại **20.42% tiền thuế thu nhập**.
+   • Khoản tiền thuế này sẽ được **VietNenkin Duyên nộp đơn xin hoàn lại 100%** qua Người đại diện nộp thuế (*Tax Representative*).`,
+
+    'giay-to': `📑 **CÁC GIẤY TỜ CẦN CHUẨN BỊ (CHỈ CẦN CHỤP ẢNH RÕ NÉT):**
+
+1️⃣ **Sổ Nenkin** (Bảo hiểm xã hội Nhật Bản - Bìa xanh hoặc bìa cam).
+2️⃣ **Hộ chiếu** (Ảnh trang thông tin cá nhân + Con dấu ngày xuất cảnh rời Nhật).
+3️⃣ **Thẻ ngoại kiều (Zairyu Card)**: Chụp rõ 2 mặt trước và sau.
+4️⃣ **Tài khoản ngân hàng cá nhân tại Việt Nam**: Chấp nhận Vietcombank, BIDV, Agribank, Techcombank, Viettinbank, MBBank... (Có mã SWIFT Code).`,
+
+    'thoi-gian': `⏳ **THỜI GIAN XỬ LÝ TIẾN TRÌNH HỒ SƠ:**
+
+• **Lần 1 (Nenkin 80%)**: Từ **3 - 5 tháng** kể từ ngày Cục BHXH Nhật Bản nhận đủ hồ sơ hợp lệ.
+• **Lần 2 (Hoàn thuế 20.42%)**: Từ **1 - 2 tháng** sau khi nhận được Giấy thông báo cấp Lần 1 (*脱退一時金支給決定通知書*).
+
+*Lưu ý: Quý khách có thể tự tra cứu tiến độ thời gian thực trên Website bằng Mã số hồ sơ + Mã PIN bảo mật!*`,
+
+    'tra-cuu': `📲 **HƯỚNG DẪN TRA CỨU TIẾN ĐỘ HỒ SƠ:**
+
+1️⃣ Bấm vào phần **"Theo dõi hồ sơ"** trên trang chủ VietNenkin Duyên.
+2️⃣ Nhập **Mã số hồ sơ / Mã tra cứu** (Ví dụ: \`KH001\` hoặc Mã thẻ ngoại kiều).
+3️⃣ Nhập **Mã PIN bảo mật** đã được cấp (Mặc định: \`123456\`).
+4️⃣ Bấm **Đăng nhập tra cứu** để xem chi tiết tiền thực nhận Lần 1, tiền thuế Lần 2 & trạng thái xử lý!`,
+
+    'phi-dich-vu': `🏢 **CHÍNH SÁCH PHÍ DỊCH VỤ VIETNENKIN DUYÊN:**
+
+• Cam kết **Phí dịch vụ minh bạch**, không phát sinh chi phí ẩn.
+• **Giảm ngay 2.000 JPY** khi có Mã giới thiệu từ CTV hoặc Khách hàng cũ.
+• Quý khách được hỗ trợ tư vấn 1-1 và theo dõi tiến độ hồ sơ 24/7 trực tiếp trên Hệ thống Web Portal.`,
+  };
+
   // 1-Click FAQ Chips
   const FAQ_CHIPS = [
-    { label: '📌 Điều kiện làm Nenkin', query: 'Điều kiện để làm thủ tục Nenkin Nhật Bản là gì?' },
-    { label: '💰 Lấy được bao nhiêu tiền?', query: 'Số tiền lấy lại được là bao nhiêu (Lần 1 80% & Thuế 20.42%)?' },
-    { label: '📑 Giấy tờ thủ tục cần gì?', query: 'Hồ sơ lấy Nenkin gồm những giấy tờ gì?' },
-    { label: '⏳ Thời gian mất bao lâu?', query: 'Thời gian làm thủ tục lấy Nenkin & hoàn thuế mất bao lâu?' },
+    { label: '📌 Điều kiện làm Nenkin', key: 'dieu-kien', query: 'Điều kiện để làm thủ tục Nenkin Nhật Bản là gì?' },
+    { label: '💰 Lấy được bao nhiêu tiền?', key: 'bao-nhieu', query: 'Số tiền lấy lại được là bao nhiêu (Lần 1 80% & Thuế 20.42%)?' },
+    { label: '📑 Giấy tờ thủ tục cần gì?', key: 'giay-to', query: 'Hồ sơ lấy Nenkin gồm những giấy tờ gì?' },
+    { label: '⏳ Thời gian mất bao lâu?', key: 'thoi-gian', query: 'Thời gian làm thủ tục lấy Nenkin & hoàn thuế mất bao lâu?' },
+    { label: '📲 Hướng dẫn tra cứu tiến độ', key: 'tra-cuu', query: 'Hướng dẫn tra cứu tiến độ hồ sơ Nenkin' },
+    { label: '🏢 Phí dịch vụ & Quyền lợi', key: 'phi-dich-vu', query: 'Chính sách phí dịch vụ VietNenkin Duyên' },
   ];
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, keyToSend?: string) => {
     const query = (textToSend || inputMsg).trim();
     if (!query || loading) return;
 
@@ -65,8 +118,23 @@ export function FloatingAiChat() {
 
     setMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInputMsg('');
-    setLoading(true);
 
+    // IF INSTANT PRE-COMPILED ANSWER EXISTS -> REPLY INSTANTLY (0ms latency)!
+    if (keyToSend && LOCAL_PRECOMPILED_ANSWERS[keyToSend]) {
+      setTimeout(() => {
+        const instantReply: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: LOCAL_PRECOMPILED_ANSWERS[keyToSend],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages(prev => [...prev, instantReply]);
+      }, 50);
+      return;
+    }
+
+    // Otherwise, query API (which also checks server-side precompiled dictionary before Gemini)
+    setLoading(true);
     try {
       const res = await fetch('/api/ai/public-chat', {
         method: 'POST',
@@ -88,7 +156,7 @@ export function FloatingAiChat() {
         {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
-          text: 'Dạ hiện tại đường truyền chập chờn. Quý khách có thể bấm "Gặp trực tiếp Tư vấn viên" để được hỗ trợ ngay ạ!',
+          text: 'Dạ quý khách có thể bấm "Gặp trực tiếp Tư vấn viên" để được hỗ trợ 1-1 ngay ạ!',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -267,7 +335,7 @@ export function FloatingAiChat() {
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSendMessage(chip.query)}
+                    onClick={() => handleSendMessage(chip.query, chip.key)}
                     className="px-2.5 py-1 bg-slate-800 hover:bg-indigo-600/30 text-[10px] font-medium text-slate-300 hover:text-indigo-300 rounded-xl border border-slate-700 hover:border-indigo-500/50 transition-colors inline-flex items-center gap-1 shrink-0"
                   >
                     {chip.label}
