@@ -59,3 +59,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { user, error } = await requireStaff();
+    if (error || !user) return error;
+
+    const body = await request.json();
+    const { notificationId, markAllRead } = body;
+
+    if (markAllRead) {
+      if ((prisma as any).notification) {
+        await (prisma as any).notification.updateMany({
+          where: { userId: user.id, isRead: false },
+          data: { isRead: true },
+        });
+      } else {
+        await prisma.$executeRawUnsafe(
+          `UPDATE public.nenkin_notifications SET "isRead" = true WHERE "userId" = $1 AND "isRead" = false`,
+          user.id
+        );
+      }
+      return NextResponse.json({ success: true, message: 'Đã đánh dấu tất cả là đã đọc' });
+    }
+
+    if (!notificationId) {
+      return NextResponse.json({ success: false, error: 'notificationId required' }, { status: 400 });
+    }
+
+    if ((prisma as any).notification) {
+      await (prisma as any).notification.update({
+        where: { id: notificationId },
+        data: { isRead: true },
+      });
+    } else {
+      await prisma.$executeRawUnsafe(
+        `UPDATE public.nenkin_notifications SET "isRead" = true WHERE id = $1`,
+        notificationId
+      );
+    }
+
+    return NextResponse.json({ success: true, message: 'Đã đánh dấu đã đọc' });
+  } catch (err: any) {
+    console.error('Update notification error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

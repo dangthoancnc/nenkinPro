@@ -153,7 +153,13 @@ export default function MessengerPage() {
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
           setMessages(prev => {
-            if (JSON.stringify(prev) === JSON.stringify(data.data)) return prev;
+            // Compare message IDs and content strictly to avoid re-rendering React DOM when data is identical
+            if (
+              prev.length === data.data.length &&
+              prev.every((m, idx) => m.id === data.data[idx]?.id && m.content === data.data[idx]?.content)
+            ) {
+              return prev;
+            }
             return data.data;
           });
         }

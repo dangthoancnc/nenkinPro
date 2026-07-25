@@ -53,6 +53,32 @@ export function NotificationDropdown() {
     }
   };
 
+  const handleMarkAsRead = async (item: any) => {
+    if (!item.isRead) {
+      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, isRead: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId: item.id }),
+      }).catch(() => {});
+    }
+    setOpen(false);
+    if (item.link) {
+      router.push(item.link);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+    fetch('/api/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markAllRead: true }),
+    }).catch(() => {});
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -77,9 +103,20 @@ export function NotificationDropdown() {
               <Bell className="w-4 h-4 text-indigo-400" />
               <span className="font-bold text-xs uppercase tracking-wider">Thông báo hệ thống</span>
             </div>
-            <span className="text-[10px] font-semibold bg-indigo-600 px-2 py-0.5 rounded-full text-white">
-              {unreadCount} mới
-            </span>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  className="text-[10px] text-slate-300 hover:text-white underline font-medium"
+                >
+                  Đọc tất cả
+                </button>
+              )}
+              <span className="text-[10px] font-semibold bg-indigo-600 px-2 py-0.5 rounded-full text-white">
+                {unreadCount} mới
+              </span>
+            </div>
           </div>
 
           {/* List */}
@@ -92,19 +129,21 @@ export function NotificationDropdown() {
               notifications.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => {
-                    if (item.link) router.push(item.link);
-                    setOpen(false);
-                  }}
+                  onClick={() => handleMarkAsRead(item)}
                   className={`p-3 flex items-start gap-3 hover:bg-slate-50 cursor-pointer transition-colors ${
-                    !item.isRead ? 'bg-indigo-50/40' : ''
+                    !item.isRead ? 'bg-indigo-50/50 font-medium' : 'opacity-75'
                   }`}
                 >
                   <div className="p-2 rounded-xl bg-slate-100 shrink-0 mt-0.5">
                     {getIcon(item.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h5 className="font-bold text-xs text-slate-800 truncate">{item.title}</h5>
+                    <div className="flex items-center justify-between gap-1">
+                      <h5 className={`font-bold text-xs truncate ${!item.isRead ? 'text-indigo-950' : 'text-slate-700'}`}>
+                        {item.title}
+                      </h5>
+                      {!item.isRead && <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" title="Chưa đọc" />}
+                    </div>
                     <p className="text-[11px] text-slate-600 leading-snug line-clamp-2 mt-0.5">{item.content}</p>
                     <span className="text-[9px] text-slate-400 font-mono mt-1 block">
                       {new Date(item.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
