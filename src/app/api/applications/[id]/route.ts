@@ -14,7 +14,7 @@ export async function GET(
     const { id } = await params;
     const { user, error } = await requireApplicationAccess(id);
     if (error || !user) return error;
-    const application = await prisma.nenkinApplication.findUnique({
+    let application = await prisma.nenkinApplication.findUnique({
       where: { id },
       include: {
         customer: {
@@ -23,6 +23,52 @@ export async function GET(
         taxRepresentative: true,
       },
     });
+
+    if (!application) {
+      // Fallback: check if 'id' is customerId or customerCode
+      const customer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { id },
+            { code: id }
+          ]
+        },
+        include: {
+          applications: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: { taxRepresentative: true }
+          },
+          taxOffice: true
+        }
+      });
+
+      if (customer) {
+        if (customer.applications.length > 0) {
+          const app = customer.applications[0];
+          application = {
+            ...app,
+            customer,
+            taxRepresentative: app.taxRepresentative
+          } as any;
+        } else {
+          // Auto-create a draft application for existing customer so staff can manage it
+          const newApp = await prisma.nenkinApplication.create({
+            data: {
+              customerId: customer.id,
+              status: 'DRAFT'
+            },
+            include: {
+              customer: {
+                include: { taxOffice: true }
+              },
+              taxRepresentative: true
+            }
+          });
+          application = newApp as any;
+        }
+      }
+    }
 
     if (!application) {
       return NextResponse.json({ error: 'Not Found' }, { status: 404 });

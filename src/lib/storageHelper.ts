@@ -174,3 +174,50 @@ export async function moveStorageFile(oldUrl: string, customerId: string, docume
     return oldUrl;
   }
 }
+
+/**
+ * Quản lý & Dọn dẹp kho lưu trữ khoa học:
+ * Quét toàn bộ thư mục trong Supabase Storage bucket, so sánh với DB.
+ * Xóa toàn bộ các thư mục rác (nháp cũ draft_*, anonymous, test_* hoặc các ID khách hàng không tồn tại trong DB).
+ */
+export async function cleanupOrphanStorageFolders(): Promise<{ deletedCount: number; deletedFolders: string[] }> {
+  const deletedFolders: string[] = [];
+  try {
+    const { data: rootItems, error: listErr } = await supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .list('', { limit: 1000 });
+
+    if (listErr || !rootItems) {
+      console.error('Failed to list root storage folders:', listErr);
+      return { deletedCount: 0, deletedFolders: [] };
+    }
+
+    // Get all valid customer IDs from database
+    const { default: prisma } = await import('@/lib/prisma');
+    const dbCustomers = await prisma.customer.findMany({ select: { id: true } });
+    const validCustomerIds = new Set(dbCustomers.map(c => c.id));
+
+    for (const item of rootItems) {
+      const folderName = item.name;
+
+      // Identify orphan conditions:
+      // 1. Starts with draft_, anonymous, or test_
+      // 2. Or is a UUID string that is NOT in DB active customers
+      const isDraftOrTest = folderName.startsWith('draft_') || folderName.startsWith('anonymous') || folderName.startsWith('test_');
+      const isOrphanCustomer = !validCustomerIds.has(folderName);
+
+      if (isDraftOrTest || isOrphanCustomer) {
+        const success = await deleteCustomerFolder(folderName);
+        if (success) {
+          deletedFolders.push(folderName);
+        }
+      }
+    }
+
+    console.log(`[STORAGE CLEANUP] Successfully cleaned ${deletedFolders.length} orphan folders:`, deletedFolders);
+    return { deletedCount: deletedFolders.length, deletedFolders };
+  } catch (err) {
+    console.error('Error in cleanupOrphanStorageFolders:', err);
+    return { deletedCount: 0, deletedFolders: [] };
+  }
+}

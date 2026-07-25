@@ -13,18 +13,29 @@ export async function POST(req: Request) {
 
     let existingCustomer = null;
 
+    const customerSelect = {
+      id: true,
+      code: true,
+      fullName: true,
+      phone: true,
+      applications: {
+        select: { id: true },
+        orderBy: { createdAt: 'desc' as const },
+        take: 1
+      }
+    };
+
     if (cleanCard) {
       existingCustomer = await prisma.customer.findUnique({
         where: { cardNumber: cleanCard },
-        select: { code: true, fullName: true, phone: true }
+        select: customerSelect
       });
     }
 
     if (!existingCustomer && phoneDigits && phoneDigits.length >= 8) {
-      // Find customer by matching phone digits
       const allCustomers = await prisma.customer.findMany({
         where: { phone: { not: null } },
-        select: { id: true, code: true, fullName: true, phone: true }
+        select: customerSelect
       });
 
       existingCustomer = allCustomers.find(c => {
@@ -39,14 +50,17 @@ export async function POST(req: Request) {
         where: {
           fullName: { equals: cleanName, mode: 'insensitive' }
         },
-        select: { id: true, code: true, fullName: true, phone: true }
+        select: customerSelect
       });
     }
 
     if (existingCustomer) {
+      const latestApp = existingCustomer.applications?.[0];
       return NextResponse.json({
         isExisting: true,
+        customerId: existingCustomer.id,
         customerCode: existingCustomer.code,
+        applicationId: latestApp?.id || null,
         fullName: existingCustomer.fullName,
         message: `Hồ sơ của quý khách (${existingCustomer.fullName}) đã tồn tại trong hệ thống với Mã hồ sơ: ${existingCustomer.code}. Vì lý do bảo mật, quý khách vui lòng Đăng Nhập để xem/bổ sung tài liệu.`
       });

@@ -59,14 +59,47 @@ export async function requireCustomerAccess(customerId: string): Promise<Custome
   return { user, customer };
 }
 
-export async function requireApplicationAccess(applicationId: string): Promise<ApplicationAuthResult> {
+export async function requireApplicationAccess(id: string): Promise<ApplicationAuthResult> {
   const { user, error } = await requireStaff();
   if (error || !user) return { error };
 
-  const application = await prisma.nenkinApplication.findUnique({
-    where: { id: applicationId },
+  let application = await prisma.nenkinApplication.findUnique({
+    where: { id },
     include: { customer: true }
   });
+
+  if (!application) {
+    const customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { id },
+          { code: id }
+        ]
+      },
+      include: {
+        applications: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (customer) {
+      if (customer.applications.length > 0) {
+        const app = customer.applications[0];
+        application = { ...app, customer };
+      } else {
+        const newApp = await prisma.nenkinApplication.create({
+          data: {
+            customerId: customer.id,
+            status: 'DRAFT'
+          },
+          include: { customer: true }
+        });
+        application = newApp;
+      }
+    }
+  }
 
   if (!application) {
     return { error: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
@@ -76,7 +109,7 @@ export async function requireApplicationAccess(applicationId: string): Promise<A
     return { user, application, customer: application.customer };
   }
 
-  if (application.customer.createdById !== user.id) {
+  if (application.customer.createdById && application.customer.createdById !== user.id) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 

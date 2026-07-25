@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
 // Reusable Image Preview Item with Thumbnail (Fit 100% full photo without cropping) and Red Delete Button
@@ -70,17 +71,19 @@ function WizardContent() {
   const [loading, setLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [createdData, setCreatedData] = useState<{ code: string; cardNumber: string | null; referralType: string | null } | null>(null);
-  const [existingCustomerData, setExistingCustomerData] = useState<{ customerCode: string; message: string } | null>(null);
+  const [existingCustomerData, setExistingCustomerData] = useState<{ customerId?: string; customerCode: string; applicationId?: string; message: string } | null>(null);
+  const [customerInputCode, setCustomerInputCode] = useState('');
 
-  // Step 1 State: Personal & Contact Info
+  // Personal & Contact Info State
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [zaloContact, setZaloContact] = useState('');
   const [facebookContact, setFacebookContact] = useState('');
   const [dob, setDob] = useState('');
   const [refCode, setRefCode] = useState(ref || '');
+  const [vnAddress, setVnAddress] = useState('');
 
-  // Step 2 State: Zairyu Card (Front & Back)
+  // Zairyu Card (Front & Back) State
   const [zairyuFront, setZairyuFront] = useState<File | null>(null);
   const [zairyuFrontUrl, setZairyuFrontUrl] = useState('');
   const [zairyuBack, setZairyuBack] = useState<File | null>(null);
@@ -89,14 +92,14 @@ function WizardContent() {
   const [cardNumber, setCardNumber] = useState('');
   const [zairyuAddress, setZairyuAddress] = useState('');
 
-  // Step 3 State: Passport & Nenkin Book
+  // Passport & Nenkin Book State
   const [passport, setPassport] = useState<File | null>(null);
   const [passportUrl, setPassportUrl] = useState('');
   const [nenkinBook, setNenkinBook] = useState<File | null>(null);
   const [nenkinBookUrl, setNenkinBookUrl] = useState('');
   const [nenkinNumber, setNenkinNumber] = useState('');
 
-  // Step 4 State: Bank Passbook (Up to 2 pages)
+  // Bank Passbook State (Up to 2 pages)
   const [bankPassbook1, setBankPassbook1] = useState<File | null>(null);
   const [bankPassbook1Url, setBankPassbook1Url] = useState('');
   const [bankPassbook2, setBankPassbook2] = useState<File | null>(null);
@@ -132,60 +135,138 @@ function WizardContent() {
     }
   };
 
+  const applyExtracted = (docType: string, rawExt: any) => {
+    let ext = rawExt;
+    if (typeof ext === 'string') {
+      try { ext = JSON.parse(ext); } catch (e) {}
+    }
+    if (!ext || typeof ext !== 'object') return;
+
+    if (docType === 'zairyuFront' || docType === 'zairyuBack') {
+      const rawName = ext.fullName || ext.name || ext.fullNameKanji || '';
+      const rawCard = ext.cardNumber || ext.card_number || ext.number || '';
+      const rawAddr = ext.address || ext.residenceAddress || ext.zairyuAddress || '';
+      const rawDob = ext.dob || ext.dateOfBirth || ext.birthDate || '';
+
+      if (rawName) setFullName(String(rawName).toUpperCase().trim());
+      if (rawCard) setCardNumber(String(rawCard).toUpperCase().trim());
+      if (rawAddr) setZairyuAddress(String(rawAddr).trim());
+
+      if (rawDob) {
+        const dobStr = String(rawDob).trim();
+        const match = dobStr.match(/(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})/);
+        if (match) {
+          setDob(`${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`);
+        } else {
+          const d = new Date(dobStr);
+          if (!isNaN(d.getTime())) {
+            setDob(d.toISOString().split('T')[0]);
+          } else {
+            setDob(dobStr);
+          }
+        }
+      }
+    } else if (docType === 'passport') {
+      const name = ext.fullName || `${ext.lastName || ''} ${ext.firstName || ''}`.trim();
+      if (name) setFullName(name.toUpperCase().trim());
+      if (ext.passportNumber || ext.cardNumber) setCardNumber(String(ext.passportNumber || ext.cardNumber).toUpperCase().trim());
+      if (ext.dob) {
+        const dobStr = String(ext.dob).trim();
+        const match = dobStr.match(/(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})/);
+        if (match) setDob(`${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`);
+        else setDob(dobStr);
+      }
+    } else if (docType === 'nenkin') {
+      if (ext.nenkinNumber) setNenkinNumber(String(ext.nenkinNumber).trim());
+    }
+  };
+
+  const runOcrExtract = async (documentType: string, fileOrUrl: File | string) => {
+    setLoading(true);
+    setOcrError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append('documentType', documentType);
+      fd.append('action', typeof fileOrUrl === 'string' ? 'extract' : 'uploadAndExtract');
+      fd.append('source', 'onboarding');
+      fd.append('customerId', draftId);
+
+      if (typeof fileOrUrl === 'string') {
+        fd.append('imageUrl', fileOrUrl);
+      } else {
+        fd.append('file', fileOrUrl);
+      }
+
+      if (securityPhoto && documentType === 'zairyuFront') {
+        fd.append('securityFile', securityPhoto);
+      }
+
+      const res = await fetch('/api/ocr', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOcrError('Đang xử lý dữ liệu.');
+        return;
+      }
+
+      if (data.isExistingCustomer) {
+        setExistingCustomerData({
+          customerId: data.existingCustomerId || undefined,
+          customerCode: data.existingCustomerCode,
+          message: data.existingCustomerMessage
+        });
+        setCustomerInputCode(data.existingCustomerCode || '');
+      }
+
+      if (data.publicUrl) {
+        if (documentType === 'zairyuFront') setZairyuFrontUrl(data.publicUrl);
+        else if (documentType === 'zairyuBack') setZairyuBackUrl(data.publicUrl);
+        else if (documentType === 'passport') setPassportUrl(data.publicUrl);
+        else if (documentType === 'nenkin') setNenkinBookUrl(data.publicUrl);
+      }
+
+      if (data.securityPhotoUrl) {
+        setSecurityPhotoUrl(data.securityPhotoUrl);
+      }
+
+      if (data.extractedData) {
+        applyExtracted(documentType, data.extractedData);
+      }
+    } catch (err: any) {
+      console.error('OCR Extract Error:', err);
+      setOcrError('Đang xử lý dữ liệu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processZairyuFrontOcr = (file: File) => {
+    runOcrExtract('zairyuFront', file);
+  };
+
   const handleCaptureSubmit = (docFile: File, secFile?: File) => {
     if (secFile && !securityPhoto) {
       setSecurityPhoto(secFile);
     }
-    if (captureType === 'zairyuFront') setZairyuFront(docFile);
-    if (captureType === 'zairyuBack') setZairyuBack(docFile);
-    if (captureType === 'passport') setPassport(docFile);
-    if (captureType === 'nenkin') setNenkinBook(docFile);
-    if (captureType === 'bank1') setBankPassbook1(docFile);
-    if (captureType === 'bank2') setBankPassbook2(docFile);
+    if (captureType === 'zairyuFront') {
+      setZairyuFront(docFile);
+      processZairyuFrontOcr(docFile);
+    } else if (captureType === 'zairyuBack') {
+      setZairyuBack(docFile);
+    } else if (captureType === 'passport') {
+      setPassport(docFile);
+    } else if (captureType === 'nenkin') {
+      setNenkinBook(docFile);
+    } else if (captureType === 'bank1') {
+      setBankPassbook1(docFile);
+    } else if (captureType === 'bank2') {
+      setBankPassbook2(docFile);
+    }
     setCaptureOpen(false);
   };
 
   const [generalError, setGeneralError] = useState<string | null>(null);
-
-  const handleNextStep1 = async () => {
-    setGeneralError(null);
-    if (!fullName.trim()) {
-      setGeneralError('Quý khách vui lòng nhập Họ và Tên của mình.');
-      return;
-    }
-    if (!phone.trim() && !zaloContact.trim()) {
-      setGeneralError('Quý khách vui lòng nhập Số điện thoại hoặc Zalo để nhân viên thuận tiện liên hệ hỗ trợ.');
-      return;
-    }
-    if (!dob) {
-      setGeneralError('Quý khách vui lòng chọn Ngày tháng năm sinh.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch('/api/onboarding/check-duplicate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, fullName })
-      });
-      const data = await res.json();
-      if (data.isExisting) {
-        setExistingCustomerData({
-          customerCode: data.customerCode,
-          message: data.message
-        });
-        setLoading(false);
-        return;
-      }
-    } catch (err) {
-      console.error('Check duplicate error:', err);
-    } finally {
-      setLoading(false);
-    }
-
-    setStep(2);
-  };
 
   const handleUploadSingleFile = async (file: File, documentType: string) => {
     const fd = new FormData();
@@ -201,102 +282,95 @@ function WizardContent() {
     return data.publicUrl;
   };
 
-  const handleNextStep2 = async () => {
+  // STEP 1 HANDLER: Zairyu Card + OCR + Duplicate Check
+  const handleNextStep1 = async () => {
     setGeneralError(null);
-    if (!zairyuFront && !zairyuFrontUrl) {
-      if (cardNumber.trim()) {
-        setLoading(true);
-        try {
-          const res = await fetch('/api/onboarding/check-duplicate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cardNumber, phone, fullName })
-          });
-          const data = await res.json();
-          if (data.isExisting) {
-            setExistingCustomerData({
-              customerCode: data.customerCode,
-              message: data.message
-            });
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
-        setStep(3);
-        return;
-      }
-      setGeneralError('Quý khách vui lòng tải lên mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ ngoại kiều.');
+    setOcrError(null);
+
+    if (!zairyuFront && !zairyuFrontUrl && !cardNumber.trim()) {
+      setGeneralError('Quý khách vui lòng tải/chụp mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ.');
+      return;
+    }
+    if (!fullName.trim()) {
+      setGeneralError('Quý khách vui lòng xác nhận Họ và Tên.');
+      return;
+    }
+    if (!phone.trim() && !zaloContact.trim()) {
+      setGeneralError('Quý khách vui lòng nhập Số điện thoại hoặc Zalo để nhân viên thuận tiện liên hệ.');
       return;
     }
 
     setLoading(true);
-    setOcrError(null);
     try {
-      if (zairyuFront) {
-        const fd = new FormData();
-        fd.append('file', zairyuFront);
-        fd.append('action', 'uploadAndExtract');
-        fd.append('documentType', 'zairyuFront');
-        fd.append('source', 'onboarding');
-        fd.append('customerId', draftId);
-        if (securityPhoto) {
-          fd.append('securityFile', securityPhoto);
-        }
+      // Duplicate check API call
+      const res = await fetch('/api/onboarding/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardNumber, phone, fullName })
+      });
+      const data = await res.json();
 
-        const res = await fetch('/api/ocr', { method: 'POST', body: fd });
-        const data = await res.json();
-
-        if (!res.ok) {
-          setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
-          setLoading(false);
-          return;
-        }
-
-        if (data.isExistingCustomer) {
-          setExistingCustomerData({
-            customerCode: data.existingCustomerCode,
-            message: data.existingCustomerMessage
-          });
-          setLoading(false);
-          return;
-        }
-
-        setZairyuFrontUrl(data.publicUrl);
-        if (data.securityPhotoUrl) setSecurityPhotoUrl(data.securityPhotoUrl);
-        if (data.extractedData) {
-          if (data.extractedData.cardNumber) setCardNumber(data.extractedData.cardNumber);
-          if (data.extractedData.address) setZairyuAddress(data.extractedData.address);
-        }
+      if (data.isExisting) {
+        setExistingCustomerData({
+          customerId: data.customerId || undefined,
+          customerCode: data.customerCode,
+          applicationId: data.applicationId || undefined,
+          message: data.message
+        });
+        setCustomerInputCode(data.customerCode || '');
+        setLoading(false);
+        return;
       }
 
-      if (zairyuBack) {
-        const bUrl = await handleUploadSingleFile(zairyuBack, 'zairyuBack');
-        setZairyuBackUrl(bUrl);
+      // Upload back image if provided
+      if (zairyuBack && !zairyuBackUrl) {
+        const bUrl = await handleUploadSingleFile(zairyuBack, 'zairyuBack').catch(console.error);
+        if (bUrl) setZairyuBackUrl(bUrl);
       }
 
-      setStep(3);
-    } catch (err: unknown) {
-      setOcrError('Hình ảnh tải lên chưa rõ nét hoặc không đúng loại giấy tờ. Quý khách vui lòng kiểm tra lại góc chụp, đảm bảo không bị lóa sáng và tải lại ảnh nhé!');
+      setStep(2);
+    } catch (err) {
+      console.error('Step 1 Next Error:', err);
+      setStep(2);
     } finally {
       setLoading(false);
     }
   };
 
+  // STEP 2 HANDLER: Passport & Nenkin Book
+  const handleNextStep2 = async () => {
+    setLoading(true);
+    setGeneralError(null);
+    try {
+      if (passport && !passportUrl) {
+        const pUrl = await handleUploadSingleFile(passport, 'passport');
+        setPassportUrl(pUrl);
+      }
+      if (nenkinBook && !nenkinBookUrl) {
+        const nUrl = await handleUploadSingleFile(nenkinBook, 'nenkin');
+        setNenkinBookUrl(nUrl);
+      }
+      setStep(3);
+    } catch (err: unknown) {
+      console.error(err);
+      setStep(3);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 3 HANDLER: Bank Passbook & Extra Contacts
   const handleNextStep3 = async () => {
     setLoading(true);
     setGeneralError(null);
     try {
-      if (passport) {
-        const pUrl = await handleUploadSingleFile(passport, 'passport');
-        setPassportUrl(pUrl);
+      if (bankPassbook1 && !bankPassbook1Url) {
+        const b1 = await handleUploadSingleFile(bankPassbook1, 'bankPassbook_0');
+        setBankPassbook1Url(b1);
       }
-      if (nenkinBook) {
-        const nUrl = await handleUploadSingleFile(nenkinBook, 'nenkin');
-        setNenkinBookUrl(nUrl);
+      if (bankPassbook2 && !bankPassbook2Url) {
+        const b2 = await handleUploadSingleFile(bankPassbook2, 'bankPassbook_1');
+        setBankPassbook2Url(b2);
       }
       setStep(4);
     } catch (err: unknown) {
@@ -307,6 +381,7 @@ function WizardContent() {
     }
   };
 
+  // STEP 4 HANDLER: Final Submit
   const handleSubmit = async () => {
     setLoading(true);
     setGeneralError(null);
@@ -314,13 +389,13 @@ function WizardContent() {
     try {
       const bankUrls: string[] = [];
       if (bankPassbook1Url) bankUrls.push(bankPassbook1Url);
-      if (bankPassbook1) {
+      if (bankPassbook1 && !bankPassbook1Url) {
         const url1 = await handleUploadSingleFile(bankPassbook1, 'bankPassbook_0').catch(console.error);
         if (url1 && !bankUrls.includes(url1)) bankUrls.push(url1);
       }
 
       if (bankPassbook2Url) bankUrls.push(bankPassbook2Url);
-      if (bankPassbook2) {
+      if (bankPassbook2 && !bankPassbook2Url) {
         const url2 = await handleUploadSingleFile(bankPassbook2, 'bankPassbook_1').catch(console.error);
         if (url2 && !bankUrls.includes(url2)) bankUrls.push(url2);
       }
@@ -341,6 +416,7 @@ function WizardContent() {
         bankPassbookUrls: bankUrls,
         cardNumber,
         zairyuAddress,
+        vnAddress,
         securityPhotoUrl,
         draftId,
       };
@@ -355,9 +431,11 @@ function WizardContent() {
 
       if (data.isExistingCustomer || res.status === 409) {
         setExistingCustomerData({
+          customerId: data.customerId || undefined,
           customerCode: data.customerCode || 'KH-XXXXXX',
           message: data.error || `Hồ sơ của quý khách (${fullName}) đã tồn tại trong hệ thống. Vì lý do bảo mật, vui lòng Đăng Nhập để xem/bổ sung tài liệu.`
         });
+        setCustomerInputCode(data.customerCode || '');
         return;
       }
 
@@ -375,10 +453,12 @@ function WizardContent() {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('tồn tại') || msg.includes('duplicate') || msg.includes('P2002') || msg.includes('KH-')) {
         const codeMatch = msg.match(/KH-[A-Z0-9]+/);
+        const matchedCode = codeMatch ? codeMatch[0] : 'Đã tồn tại';
         setExistingCustomerData({
-          customerCode: codeMatch ? codeMatch[0] : 'Đã tồn tại',
+          customerCode: matchedCode,
           message: `Hồ sơ của quý khách (${fullName}) đã tồn tại trong hệ thống. Vì lý do bảo mật, quý khách vui lòng Đăng Nhập Cổng Khách Hàng để xem hoặc bổ sung tài liệu.`
         });
+        setCustomerInputCode(matchedCode);
       } else {
         setGeneralError('Hệ thống đang xử lý hoặc kết nối chập chờn. Quý khách vui lòng thử lại sau ít phút hoặc liên hệ Nhân viên qua Zalo để được hỗ trợ trực tiếp!');
       }
@@ -465,19 +545,53 @@ function WizardContent() {
                 🛡️ {existingCustomerData.message}
               </div>
 
-              <div className="space-y-2 pt-2">
-                <button
-                  onClick={() => router.push(`/portal/login?code=${existingCustomerData.customerCode}`)}
-                  className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 shadow-md transition-all flex items-center justify-center gap-2"
-                >
-                  <KeyRound className="w-4 h-4" /> Đăng Nhập Cổng Khách Hàng (Portal)
-                </button>
+              {/* Duplicate Action Options */}
+              <div className="space-y-3 pt-2 text-left">
+                {/* Option 1: Customer Portal Lookup */}
+                <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl p-3.5 space-y-2">
+                  <div className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 text-indigo-600" /> Dành cho Khách Hàng:
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Mã hồ sơ (VD: KH-123456)"
+                      value={customerInputCode}
+                      onChange={e => setCustomerInputCode(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 text-xs font-mono font-bold border border-slate-300 rounded-lg uppercase"
+                    />
+                    <button
+                      onClick={() => router.push(`/portal/login?code=${encodeURIComponent(customerInputCode || existingCustomerData.customerCode)}`)}
+                      className="px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-700 shrink-0 transition-all shadow-sm"
+                    >
+                      Xem Trạng Thái
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option 2: Staff Login Direct Access */}
+                <div className="border border-slate-200 bg-slate-50 rounded-xl p-3 space-y-2">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-slate-600" /> Dành cho Nhân Viên Phụ Trách:
+                  </div>
+                  <button
+                    onClick={() => {
+                      const targetId = existingCustomerData.applicationId || existingCustomerData.customerId || existingCustomerData.customerCode;
+                      const targetUrl = `/applications/${targetId}`;
+                      router.push(`/login?redirect=${encodeURIComponent(targetUrl)}`);
+                    }}
+                    className="w-full py-2.5 bg-slate-900 text-white font-bold rounded-lg text-xs hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <UserCheck className="w-4 h-4 text-emerald-400" /> Đăng Nhập Nhân Viên & Mở Hồ Sơ Này
+                  </button>
+                </div>
 
                 <button
-                  onClick={() => router.push('/login')}
-                  className="w-full py-2.5 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+                  type="button"
+                  onClick={() => setExistingCustomerData(null)}
+                  className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-700 text-center"
                 >
-                  <UserCheck className="w-4 h-4 text-slate-500" /> Đăng Nhập Nhân Viên Phụ Trách
+                  ← Thử lại với thông tin khác
                 </button>
               </div>
             </div>
@@ -522,113 +636,12 @@ function WizardContent() {
             </div>
           ) : (
             <>
-              {/* STEP 1: Personal & Contact Info */}
+              {/* STEP 1: Zairyu Card Upload + OCR Extraction + Confirmation + VN Contact */}
               {step === 1 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thông tin cá nhân & Liên hệ</h2>
-                    <p className="text-xs text-slate-500">Vui lòng điền thông tin cơ bản để nhân viên thuận tiện liên hệ hỗ trợ.</p>
-                  </div>
-
-                  {/* Koyama Referral Banner */}
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-2.5">
-                    <Gift className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                    <div className="text-xs text-indigo-900 leading-snug">
-                      <span className="font-bold">Ưu đãi mã giới thiệu:</span> Nhập mã giới thiệu từ bạn bè hoặc CTV để nhận ngay <span className="font-bold text-emerald-600">giảm 2.000 JPY</span> phí dịch vụ!
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên *</label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: NGUYEN VAN A"
-                        value={fullName}
-                        onChange={e => setFullName(e.target.value.toUpperCase())}
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại *</label>
-                        <div className="relative">
-                          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                          <input
-                            type="text"
-                            placeholder="080... hoặc 09..."
-                            value={phone}
-                            onChange={e => setPhone(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Zalo (Số / Link)</label>
-                        <div className="relative">
-                          <MessageSquare className="w-4 h-4 text-blue-500 absolute left-3 top-2.5" />
-                          <input
-                            type="text"
-                            placeholder="Zalo SĐT..."
-                            value={zaloContact}
-                            onChange={e => setZaloContact(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                        <input
-                          type="date"
-                          value={dob}
-                          onChange={e => setDob(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Messenger</label>
-                        <input
-                          type="text"
-                          placeholder="Link m.me/..."
-                          value={facebookContact}
-                          onChange={e => setFacebookContact(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Mã Giới Thiệu (Tùy chọn)</label>
-                      <input
-                        type="text"
-                        placeholder="Mã CTV hoặc Mã khách hàng (VD: KH-123456)"
-                        value={refCode}
-                        onChange={e => setRefCode(e.target.value.toUpperCase())}
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleNextStep1}
-                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
-                  >
-                    Tiếp Theo: Thẻ Ngoại Kiều <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 2: Zairyu Card (Front & Back with Real Thumbnail & Red Delete) */}
-              {step === 2 && (
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 2: Thẻ Ngoại Kiều (Zairyu Card)</h2>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thẻ Ngoại Kiều (Zairyu Card) & Thông tin</h2>
+                    <p className="text-xs text-slate-500">Vui lòng tải ảnh thẻ ngoại kiều để hệ thống tự động bóc tách thông tin.</p>
                   </div>
 
                   {/* Japanese Style Guidance Box */}
@@ -642,10 +655,18 @@ function WizardContent() {
                     </ul>
                   </div>
 
+                  {/* Processing Status Banner */}
+                  {loading && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-700 flex items-center gap-2 animate-pulse">
+                      <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 shrink-0" />
+                      <div>Đang xử lý dữ liệu.</div>
+                    </div>
+                  )}
+
                   {/* OCR Error Notification Banner */}
                   {ocrError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <div>{ocrError}</div>
                     </div>
                   )}
@@ -662,7 +683,10 @@ function WizardContent() {
                         className="hidden"
                         onChange={e => {
                           const file = e.target.files?.[0];
-                          if (file) setZairyuFront(file);
+                          if (file) {
+                            setZairyuFront(file);
+                            runOcrExtract('zairyuFront', file);
+                          }
                         }}
                       />
 
@@ -697,7 +721,10 @@ function WizardContent() {
                         className="hidden"
                         onChange={e => {
                           const file = e.target.files?.[0];
-                          if (file) setZairyuBack(file);
+                          if (file) {
+                            setZairyuBack(file);
+                            runOcrExtract('zairyuBack', file);
+                          }
                         }}
                       />
 
@@ -721,59 +748,115 @@ function WizardContent() {
                         </div>
                       )}
                     </div>
+                  </div>
 
-                    <div className="text-center text-xs text-slate-400 font-medium pt-1">-- Hoặc nhập tay nếu chưa có ảnh --</div>
+                  {/* Extracted & Confirmed Personal Information Panel */}
+                  <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-3">
+                    <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                      <FileText className="w-4 h-4 text-indigo-600" /> Xác nhận thông tin trích xuất & Liên hệ
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên *</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: NGUYEN VAN A"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value.toUpperCase())}
+                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase bg-white"
+                      />
+                    </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Số thẻ (VD: AB12345678CD)"
-                        value={cardNumber}
-                        onChange={e => setCardNumber(e.target.value.toUpperCase())}
-                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Địa chỉ Kanji..."
-                        value={zairyuAddress}
-                        onChange={e => setZairyuAddress(e.target.value)}
-                        className="px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                      />
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Số thẻ ngoại kiều</label>
+                        <input
+                          type="text"
+                          placeholder="AB12345678CD"
+                          value={cardNumber}
+                          onChange={e => setCardNumber(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
+                        <input
+                          type="date"
+                          value={dob}
+                          onChange={e => setDob(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-2.5 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại liên hệ *</label>
+                          <div className="relative">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="080... hoặc SĐT VN"
+                              value={phone}
+                              onChange={e => setPhone(e.target.value)}
+                              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Zalo (SĐT / Link)</label>
+                          <div className="relative">
+                            <MessageSquare className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="Zalo SĐT..."
+                              value={zaloContact}
+                              onChange={e => setZaloContact(e.target.value)}
+                              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ tại Việt Nam (Nếu có)</label>
+                        <input
+                          type="text"
+                          placeholder="Địa chỉ ở Việt Nam nếu đã về nước..."
+                          value={vnAddress}
+                          onChange={e => setVnAddress(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={() => setStep(1)}
-                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
-                    >
-                      Quay Lại
-                    </button>
-                    <button
-                      onClick={handleNextStep2}
-                      disabled={loading}
-                      className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
-                        </>
-                      ) : (
-                        <>
-                          Tiếp Theo: Hộ Chiếu & Nenkin <ChevronRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleNextStep1}
+                    disabled={loading}
+                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] disabled:opacity-50 shadow-md"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                      </>
+                    ) : (
+                      <>
+                        Tiếp Theo: Hộ Chiếu & Nenkin <ChevronRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
-              {/* STEP 3: Passport & Nenkin Book */}
-              {step === 3 && (
+              {/* STEP 2: Passport & Nenkin Book */}
+              {step === 2 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 3: Hộ Chiếu & Sổ Nenkin</h2>
-                    <p className="text-xs text-slate-500">Tùy chọn tải ảnh hoặc điền thông tin nếu nhớ.</p>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 2: Hộ Chiếu & Sổ Nenkin</h2>
+                    <p className="text-xs text-slate-500">Tải ảnh hộ chiếu và sổ Nenkin (hoặc điền mã số 10 số nếu nhớ).</p>
                   </div>
 
                   {/* Passport Upload */}
@@ -786,7 +869,10 @@ function WizardContent() {
                       className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
-                        if (file) setPassport(file);
+                        if (file) {
+                          setPassport(file);
+                          runOcrExtract('passport', file);
+                        }
                       }}
                     />
 
@@ -821,7 +907,10 @@ function WizardContent() {
                       className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
-                        if (file) setNenkinBook(file);
+                        if (file) {
+                          setNenkinBook(file);
+                          runOcrExtract('nenkin', file);
+                        }
                       }}
                     />
 
@@ -857,19 +946,19 @@ function WizardContent() {
 
                   <div className="flex gap-2 pt-2">
                     <button
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(1)}
                       className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
                     >
                       Quay Lại
                     </button>
                     <button
-                      onClick={handleNextStep3}
+                      onClick={handleNextStep2}
                       disabled={loading}
                       className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       {loading ? (
                         <>
-                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý dữ liệu.
                         </>
                       ) : (
                         <>
@@ -881,12 +970,20 @@ function WizardContent() {
                 </div>
               )}
 
-              {/* STEP 4: Bank Passbook */}
-              {step === 4 && (
+              {/* STEP 3: Bank Passbook & Contacts */}
+              {step === 3 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 4: Sổ Ngân Hàng Nhận Tiền</h2>
-                    <p className="text-xs text-slate-500">Có thể tải up to 2 trang đại diện sổ Yucho hoặc Ngân hàng Việt Nam.</p>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 3: Sổ Ngân Hàng & Kênh Liên Hệ</h2>
+                    <p className="text-xs text-slate-500">Tải ảnh sổ ngân hàng nhận tiền và điền thêm các kênh liên hệ bổ sung.</p>
+                  </div>
+
+                  {/* Koyama Referral Banner */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3 flex items-start gap-2.5">
+                    <Gift className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                    <div className="text-xs text-indigo-900 leading-snug">
+                      <span className="font-bold">Ưu đãi mã giới thiệu:</span> Nhập mã giới thiệu từ bạn bè hoặc CTV để nhận ngay <span className="font-bold text-emerald-600">giảm 2.000 JPY</span> phí dịch vụ!
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -958,6 +1055,92 @@ function WizardContent() {
                           <div className="text-xs font-semibold text-slate-600">Tải Ảnh Trang 2 (Nếu có)</div>
                         </div>
                       )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Messenger</label>
+                        <input
+                          type="text"
+                          placeholder="Link m.me/..."
+                          value={facebookContact}
+                          onChange={e => setFacebookContact(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Mã Giới Thiệu (Tùy chọn)</label>
+                        <input
+                          type="text"
+                          placeholder="Mã CTV / Bạn bè"
+                          value={refCode}
+                          onChange={e => setRefCode(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => setStep(2)}
+                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
+                    >
+                      Quay Lại
+                    </button>
+                    <button
+                      onClick={handleNextStep3}
+                      disabled={loading}
+                      className="w-2/3 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
+                        </>
+                      ) : (
+                        <>
+                          Tiếp Theo: Xác Nhận Hồ Sơ <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: Review & Submit */}
+              {step === 4 && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 4: Xác Nhận & Gửi Hồ Sơ</h2>
+                    <p className="text-xs text-slate-500">Vui lòng rà soát lại thông tin trước khi hoàn tất gửi đăng ký.</p>
+                  </div>
+
+                  {/* Summary Card */}
+                  <div className="border border-slate-200 bg-slate-50 rounded-xl p-4 space-y-2.5 text-xs">
+                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-medium">Họ và Tên:</span>
+                      <span className="font-bold text-slate-900">{fullName || '---'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-medium">Số điện thoại / Zalo:</span>
+                      <span className="font-bold text-slate-900">{phone || zaloContact || '---'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-medium">Số thẻ ngoại kiều:</span>
+                      <span className="font-mono font-bold text-indigo-600">{cardNumber || '---'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-medium">Ngày tháng năm sinh:</span>
+                      <span className="font-bold text-slate-900">{dob || '---'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Giấy tờ đính kèm:</span>
+                      <div className="flex flex-wrap gap-1 justify-end font-semibold">
+                        {(zairyuFront || zairyuFrontUrl) && <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px]">Thẻ Ngoại Kiều</span>}
+                        {(passport || passportUrl) && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px]">Hộ chiếu</span>}
+                        {(nenkinBook || nenkinBookUrl || nenkinNumber) && <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px]">Nenkin</span>}
+                        {(bankPassbook1 || bankPassbook1Url) && <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">Ngân hàng</span>}
+                      </div>
                     </div>
                   </div>
 

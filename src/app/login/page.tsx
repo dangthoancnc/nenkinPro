@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Building2, KeyRound, Mail, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
-export default function EmployeeLogin() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
+
+  useEffect(() => {
+    // Check if staff is already authenticated
+    fetch('/api/auth/employee/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          router.push(redirectUrl);
+        }
+      })
+      .catch(() => {});
+  }, [redirectUrl, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +43,7 @@ export default function EmployeeLogin() {
       const data = await res.json();
       
       if (data.success) {
-        // Redirect to dashboard
-        router.push('/dashboard');
+        router.push(redirectUrl);
         router.refresh();
       } else {
         setError(data.error || 'Đăng nhập thất bại.');
@@ -117,5 +130,17 @@ export default function EmployeeLogin() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function EmployeeLogin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -207,13 +207,36 @@ export async function POST(req: Request) {
       throw new Error('Không thể khởi tạo mã khách hàng duy nhất. Vui lòng thử lại.');
     }
 
-    // Move temp draft files to official customer ID
-    if (zairyuFrontUrl) await moveStorageFile(zairyuFrontUrl, customer.id, 'zairyuFront').catch(console.error);
-    if (zairyuBackUrl) await moveStorageFile(zairyuBackUrl, customer.id, 'zairyuBack').catch(console.error);
-    if (passportUrl) await moveStorageFile(passportUrl, customer.id, 'passport').catch(console.error);
-    if (nenkinBookUrl) await moveStorageFile(nenkinBookUrl, customer.id, 'nenkin').catch(console.error);
+    // Move temp draft files to official customer ID and update customer record
+    const movedFront = zairyuFrontUrl ? await moveStorageFile(zairyuFrontUrl, customer.id, 'zairyuFront').catch(() => zairyuFrontUrl) : null;
+    const movedBack = zairyuBackUrl ? await moveStorageFile(zairyuBackUrl, customer.id, 'zairyuBack').catch(() => zairyuBackUrl) : null;
+    const movedPassport = passportUrl ? await moveStorageFile(passportUrl, customer.id, 'passport').catch(() => passportUrl) : null;
+    const movedNenkin = nenkinBookUrl ? await moveStorageFile(nenkinBookUrl, customer.id, 'nenkin').catch(() => nenkinBookUrl) : null;
+    const movedSecurity = securityPhotoUrl ? await moveStorageFile(securityPhotoUrl, customer.id, 'securityPhoto').catch(() => securityPhotoUrl) : null;
+
+    const movedBankUrls: string[] = [];
     for (let i = 0; i < finalBankUrls.length; i++) {
-      await moveStorageFile(finalBankUrls[i], customer.id, `bankPassbook_${i}`).catch(console.error);
+      const bUrl = await moveStorageFile(finalBankUrls[i], customer.id, `bankPassbook_${i}`).catch(() => finalBankUrls[i]);
+      movedBankUrls.push(bUrl);
+    }
+
+    // Update customer with official storage URLs
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        zairyuFrontUrl: movedFront,
+        zairyuBackUrl: movedBack,
+        passportUrl: movedPassport,
+        nenkinBookUrl: movedNenkin,
+        securityPhotoUrl: movedSecurity,
+      }
+    }).catch(console.error);
+
+    // Clean up temporary draft folder if provided
+    const draftId = result.data.draftId;
+    if (draftId && draftId.startsWith('draft_')) {
+      const { deleteCustomerFolder } = await import('@/lib/storageHelper');
+      await deleteCustomerFolder(draftId).catch(console.error);
     }
 
     // Create new application
