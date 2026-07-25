@@ -55,7 +55,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         <Suspense fallback={<div className="h-16 bg-card/80 border-b border-border sticky top-0 z-30" />}>
           <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
         </Suspense>
-        <main className={`flex-1 relative min-h-0 ${pathname?.includes('/applications/') ? 'p-1.5 sm:p-2 pb-16 md:pb-1.5 overflow-hidden h-full' : 'p-2 sm:p-3 pb-16 md:pb-3 overflow-x-hidden'}`}>
+        <main className={`flex-1 relative min-h-0 ${pathname?.includes('/applications/') ? 'p-1.5 sm:p-2 pb-16 md:pb-1.5 overflow-y-auto h-full' : 'p-2 sm:p-3 pb-16 md:pb-3 overflow-x-hidden'}`}>
           {children}
         </main>
       </div>

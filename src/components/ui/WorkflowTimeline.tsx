@@ -160,7 +160,7 @@ export function WorkflowTimeline({
                   onClick={() => isClickable && onStatusChange?.(step.statusKey)}
                   title={isClickable ? `Chuyển sang: ${step.label}` : step.label}
                   className={cn(
-                    'w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-200 select-none',
+                    'w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 transition-all duration-200 select-none text-[9px]',
                     step.dot[ss],
                     isClickable && 'cursor-pointer hover:scale-110 hover:shadow-md',
                     !isClickable && 'cursor-default',

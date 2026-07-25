@@ -1263,7 +1263,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1.5 p-1 overflow-hidden relative max-w-full overflow-x-hidden">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-y-auto lg:overflow-hidden relative max-w-full overflow-x-hidden">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
