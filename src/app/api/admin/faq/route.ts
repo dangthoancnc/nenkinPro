@@ -10,9 +10,16 @@ export async function GET() {
     const { user, error } = await requireStaff();
     if (error || !user) return error;
 
-    const faqs = await (prisma as any).faqItem.findMany({
-      orderBy: { order: 'asc' },
-    });
+    let faqs: any[] = [];
+    if ((prisma as any).faqItem) {
+      faqs = await (prisma as any).faqItem.findMany({
+        orderBy: { order: 'asc' },
+      });
+    } else {
+      faqs = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT * FROM public.nenkin_faq_items ORDER BY "order" ASC`
+      );
+    }
 
     return NextResponse.json({ success: true, data: faqs });
   } catch (err: any) {
@@ -41,16 +48,28 @@ export async function POST(request: NextRequest) {
       ? keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
       : [];
 
-    const newFaq = await (prisma as any).faqItem.create({
-      data: {
-        key: cleanKey,
-        label: label.trim(),
-        keywords: kwArray,
-        answer: answer.trim(),
-        order: Number(order) || 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-      },
-    });
+    let newFaq: any = null;
+    if ((prisma as any).faqItem) {
+      newFaq = await (prisma as any).faqItem.create({
+        data: {
+          key: cleanKey,
+          label: label.trim(),
+          keywords: kwArray,
+          answer: answer.trim(),
+          order: Number(order) || 0,
+          isActive: isActive !== undefined ? Boolean(isActive) : true,
+        },
+      });
+    } else {
+      const id = crypto.randomUUID();
+      const kwFormatted = `{${kwArray.map(k => `"${k.replace(/"/g, '""')}"`).join(',')}}`;
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO public.nenkin_faq_items (id, key, label, keywords, answer, "isActive", "order")
+         VALUES ($1, $2, $3, $4::text[], $5, $6, $7)`,
+        id, cleanKey, label.trim(), kwArray, answer.trim(), isActive !== undefined ? Boolean(isActive) : true, Number(order) || 0
+      );
+      newFaq = { id, key: cleanKey, label: label.trim(), keywords: kwArray, answer: answer.trim(), isActive: true, order: Number(order) || 0 };
+    }
 
     return NextResponse.json({ success: true, message: 'Đã thêm câu hỏi trợ lý thành công!', data: newFaq });
   } catch (err: any) {
@@ -78,18 +97,33 @@ export async function PUT(request: NextRequest) {
       ? keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
       : undefined;
 
-    const updated = await (prisma as any).faqItem.update({
-      where: { id },
-      data: {
-        ...(label && { label: label.trim() }),
-        ...(kwArray !== undefined && { keywords: kwArray }),
-        ...(answer !== undefined && { answer: answer.trim() }),
-        ...(order !== undefined && { order: Number(order) }),
-        ...(isActive !== undefined && { isActive: Boolean(isActive) }),
-      },
-    });
+    if ((prisma as any).faqItem) {
+      await (prisma as any).faqItem.update({
+        where: { id },
+        data: {
+          ...(label && { label: label.trim() }),
+          ...(kwArray !== undefined && { keywords: kwArray }),
+          ...(answer !== undefined && { answer: answer.trim() }),
+          ...(order !== undefined && { order: Number(order) }),
+          ...(isActive !== undefined && { isActive: Boolean(isActive) }),
+        },
+      });
+    } else {
+      if (isActive !== undefined) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE public.nenkin_faq_items SET "isActive" = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $2`,
+          Boolean(isActive), id
+        );
+      }
+      if (label) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE public.nenkin_faq_items SET label = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $2`,
+          label.trim(), id
+        );
+      }
+    }
 
-    return NextResponse.json({ success: true, message: 'Cập nhật câu hỏi thành công!', data: updated });
+    return NextResponse.json({ success: true, message: 'Cập nhật câu hỏi thành công!' });
   } catch (err: any) {
     console.error('Update FAQ error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -109,7 +143,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Thiếu ID câu hỏi cần xóa.' }, { status: 400 });
     }
 
-    await (prisma as any).faqItem.delete({ where: { id } });
+    if ((prisma as any).faqItem) {
+      await (prisma as any).faqItem.delete({ where: { id } });
+    } else {
+      await prisma.$executeRawUnsafe(`DELETE FROM public.nenkin_faq_items WHERE id = $1`, id);
+    }
 
     return NextResponse.json({ success: true, message: 'Đã xóa câu hỏi khỏi ngân hàng dữ liệu.' });
   } catch (err: any) {
