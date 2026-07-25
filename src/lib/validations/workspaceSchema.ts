@@ -15,6 +15,14 @@ export const applicationSchema = z.object({
   exchangeRate: z.union([z.string(), z.number()]).nullable().optional(),
   serviceFeeVnd: z.union([z.string(), z.number()]).nullable().optional(),
   tax2ndJpy: z.union([z.string(), z.number()]).nullable().optional(),
+  noticeDate: z.string().nullable().optional(),
+  noticeImageUrl: z.string().nullable().optional(),
+  withheldTax: z.union([z.string(), z.number()]).nullable().optional(),
+  coverageMonths: z.union([z.string(), z.number()]).nullable().optional(),
+  lastCoverageMonth: z.string().nullable().optional(),
+  paymentsMultiplier: z.union([z.string(), z.number()]).nullable().optional(),
+  averageStandardRemuneration: z.union([z.string(), z.number()]).nullable().optional(),
+  lumpSumWithdrawalNumber: z.string().nullable().optional(),
 });
 
 export const workspaceSchema = customerSchema.merge(applicationSchema);

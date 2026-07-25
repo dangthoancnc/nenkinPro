@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     // Strict whitelist check
-    const ALLOWED_TYPES = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank', 'noticeOfPayment', 'securityPhoto', 'departure'];
+    const ALLOWED_TYPES = ['zairyuFront', 'zairyuBack', 'passport', 'nenkin', 'bank', 'noticeOfPayment', 'noticeOfEntitlement', 'securityPhoto', 'departure'];
     if (!ALLOWED_TYPES.includes(documentType)) {
       return NextResponse.json({ error: 'Loại tài liệu không hợp lệ.' }, { status: 400 });
     }
@@ -433,15 +433,31 @@ LƯU Ý: Nếu đây KHÔNG PHẢI là tài liệu ngân hàng, hãy trả về 
 Trả về JSON: { "bankName": "", "branchName": "", "accountNumber": "", "accountName": "", "swiftCode": "", "bankBranchAddress": "", "bankCountry": "" }`;
 
     case 'noticeOfPayment':
-      return `Trích xuất thông tin từ ảnh "Phiếu thông báo quyết định cấp Nenkin" (脱退一時金支給決定通知書) này:
-1. Ngày quyết định cấp (支給決定日 hoặc ngày tháng ghi trên phiếu) - định dạng YYYY-MM-DD
-2. Tổng tiền cấp (支給額) - Trích xuất phần số, bỏ chữ Yen/Phẩy
-3. Tiền thuế bị giữ lại (所得税額) - Thường là 20.42% của tổng tiền. Trích xuất phần số.
-4. Tiền thực nhận Lần 1 (控除後支払額) - Trích xuất phần số.
+    case 'noticeOfEntitlement':
+      return `Trích xuất thông tin từ ảnh "Phiếu thông báo quyết định cấp Nenkin" (脱退一時金支給決定通知書 - Notice of Entitlement: Your Lump-sum Withdrawal Payments) này:
+1. Ngày quyết định cấp (決定年月日 / Date of Decision) - định dạng YYYY-MM-DD (VD: 2026-04-15)
+2. Tổng tiền cấp (支給額 / Payments amount - 厚生年金保険 / Employees' Pension) - Trích xuất phần số nguyên JPY (VD: 612819)
+3. Số tiền thuế thu nhập bị giữ (所得税額および復興特別所得税額 / Income Tax and Special Income Tax for Reconstruction) - Trích xuất phần số nguyên JPY (VD: 125137)
+4. Tiền thực nhận Lần 1 (支払額 / Net payment amount) - Trích xuất phần số nguyên JPY (VD: 487682)
+5. Số tháng tham gia BH (被保険者期間（実期間） / Coverage periods) - Trích xuất phần số nguyên tháng (VD: 33)
+6. Mã số thụ hưởng / Số quản lý Lần 1 (脱退一時金整理番号 / Your Lump-sum Withdrawal Payments number) - Trích xuất chuỗi chữ số (VD: 42650954055050)
+7. Tháng đóng BH cuối cùng (最終月 / Last month of coverage) - định dạng YYYY-MM (VD: 2025-11)
+8. Hệ số thanh toán (支給率 / Payments Multiplier) - Trích xuất số thập phân (VD: 2.7)
+9. Lương bình quân tháng làm cơ sở (平均標準報酬(月)額 / Standard Remuneration) - Trích xuất phần số (VD: 226970)
 
 LƯU Ý: Nếu đây KHÔNG PHẢI là phiếu thông báo Nenkin (脱退一時金支給決定通知書), hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải Phiếu thông báo cấp Nenkin."
 
-Trả về JSON: { "noticeDate": "", "totalExpectedJpy": "", "tax2ndJpy": "", "received1stJpy": "" }`;
+Trả về JSON với cấu trúc: { 
+  "noticeDate": "", 
+  "totalExpectedJpy": "", 
+  "withheldTax": "", 
+  "received1stJpy": "", 
+  "coverageMonths": "", 
+  "lumpSumWithdrawalNumber": "", 
+  "lastCoverageMonth": "", 
+  "paymentsMultiplier": "", 
+  "averageStandardRemuneration": "" 
+}`;
 
     default:
       return `Trích xuất thông tin từ tài liệu này và trả về JSON: { "data": "extracted info" }`;
