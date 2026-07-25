@@ -49,6 +49,16 @@ export async function updateApplicationStatus(
       }
     });
 
+    const statusLabels: Record<string, string> = {
+      DRAFT: 'Bản nháp',
+      SENT_1ST: 'Đã gửi Lần 1',
+      RECEIVED_1ST: 'Đã nhận Lần 1',
+      SENT_2ND: 'Đã gửi Lần 2',
+      RECEIVED_2ND: 'Đã nhận Lần 2',
+      COMPLETED: 'Hoàn thành',
+      CANCELLED: 'Đã hủy',
+    };
+
     await tx.auditLog.create({
       data: {
         entityId: id,
@@ -60,6 +70,15 @@ export async function updateApplicationStatus(
           revisionNote: revisionNote || payload.revisionNote,
           payloadKeys: Object.keys(payload)
         }
+      }
+    });
+
+    await tx.applicationHistory.create({
+      data: {
+        applicationId: id,
+        actorName: 'Hệ thống / Staff',
+        action: 'CHUYỂN_TRẠNG_THÁI',
+        description: `Chuyển trạng thái từ "${statusLabels[oldStatus] || oldStatus}" sang "${statusLabels[newStatus] || newStatus}"`,
       }
     });
 

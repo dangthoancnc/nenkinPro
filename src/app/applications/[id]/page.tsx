@@ -73,6 +73,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
   const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
+  const [historyList,       setHistoryList]       = useState<any[]>([]);
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -176,6 +177,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       }
     }
     fetchData();
+    if (!isNew && id) {
+      fetch(`/api/applications/${id}/history`)
+        .then(r => r.json())
+        .then(d => { if (d.success && Array.isArray(d.data)) setHistoryList(d.data); })
+        .catch(console.error);
+    }
     fetch('/api/tax-offices')
       .then(r => r.json())
       .then(d => { if (d.success) setTaxOffices(d.data as TaxOfficeData[]); })
@@ -1177,16 +1184,33 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         )}
         {(panel3aTab as any) === 'history' && (
           <div className="space-y-1.5">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nhật ký xử lý hồ sơ</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span>📜 Nhật ký xử lý hồ sơ ({historyList.length})</span>
+              <span className="text-[9px] text-slate-400 font-normal">Real-time</span>
+            </div>
             <div className="border border-slate-200 rounded-lg bg-white divide-y divide-slate-100 max-h-[160px] overflow-y-auto">
-              <div className="p-2 text-[11px] text-slate-600 flex justify-between items-center bg-slate-50">
-                <span className="font-semibold text-indigo-700">Khởi tạo hồ sơ</span>
-                <span className="text-[9px] font-mono text-slate-400">Hệ thống</span>
-              </div>
-              <div className="p-2 text-[11px] text-slate-600 flex justify-between items-center">
-                <span>Trạng thái: <strong className="text-slate-800">{watch('status') || 'DRAFT'}</strong></span>
-                <span className="text-[9px] font-mono text-slate-400">Vừa xong</span>
-              </div>
+              {historyList.length === 0 ? (
+                <div className="p-3 text-[11px] text-slate-400 text-center">Chưa có nhật ký ghi nhận</div>
+              ) : (
+                historyList.map((item: any) => (
+                  <div key={item.id} className="p-2 text-[11px] text-slate-700 flex items-start justify-between gap-2 hover:bg-slate-50">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-800 text-[11px] truncate flex items-center gap-1">
+                        <span className="px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 text-[9px] font-mono border border-indigo-200 shrink-0">
+                          {item.action || 'HÀNH ĐỘNG'}
+                        </span>
+                        <span>{item.description}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-400 mt-0.5">
+                        Thực hiện bởi: <strong className="text-slate-600">{item.actorName || 'Hệ thống'}</strong>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-slate-400 shrink-0 whitespace-nowrap">
+                      {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : ''}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
