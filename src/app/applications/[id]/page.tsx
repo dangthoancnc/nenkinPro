@@ -1131,7 +1131,24 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <FormField label="Thuế bị giữ (20.42%)">
-                    <Input type="number" value={watch('received1stJpy') ? Math.floor(parseFloat(String(watch('received1stJpy')))*0.255) : ''} disabled size="sm" prefix="¥" className="bg-amber-50/70 font-semibold" />
+                    <Input
+                      type="number"
+                      value={
+                        watch('withheldTax')
+                          ? String(watch('withheldTax'))
+                          : watch('tax2ndJpy')
+                          ? String(watch('tax2ndJpy'))
+                          : watch('totalExpectedJpy')
+                          ? String(Math.floor(parseFloat(String(watch('totalExpectedJpy'))) * 0.2042))
+                          : watch('received1stJpy')
+                          ? String(Math.floor(parseFloat(String(watch('received1stJpy'))) * 0.255))
+                          : ''
+                      }
+                      disabled
+                      size="sm"
+                      prefix="¥"
+                      className="bg-amber-50/70 font-semibold"
+                    />
                   </FormField>
                   <FormField label="Thực nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" className="font-bold text-purple-700" /></FormField>
                 </div>

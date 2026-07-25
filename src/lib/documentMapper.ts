@@ -391,14 +391,17 @@ export function mapDocument(
 }
 
 export function mapTemplateBang12(input: DocumentMapperInput): Record<string, string> {
-  const { application, customer, taxOffice, taxRepresentative, workHistories } = input;
+  const { application, customer, taxOffice, taxRepresentative } = input;
 
+  const appExt = application as Record<string, any>;
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
   const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
-  // calculatedTax will come from bang3; for bang12 we still output refund = withheld - 0
   const refundAmount = withheldTax;
-
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
+
+  const lumpSumNum = appExt.lumpSumWithdrawalNumber || '';
+  const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
+  const noticeEra = application.noticeDate ? toJapaneseEra(new Date(application.noticeDate)) : null;
 
   return {
     ...mapCustomerBase(customer),
@@ -409,8 +412,27 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
     
     totalExpectedJpy: String(totalExpectedJpy),
+    received1stJpy: application.received1stJpy ? String(application.received1stJpy) : '',
     withheldTax: String(withheldTax),
     refundAmount: String(refundAmount),
+    tax2ndJpy: application.tax2ndJpy ? String(application.tax2ndJpy) : String(withheldTax),
+    
+    lumpSumWithdrawalNumber: lumpSumNum,
+    ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
+
+    noticeDate_y: noticeD.y,
+    noticeDate_m: noticeD.m,
+    noticeDate_d: noticeD.d,
+    noticeDate_era_jp: noticeEra?.eraJp ?? '',
+    noticeDate_era_yr: noticeEra?.eraYearStr ?? '',
+    ...splitChars(noticeD.y, 'noticeDate_y', 4, true),
+    ...splitChars(noticeD.m, 'noticeDate_m', 2, true),
+    ...splitChars(noticeD.d, 'noticeDate_d', 2, true),
+
+    coverageMonths: appExt.coverageMonths ? String(appExt.coverageMonths) : '',
+    lastCoverageMonth: appExt.lastCoverageMonth || '',
+    averageStandardRemuneration: appExt.averageStandardRemuneration ? String(appExt.averageStandardRemuneration) : '',
+    paymentsMultiplier: appExt.paymentsMultiplier ? String(appExt.paymentsMultiplier) : '',
     
     app_id: application.id.slice(0, 8),
     ...todayTags(),
@@ -422,8 +444,6 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
   const { application, customer, taxOffice, workHistories } = input;
 
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : null;
-
-  // Calculate work years using coverageMonths if available, or workHistories
   const appExt = application as Record<string, any>;
   const coverageMonths = appExt.coverageMonths ? Number(appExt.coverageMonths) : null;
 
@@ -451,6 +471,9 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
   });
 
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
+  const lumpSumNum = appExt.lumpSumWithdrawalNumber || '';
+  const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
+  const noticeEra = application.noticeDate ? toJapaneseEra(new Date(application.noticeDate)) : null;
 
   return {
     ...mapCustomerBase(customer),
@@ -460,12 +483,30 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
 
     totalExpectedJpy: taxResult.missingInputs.includes('totalExpectedJpy') ? '' : String(totalExpectedJpy),
+    received1stJpy: application.received1stJpy ? String(application.received1stJpy) : '',
     withheldTax: taxResult.withheldTax == null ? '' : String(taxResult.withheldTax),
     retirementDeductionAmount: taxResult.retirementDeductionAmount == null ? '' : String(taxResult.retirementDeductionAmount),
     taxableRetirementIncome: taxResult.taxableRetirementIncome == null ? '' : String(taxResult.taxableRetirementIncome),
     calculatedTax: taxResult.calculatedTax == null ? '' : String(taxResult.calculatedTax),
     refundAmount: taxResult.refundAmount == null ? '' : String(taxResult.refundAmount),
     
+    lumpSumWithdrawalNumber: lumpSumNum,
+    ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
+
+    noticeDate_y: noticeD.y,
+    noticeDate_m: noticeD.m,
+    noticeDate_d: noticeD.d,
+    noticeDate_era_jp: noticeEra?.eraJp ?? '',
+    noticeDate_era_yr: noticeEra?.eraYearStr ?? '',
+    ...splitChars(noticeD.y, 'noticeDate_y', 4, true),
+    ...splitChars(noticeD.m, 'noticeDate_m', 2, true),
+    ...splitChars(noticeD.d, 'noticeDate_d', 2, true),
+
+    coverageMonths: coverageMonths ? String(coverageMonths) : '',
+    lastCoverageMonth: appExt.lastCoverageMonth || '',
+    averageStandardRemuneration: appExt.averageStandardRemuneration ? String(appExt.averageStandardRemuneration) : '',
+    paymentsMultiplier: appExt.paymentsMultiplier ? String(appExt.paymentsMultiplier) : '',
+
     app_id: application.id.slice(0, 8),
     ...todayTags(),
     ...docDateTags(application.applyDate),
@@ -473,7 +514,22 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
 }
 
 export function mapTemplateGiayUyThac2(input: DocumentMapperInput): Record<string, string> {
-  return mapTemplate3(input);
+  const baseMap = mapTemplate3(input);
+  const appExt = input.application as Record<string, any>;
+  const lumpSumNum = appExt.lumpSumWithdrawalNumber || '';
+  const noticeD = formatDate(input.application.noticeDate ? new Date(input.application.noticeDate) : null);
+  const noticeEra = input.application.noticeDate ? toJapaneseEra(new Date(input.application.noticeDate)) : null;
+
+  return {
+    ...baseMap,
+    lumpSumWithdrawalNumber: lumpSumNum,
+    ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
+    noticeDate_y: noticeD.y,
+    noticeDate_m: noticeD.m,
+    noticeDate_d: noticeD.d,
+    noticeDate_era_jp: noticeEra?.eraJp ?? '',
+    noticeDate_era_yr: noticeEra?.eraYearStr ?? '',
+  };
 }
 
 /**
