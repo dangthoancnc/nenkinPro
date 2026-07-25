@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Loader2, FileImage } from 'lucide-react';
+import { X, Printer, Loader2, FileImage, Download } from 'lucide-react';
 import { PrintContainer, PrintField, ImagePrintContainer, A4_W, A4_H } from '@/components/PrintOverlay';
 
 interface PrintModalProps {
@@ -653,6 +653,18 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
               Vừa khít
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const url = `/api/applications/${id}/export-bundle?stage=all`;
+              window.open(url, '_blank');
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-md shadow-emerald-600/20 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Tải PDF Trọn bộ
+          </button>
 
           <button
             type="button"

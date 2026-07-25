@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop,
+  Printer, MapPin, Search, Crop, Download,
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -1330,6 +1330,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           {!isEditing ? (
             <>
               {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
+              {!isNew && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => window.open(`/api/applications/${id}/export-bundle?stage=all`, '_blank')}
+                  iconLeft={<Download className="w-3 h-3 text-emerald-600" />}
+                  className="font-semibold"
+                >
+                  Tải PDF
+                </Button>
+              )}
               {!isNew && <Button type="button" variant="secondary" size="xs" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
               <Button type="button" size="xs" className="px-3 font-semibold" onClick={() => setIsEditing(true)}>Sửa Hồ sơ</Button>
             </>
