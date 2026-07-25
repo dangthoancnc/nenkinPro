@@ -1,4 +1,4 @@
-import { Home, FileText, Settings, Banknote, Briefcase, Building2 } from 'lucide-react';
+import { Home, FileText, Settings, Banknote, Briefcase, Building2, UserCircle, MessageSquare } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
 export interface MenuItem {
@@ -9,6 +9,8 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   { name: 'Tổng quan', icon: Home, href: '/dashboard' },
+  { name: 'Trang cá nhân / CTV', icon: UserCircle, href: '/portal' },
+  { name: 'Messenger Chat', icon: MessageSquare, href: '/messenger' },
   { name: 'Quản lý Hồ sơ', icon: FileText, href: '/applications' },
   { name: 'Cục Thuế', icon: Building2, href: '/tax-offices' },
   { name: 'Nhân sự', icon: Briefcase, href: '/hr' },

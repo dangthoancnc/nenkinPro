@@ -24,6 +24,10 @@ model User {
 
   sessions          StaffSession[]
   templateDrafts    TemplateDraft[]
+  notifications     Notification[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages      Message[]
+  activityFeeds     ActivityFeed[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -165,6 +169,9 @@ model Customer {
   workHistories    WorkHistory[]
   ocrResults       OcrResult[]
   sessions         CustomerSession[]
+  notifications    Notification[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages     Message[]
 
   createdBy   User?   @relation(fields: [createdById], references: [id])
   createdById String?
@@ -257,6 +264,7 @@ model NenkinApplication {
   taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
 
   histories           ApplicationHistory[]
+  conversations       Conversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -416,4 +424,87 @@ model BankAccount {
   updatedAt           DateTime @updatedAt
 
   @@map("nenkin_bank_accounts")
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String?   // Trỏ đến User (Staff / CTV)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String?   // Trỏ đến Khách hàng
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  type        String    @default("SYSTEM") // 'APPLICATION_STATUS' | 'CHAT_MESSAGE' | 'COMMISSION' | 'SYSTEM'
+  isRead      Boolean   @default(false)
+  link        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("nenkin_notifications")
+}
+
+model Conversation {
+  id            String                    @id @default(uuid())
+  title         String?
+  type          String                    @default("DIRECT") // 'DIRECT' | 'GROUP' | 'CUSTOMER_SUPPORT'
+  applicationId String?
+  application   NenkinApplication?        @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  participants  ConversationParticipant[]
+  messages      Message[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([applicationId])
+  @@map("nenkin_conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String?      // Staff / CTV
+  user           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId     String?      // Khách hàng
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([customerId])
+  @@map("nenkin_conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUserId   String?      // Staff / CTV
+  senderUser     User?        @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderCustomerId String?    // Khách hàng
+  senderCustomer Customer?    @relation(fields: [senderCustomerId], references: [id], onDelete: SetNull)
+  content        String
+  attachments    Json?        // Danh sách URL ảnh/tệp đính kèm
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("nenkin_messages")
+}
+
+model ActivityFeed {
+  id          String   @id @default(uuid())
+  userId      String?  // CTV hoặc Staff
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actorName   String
+  action      String   // 'NEW_CUSTOMER' | 'STATUS_CHANGE' | 'COMMISSION_EARNED' | 'POST'
+  content     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("nenkin_activity_feeds")
 }

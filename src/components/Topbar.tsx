@@ -3,6 +3,7 @@ import { Bell, Search, UserCircle, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, FormEvent } from 'react';
 
@@ -106,24 +107,8 @@ export default function Topbar({
 
       {/* Right: Notifications + User */}
       <div className="flex items-center gap-2 ml-auto">
-        {/* Notification bell with Badge count */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative text-muted-foreground hover:text-foreground rounded-full"
-          aria-label={`${unreadCount} thông báo chưa đọc`}
-        >
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="error"
-              size="sm"
-              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 justify-center rounded-full text-[9px] font-bold border-2 border-card pointer-events-none"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
+        {/* Notification bell dropdown */}
+        <NotificationDropdown />
 
         <div className="w-px h-6 bg-border mx-1" />
 
