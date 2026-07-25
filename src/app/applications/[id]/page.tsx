@@ -1228,7 +1228,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="p-2 overflow-y-auto h-[calc(100%-40px)]">
+      <div className="p-1.5">
         {taxPanel === 'card' && (
           <TaxOfficeCard
             taxOffice={selectedTaxOffice}
@@ -1263,7 +1263,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-y-auto lg:overflow-hidden relative max-w-full overflow-x-hidden">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
@@ -1389,20 +1389,28 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
-      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] gap-2 min-h-0 overflow-hidden">
+      {/*
+        Enterprise layout strategy:
+        - Outer grid: 2 columns (doc viewer | right workspace)
+        - Right workspace: CSS grid-rows [1fr_auto] so:
+            * Row 1 (flex-1): Panel 2 + Panel 3 side-by-side, each scrollable internally
+            * Row 2 (auto): Tax Panel — sized to its natural content, never clipped
+        - No rigid fixed heights anywhere
+      */}
+      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] gap-2 min-h-0">
         {/* LEFT COLUMN: Document Image Viewer (Panel 1) */}
-        <div className="min-h-0 h-full">{panel1Node}</div>
+        <div className="min-h-0 overflow-hidden">{panel1Node}</div>
 
-        {/* RIGHT COLUMN: Form (Panel 2) + Progress/Finance (Panel 3) + Fixed Tax Office (Bottom) */}
-        <div className="flex flex-col gap-1.5 min-h-0 h-full overflow-hidden">
-          {/* Top Section: Form Details + Progress/Finance */}
-          <div className="flex-1 grid grid-cols-8 gap-2 min-h-0 overflow-hidden">
-            <div className="col-span-5 min-h-0 h-full overflow-hidden">{panel2Node}</div>
-            <div className="col-span-3 min-h-0 h-full overflow-hidden">{panel3Node}</div>
+        {/* RIGHT COLUMN: grid-rows[1fr_auto] */}
+        <div className="grid min-h-0" style={{ gridTemplateRows: '1fr auto', gap: '6px' }}>
+          {/* Row 1: Form Details + Progress/Finance — fills available space, scrolls internally */}
+          <div className="grid grid-cols-8 gap-2 min-h-0 overflow-hidden">
+            <div className="col-span-5 min-h-0 overflow-hidden">{panel2Node}</div>
+            <div className="col-span-3 min-h-0 overflow-hidden">{panel3Node}</div>
           </div>
 
-          {/* Bottom Section: Cố định khung Cục thuế quản lý (Fit 100% viewport height without page scroll) */}
-          <div className="shrink-0 h-[210px] min-h-[210px] max-h-[210px] overflow-hidden">{taxPanelNode}</div>
+          {/* Row 2: Tax Office Panel — auto-height, always fully visible */}
+          <div className="min-h-0">{taxPanelNode}</div>
         </div>
       </div>
 

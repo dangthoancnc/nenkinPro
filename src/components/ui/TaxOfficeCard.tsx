@@ -64,7 +64,7 @@ function InfoRow({
   href?: string
 }) {
   return (
-    <div className="flex items-start gap-2 py-1.5 border-b border-slate-100 last:border-0">
+    <div className="flex items-start gap-1.5 py-1 border-b border-slate-100 last:border-0">
       <Icon className="w-3 h-3 text-slate-400 mt-0.5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none mb-0.5">
@@ -158,12 +158,12 @@ function MailingLabel({
         </div>
       </div>
       {/* Content */}
-      <div className="px-3 py-3 flex-1 flex flex-col justify-center space-y-1">
-        <p className="text-[13px] font-bold text-indigo-800 tracking-widest font-mono">
+      <div className="px-2.5 py-2 flex-1 flex flex-col justify-center space-y-0.5">
+        <p className="text-[12px] font-bold text-indigo-800 tracking-widest font-mono">
           〒{postalCode}
         </p>
-        <p className="text-[11px] text-slate-700 leading-relaxed">{address}</p>
-        <p className="text-[13px] font-bold text-indigo-700 pt-1">{name} 御中</p>
+        <p className="text-[10px] text-slate-700 leading-snug">{address}</p>
+        <p className="text-[12px] font-bold text-indigo-700 pt-0.5">{name} 御中</p>
       </div>
     </div>
   )
@@ -172,8 +172,8 @@ function MailingLabel({
 // ─── EmptyMailingSlot ──────────────────────────────────────────────────────
 function EmptyMailingSlot({ isEditing, onEdit }: { isEditing?: boolean; onEdit?: () => void }) {
   return (
-    <div className="flex h-full min-h-[132px] flex-col items-center justify-center gap-2
-                    rounded-lg border-2 border-dashed border-amber-200 bg-amber-50 px-3 py-4 text-center">
+    <div className="flex h-full min-h-[88px] flex-col items-center justify-center gap-1.5
+                    rounded-lg border-2 border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-center">
       <AlertCircle className="w-5 h-5 text-amber-400" />
       <p className="text-[10px] font-semibold text-amber-700">Chưa có địa chỉ nhận hồ sơ</p>
       <p className="text-[9px] leading-snug text-amber-500">
@@ -294,17 +294,17 @@ export function TaxOfficeCard({
       {!taxOffice ? (
         <EmptyState isEditing={isEditing} onEdit={onEdit} />
       ) : (
-        <div className="p-2">
+        <div className="p-1.5">
 
           {/* ═══ 2-COLUMN GRID ═══════════════════════════════ */}
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 items-start">
+          <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 items-start">
 
             {/* ── LEFT: Thông tin cục thuế ── */}
             <section className="flex flex-col gap-2">
 
               {/* Tên cục thuế */}
               <div>
-                <p className="text-[14px] font-bold text-slate-800 leading-tight">
+                <p className="text-[12px] font-bold text-slate-800 leading-tight">
                   {taxOffice.name}
                 </p>
                 {taxOffice.romajiName && (
@@ -392,7 +392,7 @@ export function TaxOfficeCard({
             </section>
 
             {/* ── RIGHT: Địa chỉ nhận hồ sơ (tem phiếu) ── */}
-            <section className="flex flex-col min-h-[132px]">
+            <section className="flex flex-col min-h-[88px]">
               {hasMailingAddress ? (
                 <MailingLabel
                   name={taxOffice.mailingName!}
