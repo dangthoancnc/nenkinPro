@@ -243,6 +243,13 @@ model NenkinApplication {
   taxYear       Int?       // Năm khai thuế Reiwa
   workYears     Int?       // Số năm làm việc
 
+  // --- Notice of Entitlement Detail Fields (脱退一時金支給決定通知書) ---
+  coverageMonths              Int?     // 被保険者期間（実期間） - Số tháng tham gia BH
+  lastCoverageMonth           String?  // 最終月 - Tháng đóng BH cuối cùng (VD: 2025-11)
+  paymentsMultiplier          Decimal? // 支給率 - Hệ số thanh toán (VD: 2.7)
+  averageStandardRemuneration Decimal? // 平均標準報酬(月)額 - Lương bình quân (VD: 226970)
+  lumpSumWithdrawalNumber     String?  // 脱退一時金整理番号 - Mã số thụ hưởng Lần 1 (VD: 42650954055050)
+
   customerId          String
   customer            Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   

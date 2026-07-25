@@ -423,21 +423,31 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
 
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : null;
 
-  // Calculate work years
-  let totalDays = 0;
-  workHistories.forEach(wh => {
-    if (wh.startDate && wh.endDate) {
-      const start = new Date(wh.startDate);
-      const end = new Date(wh.endDate);
-      const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-      if (days > 0) totalDays += days;
-    }
-  });
-  const workYears = totalDays > 0 ? totalDays / 365.25 : null;
+  // Calculate work years using coverageMonths if available, or workHistories
+  const appExt = application as Record<string, any>;
+  const coverageMonths = appExt.coverageMonths ? Number(appExt.coverageMonths) : null;
+
+  let workYears: number | null = null;
+  if (coverageMonths && coverageMonths > 0) {
+    workYears = Math.ceil(coverageMonths / 12);
+  } else {
+    let totalDays = 0;
+    workHistories.forEach(wh => {
+      if (wh.startDate && wh.endDate) {
+        const start = new Date(wh.startDate);
+        const end = new Date(wh.endDate);
+        const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+        if (days > 0) totalDays += days;
+      }
+    });
+    workYears = totalDays > 0 ? totalDays / 365.25 : (application.workYears ? Number(application.workYears) : null);
+  }
 
   const taxResult = calculateNenkinTax({
     totalExpectedJpy,
-    workYears
+    workYears,
+    coverageMonths,
+    withheldTax: application.withheldTax ? Number(application.withheldTax) : null,
   });
 
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';

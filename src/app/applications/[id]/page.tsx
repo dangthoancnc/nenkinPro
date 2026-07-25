@@ -26,11 +26,12 @@ import { toast } from 'sonner';
 import PrintModal from './print-modal';
 
 const BASE_DOCUMENTS = [
-  { key: 'zairyuFront',    title: 'Thẻ Ngoại Kiều (Trước)', urlField: 'zairyuFrontUrl' },
-  { key: 'zairyuBack',     title: 'Thẻ Ngoại Kiều (Sau)',   urlField: 'zairyuBackUrl'  },
-  { key: 'passport',       title: 'Hộ chiếu',                urlField: 'passportUrl'    },
-  { key: 'nenkinBook',     title: 'Sổ Nenkin',               urlField: 'nenkinBookUrl'  },
-  { key: 'departureStamp', title: 'Dấu xuất cảnh',           urlField: 'departureStampUrl' },
+  { key: 'zairyuFront',         title: 'Thẻ Ngoại Kiều (Trước)', urlField: 'zairyuFrontUrl'    },
+  { key: 'zairyuBack',          title: 'Thẻ Ngoại Kiều (Sau)',   urlField: 'zairyuBackUrl'     },
+  { key: 'passport',            title: 'Hộ chiếu',               urlField: 'passportUrl'       },
+  { key: 'nenkinBook',          title: 'Sổ Nenkin',              urlField: 'nenkinBookUrl'     },
+  { key: 'noticeOfEntitlement', title: 'Thông báo Lần 1',        urlField: 'noticeImageUrl'    },
+  { key: 'departureStamp',      title: 'Dấu xuất cảnh',          urlField: 'departureStampUrl' },
 ];
 
 const statusConfig: Record<string, { label: string; color: string; badgeColor: string; icon: React.ElementType }> = {
@@ -67,6 +68,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [cropUrlField,      setCropUrlField]      = useState<string>('');
   const [cropImageSrc,      setCropImageSrc]      = useState<string | null>(null);
   const [panel3aTab,        setPanel3aTab]        = useState<'dates' | 'finance'>('dates');
+  const [refundStage,       setRefundStage]       = useState<'lan1' | 'lan2'>('lan1');
   const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
   const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
@@ -136,9 +138,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             totalExpectedJpy:   data.totalExpectedJpy  || '',
             received1stJpy:     data.received1stJpy    || '',
             received2ndJpy:     data.received2ndJpy    || '',
-            serviceFeeJpy:      data.serviceFeeJpy     || '',
-            exchangeRate:       data.exchangeRate      || '',
-            serviceFeeVnd:      data.serviceFeeVnd     || '',
+            serviceFeeJpy:               data.serviceFeeJpy               || '',
+            exchangeRate:                data.exchangeRate                || '',
+            serviceFeeVnd:               data.serviceFeeVnd               || '',
+            noticeDate:                  formatDate(data.noticeDate),
+            noticeImageUrl:              data.noticeImageUrl              || '',
+            withheldTax:                 data.withheldTax                 || '',
+            coverageMonths:              data.coverageMonths              || '',
+            lastCoverageMonth:           data.lastCoverageMonth           || '',
+            paymentsMultiplier:          data.paymentsMultiplier          || '',
+            averageStandardRemuneration: data.averageStandardRemuneration || '',
+            lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
           };
           Object.keys(formValues).forEach(key => {
             if (formValues[key] === null)
@@ -415,6 +425,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       }
     } else if (docKey === 'departureStamp') {
       if (ext.departureDate) setValue('departureDate', ext.departureDate, { shouldDirty: true });
+    } else if (docKey === 'noticeOfEntitlement' || docKey === 'noticeOfPayment') {
+      if (ext.noticeDate)                  setValue('noticeDate',                  ext.noticeDate,                  { shouldDirty: true });
+      if (ext.totalExpectedJpy)            setValue('totalExpectedJpy',            ext.totalExpectedJpy,            { shouldDirty: true });
+      if (ext.withheldTax)                 setValue('withheldTax',                 ext.withheldTax,                 { shouldDirty: true });
+      if (ext.received1stJpy)               setValue('received1stJpy',              ext.received1stJpy,              { shouldDirty: true });
+      if (ext.coverageMonths)              setValue('coverageMonths',              parseInt(String(ext.coverageMonths), 10), { shouldDirty: true });
+      if (ext.lumpSumWithdrawalNumber)     setValue('lumpSumWithdrawalNumber',     ext.lumpSumWithdrawalNumber,     { shouldDirty: true });
+      if (ext.lastCoverageMonth)           setValue('lastCoverageMonth',           ext.lastCoverageMonth,           { shouldDirty: true });
+      if (ext.paymentsMultiplier)          setValue('paymentsMultiplier',          ext.paymentsMultiplier,          { shouldDirty: true });
+      if (ext.averageStandardRemuneration) setValue('averageStandardRemuneration', ext.averageStandardRemuneration, { shouldDirty: true });
+
+      setRefundStage('lan2');
+      toast.success('Đã trích xuất Giấy thông báo Lần 1 thành công!', {
+        description: `Tổng tiền: ¥${ext.totalExpectedJpy || 0} | Thuế bị giữ: ¥${ext.withheldTax || 0} | BH: ${ext.coverageMonths || 0} tháng`
+      });
     }
   };
 
@@ -722,6 +747,49 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               );
 
+            case 'noticeOfEntitlement':
+              return (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-purple-700 border-b border-purple-100 pb-1 flex items-center justify-between">
+                    <span>📄 THÔNG BÁO KẾT QUẢ LẦN 1 (脱退一時金支給決定通知書)</span>
+                    <span className="text-[10px] text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200 font-semibold">Cơ sở làm Hoàn thuế Lần 2</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField label="Ngày ra quyết định">
+                      <Input type="date" {...register('noticeDate')} disabled={!isEditing} size="md" />
+                    </FormField>
+                    <FormField label="Mã số thụ hưởng (整理番号)">
+                      <Input {...register('lumpSumWithdrawalNumber')} disabled={!isEditing} size="md" placeholder="VD: 42650954055050" />
+                    </FormField>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <FormField label="Tổng tiền (支給額)">
+                      <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-slate-800" />
+                    </FormField>
+                    <FormField label="Thuế 20.42% (所得税)">
+                      <Input type="number" {...register('withheldTax')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-amber-700 bg-amber-50/60" />
+                    </FormField>
+                    <FormField label="Thực nhận L1 (支払額)">
+                      <Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-indigo-700" />
+                    </FormField>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <FormField label="Số tháng BH (被保険者期間)">
+                      <Input type="number" {...register('coverageMonths')} disabled={!isEditing} size="md" suffix="tháng" placeholder="VD: 33" />
+                    </FormField>
+                    <FormField label="Tháng đóng cuối (最終月)">
+                      <Input {...register('lastCoverageMonth')} disabled={!isEditing} size="md" placeholder="VD: 2025-11" />
+                    </FormField>
+                    <FormField label="Hệ số thanh toán (支給率)">
+                      <Input step="0.1" {...register('paymentsMultiplier')} disabled={!isEditing} size="md" placeholder="VD: 2.7" />
+                    </FormField>
+                  </div>
+                  <FormField label="Lương bình quân tháng (平均標準報酬額)">
+                    <Input type="number" {...register('averageStandardRemuneration')} disabled={!isEditing} size="md" prefix="¥" placeholder="VD: 226970" />
+                  </FormField>
+                </div>
+              );
+
             default: {
               if (!activeDoc.startsWith('bankPassbook_')) return null;
               const idx = parseInt(activeDoc.split('_')[1], 10);
@@ -861,6 +929,36 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         />
       </div>
 
+      {/* ── 2-Stage Chronological Switcher Bar ── */}
+      <div className="p-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setRefundStage('lan1')}
+            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              refundStage === 'lan1'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${refundStage === 'lan1' ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'}`} />
+            🔵 LẦN 1: NỘP NENKIN (80%)
+          </button>
+          <button
+            type="button"
+            onClick={() => setRefundStage('lan2')}
+            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              refundStage === 'lan2'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${refundStage === 'lan2' ? 'bg-amber-300 animate-pulse' : 'bg-purple-400'}`} />
+            🟣 LẦN 2: HOÀN THUẾ (20.42%)
+          </button>
+        </div>
+      </div>
+
       {/* Tabs: Mốc ngày / Tài chính / Lịch sử */}
       <div className="px-3 pt-1.5 border-b border-slate-100/80 bg-white/40 flex gap-1 shrink-0">
         {(['dates', 'finance', 'history'] as const).map(tab => (
@@ -870,102 +968,159 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}>
-            {tab === 'dates' ? '📅 Mốc ngày' : tab === 'finance' ? '💰 Tài chính' : '📜 Lịch sử'}
+            {tab === 'dates' ? '📅 Mốc ngày & Tiến độ' : tab === 'finance' ? '💰 Tài chính' : '📜 Lịch sử'}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto p-2.5 min-h-0">
         {panel3aTab === 'dates' && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-1.5">
-              <FormField label="Nộp Lần 1">
-                <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
-                  const val = e.target.value;
-                  setValue('sent1stDate', val, { shouldDirty: true });
-                  if (val && ['DRAFT', 'PENDING'].includes(watch('status') || '')) {
-                    setValue('status', 'SENT_1ST', { shouldDirty: true });
-                    toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 1');
-                  }
-                }} disabled={!isEditing} size="sm" />
-              </FormField>
-              <FormField label="Nhận Lần 1">
-                <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
-                  const val = e.target.value;
-                  setValue('received1stDate', val, { shouldDirty: true });
-                  const s1 = watch('sent1stDate');
-                  if (val && s1 && new Date(val) < new Date(s1)) {
-                    toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Nộp Lần 1');
-                  }
-                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
-                    setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
-                    toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 1');
-                  }
-                }} disabled={!isEditing} size="sm" />
-              </FormField>
-              <FormField label="Nộp Lần 2">
-                <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
-                  const val = e.target.value;
-                  setValue('sent2ndDate', val, { shouldDirty: true });
-                  const r1 = watch('received1stDate');
-                  if (val && r1 && new Date(val) < new Date(r1)) {
-                    toast.warning('Ngày Nộp Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
-                  }
-                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
-                    setValue('status', 'SENT_2ND', { shouldDirty: true });
-                    toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 2');
-                  }
-                }} disabled={!isEditing} size="sm" />
-              </FormField>
-              <FormField label="Nhận Lần 2">
-                <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
-                  const val = e.target.value;
-                  setValue('received2ndDate', val, { shouldDirty: true });
-                  const s2 = watch('sent2ndDate');
-                  if (val && s2 && new Date(val) < new Date(s2)) {
-                    toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Nộp Lần 2');
-                  }
-                  if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
-                    setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
-                    toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 2');
-                  }
-                }} disabled={!isEditing} size="sm" />
-              </FormField>
-            </div>
-            {isEditing && (
-              <div className="pt-1 flex flex-wrap gap-1">
-                <button type="button" onClick={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setValue('sent1stDate', today, { shouldDirty: true });
-                  setValue('status', 'SENT_1ST', { shouldDirty: true });
-                  toast.success('Đã nộp Lần 1 hôm nay!');
-                }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
-                  + Hôm nay Nộp L1
-                </button>
-                <button type="button" onClick={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setValue('received1stDate', today, { shouldDirty: true });
-                  setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
-                  toast.success('Đã nhận Lần 1 hôm nay!');
-                }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
-                  + Hôm nay Nhận L1
-                </button>
-                <button type="button" onClick={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setValue('sent2ndDate', today, { shouldDirty: true });
-                  setValue('status', 'SENT_2ND', { shouldDirty: true });
-                  toast.success('Đã nộp Lần 2 hôm nay!');
-                }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
-                  + Hôm nay Nộp L2
-                </button>
+          <div className="space-y-2.5">
+            {refundStage === 'lan1' ? (
+              // ── STAGE 1 DATES & PROGRESS ──
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wider bg-blue-50 border border-blue-200 px-2 py-1 rounded-md flex items-center justify-between">
+                  <span>🔵 Tiến độ Lần 1 (Xin 80% Thoát BH)</span>
+                  <span className="font-semibold">{watch('received1stDate') ? '✓ Đã nhận' : watch('sent1stDate') ? '⏳ Đã gửi' : '○ Chuẩn bị'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <FormField label="Nộp Lần 1">
+                    <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
+                      const val = e.target.value;
+                      setValue('sent1stDate', val, { shouldDirty: true });
+                      if (val && ['DRAFT', 'PENDING'].includes(watch('status') || '')) {
+                        setValue('status', 'SENT_1ST', { shouldDirty: true });
+                        toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 1');
+                      }
+                    }} disabled={!isEditing} size="sm" />
+                  </FormField>
+                  <FormField label="Nhận Lần 1">
+                    <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
+                      const val = e.target.value;
+                      setValue('received1stDate', val, { shouldDirty: true });
+                      const s1 = watch('sent1stDate');
+                      if (val && s1 && new Date(val) < new Date(s1)) {
+                        toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Nộp Lần 1');
+                      }
+                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
+                        setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                        toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 1');
+                      }
+                    }} disabled={!isEditing} size="sm" />
+                  </FormField>
+                </div>
+                {isEditing && (
+                  <div className="pt-1 flex flex-wrap gap-1">
+                    <button type="button" onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      setValue('sent1stDate', today, { shouldDirty: true });
+                      setValue('status', 'SENT_1ST', { shouldDirty: true });
+                      toast.success('Đã nộp Lần 1 hôm nay!');
+                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
+                      + Hôm nay Nộp L1
+                    </button>
+                    <button type="button" onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      setValue('received1stDate', today, { shouldDirty: true });
+                      setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                      toast.success('Đã nhận Lần 1 hôm nay!');
+                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
+                      + Hôm nay Nhận L1
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // ── STAGE 2 DATES & PROGRESS ──
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold text-purple-700 uppercase tracking-wider bg-purple-50 border border-purple-200 px-2 py-1 rounded-md flex items-center justify-between">
+                  <span>🟣 Tiến độ Lần 2 (Xin 20.42% Thuế)</span>
+                  <span className="font-semibold">{watch('received2ndDate') ? '✓ Đã hoàn thuế' : watch('sent2ndDate') ? '⏳ Đã nộp thuế' : '○ Chuẩn bị'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <FormField label="Nộp Lần 2">
+                    <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
+                      const val = e.target.value;
+                      setValue('sent2ndDate', val, { shouldDirty: true });
+                      const r1 = watch('received1stDate');
+                      if (val && r1 && new Date(val) < new Date(r1)) {
+                        toast.warning('Ngày Nộp Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
+                      }
+                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
+                        setValue('status', 'SENT_2ND', { shouldDirty: true });
+                        toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 2');
+                      }
+                    }} disabled={!isEditing} size="sm" />
+                  </FormField>
+                  <FormField label="Nhận Lần 2">
+                    <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
+                      const val = e.target.value;
+                      setValue('received2ndDate', val, { shouldDirty: true });
+                      const s2 = watch('sent2ndDate');
+                      if (val && s2 && new Date(val) < new Date(s2)) {
+                        toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Nộp Lần 2');
+                      }
+                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
+                        setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+                        toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 2');
+                      }
+                    }} disabled={!isEditing} size="sm" />
+                  </FormField>
+                </div>
+                {isEditing && (
+                  <div className="pt-1 flex flex-wrap gap-1">
+                    <button type="button" onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      setValue('sent2ndDate', today, { shouldDirty: true });
+                      setValue('status', 'SENT_2ND', { shouldDirty: true });
+                      toast.success('Đã nộp Lần 2 hôm nay!');
+                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
+                      + Hôm nay Nộp L2
+                    </button>
+                    <button type="button" onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      setValue('received2ndDate', today, { shouldDirty: true });
+                      setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+                      toast.success('Đã nhận Lần 2 hôm nay!');
+                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors">
+                      + Hôm nay Nhận L2
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
         {panel3aTab === 'finance' && (
           <div className="space-y-2">
+            {refundStage === 'lan1' ? (
+              // ── STAGE 1 FINANCE ──
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wider bg-blue-50 border border-blue-200 px-2 py-1 rounded-md">
+                  🔵 Tài chính Lần 1 (Tiền Thoát BH)
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <FormField label="Dự kiến tổng"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
+                  <FormField label="Thực nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" className="font-bold text-indigo-700" /></FormField>
+                </div>
+              </div>
+            ) : (
+              // ── STAGE 2 FINANCE ──
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold text-purple-700 uppercase tracking-wider bg-purple-50 border border-purple-200 px-2 py-1 rounded-md">
+                  🟣 Tài chính Lần 2 (Tiền Hoàn thuế 20.42%)
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <FormField label="Thuế bị giữ (20.42%)">
+                    <Input type="number" value={watch('received1stJpy') ? Math.floor(parseFloat(String(watch('received1stJpy')))*0.255) : ''} disabled size="sm" prefix="¥" className="bg-amber-50/70 font-semibold" />
+                  </FormField>
+                  <FormField label="Thực nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" className="font-bold text-purple-700" /></FormField>
+                </div>
+              </div>
+            )}
+
             {isEditing && (
-              <Button type="button" variant="secondary" size="xs" className="w-full"
+              <Button type="button" variant="secondary" size="xs" className="w-full mt-1"
                 onClick={() => {
                   const r1 = parseFloat(String(watch('received1stJpy') || 0));
                   const r2 = parseFloat(String(watch('received2ndJpy') || 0));
@@ -975,15 +1130,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   setValue('serviceFeeVnd', feeJpy * rate);
                   if (!watch('exchangeRate')) setValue('exchangeRate', rate);
                   toast.success('Đã tính phí dịch vụ (20%)');
-                }}>Tính phí (20%)</Button>
+                }}>Tính phí dịch vụ tổng (20%)</Button>
             )}
-            <div className="grid grid-cols-2 gap-1.5">
-              <FormField label="Dự kiến"><Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="sm" suffix="JPY" /></FormField>
-              <FormField label="Tỷ giá"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-              <FormField label="Nhận L1"><Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-              <FormField label="Nhận L2"><Input type="number" {...register('received2ndJpy')} disabled={!isEditing} size="sm" prefix="¥" /></FormField>
-              <FormField label="Phí DV"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
-              <FormField label="Phí (VND)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60" /></FormField>
+            <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100">
+              <FormField label="Tỷ giá JPY/VND"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
+              <FormField label="Phí (JPY)"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
+              <FormField label="Phí (VNĐ)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" /></FormField>
             </div>
           </div>
         )}

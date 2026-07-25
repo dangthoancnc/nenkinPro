@@ -1,6 +1,8 @@
 export interface TaxCalculationInput {
   totalExpectedJpy: number | null | undefined;
-  workYears: number | null | undefined;
+  workYears?: number | null | undefined;
+  coverageMonths?: number | null | undefined;
+  withheldTax?: number | null | undefined;
 }
 
 export interface TaxCalculationResult {
@@ -18,8 +20,13 @@ export function calculateNenkinTax(input: TaxCalculationInput): TaxCalculationRe
   if (input.totalExpectedJpy == null || isNaN(input.totalExpectedJpy)) {
     missingInputs.push('totalExpectedJpy');
   }
+
+  let effectiveWorkYears = input.workYears;
+  if (input.coverageMonths != null && !isNaN(input.coverageMonths) && input.coverageMonths > 0) {
+    effectiveWorkYears = Math.ceil(input.coverageMonths / 12);
+  }
   
-  if (input.workYears == null || isNaN(input.workYears) || input.workYears <= 0) {
+  if (effectiveWorkYears == null || isNaN(effectiveWorkYears) || effectiveWorkYears <= 0) {
     missingInputs.push('workYears');
   }
 
@@ -36,10 +43,12 @@ export function calculateNenkinTax(input: TaxCalculationInput): TaxCalculationRe
   }
 
   const expected = input.totalExpectedJpy as number;
-  const years = input.workYears as number;
+  const years = effectiveWorkYears as number;
 
-  // Thuế đã khấu trừ (mặc định 20.42%)
-  const withheldTax = Math.floor(expected * 0.2042);
+  // Thuế đã khấu trừ (lấy trực tiếp từ Giấy thông báo hoặc mặc định 20.42%)
+  const withheldTax = (input.withheldTax != null && !isNaN(input.withheldTax) && input.withheldTax > 0)
+    ? Math.floor(input.withheldTax)
+    : Math.floor(expected * 0.2042);
 
   // Mức giảm trừ hưu trí (Retirement Deduction)
   // Tính theo luật: 40 vạn yên × số năm làm việc (tối thiểu 1 năm, làm tròn lên)
