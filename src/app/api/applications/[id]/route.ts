@@ -75,6 +75,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const { user, error } = await requireApplicationAccess(id);
+    if (error || !user) return error;
     const body = await request.json();
     const { status, revisionNote, ...payload } = body;
     const dateFields = ['noticeDate', 'applyDate', 'sent1stDate', 'received1stDate', 'sent2ndDate', 'received2ndDate'];

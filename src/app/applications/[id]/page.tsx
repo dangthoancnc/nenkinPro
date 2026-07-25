@@ -1263,17 +1263,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-65px)] flex flex-col gap-2 p-2 sm:p-3 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0 max-w-full overflow-x-hidden">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="min-h-screen lg:h-[calc(100vh-55px)] flex flex-col gap-1.5 p-2 overflow-y-auto lg:overflow-hidden relative pb-20 lg:pb-0 max-w-full overflow-x-hidden">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-2 shrink-0 pt-1 pb-0.5">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <button type="button" onClick={() => router.push('/applications')}
-            className="p-1.5 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-sm">
+            className="p-1 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-xs">
             <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
           </button>
           <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="text-sm font-bold tracking-tight text-slate-800 truncate">
+            <h1 className="text-xs sm:text-sm font-bold tracking-tight text-slate-800 truncate">
               {isNew ? 'Tạo Hồ sơ mới' : (watch('fullName') || 'Chi tiết Hồ sơ')}
             </h1>
             {!isNew && (
@@ -1285,20 +1285,20 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Desktop Header Actions */}
-        <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+        <div className="hidden lg:flex items-center gap-1 shrink-0">
           {!isEditing ? (
             <>
-              {!isNew && <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
-              {!isNew && <Button type="button" variant="secondary" size="sm" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
-              <Button type="button" size="sm" onClick={() => setIsEditing(true)}>Sửa Hồ sơ</Button>
+              {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
+              {!isNew && <Button type="button" variant="secondary" size="xs" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
+              <Button type="button" size="xs" className="px-3 font-semibold" onClick={() => setIsEditing(true)}>Sửa Hồ sơ</Button>
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" size="sm" disabled={saving}
+              <Button type="button" variant="outline" size="xs" disabled={saving}
                 onClick={() => { if (isNew) router.push('/applications'); else { setIsEditing(false); reset(); } }}>
                 Hủy
               </Button>
-              <Button type="submit" size="sm" loading={saving} loadingText="Đang lưu..." iconLeft={<Save className="w-3 h-3" />}>
+              <Button type="submit" size="xs" className="px-3 font-bold bg-indigo-600 hover:bg-indigo-700" loading={saving} loadingText="Đang lưu..." iconLeft={<Save className="w-3 h-3" />}>
                 Lưu Hồ sơ
               </Button>
             </>
@@ -1389,13 +1389,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
-      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] grid-rows-[auto_1fr] gap-2.5 min-h-0 overflow-hidden">
-        <div className="col-start-1 row-span-2 min-h-0 h-full">{panel1Node}</div>
-        <div className="col-start-2 row-start-1 grid grid-cols-8 gap-2.5 min-h-0 overflow-hidden">
-          <div className="col-span-5 min-h-0 h-full">{panel2Node}</div>
-          <div className="col-span-3 min-h-0 h-full">{panel3Node}</div>
+      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] gap-2 min-h-0 overflow-hidden">
+        {/* LEFT COLUMN: Document Image Viewer (Panel 1) */}
+        <div className="min-h-0 h-full">{panel1Node}</div>
+
+        {/* RIGHT COLUMN: Form (Panel 2) + Progress/Finance (Panel 3) + Fixed Tax Office (Bottom) */}
+        <div className="flex flex-col gap-1.5 min-h-0 h-full overflow-hidden">
+          {/* Top Section: Form Details + Progress/Finance */}
+          <div className="flex-1 grid grid-cols-8 gap-2 min-h-0 overflow-hidden">
+            <div className="col-span-5 min-h-0 h-full overflow-hidden">{panel2Node}</div>
+            <div className="col-span-3 min-h-0 h-full overflow-hidden">{panel3Node}</div>
+          </div>
+
+          {/* Bottom Section: Cố định khung Cục thuế quản lý (Locked height 210px) */}
+          <div className="shrink-0 h-[210px] min-h-[210px] max-h-[210px] overflow-hidden">{taxPanelNode}</div>
         </div>
-        <div className="col-start-2 row-start-2 min-h-0">{taxPanelNode}</div>
       </div>
 
       {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
