@@ -91,3 +91,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error } = await requireStaff();
+    if (error || !user) return error;
+
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get('messageId');
+
+    if (!messageId) {
+      return NextResponse.json({ success: false, error: 'messageId is required' }, { status: 400 });
+    }
+
+    if ((prisma as any).message) {
+      await (prisma as any).message.delete({
+        where: { id: messageId },
+      });
+    } else {
+      await prisma.$executeRawUnsafe(`DELETE FROM public.nenkin_messages WHERE id = $1`, messageId);
+    }
+
+    return NextResponse.json({ success: true, message: 'Đã xóa tin nhắn' });
+  } catch (err: any) {
+    console.error('Delete message error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

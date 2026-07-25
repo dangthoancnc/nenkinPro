@@ -449,6 +449,7 @@ model Conversation {
   id            String                    @id @default(uuid())
   title         String?
   type          String                    @default("DIRECT") // 'DIRECT' | 'GROUP' | 'CUSTOMER_SUPPORT'
+  isArchived    Boolean                   @default(false)
   applicationId String?
   application   NenkinApplication?        @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   participants  ConversationParticipant[]

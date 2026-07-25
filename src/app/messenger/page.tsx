@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
+  Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +29,7 @@ interface ChatConversation {
   role?: string;
   lastMessage: string;
   updatedAt?: string;
+  isArchived?: boolean;
   isOnline?: boolean;
   lastActiveText?: string;
   membersCount?: number;
@@ -44,14 +46,17 @@ interface MemberItem {
 }
 
 export default function MessengerPage() {
-  const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP'>('CUSTOMER');
+  const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP' | 'ARCHIVED'>('CUSTOMER');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Derived activeChat from conversations list using activeChatId
+  const activeChat = conversations.find(c => c.id === activeChatId) || null;
 
   // Group creation modal state
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
@@ -65,6 +70,8 @@ export default function MessengerPage() {
   const [creatingGroup, setCreatingGroup] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const prevMsgCountRef = useRef(0);
 
   // 1. Load real conversations from DB (silent = true prevents screen flicker)
   const loadConversations = (keepActive: boolean = true, silent: boolean = true) => {
@@ -85,27 +92,25 @@ export default function MessengerPage() {
 
           if (urlConvId) {
             const matched = list.find(c => c.id === urlConvId);
-            if (matched && matched.id !== activeChat?.id) {
-              setActiveChat(matched);
+            if (matched && matched.id !== activeChatId) {
+              setActiveChatId(matched.id);
               loadRealMessages(matched.id, false);
-              if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER') setChatCategory('CUSTOMER');
+              if (matched.isArchived) setChatCategory('ARCHIVED');
+              else if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER') setChatCategory('CUSTOMER');
               else if (matched.type === 'CTV') setChatCategory('CTV');
               else if (matched.type === 'GROUP') setChatCategory('GROUP');
               return;
             }
           }
 
-          if (!keepActive || !activeChat) {
+          if (!keepActive || !activeChatId) {
             if (list.length > 0) {
-              const first = list.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') || list[0];
-              setActiveChat(first);
-              loadRealMessages(first.id, false);
-            }
-          } else {
-            // Update activeChat with fresh online status silently
-            const freshActive = list.find(c => c.id === activeChat.id);
-            if (freshActive && (freshActive.isOnline !== activeChat.isOnline || freshActive.lastMessage !== activeChat.lastMessage)) {
-              setActiveChat(freshActive);
+              const activeList = list.filter(c => !c.isArchived);
+              const first = activeList.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') || activeList[0] || list[0];
+              if (first) {
+                setActiveChatId(first.id);
+                loadRealMessages(first.id, false);
+              }
             }
           }
         }
@@ -148,7 +153,6 @@ export default function MessengerPage() {
       .then(data => {
         if (data.success && Array.isArray(data.data)) {
           setMessages(prev => {
-            // Only update state if content actually changed to avoid re-rendering DOM
             if (JSON.stringify(prev) === JSON.stringify(data.data)) return prev;
             return data.data;
           });
@@ -162,18 +166,81 @@ export default function MessengerPage() {
 
   // Auto poll for new messages in active chat every 3 seconds silently
   useEffect(() => {
-    if (!activeChat?.id) return;
+    if (!activeChatId) return;
 
     const msgInterval = setInterval(() => {
-      loadRealMessages(activeChat.id, true);
+      loadRealMessages(activeChatId, true);
     }, 3000);
 
     return () => clearInterval(msgInterval);
-  }, [activeChat?.id]);
+  }, [activeChatId]);
 
+  // Only scroll when message count increases (zero scroll jumping / flicker)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length > prevMsgCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
+
+  // Handler: Toggle Archive Conversation
+  const handleToggleArchive = async (conversationId: string, currentArchived: boolean) => {
+    try {
+      const res = await fetch('/api/messenger/conversations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, isArchived: !currentArchived }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(currentArchived ? 'Đã chuyển cuộc trò chuyện về hộp thư chính' : 'Đã chuyển cuộc trò chuyện vào Mục Lưu Trữ');
+        loadConversations(true, true);
+      } else {
+        toast.error('Lỗi: ' + data.error);
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
+    }
+  };
+
+  // Handler: Delete Entire Conversation
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn cuộc trò chuyện này cùng toàn bộ tin nhắn?')) return;
+    try {
+      const res = await fetch(`/api/messenger/conversations?conversationId=${conversationId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Đã xóa cuộc trò chuyện');
+        setActiveChatId(null);
+        setMessages([]);
+        loadConversations(false, false);
+      } else {
+        toast.error('Lỗi xóa: ' + data.error);
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
+    }
+  };
+
+  // Handler: Delete Single Message
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const res = await fetch(`/api/messenger/messages?messageId=${messageId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        toast.success('Đã xóa tin nhắn');
+      } else {
+        toast.error('Lỗi xóa tin nhắn: ' + data.error);
+      }
+    } catch (err: any) {
+      toast.error('Lỗi: ' + err.message);
+    }
+  };
 
   // 4. Send real message
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -253,7 +320,12 @@ export default function MessengerPage() {
   };
 
   const filteredChats = conversations
-    .filter(c => chatCategory === 'CUSTOMER' ? (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') : c.type === chatCategory)
+    .filter(c => {
+      if (chatCategory === 'ARCHIVED') return c.isArchived === true;
+      if (c.isArchived === true) return false;
+      if (chatCategory === 'CUSTOMER') return c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT';
+      return c.type === chatCategory;
+    })
     .filter(c =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -290,46 +362,59 @@ export default function MessengerPage() {
           </button>
         </div>
 
-        {/* Segmented Category Tabs */}
-        <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-3 gap-1 shrink-0">
+        {/* 4 Segmented Category Tabs */}
+        <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-4 gap-1 shrink-0">
           <button
             type="button"
             onClick={() => {
               setChatCategory('CUSTOMER');
-              const first = conversations.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT');
-              if (first) { setActiveChat(first); loadRealMessages(first.id); }
+              const first = conversations.find(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT'));
+              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
-            👤 Khách ({conversations.filter(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT').length})
+            👤 Khách ({conversations.filter(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT')).length})
           </button>
           <button
             type="button"
             onClick={() => {
               setChatCategory('CTV');
-              const first = conversations.find(c => c.type === 'CTV');
-              if (first) { setActiveChat(first); loadRealMessages(first.id); }
+              const first = conversations.find(c => !c.isArchived && c.type === 'CTV');
+              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'CTV' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
-            🤝 CTV ({conversations.filter(c => c.type === 'CTV').length})
+            🤝 CTV ({conversations.filter(c => !c.isArchived && c.type === 'CTV').length})
           </button>
           <button
             type="button"
             onClick={() => {
               setChatCategory('GROUP');
-              const first = conversations.find(c => c.type === 'GROUP');
-              if (first) { setActiveChat(first); loadRealMessages(first.id); }
+              const first = conversations.find(c => !c.isArchived && c.type === 'GROUP');
+              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[10px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
               chatCategory === 'GROUP' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
-            👥 Nhóm ({conversations.filter(c => c.type === 'GROUP').length})
+            👥 Nhóm ({conversations.filter(c => !c.isArchived && c.type === 'GROUP').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setChatCategory('ARCHIVED');
+              const first = conversations.find(c => c.isArchived === true);
+              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
+            }}
+            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
+              chatCategory === 'ARCHIVED' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+            }`}
+          >
+            📁 Kho ({conversations.filter(c => c.isArchived === true).length})
           </button>
         </div>
 
@@ -361,11 +446,11 @@ export default function MessengerPage() {
               <div
                 key={chat.id}
                 onClick={() => {
-                  setActiveChat(chat);
+                  setActiveChatId(chat.id);
                   loadRealMessages(chat.id);
                 }}
                 className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
-                  activeChat?.id === chat.id ? 'bg-indigo-50/80 border-l-4 border-indigo-600' : 'hover:bg-white'
+                  activeChatId === chat.id ? 'bg-indigo-50/80 border-l-4 border-indigo-600' : 'hover:bg-white'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 relative ${
@@ -381,6 +466,7 @@ export default function MessengerPage() {
                     <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
                       {chat.name}
                       {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
+                      {chat.isArchived && <span className="px-1 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded">Đã lưu trữ</span>}
                     </h4>
                     {chat.code && <span className="text-[9px] font-mono text-slate-400">#{chat.code}</span>}
                   </div>
@@ -421,6 +507,37 @@ export default function MessengerPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Header Action Buttons (Archive & Delete) */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleToggleArchive(activeChat.id, activeChat.isArchived || false)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-slate-200"
+                  title={activeChat.isArchived ? "Chuyển về hộp thư chính" : "Lưu trữ cuộc trò chuyện"}
+                >
+                  {activeChat.isArchived ? (
+                    <>
+                      <ArchiveRestore className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Bỏ Lưu Trữ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Lưu Trữ</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteConversation(activeChat.id)}
+                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-rose-200"
+                  title="Xóa cuộc trò chuyện này"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Xóa Chat</span>
+                </button>
+              </div>
             </div>
 
             {/* Messages Body */}
@@ -436,17 +553,39 @@ export default function MessengerPage() {
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}
+                    className={`flex group items-center gap-1.5 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                   >
+                    {/* Delete Message Button on Hover */}
+                    {msg.isMe && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                        title="Xóa tin nhắn này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 ${
+                      className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 relative ${
                         msg.isMe
                           ? 'bg-indigo-600 text-white rounded-br-none'
                           : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-none'
                       }`}
                     >
                       {!msg.isMe && (
-                        <span className="text-[9px] font-bold text-indigo-600 block">{msg.senderName}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[9px] font-bold text-indigo-600 block">{msg.senderName}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600"
+                            title="Xóa tin nhắn"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
                       <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                       <span
@@ -457,6 +596,17 @@ export default function MessengerPage() {
                         {msg.time}
                       </span>
                     </div>
+
+                    {!msg.isMe && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                        title="Xóa tin nhắn này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 ))
               )}

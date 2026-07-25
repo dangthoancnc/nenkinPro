@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
         phone: custParticipant?.phone || '',
         lastMessage: lastMsg,
         updatedAt: c.updatedAt,
+        isArchived: Boolean(c.isArchived),
         isOnline,
         lastActiveText: isOnline ? 'Trực tuyến' : `Hoạt động ${diffSec < 60 ? `${diffSec}s trước` : `${Math.floor(diffSec / 60)} phút trước`}`,
         membersCount: c.participants?.length || 0,
@@ -160,6 +161,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: conversation });
   } catch (err: any) {
     console.error('Create conversation error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { user, error } = await requireStaff();
+    if (error || !user) return error;
+
+    const body = await request.json();
+    const { conversationId, isArchived } = body;
+
+    if (!conversationId) {
+      return NextResponse.json({ success: false, error: 'conversationId is required' }, { status: 400 });
+    }
+
+    if ((prisma as any).conversation) {
+      await (prisma as any).conversation.update({
+        where: { id: conversationId },
+        data: { isArchived: Boolean(isArchived) },
+      });
+    } else {
+      await prisma.$executeRawUnsafe(
+        `UPDATE public.nenkin_conversations SET "isArchived" = $1 WHERE id = $2`,
+        Boolean(isArchived), conversationId
+      );
+    }
+
+    return NextResponse.json({ success: true, isArchived: Boolean(isArchived) });
+  } catch (err: any) {
+    console.error('Update conversation error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error } = await requireStaff();
+    if (error || !user) return error;
+
+    const { searchParams } = new URL(request.url);
+    const conversationId = searchParams.get('conversationId');
+
+    if (!conversationId) {
+      return NextResponse.json({ success: false, error: 'conversationId is required' }, { status: 400 });
+    }
+
+    if ((prisma as any).conversation) {
+      await (prisma as any).conversation.delete({
+        where: { id: conversationId },
+      });
+    } else {
+      await prisma.$executeRawUnsafe(`DELETE FROM public.nenkin_conversations WHERE id = $1`, conversationId);
+    }
+
+    return NextResponse.json({ success: true, message: 'Đã xóa cuộc trò chuyện' });
+  } catch (err: any) {
+    console.error('Delete conversation error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
