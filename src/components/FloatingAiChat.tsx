@@ -32,7 +32,8 @@ export function FloatingAiChat() {
     },
   ]);
 
-  // Handover form state
+  const [showFaqDrawer, setShowFaqDrawer] = useState(true);
+
   const [customerName, setCustomerName] = useState('');
   const [customerContact, setCustomerContact] = useState('');
   const [handoverDone, setHandoverDone] = useState(false);
@@ -433,27 +434,6 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
                       }`}
                     >
                       <p className="whitespace-pre-line">{msg.text}</p>
-                      
-                      {/* Render Vertical FAQ Buttons inside Initial Welcome Message */}
-                      {msg.id === 'init-1' && (
-                        <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block mb-0.5">
-                            💡 Câu hỏi phổ biến (Bấm để xem nhanh):
-                          </span>
-                          {FAQ_CHIPS.map((chip, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => handleSendMessage(chip.query, chip.key, chip.answer)}
-                              className="w-full text-left px-2.5 py-1.5 bg-slate-900/80 hover:bg-indigo-600/40 text-[11px] font-medium text-slate-200 hover:text-white rounded-xl border border-slate-700/80 hover:border-indigo-400/60 transition-all flex items-center justify-between group shadow-2xs"
-                            >
-                              <span className="truncate pr-1">{chip.label}</span>
-                              <span className="text-indigo-400 group-hover:translate-x-0.5 transition-transform text-xs shrink-0">→</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
                       <span className="text-[9px] text-slate-400 block text-right mt-1 opacity-70">
                         {msg.timestamp}
                       </span>
@@ -467,6 +447,40 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
                   </div>
                 )}
                 <div ref={messagesEndRef} />
+              </div>
+
+              {/* ── STICKY MODERN QUICK-CHIPS DRAWER ABOVE INPUT ── */}
+              <div className="bg-slate-950/95 border-t border-slate-800 backdrop-blur-md shrink-0">
+                {/* Drawer Header Toggle */}
+                <div
+                  onClick={() => setShowFaqDrawer(prev => !prev)}
+                  className="px-3 py-1.5 flex items-center justify-between cursor-pointer text-[10px] font-bold text-teal-400 hover:text-teal-300 border-b border-slate-800/80 select-none bg-slate-900/80 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                    💡 Câu hỏi phổ biến / Tra cứu nhanh
+                  </span>
+                  <span className="text-slate-400 text-[9px] flex items-center gap-1 font-mono hover:text-white">
+                    {showFaqDrawer ? '▼ Thu gọn' : '▲ Mở gợi ý'}
+                  </span>
+                </div>
+
+                {/* Drawer Body: 2-Column Responsive Grid */}
+                {showFaqDrawer && (
+                  <div className="p-2 grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto scrollbar-thin bg-slate-950/60">
+                    {FAQ_CHIPS.map((chip, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSendMessage(chip.query, chip.key, chip.answer)}
+                        className="text-left px-2.5 py-1.5 bg-slate-900/90 hover:bg-indigo-600/40 text-[10px] font-medium text-slate-200 hover:text-white rounded-xl border border-slate-800 hover:border-indigo-400/60 transition-all flex items-center justify-between group shadow-2xs"
+                      >
+                        <span className="truncate pr-1">{chip.label}</span>
+                        <span className="text-indigo-400 group-hover:translate-x-0.5 transition-transform text-[10px] shrink-0 font-bold">→</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Chat Input Box */}
