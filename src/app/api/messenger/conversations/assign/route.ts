@@ -96,23 +96,25 @@ export async function POST(request: NextRequest) {
 
     // Add system message if applicable
     if (systemMsg) {
-      if ((prisma as any).message) {
-        await (prisma as any).message.create({
-          data: {
-            conversationId,
-            senderUserId: user.id,
-            content: systemMsg,
-            type: 'SYSTEM',
-          },
-        });
-      } else {
+      try {
+        if ((prisma as any).message) {
+          await (prisma as any).message.create({
+            data: {
+              conversationId,
+              senderUserId: user.id,
+              content: systemMsg,
+            },
+          });
+        } else {
+          throw new Error('Fallback to Raw SQL');
+        }
+      } catch {
         await prisma.$executeRawUnsafe(
-          `INSERT INTO public.nenkin_messages (id, "conversationId", "senderUserId", content, type, "createdAt") VALUES ($1, $2, $3, $4, $5, NOW())`,
+          `INSERT INTO public.nenkin_messages (id, "conversationId", "senderUserId", content, "createdAt") VALUES ($1, $2, $3, $4, NOW())`,
           `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           conversationId,
           user.id,
-          systemMsg,
-          'SYSTEM'
+          systemMsg
         );
       }
     }
