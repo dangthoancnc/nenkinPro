@@ -8,16 +8,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, contact, message } = body;
 
-    if (!name || !contact) {
-      return NextResponse.json(
-        { success: false, error: 'Vui lòng cung cấp Họ tên và Số điện thoại / Zalo liên hệ.' },
-        { status: 400 }
-      );
-    }
-
-    const cleanName = name.trim();
-    const cleanContact = contact.trim();
-    const userMsg = message ? message.trim() : `Khách hàng [${cleanName}] (SĐT/Zalo: ${cleanContact}) yêu cầu gặp Tư vấn viên trực tiếp từ Website.`;
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    const cleanName = (name && name.trim()) ? name.trim() : `Khách trực tuyến #${randomCode}`;
+    const cleanContact = (contact && contact.trim()) ? contact.trim() : `Chat trực tiếp trên Web`;
+    const userMsg = message ? message.trim() : `Khách hàng [${cleanName}] đã bắt đầu cuộc hội thoại tư vấn trực tiếp từ Website.`;
 
     let conversation: any = null;
 

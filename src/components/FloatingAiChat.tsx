@@ -332,6 +332,44 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
     }
   };
 
+  const handleConnectLiveStaff = async () => {
+    setMode('ai');
+    if (supportConvId) {
+      toast.info('Bạn đã được kết nối với Chuyên viên tư vấn VietNenkin!');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/public/support-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const convId = data.data?.id;
+        if (convId) {
+          setSupportConvId(convId);
+          try { sessionStorage.setItem('vietnenkin_support_conv_id', convId); } catch {}
+        }
+        toast.success('Đã kết nối với Chuyên viên! Quý khách có thể gửi tin nhắn ngay.');
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            sender: 'system',
+            text: `🎧 ĐÃ KẾT NỐI TƯ VẤN VIÊN TRỰC TIẾP!\nQuý khách có thể gõ câu hỏi nhắn tin trực tiếp với Chuyên viên VietNenkin Duyên bên dưới. Chuyên viên sẽ trả lời ngay trong ít phút!`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
+    }
+  };
+
   return (
     <>
       {/* ── FLOATING BUTTON AT BOTTOM RIGHT ── */}
@@ -384,7 +422,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
               type="button"
               onClick={() => setMode('ai')}
               className={`flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors ${
-                mode === 'ai'
+                mode === 'ai' && !supportConvId
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -393,14 +431,15 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
             </button>
             <button
               type="button"
-              onClick={() => setMode('handover')}
+              onClick={handleConnectLiveStaff}
               className={`flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors ${
-                mode === 'handover'
-                  ? 'bg-teal-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                supportConvId
+                  ? 'bg-emerald-600 text-white shadow-sm animate-pulse'
+                  : 'bg-teal-600 text-white hover:bg-teal-500 shadow-sm'
               }`}
             >
-              <Headset className="w-3.5 h-3.5" /> Gặp Tư Vấn Viên
+              <Headset className="w-3.5 h-3.5" />
+              {supportConvId ? '🟢 Đã Kết Nối Nhân Viên' : '🎧 Gặp Tư Vấn Viên'}
             </button>
           </div>
 
