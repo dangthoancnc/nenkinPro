@@ -61,6 +61,22 @@ export function FloatingAiChat() {
       try {
         const res = await fetch(`/api/public/support-request/messages?conversationId=${supportConvId}`);
         const data = await res.json();
+
+        if (data.isEnded) {
+          setSupportConvId(null);
+          try { sessionStorage.removeItem('vietnenkin_support_conv_id'); } catch {}
+          setMessages(prev => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              sender: 'system',
+              text: '💬 Phiên tư vấn trực tiếp với Chuyên viên đã hoàn thành. Quý khách đã trở lại chế độ Hỏi đáp AI tự động!',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+          return;
+        }
+
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           const apiMsgs: ChatMessage[] = data.data.map((m: any) => ({
             id: m.id,
@@ -370,6 +386,21 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
     }
   };
 
+  const handleEndLiveStaffSession = () => {
+    setSupportConvId(null);
+    try { sessionStorage.removeItem('vietnenkin_support_conv_id'); } catch {}
+    toast.success('Đã kết thúc phiên chat trực tiếp với Chuyên viên.');
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        sender: 'system',
+        text: '👋 Đã kết thúc phiên tư vấn trực tiếp với Chuyên viên. Bạn đã trở lại chế độ Hỏi đáp AI tự động!',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+  };
+
   return (
     <>
       {/* ── FLOATING BUTTON AT BOTTOM RIGHT ── */}
@@ -417,30 +448,42 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
           </div>
 
           {/* Mode Switch Bar */}
-          <div className="bg-slate-950 p-1.5 flex gap-1 border-b border-slate-800 text-xs">
+          <div className="bg-slate-950 p-1.5 flex items-center gap-1 border-b border-slate-800 text-xs">
             <button
               type="button"
               onClick={() => setMode('ai')}
-              className={`flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors ${
+              className={`flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1 transition-colors ${
                 mode === 'ai' && !supportConvId
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Bot className="w-3.5 h-3.5" /> Hỏi Đáp AI Tự Động
+              <Bot className="w-3.5 h-3.5" /> AI Tự Động
             </button>
-            <button
-              type="button"
-              onClick={handleConnectLiveStaff}
-              className={`flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors ${
-                supportConvId
-                  ? 'bg-emerald-600 text-white shadow-sm animate-pulse'
-                  : 'bg-teal-600 text-white hover:bg-teal-500 shadow-sm'
-              }`}
-            >
-              <Headset className="w-3.5 h-3.5" />
-              {supportConvId ? '🟢 Đã Kết Nối Nhân Viên' : '🎧 Gặp Tư Vấn Viên'}
-            </button>
+
+            {supportConvId ? (
+              <div className="flex items-center gap-1">
+                <span className="px-2.5 py-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-[10px] font-bold flex items-center gap-1 animate-pulse">
+                  🟢 Đã Kết Nối
+                </span>
+                <button
+                  type="button"
+                  onClick={handleEndLiveStaffSession}
+                  className="px-2 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors"
+                  title="Kết thúc phiên chat với Chuyên viên"
+                >
+                  <X className="w-3 h-3 text-rose-400" /> Kết thúc
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnectLiveStaff}
+                className="flex-1 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1 bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-colors"
+              >
+                <Headset className="w-3.5 h-3.5" /> Gặp Tư Vấn Viên
+              </button>
+            )}
           </div>
 
           {/* ── MODE A: AI CHAT & FAQ CHIPS ── */}

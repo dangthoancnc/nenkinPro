@@ -47,9 +47,21 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    let isEnded = false;
+    try {
+      const conv = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT "isArchived" FROM public.nenkin_conversations WHERE id = $1`,
+        conversationId
+      );
+      if (!conv || conv.length === 0 || conv[0]?.isArchived) {
+        isEnded = true;
+      }
+    } catch {}
+
     return NextResponse.json({
       success: true,
       data: formatted,
+      isEnded,
     });
   } catch (err: any) {
     console.error('Fetch public support messages error:', err);
