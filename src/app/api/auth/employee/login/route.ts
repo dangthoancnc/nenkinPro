@@ -28,12 +28,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Vui lòng nhập Email và Mật khẩu.' }, { status: 400 });
     }
 
-    // User lookup
-    const user = await prisma.user.findUnique({
-      where: {
-        email: email
+    // User lookup (with Raw SQL fallback)
+    let user: any = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: email.trim() }
+      });
+    } catch {
+      const rawUsers = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT id, email, password, name, role FROM public.nenkin_users WHERE email = $1 LIMIT 1`,
+        email.trim()
+      );
+      if (rawUsers && rawUsers.length > 0) {
+        user = rawUsers[0];
       }
-    });
+    }
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'Email hoặc mật khẩu không chính xác.' }, { status: 401 });

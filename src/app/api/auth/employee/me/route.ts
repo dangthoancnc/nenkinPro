@@ -7,7 +7,6 @@ export async function GET() {
     const { user, error } = await requireStaff();
 
     if (error || !user) {
-      await clearSessionCookie();
       return NextResponse.json({ success: false, user: null }, { status: 401 });
     }
 
