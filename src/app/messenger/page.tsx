@@ -5,6 +5,7 @@ import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
   Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
+  ChevronLeft, Info,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -58,6 +59,10 @@ export default function MessengerPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // UI state for Right info panel & Mobile Responsive View
+  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
   // Derived activeChat from conversations list using activeChatId
   const activeChat = conversations.find(c => c.id === activeChatId) || null;
@@ -388,31 +393,35 @@ export default function MessengerPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-100px)] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex min-h-0">
+    <div className="h-[calc(100vh-85px)] md:h-[calc(100vh-80px)] max-w-full overflow-x-hidden pb-20 md:pb-0 bg-white border border-slate-200/90 rounded-2xl shadow-xl overflow-hidden flex min-h-0 relative">
       
       {/* ── LEFT COL: CHAT CATEGORIES & LIST ── */}
-      <div className="w-80 border-r border-slate-200 flex flex-col min-h-0 bg-slate-50/60">
+      <div className={`w-full md:w-80 lg:w-80 border-r border-slate-200/80 flex flex-col min-h-0 bg-white shrink-0 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         
-        {/* Header */}
-        <div className="p-3 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+        {/* Sidebar Header */}
+        <div className="p-3 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
+            <div className="p-2 bg-gradient-to-tr from-indigo-600 to-indigo-700 rounded-xl text-white shadow-xs">
               <MessageSquare className="w-4 h-4" />
             </div>
-            <h2 className="font-bold text-xs text-slate-800 uppercase tracking-wider">Nenkin Messenger</h2>
+            <div>
+              <h2 className="font-extrabold text-xs text-slate-800 tracking-tight">Nenkin Messenger</h2>
+              <span className="text-[10px] text-slate-400 block font-medium">VietNenkin Duyên Hub</span>
+            </div>
           </div>
           <button
             type="button"
             onClick={() => setShowCreateGroupModal(true)}
-            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold"
+            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-bold shadow-2xs border border-indigo-100"
             title="Tạo nhóm chat mới"
           >
-            <Plus className="w-3.5 h-3.5" /> Tạo Nhóm
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tạo Nhóm</span>
           </button>
         </div>
 
         {/* 4 Segmented Category Tabs */}
-        <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-4 gap-1 shrink-0">
+        <div className="p-1.5 bg-slate-100/70 border-b border-slate-200/80 grid grid-cols-4 gap-1 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -420,7 +429,7 @@ export default function MessengerPage() {
               const first = conversations.find(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT'));
               if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
               chatCategory === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
@@ -433,7 +442,7 @@ export default function MessengerPage() {
               const first = conversations.find(c => !c.isArchived && c.type === 'CTV');
               if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
               chatCategory === 'CTV' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
@@ -446,7 +455,7 @@ export default function MessengerPage() {
               const first = conversations.find(c => !c.isArchived && c.type === 'GROUP');
               if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
               chatCategory === 'GROUP' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
@@ -459,7 +468,7 @@ export default function MessengerPage() {
               const first = conversations.find(c => c.isArchived === true);
               if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
             }}
-            className={`py-1.5 text-[9px] font-bold rounded-md transition-all text-center truncate ${
+            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
               chatCategory === 'ARCHIVED' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
             }`}
           >
@@ -476,20 +485,20 @@ export default function MessengerPage() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Tìm tin nhắn, tên CTV, khách..."
-              className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-lg h-7"
+              className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-xl h-8 focus:bg-white transition-all"
             />
           </div>
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80 min-h-0">
           {loadingChats ? (
             <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mb-2" />
-              <span className="text-xs">Đang nạp cuộc trò chuyện...</span>
+              <span className="text-xs font-medium">Đang tải cuộc trò chuyện...</span>
             </div>
           ) : filteredChats.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-400">Chưa có cuộc trò chuyện nào</div>
+            <div className="p-8 text-center text-xs text-slate-400 italic">Chưa có cuộc trò chuyện nào</div>
           ) : (
             filteredChats.map((chat) => (
               <div
@@ -497,9 +506,12 @@ export default function MessengerPage() {
                 onClick={() => {
                   setActiveChatId(chat.id);
                   loadRealMessages(chat.id);
+                  setMobileView('chat');
                 }}
                 className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
-                  activeChatId === chat.id ? 'bg-indigo-50/80 border-l-4 border-indigo-600' : 'hover:bg-white'
+                  activeChatId === chat.id
+                    ? 'bg-indigo-50/90 border-l-4 border-indigo-600 shadow-2xs'
+                    : 'hover:bg-slate-50/80'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 relative ${
@@ -511,23 +523,25 @@ export default function MessengerPage() {
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
                       {chat.name}
-                      {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
-                      {chat.isArchived ? (
-                        <span className="px-1 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded">Đã lưu trữ</span>
-                      ) : chat.supportStatus === 'UNASSIGNED' ? (
-                        <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[8px] font-bold rounded border border-amber-300">Chờ nhận</span>
-                      ) : chat.supportStatus === 'ASSIGNED' ? (
-                        <span className="px-1 py-0.2 bg-blue-100 text-blue-800 text-[8px] font-bold rounded">{chat.assignedUserName || 'Đã có NV'}</span>
-                      ) : chat.supportStatus === 'RESOLVED' ? (
-                        <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 text-[8px] font-bold rounded">Đã xong</span>
-                      ) : null}
+                      {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
                     </h4>
-                    {chat.code && <span className="text-[9px] font-mono text-slate-400">#{chat.code}</span>}
+                    {chat.code && <span className="text-[9px] font-mono text-slate-400 shrink-0">#{chat.code}</span>}
                   </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{chat.lastMessage}</p>
+                  <div className="flex items-center justify-between gap-1 mt-0.5">
+                    <p className="text-[11px] text-slate-500 truncate flex-1">{chat.lastMessage}</p>
+                    {chat.isArchived ? (
+                      <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded shrink-0">Đã lưu</span>
+                    ) : chat.supportStatus === 'UNASSIGNED' ? (
+                      <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[8px] font-bold rounded border border-amber-300 shrink-0">Chờ nhận</span>
+                    ) : chat.supportStatus === 'ASSIGNED' ? (
+                      <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[8px] font-bold rounded shrink-0">{chat.assignedUserName || 'Đã có NV'}</span>
+                    ) : chat.supportStatus === 'RESOLVED' ? (
+                      <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[8px] font-bold rounded shrink-0">Đã xong</span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))
@@ -536,130 +550,166 @@ export default function MessengerPage() {
       </div>
 
       {/* ── MIDDLE COL: ACTIVE CHAT CONVERSATION WINDOW ── */}
-      <div className="flex-1 flex flex-col min-h-0 bg-slate-100/40">
+      <div className={`flex-1 flex flex-col min-h-0 bg-slate-50/70 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
         
         {activeChat ? (
           <>
-            {/* Topbar of Active Chat */}
-            <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 ${
+            {/* Redesigned Active Chat Topbar (Facebook & Zalo Standard) */}
+            <div className="px-3.5 py-2.5 bg-white border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-2xs gap-2">
+              
+              {/* Left: Info & Mobile Back Button */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setMobileView('list')}
+                  className="md:hidden p-1.5 hover:bg-slate-100 rounded-xl text-indigo-600 transition-colors flex items-center text-xs font-bold shrink-0 border border-indigo-100 bg-indigo-50/50"
+                  title="Quay lại danh sách"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
                   activeChat.type === 'GROUP' ? 'bg-purple-600' : activeChat.type === 'CTV' ? 'bg-amber-600' : 'bg-indigo-600'
                 }`}>
                   {activeChat.type === 'GROUP' ? <Users className="w-4 h-4" /> : activeChat.name?.[0]}
                 </div>
-                <div>
-                  <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                    {activeChat.name}
-                    {activeChat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 text-[9px] border border-teal-200">Hỗ trợ Trực tiếp</span>}
-                    {activeChat.type === 'CTV' && <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[9px] border border-amber-200">CTV</span>}
-                    {activeChat.type === 'GROUP' && <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 text-[9px] border border-purple-200">Nhóm Chat ({activeChat.membersCount || 2} TV)</span>}
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-bold text-xs text-slate-900 truncate">{activeChat.name}</h3>
                     
-                    {/* Support Status Badge */}
+                    {/* Category Pill Tag */}
+                    {activeChat.type === 'CUSTOMER_SUPPORT' && (
+                      <span className="px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 text-[9px] font-bold border border-teal-200">
+                        Tư vấn Trực tiếp
+                      </span>
+                    )}
+                    {activeChat.type === 'CTV' && (
+                      <span className="px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200">
+                        CTV
+                      </span>
+                    )}
+                    {activeChat.type === 'GROUP' && (
+                      <span className="px-1.5 py-0.2 rounded-md bg-purple-50 text-purple-700 text-[9px] font-bold border border-purple-200">
+                        Nhóm ({activeChat.membersCount || 2} TV)
+                      </span>
+                    )}
+
+                    {/* Support Status Pill Tag */}
                     {activeChat.supportStatus === 'UNASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300">
-                        🟡 Chờ Tiếp Nhận
+                      <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300">
+                        Chờ tiếp nhận
                       </span>
                     ) : activeChat.supportStatus === 'ASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-bold text-[9px] border border-blue-300">
-                        🔵 Phụ trách: {activeChat.assignedUserName || 'Chuyên viên'}
+                      <span className="px-1.5 py-0.2 rounded-md bg-blue-100 text-blue-800 font-bold text-[9px] border border-blue-300">
+                        {activeChat.assignedUserName || 'Chuyên viên phụ trách'}
                       </span>
                     ) : activeChat.supportStatus === 'RESOLVED' ? (
-                      <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold text-[9px] border border-emerald-300">
-                        🟢 Đã hoàn thành
+                      <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[9px] border border-emerald-300">
+                        Đã xong
                       </span>
                     ) : null}
-                  </h3>
-                  <p className="text-[10px] flex items-center gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                  </div>
+
+                  <p className="text-[10px] flex items-center gap-1 mt-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                     <span className={activeChat.isOnline ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
-                      {activeChat.lastActiveText || (activeChat.isOnline ? 'Trực tuyến' : 'Không hoạt động')}
+                      {activeChat.lastActiveText || (activeChat.isOnline ? 'Trực tuyến' : 'Ngoại tuyến')}
                     </span>
-                    {activeChat.role ? ` • ${activeChat.role}` : ''}
+                    {activeChat.code ? ` • Mã: #${activeChat.code}` : ''}
                   </p>
                 </div>
               </div>
 
-              {/* Header Action Buttons (Claim / Release / Resolve / Archive / Delete) */}
-              <div className="flex items-center gap-1.5">
+              {/* Right: Unified Action Toolbar (Clean h-8 buttons) */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                
+                {/* Primary Assignment Action Button */}
                 {activeChat.supportStatus === 'UNASSIGNED' ? (
                   <button
                     type="button"
                     onClick={() => handleAssignConversation(activeChat.id, 'claim')}
-                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 animate-pulse"
+                    className="h-8 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 animate-pulse"
                     title="Tiếp nhận phụ trách cuộc trò chuyện này"
                   >
                     <Zap className="w-3.5 h-3.5 fill-current" />
-                    <span>Tiếp Nhận Chat</span>
+                    <span className="hidden sm:inline">Tiếp Nhận Chat</span>
+                    <span className="sm:hidden">Nhận</span>
                   </button>
                 ) : activeChat.supportStatus === 'ASSIGNED' ? (
-                  <>
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleAssignConversation(activeChat.id, 'release')}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-200 transition-all"
+                      className="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors"
                       title="Trả cuộc trò chuyện về hàng đợi chờ"
                     >
                       <Unlock className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Trả Hàng Đợi</span>
+                      <span className="hidden md:inline">Trả Hàng Đợi</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAssignConversation(activeChat.id, 'resolve')}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-all"
+                      className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
                       title="Đánh dấu hoàn thành hỗ trợ"
                     >
                       <CheckCircle className="w-3.5 h-3.5" />
-                      <span>Hoàn Thành</span>
+                      <span className="hidden sm:inline">Hoàn Thành</span>
                     </button>
-                  </>
+                  </div>
                 ) : null}
 
+                {/* Archive Button */}
                 <button
                   type="button"
                   onClick={() => handleToggleArchive(activeChat.id, activeChat.isArchived || false)}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-slate-200"
-                  title={activeChat.isArchived ? "Chuyển về hộp thư chính" : "Lưu trữ cuộc trò chuyện"}
+                  className="h-8 w-8 hover:bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center border border-slate-200/90 transition-colors"
+                  title={activeChat.isArchived ? "Bỏ lưu trữ" : "Lưu trữ cuộc trò chuyện"}
                 >
-                  {activeChat.isArchived ? (
-                    <>
-                      <ArchiveRestore className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Bỏ Lưu Trữ</span>
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Lưu Trữ</span>
-                    </>
-                  )}
+                  {activeChat.isArchived ? <ArchiveRestore className="w-4 h-4 text-emerald-600" /> : <Archive className="w-4 h-4" />}
                 </button>
+
+                {/* Delete Button */}
                 <button
                   type="button"
                   onClick={() => handleDeleteConversation(activeChat.id)}
-                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-rose-200"
-                  title="Xóa cuộc trò chuyện này"
+                  className="h-8 w-8 hover:bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-200/90 transition-colors"
+                  title="Xóa cuộc trò chuyện"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Xóa Chat</span>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                {/* Toggle Right Info Panel */}
+                <button
+                  type="button"
+                  onClick={() => setShowRightPanel(prev => !prev)}
+                  className={`h-8 w-8 rounded-xl items-center justify-center border transition-colors hidden xl:flex ${
+                    showRightPanel
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                      : 'hover:bg-slate-100 border-slate-200 text-slate-600'
+                  }`}
+                  title="Bật/Tắt chi tiết cuộc trò chuyện"
+                >
+                  <Info className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Messages Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+            {/* Messages Body (Zalo / FB Style Bubbles) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 bg-slate-50/60">
               {loadingMessages ? (
                 <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin text-indigo-600 mb-1" />
-                  <span className="text-[11px]">Đang tải tin nhắn...</span>
+                  <span className="text-[11px] font-medium">Đang tải tin nhắn...</span>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400">Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi tin nhắn đầu tiên!</div>
+                <div className="p-8 text-center text-xs text-slate-400 italic">Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi tin nhắn đầu tiên!</div>
               ) : (
                 messages.map((msg) => {
                   if (msg.type === 'SYSTEM' || msg.senderName === 'SYSTEM' || msg.content.startsWith('⚡') || msg.content.startsWith('🔓') || msg.content.startsWith('🔄') || msg.content.startsWith('✅')) {
                     return (
                       <div key={msg.id} className="flex justify-center my-2">
-                        <span className="px-3 py-1 bg-slate-200/80 text-slate-700 text-[10px] font-bold rounded-full border border-slate-300 shadow-2xs">
+                        <span className="px-3 py-1 bg-slate-200/80 text-slate-700 text-[10px] font-bold rounded-full border border-slate-300/80 shadow-2xs">
                           {msg.content}
                         </span>
                       </div>
@@ -671,58 +721,58 @@ export default function MessengerPage() {
                       key={msg.id}
                       className={`flex group items-center gap-1.5 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                     >
-                    {/* Delete Message Button on Hover */}
-                    {msg.isMe && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
-                        title="Xóa tin nhắn này"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 relative ${
-                        msg.isMe
-                          ? 'bg-indigo-600 text-white rounded-br-none'
-                          : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-none'
-                      }`}
-                    >
-                      {!msg.isMe && (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[9px] font-bold text-indigo-600 block">{msg.senderName}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600"
-                            title="Xóa tin nhắn"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                      {/* Delete Message Button on Hover */}
+                      {msg.isMe && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                          title="Xóa tin nhắn này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
-                      <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                      <span
-                        className={`text-[8px] font-mono block text-right ${
-                          msg.isMe ? 'text-indigo-200' : 'text-slate-400'
+
+                      <div
+                        className={`max-w-[78%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 relative ${
+                          msg.isMe
+                            ? 'bg-indigo-600 text-white rounded-tr-xs'
+                            : 'bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs'
                         }`}
                       >
-                        {msg.time}
-                      </span>
-                    </div>
+                        {!msg.isMe && (
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1 mb-1">
+                            <span className="text-[9px] font-bold text-indigo-600 block truncate">{msg.senderName}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600"
+                              title="Xóa tin nhắn"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                        <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        <span
+                          className={`text-[8px] font-mono block text-right ${
+                            msg.isMe ? 'text-indigo-200 opacity-80' : 'text-slate-400'
+                          }`}
+                        >
+                          {msg.time}
+                        </span>
+                      </div>
 
-                    {!msg.isMe && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
-                        title="Xóa tin nhắn này"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                      {!msg.isMe && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                          title="Xóa tin nhắn này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })
@@ -731,33 +781,40 @@ export default function MessengerPage() {
             </div>
 
             {/* Chat Input Bar */}
-            <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-200/90 flex items-center gap-2 shrink-0">
               <input
                 type="text"
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 placeholder={`Nhập tin nhắn gửi đến ${activeChat.name}...`}
-                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
+                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-2xs"
               />
-              <Button type="submit" size="xs" disabled={!inputText.trim()} className="bg-indigo-600 hover:bg-indigo-700 font-bold px-4 h-9 rounded-xl">
+              <Button type="submit" size="xs" disabled={!inputText.trim()} className="bg-indigo-600 hover:bg-indigo-700 font-bold px-4 h-9 rounded-xl shadow-xs">
                 <Send className="w-3.5 h-3.5 mr-1" /> Gửi
               </Button>
             </form>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-2">
-            <MessageSquare className="w-10 h-10 text-slate-300" />
-            <p className="text-xs">Chọn một cuộc trò chuyện để bắt đầu nhắn tin</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-3 p-6">
+            <div className="w-16 h-16 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 shadow-2xs">
+              <MessageSquare className="w-8 h-8" />
+            </div>
+            <div className="text-center space-y-1 max-w-sm">
+              <h4 className="text-xs font-bold text-slate-700">Nenkin Messenger Trung Tâm</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Chọn một cuộc trò chuyện từ danh sách bên trái để tiếp nhận, tư vấn và trao đổi tin nhắn trực tiếp.
+              </p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── RIGHT COL: DETAILS & MEMBERS PANEL ── */}
+      {/* ── RIGHT COL: DETAILS & MEMBERS PANEL (Collapsible) ── */}
       {activeChat && (
-        <div className="w-64 border-l border-slate-200 bg-white p-3.5 hidden lg:flex flex-col gap-3 shrink-0 overflow-y-auto">
-          <div className="text-center space-y-1.5 pb-3 border-b border-slate-100">
-            <div className={`w-14 h-14 rounded-full font-bold text-lg flex items-center justify-center mx-auto border-2 ${
-              activeChat.type === 'GROUP' ? 'bg-purple-100 text-purple-700 border-purple-300' : activeChat.type === 'CTV' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-700 border-indigo-200'
+        <div className={`w-64 border-l border-slate-200/80 bg-white p-4 hidden xl:flex flex-col gap-4 shrink-0 overflow-y-auto ${!showRightPanel ? '!hidden' : ''}`}>
+          <div className="text-center space-y-2 pb-4 border-b border-slate-100">
+            <div className={`w-14 h-14 rounded-full font-bold text-lg flex items-center justify-center mx-auto border-2 shadow-xs ${
+              activeChat.type === 'GROUP' ? 'bg-purple-100 text-purple-700 border-purple-300' : activeChat.type === 'CTV' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-indigo-100 text-indigo-700 border-indigo-200'
             }`}>
               {activeChat.type === 'GROUP' ? <Users className="w-6 h-6" /> : activeChat.name?.[0]}
             </div>
@@ -774,7 +831,7 @@ export default function MessengerPage() {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thành viên nhóm ({activeChat.members?.length || 1})</span>
               <div className="space-y-1.5">
                 {(activeChat.members || ['Tôi']).map((m, idx) => (
-                  <div key={idx} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
+                  <div key={idx} className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-slate-800">{m}</span>
                     <span className="text-[9px] text-slate-400">Thành viên</span>
                   </div>
@@ -784,12 +841,12 @@ export default function MessengerPage() {
           ) : (
             <div className="space-y-2 text-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thông tin liên hệ</span>
-              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1.5 text-[11px]">
-                <div className="flex justify-between">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2 text-[11px]">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-500">SĐT:</span>
                   <span className="font-semibold text-slate-800">{activeChat.phone || 'Chưa có'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-500">Loại tài khoản:</span>
                   <span className="font-bold text-indigo-600">{activeChat.type === 'CTV' ? 'Cộng tác viên' : 'Khách hàng'}</span>
                 </div>
@@ -799,17 +856,17 @@ export default function MessengerPage() {
         </div>
       )}
 
-      {/* ── ADVANCED CREATE GROUP MODAL WITH MEMBER SEARCH & CATEGORIZATION ── */}
+      {/* ── ADVANCED CREATE GROUP MODAL ── */}
       {showCreateGroupModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             
-            {/* Header */}
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-purple-600" /> Tạo Nhóm Chat Mới
               </h3>
-              <button type="button" onClick={() => setShowCreateGroupModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button type="button" onClick={() => setShowCreateGroupModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -873,7 +930,7 @@ export default function MessengerPage() {
                 {/* Checkable List */}
                 <div className="space-y-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
                   {filteredModalMembers.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">Không tìm thấy thành viên phù hợp</div>
+                    <div className="p-4 text-center text-xs text-slate-400 italic">Không tìm thấy thành viên phù hợp</div>
                   ) : (
                     filteredModalMembers.map(m => {
                       const isSelected = m.type === 'STAFF'
