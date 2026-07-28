@@ -77,6 +77,10 @@ export default function MessengerPage() {
 
   const prevMsgCountRef = useRef(0);
 
+  // Ref to track current activeChatId across closures (prevents stale closure bug)
+  const activeChatIdRef = useRef<string | null>(null);
+  useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
+
   // 1. Load real conversations from DB (silent = true prevents screen flicker)
   const loadConversations = (keepActive: boolean = true, silent: boolean = true) => {
     if (!silent) setLoadingChats(true);
@@ -90,13 +94,21 @@ export default function MessengerPage() {
             return list;
           });
 
+          // During silent polling, ONLY update conversation list — never re-select active chat
+          // or re-load messages. Message polling is handled separately by its own useEffect.
+          // This prevents the stale-closure bug where activeChatId was always null in the
+          // setInterval callback, causing loadRealMessages(id, false) with loading spinner
+          // every 5 seconds → content flash.
+          if (silent) return;
+
           // Check if specific conversationId requested in URL
           const urlParams = new URLSearchParams(window.location.search);
           const urlConvId = urlParams.get('conversationId');
+          const currentActiveId = activeChatIdRef.current;
 
           if (urlConvId) {
             const matched = list.find(c => c.id === urlConvId);
-            if (matched && matched.id !== activeChatId) {
+            if (matched && matched.id !== currentActiveId) {
               setActiveChatId(matched.id);
               loadRealMessages(matched.id, false);
               if (matched.isArchived) setChatCategory('ARCHIVED');
@@ -107,7 +119,7 @@ export default function MessengerPage() {
             }
           }
 
-          if (!keepActive || !activeChatId) {
+          if (!keepActive || !currentActiveId) {
             if (list.length > 0) {
               const activeList = list.filter(c => !c.isArchived);
               const first = activeList.find(c => c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT') || activeList[0] || list[0];
