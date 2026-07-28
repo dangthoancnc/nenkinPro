@@ -19,14 +19,23 @@ export async function POST(request: NextRequest) {
         where: { id: conversationId },
         data: {
           updatedAt: new Date(),
-          ...(isClosed ? { title: undefined } : {}),
+          // BUG #2 FIX: When customer closes browser tab, properly mark conversation
+          // as RESOLVED. Previously used { title: undefined } which is a no-op in Prisma.
+          ...(isClosed ? { supportStatus: 'RESOLVED' } : {}),
         },
       });
     } else {
-      await prisma.$executeRawUnsafe(
-        `UPDATE public.nenkin_conversations SET "updatedAt" = CURRENT_TIMESTAMP WHERE id = $1`,
-        conversationId
-      );
+      if (isClosed) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE public.nenkin_conversations SET "updatedAt" = CURRENT_TIMESTAMP, "supportStatus" = 'RESOLVED' WHERE id = $1`,
+          conversationId
+        );
+      } else {
+        await prisma.$executeRawUnsafe(
+          `UPDATE public.nenkin_conversations SET "updatedAt" = CURRENT_TIMESTAMP WHERE id = $1`,
+          conversationId
+        );
+      }
     }
 
     return NextResponse.json({ success: true, isClosed });

@@ -12,6 +12,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vui lòng cung cấp nội dung tin nhắn' }, { status: 400 });
     }
 
+    // BUG #3 FIX: Check if conversation is archived or resolved before accepting new messages.
+    // Previously, customers could send messages into ended conversations that nobody would read.
+    try {
+      const convCheck = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT "isArchived", "supportStatus" FROM public.nenkin_conversations WHERE id = $1`,
+        conversationId
+      );
+      if (!convCheck || convCheck.length === 0) {
+        return NextResponse.json({ success: false, error: 'Cuộc hội thoại không tồn tại', isEnded: true }, { status: 404 });
+      }
+      if (convCheck[0]?.isArchived || convCheck[0]?.supportStatus === 'RESOLVED') {
+        return NextResponse.json({ success: false, error: 'Phiên tư vấn đã kết thúc', isEnded: true }, { status: 410 });
+      }
+    } catch {}
+
     const cleanContent = content.trim();
     let messageObj: any = null;
 

@@ -80,16 +80,23 @@ export function FloatingAiChat() {
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           const apiMsgs: ChatMessage[] = data.data.map((m: any) => ({
             id: m.id,
-            sender: m.sender,
+            sender: m.sender as ChatMessage['sender'],
             text: m.sender === 'staff' ? `💬 [Tư vấn viên ${m.senderName}]:\n${m.text}` : m.text,
             timestamp: m.timestamp,
           }));
 
+          // BUG #1 FIX: Replace all support messages with server data instead of merging by ID.
+          // This eliminates duplicate messages caused by temporary local IDs (Date.now())
+          // not matching server-generated UUIDs when polling returns.
           setMessages(prev => {
-            const existingIds = new Set(prev.map(m => m.id));
-            const newFromApi = apiMsgs.filter(m => !existingIds.has(m.id));
-            if (newFromApi.length === 0) return prev;
-            return [...prev, ...newFromApi];
+            // Keep only pre-support local messages (AI/system messages before live support started)
+            const preSupportMessages = prev.filter(m =>
+              m.sender === 'ai' || m.sender === 'system'
+            );
+            const combined = [...preSupportMessages, ...apiMsgs];
+            // Avoid unnecessary re-render if content is identical
+            if (prev.length === combined.length && prev.every((m, i) => m.id === combined[i]?.id)) return prev;
+            return combined;
           });
         }
       } catch {}
@@ -259,11 +266,26 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
     // IF ACTIVE SUPPORT CONVERSATION WITH STAFF EXISTS -> SEND TO SUPPORT CHAT
     if (supportConvId) {
       try {
-        await fetch('/api/public/support-request/send', {
+        const sendRes = await fetch('/api/public/support-request/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ conversationId: supportConvId, content: query }),
         });
+        const sendData = await sendRes.json();
+        // If conversation has been ended/resolved by staff, auto-close the live session
+        if (sendData.isEnded) {
+          setSupportConvId(null);
+          try { sessionStorage.removeItem('vietnenkin_support_conv_id'); } catch {}
+          setMessages(prev => [
+            ...prev,
+            {
+              id: Date.now().toString() + '-ended',
+              sender: 'system',
+              text: '💬 Phiên tư vấn đã được hoàn thành bởi Chuyên viên. Quý khách đã trở lại chế độ Hỏi đáp AI tự động!',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+        }
       } catch {}
       return;
     }
