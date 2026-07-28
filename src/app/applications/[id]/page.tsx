@@ -930,7 +930,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             </div>
             {!isNew && (
               <a
-                href={`/customer/portal?id=${customerId || ''}`}
+                href={`/customer/portal?id=${customerId || id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs"
@@ -1356,7 +1356,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <>
               {!isNew && (
                 <a
-                  href={`/customer/portal?id=${customerId || ''}`}
+                  href={`/customer/portal?id=${customerId || id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-2xs mr-1"
@@ -1511,7 +1511,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <div className="flex items-center gap-1.5">
               {!isNew && (
                 <a
-                  href={`/customer/portal?id=${customerId || ''}`}
+                  href={`/customer/portal?id=${customerId || id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md font-bold text-[11px] flex items-center gap-1"

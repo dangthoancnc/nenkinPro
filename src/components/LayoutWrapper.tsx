@@ -13,7 +13,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   
   const isSidebarOpen = isPinned || isHovered;
   const pathname = usePathname();
-  const isNoLayoutRoute = pathname === '/' || pathname === '/onboarding' || pathname === '/login' || pathname?.endsWith('/print');
+  const isNoLayoutRoute = pathname === '/' || pathname === '/onboarding' || pathname === '/login' || pathname?.startsWith('/customer') || pathname?.endsWith('/print');
 
   useEffect(() => {
     const updateSidebarWidth = () => {

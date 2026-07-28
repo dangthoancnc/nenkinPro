@@ -48,8 +48,14 @@ export async function GET(request: NextRequest) {
         isStaffPreview = true;
 
         if (targetCustomerId) {
-          customer = await prisma.customer.findUnique({
-            where: { id: targetCustomerId },
+          customer = await prisma.customer.findFirst({
+            where: {
+              OR: [
+                { id: targetCustomerId },
+                { code: targetCustomerId },
+                { applications: { some: { id: targetCustomerId } } },
+              ],
+            },
             include: {
               applications: {
                 orderBy: { createdAt: 'desc' },
