@@ -14,6 +14,17 @@ export default function CustomerLoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  React.useEffect(() => {
+    fetch('/api/auth/customer/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.customer) {
+          router.push('/customer/portal');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginId.trim() || !pinCode.trim()) {

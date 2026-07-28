@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 
 export default function CustomerPortalPage() {
   const [customer, setCustomer] = useState<any | null>(null);
+  const [isStaffPreview, setIsStaffPreview] = useState(false);
+  const [staffUser, setStaffUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [currentPin, setCurrentPin] = useState('');
@@ -26,6 +28,10 @@ export default function CustomerPortalPage() {
       .then(data => {
         if (data.success && data.customer) {
           setCustomer(data.customer);
+          if (data.isStaffPreview) {
+            setIsStaffPreview(true);
+            setStaffUser(data.staffUser);
+          }
         } else {
           router.push('/customer/login');
         }
@@ -121,6 +127,27 @@ export default function CustomerPortalPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-6">
       
+      {/* ── 0. STAFF PREVIEW BANNER (WHEN LOGGED IN AS ADMIN/STAFF) ── */}
+      {isStaffPreview && (
+        <div className="max-w-5xl mx-auto bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-300 text-xs shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold text-white">Chế độ Xem Thử Dành Cho Quản Trị Viên:</span>
+              <span className="ml-1 text-amber-200">
+                Đang xem hồ sơ khách hàng <strong className="text-white">{customer?.fullName}</strong> (#{customer?.code}) với tư cách <strong className="text-white">{staffUser?.name || 'Admin User'}</strong>.
+              </span>
+            </div>
+          </div>
+          <a
+            href="/dashboard"
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 flex items-center gap-1 shadow-sm"
+          >
+            Quay lại Dashboard →
+          </a>
+        </div>
+      )}
+
       {/* ── 1. HEADER BAR ── */}
       <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">

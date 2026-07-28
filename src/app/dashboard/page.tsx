@@ -233,6 +233,15 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">Scan Zairyu card & tự điền form</p>
                   </div>
                 </Link>
+                <Link href="/customer/portal" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all text-left group">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-800/60 transition-colors">
+                    <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium group-hover:text-purple-700 dark:group-hover:text-purple-400">Xem giao diện Khách hàng</p>
+                    <p className="text-xs text-muted-foreground">Trang theo dõi tiến độ hồ sơ Nenkin</p>
+                  </div>
+                </Link>
                 <Link href="/finance" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all text-left group">
                   <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-800/60 transition-colors">
                     <Banknote className="w-5 h-5 text-amber-600 dark:text-amber-400" />
