@@ -1,16 +1,17 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || ''
-const isCloudDb = connectionString.includes('supabase') || connectionString.includes('aws') || connectionString.includes('neon') || connectionString.includes('railway');
-
 const prismaClientSingleton = () => {
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL || '';
+  const isCloudDb = connectionString.includes('supabase') || connectionString.includes('aws') || connectionString.includes('neon') || connectionString.includes('railway');
+
   const pool = new Pool({
     connectionString,
     ssl: isCloudDb ? { rejectUnauthorized: false } : false,
-    max: 2,
-    idleTimeoutMillis: 5000,
+    max: 20,
+    idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
   })
   const adapter = new PrismaPg(pool)
