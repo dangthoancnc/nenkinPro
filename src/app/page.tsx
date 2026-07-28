@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, ShieldCheck, Search, PhoneCall, ArrowRight, Star, Eye, EyeOff, LayoutDashboard, UserCheck, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Search, PhoneCall, ArrowRight, Star, Eye, EyeOff } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -13,6 +12,18 @@ export default function Home() {
   const [showPin, setShowPin] = useState(false);
   const [trackError, setTrackError] = useState('');
   const [trackLoading, setTrackLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/employee/me')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.user) {
+          setCurrentUser(d.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleCreateApp = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,17 +61,68 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
       {/* Navbar */}
-      <nav className="bg-white text-slate-800 py-3 px-6 md:px-8 flex items-center justify-between shadow-sm border-b border-slate-200">
+      <nav className="bg-white text-slate-800 py-3 px-4 sm:px-6 md:px-8 flex items-center justify-between shadow-sm border-b border-slate-200">
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-          <span className="text-xl font-bold tracking-wide">VietNenkin<span className="text-red-500">Duyên</span></span>
+          <span className="text-lg sm:text-xl font-bold tracking-wide">
+            VietNenkin<span className="text-red-500">Duyên</span>
+          </span>
         </div>
-        <div className="hidden md:flex gap-6 font-medium items-center">
+
+        {/* Desktop Navbar Links */}
+        <div className="hidden md:flex gap-6 font-medium items-center text-sm">
           <a href="#create" className="hover:text-indigo-600 transition-colors">Tự tạo hồ sơ</a>
           <a href="#track" className="hover:text-indigo-600 transition-colors">Theo dõi</a>
           <a href="#contact" className="hover:text-indigo-600 transition-colors">Liên hệ</a>
-          <div className="w-px h-5 bg-slate-200 mx-2"></div>
-          <a href="/dashboard" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">Đăng nhập Nhân viên</a>
+          <div className="w-px h-5 bg-slate-200 mx-1"></div>
+
+          {currentUser ? (
+            <div className="flex items-center gap-2.5 bg-indigo-50 border border-indigo-200/80 px-3 py-1.5 rounded-full shadow-2xs">
+              <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                {currentUser.name?.[0] || 'U'}
+              </div>
+              <div className="text-left text-xs leading-tight">
+                <span className="font-bold text-slate-800 block truncate max-w-[130px]">{currentUser.name}</span>
+                <span className="text-[10px] text-indigo-600 font-semibold">{currentUser.role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}</span>
+              </div>
+              <a
+                href="/dashboard"
+                className="ml-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-full transition-colors flex items-center gap-1 shadow-xs"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard →
+              </a>
+            </div>
+          ) : (
+            <a
+              href="/dashboard"
+              className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-full transition-colors flex items-center gap-1.5 border border-slate-200"
+            >
+              <UserCheck className="w-4 h-4 text-indigo-600" />
+              Đăng nhập Nhân viên
+            </a>
+          )}
+        </div>
+
+        {/* Mobile View Navigation Button */}
+        <div className="flex md:hidden items-center gap-2">
+          {currentUser ? (
+            <a
+              href="/dashboard"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-full transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/20 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                {currentUser.name?.[0] || 'U'}
+              </div>
+              <span>Vào Dashboard →</span>
+            </a>
+          ) : (
+            <a
+              href="/dashboard"
+              className="text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors border border-indigo-200 flex items-center gap-1"
+            >
+              <UserCheck className="w-3.5 h-3.5" /> Đăng nhập
+            </a>
+          )}
         </div>
       </nav>
 
