@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop, Download,
+  Printer, MapPin, Search, Crop, Download, Eye,
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -923,9 +923,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
-            <span className="font-mono text-[9px] text-slate-500 bg-slate-100/80 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-slate-900 truncate">{watch('fullName') || 'N/A'}</span>
+              <span className="font-mono text-[9px] text-slate-500 bg-slate-100/80 px-1 rounded shrink-0">#{watch('code') || '---'}</span>
+            </div>
+            {!isNew && (
+              <a
+                href={`/customer/portal?id=${customerId || ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs"
+                title="Mở giao diện Tra cứu Tiến độ mà Khách hàng nhìn thấy"
+              >
+                <Eye className="w-3 h-3 text-indigo-600" /> Xem góc nhìn Khách ↗
+              </a>
+            )}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
             NS: {watch('dob') ? new Date(watch('dob') as string).toLocaleDateString('vi-VN') : '---'} &nbsp;|&nbsp; QT: {watch('nationality') || '---'}
@@ -1341,6 +1354,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <div className="hidden lg:flex items-center gap-1 shrink-0">
           {!isEditing ? (
             <>
+              {!isNew && (
+                <a
+                  href={`/customer/portal?id=${customerId || ''}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-2xs mr-1"
+                  title="Mở tab mới xem toàn bộ Trang Tra Cứu của Khách hàng"
+                >
+                  <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                  Xem giao diện Khách ↗
+                </a>
+              )}
               {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
               {!isNew && (
                 <Button
@@ -1484,6 +1509,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         {!isEditing ? (
           <>
             <div className="flex items-center gap-1.5">
+              {!isNew && (
+                <a
+                  href={`/customer/portal?id=${customerId || ''}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md font-bold text-[11px] flex items-center gap-1"
+                >
+                  <Eye className="w-3 h-3 text-indigo-600" /> Xem Khách ↗
+                </a>
+              )}
               {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting}>Xóa</Button>}
               {!isNew && <Button type="button" variant="secondary" size="xs" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
             </div>
