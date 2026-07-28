@@ -23,7 +23,8 @@ export default function CustomerPortalPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/auth/customer/me')
+    const search = window.location.search;
+    fetch(`/api/auth/customer/me${search}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.customer) {

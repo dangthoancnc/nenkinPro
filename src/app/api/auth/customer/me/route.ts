@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
               applications: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
-                include: { histories: { orderBy: { createdAt: 'desc' } } },
               },
               bankAccounts: true,
               taxOffice: true,
@@ -60,7 +59,6 @@ export async function GET(request: NextRequest) {
               applications: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
-                include: { histories: { orderBy: { createdAt: 'desc' } } },
               },
               bankAccounts: true,
               taxOffice: true,
@@ -73,7 +71,6 @@ export async function GET(request: NextRequest) {
               applications: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
-                include: { histories: { orderBy: { createdAt: 'desc' } } },
               },
               bankAccounts: true,
               taxOffice: true,
