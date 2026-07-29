@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       ...(customerIds || []).map((cid: string) => ({ customerId: cid })),
     ];
 
-    const conversation = await prisma.conversation.create({
+    const conversation = await (prisma.conversation as any).create({
       data: {
         title: title || 'Nhóm Chat Mới',
         type: type || 'GROUP',
