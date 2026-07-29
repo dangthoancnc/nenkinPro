@@ -408,7 +408,16 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
     }
   };
 
-  const handleEndLiveStaffSession = () => {
+  const handleEndLiveStaffSession = async () => {
+    if (supportConvId) {
+      try {
+        await fetch('/api/public/support-request/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId: supportConvId, status: 'closed' }),
+        });
+      } catch {}
+    }
     setSupportConvId(null);
     try { sessionStorage.removeItem('vietnenkin_support_conv_id'); } catch {}
     toast.success('Đã kết thúc phiên chat trực tiếp với Chuyên viên.');

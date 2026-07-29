@@ -96,7 +96,20 @@ export async function GET(request: NextRequest) {
       const userParticipant = c.participants?.find((p: any) => p.user && p.user.id !== user.id)?.user;
 
       const diffSec = c.updatedAt ? Math.floor((now - new Date(c.updatedAt).getTime()) / 1000) : 999;
-      const isOnline = diffSec < 25; // Active heartbeat within last 25 seconds
+      const isSupportConv = c.type === 'CUSTOMER_SUPPORT';
+      const isResolved = c.supportStatus === 'RESOLVED';
+      const isOnline = isSupportConv ? (diffSec < 25 && !isResolved) : (diffSec < 25);
+
+      let lastActiveText = 'Trực tuyến';
+      if (isSupportConv && isResolved) {
+        lastActiveText = '⚪ Khách đã ngắt kết nối / Kết thúc phiên';
+      } else if (isOnline) {
+        lastActiveText = '🟢 Trực tuyến';
+      } else {
+        lastActiveText = isSupportConv
+          ? `🟡 Khách vắng mặt (${diffSec < 60 ? `${diffSec}s trước` : `${Math.floor(diffSec / 60)}p trước`})`
+          : `Hoạt động ${diffSec < 60 ? `${diffSec}s trước` : `${Math.floor(diffSec / 60)} phút trước`}`;
+      }
 
       return {
         id: c.id,
@@ -111,7 +124,7 @@ export async function GET(request: NextRequest) {
         assignedUserName: c.assignedUserName || null,
         supportStatus: c.supportStatus || 'UNASSIGNED',
         isOnline,
-        lastActiveText: isOnline ? 'Trực tuyến' : `Hoạt động ${diffSec < 60 ? `${diffSec}s trước` : `${Math.floor(diffSec / 60)} phút trước`}`,
+        lastActiveText,
         membersCount: c.participants?.length || 0,
         members: c.participants?.map((p: any) => p.user?.name || p.customer?.fullName).filter(Boolean) || [],
       };

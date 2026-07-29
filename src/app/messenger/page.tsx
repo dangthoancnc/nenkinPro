@@ -612,8 +612,12 @@ export default function MessengerPage() {
                   </div>
 
                   <p className="text-[10px] flex items-center gap-1 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                    <span className={activeChat.isOnline ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : activeChat.supportStatus === 'RESOLVED' ? 'bg-slate-400' : 'bg-amber-400'
+                    }`} />
+                    <span className={
+                      activeChat.isOnline ? 'text-emerald-600 font-bold' : activeChat.supportStatus === 'RESOLVED' ? 'text-slate-400 font-semibold' : 'text-amber-600 font-medium'
+                    }>
                       {activeChat.lastActiveText || (activeChat.isOnline ? 'Trực tuyến' : 'Ngoại tuyến')}
                     </span>
                     {activeChat.code ? ` • Mã: #${activeChat.code}` : ''}
