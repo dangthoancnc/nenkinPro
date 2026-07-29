@@ -595,20 +595,22 @@ export default function MessengerPage() {
                       </span>
                     )}
 
-                    {/* Support Status Pill Tag */}
-                    {activeChat.supportStatus === 'UNASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300">
-                        Chờ tiếp nhận
-                      </span>
-                    ) : activeChat.supportStatus === 'ASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 rounded-md bg-blue-100 text-blue-800 font-bold text-[9px] border border-blue-300">
-                        {activeChat.assignedUserName || 'Chuyên viên phụ trách'}
-                      </span>
-                    ) : activeChat.supportStatus === 'RESOLVED' ? (
-                      <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[9px] border border-emerald-300">
-                        Đã xong
-                      </span>
-                    ) : null}
+                    {/* Support Status Pill Tag - ONLY for CUSTOMER_SUPPORT type */}
+                    {activeChat.type === 'CUSTOMER_SUPPORT' && (
+                      activeChat.supportStatus === 'UNASSIGNED' ? (
+                        <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 font-bold text-[9px] border border-amber-300">
+                          Chờ tiếp nhận
+                        </span>
+                      ) : activeChat.supportStatus === 'ASSIGNED' ? (
+                        <span className="px-1.5 py-0.2 rounded-md bg-blue-100 text-blue-800 font-bold text-[9px] border border-blue-300">
+                          {activeChat.assignedUserName || 'Chuyên viên phụ trách'}
+                        </span>
+                      ) : activeChat.supportStatus === 'RESOLVED' ? (
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[9px] border border-emerald-300">
+                          Đã xong
+                        </span>
+                      ) : null
+                    )}
                   </div>
 
                   <p className="text-[10px] flex items-center gap-1 mt-0.5">
@@ -628,40 +630,42 @@ export default function MessengerPage() {
               {/* Right: Unified Action Toolbar (Clean h-8 buttons) */}
               <div className="flex items-center gap-1.5 shrink-0">
                 
-                {/* Primary Assignment Action Button */}
-                {activeChat.supportStatus === 'UNASSIGNED' ? (
-                  <button
-                    type="button"
-                    onClick={() => handleAssignConversation(activeChat.id, 'claim')}
-                    className="h-8 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 animate-pulse"
-                    title="Tiếp nhận phụ trách cuộc trò chuyện này"
-                  >
-                    <Zap className="w-3.5 h-3.5 fill-current" />
-                    <span className="hidden sm:inline">Tiếp Nhận Chat</span>
-                    <span className="sm:hidden">Nhận</span>
-                  </button>
-                ) : activeChat.supportStatus === 'ASSIGNED' ? (
-                  <div className="flex items-center gap-1">
+                {/* Primary Assignment Action Button - ONLY for CUSTOMER_SUPPORT type */}
+                {activeChat.type === 'CUSTOMER_SUPPORT' && (
+                  activeChat.supportStatus === 'UNASSIGNED' ? (
                     <button
                       type="button"
-                      onClick={() => handleAssignConversation(activeChat.id, 'release')}
-                      className="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors"
-                      title="Trả cuộc trò chuyện về hàng đợi chờ"
+                      onClick={() => handleAssignConversation(activeChat.id, 'claim')}
+                      className="h-8 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 animate-pulse"
+                      title="Tiếp nhận phụ trách cuộc trò chuyện này"
                     >
-                      <Unlock className="w-3.5 h-3.5 text-slate-600" />
-                      <span className="hidden md:inline">Trả Hàng Đợi</span>
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                      <span className="hidden sm:inline">Tiếp Nhận Chat</span>
+                      <span className="sm:hidden">Nhận</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAssignConversation(activeChat.id, 'resolve')}
-                      className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
-                      title="Đánh dấu hoàn thành hỗ trợ"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Hoàn Thành</span>
-                    </button>
-                  </div>
-                ) : null}
+                  ) : activeChat.supportStatus === 'ASSIGNED' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAssignConversation(activeChat.id, 'release')}
+                        className="h-8 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors"
+                        title="Trả cuộc trò chuyện về hàng đợi chờ"
+                      >
+                        <Unlock className="w-3.5 h-3.5 text-slate-600" />
+                        <span className="hidden md:inline">Trả Hàng Đợi</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAssignConversation(activeChat.id, 'resolve')}
+                        className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
+                        title="Đánh dấu hoàn thành hỗ trợ"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Hoàn Thành</span>
+                      </button>
+                    </div>
+                  ) : null
+                )}
 
                 {/* Archive Button */}
                 <button

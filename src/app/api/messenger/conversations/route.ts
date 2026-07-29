@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
         isArchived: Boolean(c.isArchived),
         assignedUserId: c.assignedUserId || null,
         assignedUserName: c.assignedUserName || null,
-        supportStatus: c.supportStatus || 'UNASSIGNED',
+        supportStatus: isSupportConv ? (c.supportStatus || 'UNASSIGNED') : 'ASSIGNED',
         isOnline,
         lastActiveText,
         membersCount: c.participants?.length || 0,
@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: title || 'Nhóm Chat Mới',
         type: type || 'GROUP',
+        supportStatus: 'ASSIGNED',
         participants: {
           create: participantsData,
         },
