@@ -53,6 +53,7 @@ export const customerSchema = z.object({
   facebookContact: z.string().nullable().optional(),
   referralCode: z.string().nullable().optional(),
   referredByCode: z.string().nullable().optional(),
+  contactImageUrls: z.array(z.string()).optional(),
 });
 
 export type CustomerFormValues = z.infer<typeof customerSchema>;

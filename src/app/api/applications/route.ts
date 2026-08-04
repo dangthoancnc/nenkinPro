@@ -2,20 +2,30 @@ import { requireStaff, requireCustomerAccess } from '@/lib/auth/authorization';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   const { user, error } = await requireStaff();
   if (error || !user) return error;
 
   try {
-    let whereClause = {};
+    const { searchParams } = new URL(request.url);
+    const filter = searchParams.get('filter');
+
+    let whereClause: any = {};
     if (user.role === 'COLLABORATOR') {
       whereClause = { customer: { createdById: user.id } };
+    } else {
+      if (filter === 'my_assigned') {
+        whereClause = { assignedUserId: user.id };
+      } else if (filter === 'unassigned') {
+        whereClause = { assignedUserId: null };
+      }
     }
 
     const applications = await prisma.nenkinApplication.findMany({
       where: whereClause,
       include: {
         customer: true,
+        assignedUser: { select: { id: true, name: true, email: true, role: true } },
       },
       orderBy: {
         createdAt: 'desc',

@@ -5,10 +5,11 @@ import {
   FileText, Plus, Filter, ArrowRight,
   Clock, CheckCircle, AlertCircle, Send, Wallet,
   ChevronUp, ChevronDown, LayoutGrid, List, LayoutTemplate,
-  ChevronLeft, ChevronRight, Eye
+  ChevronLeft, ChevronRight, Eye, ArrowRightLeft, UserCheck, UserX
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { TransferApplicationModal } from '@/components/applications/TransferApplicationModal';
 
 type ApplicationStatus = 'PENDING' | 'DRAFT' | 'SENT_1ST' | 'RECEIVED_1ST' | 'SENT_2ND' | 'RECEIVED_2ND' | 'COMPLETED' | 'CANCELLED';
 
@@ -18,6 +19,12 @@ interface Application {
   applyDate: string | null;
   totalExpectedJpy: number | null;
   received1stJpy: number | null;
+  assignedUser?: {
+    id: string;
+    name: string;
+    email?: string;
+    role?: string;
+  } | null;
   customer: {
     fullName: string;
     code: string;
@@ -68,33 +75,38 @@ function ApplicationsPageInner() {
   const itemsPerPage = 10;
   
   const [taxOffices, setTaxOffices] = useState<Array<any>>([]);
+  const [assignedFilter, setAssignedFilter] = useState<'all' | 'my_assigned' | 'unassigned'>('all');
+  const [transferTargetApp, setTransferTargetApp] = useState<Application | null>(null);
+
+  const fetchApplicationsData = async () => {
+    try {
+      setLoading(true);
+      const url = assignedFilter === 'all' ? '/api/applications' : `/api/applications?filter=${assignedFilter}`;
+      const [appRes, taxRes] = await Promise.all([
+        fetch(url),
+        fetch('/api/tax-offices')
+      ]);
+      
+      if (appRes.ok) {
+        const data = await appRes.json();
+        setApplications(data);
+      }
+      if (taxRes.ok) {
+        const data = await taxRes.json();
+        if (data.success) {
+          setTaxOffices(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch data', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchApplications() {
-      try {
-        const [appRes, taxRes] = await Promise.all([
-          fetch('/api/applications'),
-          fetch('/api/tax-offices')
-        ]);
-        
-        if (appRes.ok) {
-          const data = await appRes.json();
-          setApplications(data);
-        }
-        if (taxRes.ok) {
-          const data = await taxRes.json();
-          if (data.success) {
-            setTaxOffices(data.data);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch data', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchApplications();
-  }, []);
+    fetchApplicationsData();
+  }, [assignedFilter]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -197,6 +209,30 @@ function ApplicationsPageInner() {
 
       {/* Stats Ribbon — Mobile Horizontal Scroll */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+        <div className="flex items-center bg-slate-100/90 p-0.5 rounded-lg border border-slate-200 shrink-0">
+          <button
+            type="button"
+            onClick={() => setAssignedFilter('all')}
+            className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${assignedFilter === 'all' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            Tất cả hồ sơ
+          </button>
+          <button
+            type="button"
+            onClick={() => setAssignedFilter('my_assigned')}
+            className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${assignedFilter === 'my_assigned' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            Của tôi phụ trách
+          </button>
+          <button
+            type="button"
+            onClick={() => setAssignedFilter('unassigned')}
+            className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${assignedFilter === 'unassigned' ? 'bg-amber-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            Chưa gán
+          </button>
+        </div>
+
         <button type="button" onClick={() => setFilterStatuses([])}
           className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
           Tổng ({applications.length})
@@ -353,6 +389,7 @@ function ApplicationsPageInner() {
                 </th>
                 <th className="px-4 py-2.5 font-semibold">Cục thuế</th>
                 <th className="px-4 py-2.5 font-semibold">Ngân hàng</th>
+                <th className="px-4 py-2.5 font-semibold">Phụ trách</th>
                 <th className="px-4 py-2.5 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('applyDate')}>
                   <div className="flex items-center gap-1">Ngày nộp <SortIcon col="applyDate" /></div>
                 </th>
@@ -364,7 +401,7 @@ function ApplicationsPageInner() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                     <div className="animate-pulse flex flex-col items-center gap-2">
                       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                       <p>Đang tải dữ liệu...</p>
@@ -373,7 +410,7 @@ function ApplicationsPageInner() {
                 </tr>
               ) : filteredApplications.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                         <FileText className="w-6 h-6 text-slate-400" />
@@ -421,6 +458,29 @@ function ApplicationsPageInner() {
                         <div className="max-w-[110px] truncate text-xs" title={app.customer?.bankName}>
                           {app.customer?.bankName || '---'}
                         </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs" onClick={(e) => e.stopPropagation()}>
+                        {app.assignedUser ? (
+                          <button
+                            type="button"
+                            onClick={() => setTransferTargetApp(app)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-colors"
+                            title="Nhấn để bàn giao / chuyển hồ sơ cho người khác"
+                          >
+                            <UserCheck className="w-3 h-3 text-emerald-600" />
+                            <span className="truncate max-w-[100px]">{app.assignedUser.name}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setTransferTargetApp(app)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-colors"
+                            title="Gán người phụ trách"
+                          >
+                            <UserX className="w-3 h-3 text-slate-400" />
+                            <span>Chưa gán</span>
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-slate-600 text-xs">
                         {app.applyDate ? new Date(app.applyDate).toLocaleDateString('vi-VN') : '--/--/----'}
@@ -573,6 +633,20 @@ function ApplicationsPageInner() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Transfer Application Modal */}
+        {transferTargetApp && (
+          <TransferApplicationModal
+            isOpen={!!transferTargetApp}
+            onClose={() => setTransferTargetApp(null)}
+            applicationId={transferTargetApp.id}
+            currentAssignedUser={transferTargetApp.assignedUser}
+            customerName={transferTargetApp.customer?.fullName}
+            onSuccess={() => {
+              fetchApplicationsData();
+            }}
+          />
         )}
     </div>
   );

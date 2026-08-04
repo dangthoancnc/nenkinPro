@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop, Download, Eye,
+  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft,
 } from 'lucide-react';
+import { TransferApplicationModal } from '@/components/applications/TransferApplicationModal';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
@@ -33,6 +34,7 @@ const BASE_DOCUMENTS = [
   { key: 'nenkinBook',          title: 'Sổ Nenkin',              urlField: 'nenkinBookUrl'     },
   { key: 'noticeOfEntitlement', title: 'Thông báo Lần 1',        urlField: 'noticeImageUrl'    },
   { key: 'departureStamp',      title: 'Dấu xuất cảnh',          urlField: 'departureStampUrl' },
+  { key: 'vietnamContact',      title: 'Liên lạc VN & Ghi chú',  urlField: 'contactImageUrls'  },
 ];
 
 const statusConfig: Record<string, { label: string; color: string; badgeColor: string; icon: React.ElementType }> = {
@@ -76,6 +78,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
   const [historyList,       setHistoryList]       = useState<any[]>([]);
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
+  const [assignedUser, setAssignedUser] = useState<{ id: string; name: string } | null>(null);
+  const [showTransferModal, setShowTransferModal] = useState<boolean>(false);
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -110,7 +114,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       });
       return items;
     });
-    return [BASE_DOCUMENTS[0], BASE_DOCUMENTS[1], BASE_DOCUMENTS[2], BASE_DOCUMENTS[3], ...bankDocs, BASE_DOCUMENTS[4]];
+    return [BASE_DOCUMENTS[0], BASE_DOCUMENTS[1], BASE_DOCUMENTS[2], BASE_DOCUMENTS[3], ...bankDocs, BASE_DOCUMENTS[4], BASE_DOCUMENTS[5], BASE_DOCUMENTS[6]];
   }, [watch('bankAccounts')]);
 
   useEffect(() => {
@@ -121,6 +125,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         if (res.ok) {
           const data = await res.json();
           setCustomerId(data.customerId || null);
+          setAssignedUser(data.assignedUser || null);
           const customer = data.customer || {};
           setCustomer(customer);
           setManualConfirmed(customer.status === 'VERIFIED');
@@ -152,6 +157,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             paymentsMultiplier:          data.paymentsMultiplier          || '',
             averageStandardRemuneration: data.averageStandardRemuneration || '',
             lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
+            revisionNote:                data.revisionNote                || '',
           };
           Object.keys(formValues).forEach(key => {
             if (formValues[key] === null)
@@ -248,6 +254,9 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         departureStampUrl: data.departureStampUrl,
         status: manualConfirmed ? 'VERIFIED' : 'PENDING',
         sex: data.sex, phone: data.phone,
+        overseasAddress: data.overseasAddress,
+        zaloContact: data.zaloContact, facebookContact: data.facebookContact,
+        contactImageUrls: data.contactImageUrls || [],
         passportIssueDate:  data.passportIssueDate  ? new Date(data.passportIssueDate).toISOString()  : null,
         passportExpiryDate: data.passportExpiryDate ? new Date(data.passportExpiryDate).toISOString() : null,
         departureDate:      data.departureDate      ? new Date(data.departureDate).toISOString()      : null,
@@ -273,6 +282,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         paymentsMultiplier: data.paymentsMultiplier ? parseFloat(String(data.paymentsMultiplier)) : null,
         averageStandardRemuneration: data.averageStandardRemuneration ? parseFloat(String(data.averageStandardRemuneration)) : null,
         lumpSumWithdrawalNumber: data.lumpSumWithdrawalNumber || null,
+        revisionNote: data.revisionNote || null,
       };
       if (isNew) {
         const cRes = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customerPayload) });
@@ -488,7 +498,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
   const currentDoc      = dynamicDocuments.find(d => d.key === activeDoc);
   const currentDocField = currentDoc?.urlField || 'zairyuFrontUrl';
-  const currentDocUrl   = watch(currentDocField as any) as string | undefined;
+  const currentDocValue = watch(currentDocField as any);
+  const isMultiUrl = activeDoc === 'vietnamContact';
+  const currentDocUrl   = isMultiUrl ? undefined : (currentDocValue as string | undefined);
+  const currentMultiUrls = isMultiUrl ? (currentDocValue as string[] || []) : [];
   const currentDocTitle = currentDoc?.title || '';
   const appStatus  = watch('status') as string || 'DRAFT';
   const statusCfg  = statusConfig[appStatus] ?? statusConfig['DRAFT'];
@@ -510,7 +523,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none min-w-0">
             {dynamicDocuments.map(doc => {
               const isActive = activeDoc === doc.key;
-              const hasUrl   = !!watch(doc.urlField as any);
+              const val = watch(doc.urlField as any);
+              const hasUrl = Array.isArray(val) ? val.length > 0 : !!val;
               return (
                 <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
                   className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
@@ -540,14 +554,78 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className="flex-1 flex flex-col min-h-0 min-w-0 p-2.5 bg-slate-100/40 max-w-full overflow-hidden">
         <div className="flex items-center justify-between mb-1 shrink-0">
           <span className="text-xs font-bold text-slate-800 truncate">{currentDocTitle}</span>
-          {currentDocUrl ? (
+          {isMultiUrl ? (
+            currentMultiUrls.length > 0 ? (
+               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải {currentMultiUrls.length} ảnh</span>
+            ) : (
+               <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có ảnh</span>
+            )
+          ) : currentDocUrl ? (
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải</span>
           ) : (
             <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có</span>
           )}
         </div>
         <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-w-0 max-w-full">
-          {currentDocUrl ? (
+          {isMultiUrl ? (
+            <div className="w-full h-full p-2 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2">
+                {currentMultiUrls.map((url, idx) => (
+                  <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 shadow-sm aspect-video bg-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Screenshot ${idx+1}`} className="w-full h-full object-cover cursor-pointer" onClick={() => setLightboxUrl(url)} />
+                    {isEditing && (
+                      <button type="button" className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm hover:bg-red-600"
+                        onClick={async () => {
+                           const newUrls = [...currentMultiUrls];
+                           newUrls.splice(idx, 1);
+                           setValue(currentDocField as any, newUrls);
+                           try {
+                             await fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+                             if (!isNew && customerId) {
+                               await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactImageUrls: newUrls }) });
+                             }
+                             toast.success('Đã xóa ảnh');
+                           } catch (err) { console.error(err); }
+                        }}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {isEditing && (
+                  <label className="cursor-pointer border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors aspect-video min-h-[100px] bg-white/50">
+                    <UploadCloud className="w-6 h-6 mb-1 text-indigo-400" />
+                    <span className="text-[10px] font-bold">Thêm ảnh</span>
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+                       if (!e.target.files?.length) return;
+                       const loadingId = toast.loading(`Đang tải lên ${e.target.files.length} ảnh...`);
+                       try {
+                         const newUrls = [...currentMultiUrls];
+                         for(let i=0; i<e.target.files.length; i++) {
+                           const file = e.target.files[i];
+                           const fd = new FormData(); fd.append('file', file); fd.append('customerId', customerId || 'temp');
+                           const res = await fetch('/api/storage/upload', { method: 'POST', body: fd });
+                           if (res.ok) {
+                             const { url } = await res.json();
+                             newUrls.push(url);
+                           }
+                         }
+                         setValue(currentDocField as any, newUrls);
+                         if (!isNew && customerId) {
+                           await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactImageUrls: newUrls }) });
+                         }
+                         toast.success('Tải ảnh thành công!', { id: loadingId });
+                       } catch (err) {
+                         console.error(err);
+                         toast.error('Có lỗi xảy ra khi tải ảnh', { id: loadingId });
+                       }
+                    }} />
+                  </label>
+                )}
+              </div>
+            </div>
+          ) : currentDocUrl ? (
             <div className="relative w-full h-full min-w-0 overflow-hidden flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={currentDocUrl} alt={currentDocTitle} className="block w-full h-auto object-contain" />
@@ -703,7 +781,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </button>
                       ) : undefined} />
                   </FormField>
-                  <div className="grid grid-cols-2 gap-2">
                     <FormField label="Mã Bưu Điện">
                       <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
                         verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
@@ -714,8 +791,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           </button>
                         } />
                     </FormField>
-                    <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
-                  </div>
                 </div>
               );
             }
@@ -745,7 +820,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         <option value="Nữ">Nữ</option>
                       </select>
                     </FormField>
-                    <FormField label="Điện thoại"><Input {...register('phone')} disabled={!isEditing} size="md" /></FormField>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Ngày cấp"><Input type="date" {...register('passportIssueDate')} disabled={!isEditing} size="md" /></FormField>
@@ -815,6 +889,34 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <FormField label="Lương bình quân tháng (平均標準報酬額)">
                     <Input type="number" {...register('averageStandardRemuneration')} disabled={!isEditing} size="md" prefix="¥" placeholder="VD: 226970" />
                   </FormField>
+                </div>
+              );
+
+            case 'vietnamContact':
+              return (
+                <div className="space-y-3">
+                  <div className="text-xs font-bold text-teal-700 border-b border-teal-100 pb-1 flex items-center justify-between">
+                    <span>🇻🇳 LIÊN LẠC VIỆT NAM & GHI CHÚ</span>
+                  </div>
+                  <FormField label="Địa chỉ tại Việt Nam">
+                    <Input {...register('overseasAddress')} disabled={!isEditing} size="md" placeholder="VD: 123 Nguyễn Trãi, Thanh Xuân, Hà Nội" />
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField label="Điện thoại (VN/Nhật)">
+                      <Input {...register('phone')} disabled={!isEditing} size="md" />
+                    </FormField>
+                    <FormField label="Zalo Contact">
+                      <Input {...register('zaloContact')} disabled={!isEditing} size="md" />
+                    </FormField>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField label="Facebook Contact">
+                      <Input {...register('facebookContact')} disabled={!isEditing} size="md" />
+                    </FormField>
+                    <FormField label="Ghi chú trao đổi">
+                      <textarea {...register('revisionNote')} disabled={!isEditing} className="w-full text-xs rounded-lg border border-slate-200/80 px-2.5 py-1.5 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 min-h-[100px] bg-white/80" placeholder="Lịch sử dặn dò, trao đổi..." />
+                    </FormField>
+                  </div>
                 </div>
               );
 
@@ -1343,9 +1445,20 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {isNew ? 'Tạo Hồ sơ mới' : (watch('fullName') || 'Chi tiết Hồ sơ')}
             </h1>
             {!isNew && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${statusCfg.badgeColor}`}>
-                <StatusIcon className="w-2.5 h-2.5" />{statusCfg.label}
-              </span>
+              <>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${statusCfg.badgeColor}`}>
+                  <StatusIcon className="w-2.5 h-2.5" />{statusCfg.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(true)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 transition-colors shadow-2xs cursor-pointer shrink-0"
+                  title="Nhấn để bàn giao / chuyển hồ sơ cho nhân viên khác"
+                >
+                  <ArrowRightLeft className="w-2.5 h-2.5 text-indigo-600" />
+                  <span>{assignedUser ? `Phụ trách: ${assignedUser.name}` : 'Chưa gán (Bàn giao)'}</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1582,6 +1695,24 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           serviceFeeJpy: watch('serviceFeeJpy'),
           serviceFeeVnd: watch('serviceFeeVnd'),
           referralBonusJpy: (watch as any)('referralBonusJpy') || 2000,
+        }}
+      />
+      <TransferApplicationModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        applicationId={id}
+        currentAssignedUser={assignedUser}
+        customerName={watch('fullName') || customer?.fullName}
+        onSuccess={() => {
+          toast.success('Đã bàn giao hồ sơ thành công!');
+          fetch(`/api/applications/${id}`)
+            .then(r => r.json())
+            .then(d => { if (d.assignedUser !== undefined) setAssignedUser(d.assignedUser); })
+            .catch(console.error);
+          fetch(`/api/applications/${id}/history`)
+            .then(r => r.json())
+            .then(d => { if (d.success && Array.isArray(d.data)) setHistoryList(d.data); })
+            .catch(console.error);
         }}
       />
     </form>

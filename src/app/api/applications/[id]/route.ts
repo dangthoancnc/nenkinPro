@@ -21,6 +21,7 @@ export async function GET(
           include: { taxOffice: true }
         },
         taxRepresentative: true,
+        assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
       },
     });
 

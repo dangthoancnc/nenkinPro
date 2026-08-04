@@ -28,6 +28,7 @@ model User {
   conversationParticipants ConversationParticipant[]
   sentMessages      Message[]
   activityFeeds     ActivityFeed[]
+  assignedApplications NenkinApplication[] @relation("AssignedStaff")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -136,6 +137,7 @@ model Customer {
   zairyuBackUrl     String?
   passportUrl       String?
   departureStampUrl String?
+  contactImageUrls  String[] @default([])
   
   bankAccounts      BankAccount[]
   securityPhotoUrl  String? // Chứa ảnh chụp chân dung bảo mật
@@ -262,6 +264,10 @@ model NenkinApplication {
   
   taxRepresentativeId String?
   taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
+
+  assignedUserId      String?
+  assignedUser        User?               @relation("AssignedStaff", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedAt          DateTime?
 
   histories           ApplicationHistory[]
   conversations       Conversation[]

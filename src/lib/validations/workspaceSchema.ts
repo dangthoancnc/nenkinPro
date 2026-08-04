@@ -23,6 +23,7 @@ export const applicationSchema = z.object({
   paymentsMultiplier: z.union([z.string(), z.number()]).nullable().optional(),
   averageStandardRemuneration: z.union([z.string(), z.number()]).nullable().optional(),
   lumpSumWithdrawalNumber: z.string().nullable().optional(),
+  revisionNote: z.string().nullable().optional(),
 });
 
 export const workspaceSchema = customerSchema.merge(applicationSchema);
