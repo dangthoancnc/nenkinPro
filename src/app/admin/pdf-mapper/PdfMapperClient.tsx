@@ -10,12 +10,12 @@ import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCo
 
 // Setup PDF worker in useEffect to avoid SSR error
 const TEMPLATE_NAMES: Record<string, string> = {
-  don_xin_lan_1: 'Đơn Xin Lần 1',
-  ininjyo_yoshiki_lan_1: 'Giấy Ủy Quyền Lần 1',
-  nouzeikanrinin: 'Đại Diện Thuế (Lần 1)',
-  bang_1_2: 'Bảng 1 & 2 (Lần 2)',
-  bang_3: 'Bảng Số 3 (Lần 2)',
-  giay_uy_thac_lan_2: 'Giấy Ủy Thác Lần 2',
+  don_xin_lan_1: 'Đơn Xin Lần 1 (脱退一時金請求書)',
+  ininjyo_yoshiki_lan_1: 'Giấy Ủy Quyền Lần 1 (委任状)',
+  nouzeikanrinin: 'Đại Diện Thuế Lần 1 (納税管理人届出書)',
+  bang_1_2: 'Bảng 1 & 2 Lần 2 (確定申告書 第一表・二表)',
+  bang_3: 'Bảng Số 3 Lần 2 (確定申告書 第三表)',
+  giay_uy_thac_lan_2: 'Giấy Ủy Thác Lần 2 (委任状)',
 };
 
 import { getTagsForTemplate, getRequiredTags, FieldGroup } from '@/features/templates/template-field-catalog';
@@ -28,11 +28,24 @@ export default function PdfMapperPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [numPages, setNumPages] = useState<number | null>(null);
   const [config, setConfig] = useState<ConfigMap>({});
+  const [pageDimensions, setPageDimensions] = useState<Record<number, { width: number; height: number }>>({});
   
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectionBox, setSelectionBox] = useState<{
+    page: number;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ page: number; startX: number; startY: number } | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [pdfScale, setPdfScale] = useState(1.0);
   const [showMockData, setShowMockData] = useState(false);
+  const [autoFillStep, setAutoFillStep] = useState(15);
 
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: '/cmaps/',
@@ -54,6 +67,56 @@ export default function PdfMapperPage() {
     if (baseTag.startsWith('line_')) return 'Đường kẻ';
     if (baseTag.startsWith('circle_')) return 'Khoanh tròn';
     return baseTag;
+  };
+
+  // Detect if a tag belongs to a split-char series (e.g. my_num_1 → prefix=my_num, index=1)
+  const getSplitSeriesInfo = (tagId: string) => {
+    const match = tagId.match(/^(.+)_(\d+)$/);
+    if (!match) return null;
+    const prefix = match[1];
+    const currentIndex = parseInt(match[2], 10);
+    // Find all sibling tags in the catalog
+    const tagsForTemplate = getTagsForTemplate(selectedTemplate || '*');
+    const siblings: string[] = [];
+    for (const group of tagsForTemplate) {
+      for (const t of group.tags) {
+        const sibMatch = t.id.match(/^(.+)_(\d+)$/);
+        if (sibMatch && sibMatch[1] === prefix) {
+          siblings.push(t.id);
+        }
+      }
+    }
+    if (siblings.length <= 1) return null;
+    siblings.sort((a, b) => {
+      const na = parseInt(a.match(/_?(\d+)$/)?.[1] || '0', 10);
+      const nb = parseInt(b.match(/_?(\d+)$/)?.[1] || '0', 10);
+      return na - nb;
+    });
+    const missingTags = siblings.filter(s => !config[s]);
+    return { prefix, currentIndex, siblings, missingTags, total: siblings.length };
+  };
+
+  const handleAutoFillSeries = (tagId: string, step: number) => {
+    const info = getSplitSeriesInfo(tagId);
+    if (!info || !config[tagId]) return;
+    const base = config[tagId];
+    const currentIdx = info.currentIndex;
+    setConfig(prev => {
+      const next = { ...prev };
+      for (const sibTag of info.siblings) {
+        if (sibTag === tagId || next[sibTag]) continue; // skip already placed
+        const sibIdx = parseInt(sibTag.match(/_?(\d+)$/)?.[1] || '0', 10);
+        const offsetX = (sibIdx - currentIdx) * step;
+        next[sibTag] = {
+          page: base.page,
+          x: Number((base.x + offsetX).toFixed(2)),
+          y: base.y,
+          size: base.size,
+          type: 'text',
+        };
+      }
+      return next;
+    });
   };
 
   // Fetch templates list and setup PDF worker
@@ -89,30 +152,129 @@ export default function PdfMapperPage() {
     setNumPages(numPages);
   }
 
+  const handleBatchDelete = (tagsToDelete?: string[]) => {
+    const targetTags = tagsToDelete || selectedTags;
+    if (targetTags.length === 0) return;
+    
+    setConfig(prev => {
+      const next = { ...prev };
+      targetTags.forEach(t => delete next[t]);
+      return next;
+    });
+    
+    setSelectedTags(prev => prev.filter(t => !targetTags.includes(t)));
+    if (selectedTag && targetTags.includes(selectedTag)) {
+      setSelectedTag(null);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedTag || !config[selectedTag]) return;
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedTags.length > 0) {
+          e.preventDefault();
+          handleBatchDelete(selectedTags);
+        } else if (selectedTag && config[selectedTag]) {
+          e.preventDefault();
+          handleDeleteTag(selectedTag);
+          setSelectedTag(null);
+        }
+        return;
+      }
+
+      const activeTagsList = selectedTags.length > 0 ? selectedTags : (selectedTag && config[selectedTag] ? [selectedTag] : []);
+      if (activeTagsList.length === 0) return;
+
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        if(document.activeElement === document.body) e.preventDefault();
+        e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         setConfig(prev => {
-          const current = prev[selectedTag];
-          let newX = current.x;
-          let newY = current.y;
-          if (e.key === 'ArrowUp') newY += step;
-          if (e.key === 'ArrowDown') newY -= step;
-          if (e.key === 'ArrowLeft') newX -= step;
-          if (e.key === 'ArrowRight') newX += step;
-          return { ...prev, [selectedTag]: { ...current, x: Number(newX.toFixed(2)), y: Number(newY.toFixed(2)) } };
+          const next = { ...prev };
+          activeTagsList.forEach(t => {
+            if (!next[t]) return;
+            const current = next[t];
+            let newX = current.x;
+            let newY = current.y;
+            if (e.key === 'ArrowUp') newY += step;
+            if (e.key === 'ArrowDown') newY -= step;
+            if (e.key === 'ArrowLeft') newX -= step;
+            if (e.key === 'ArrowRight') newX += step;
+            next[t] = { ...current, x: Number(newX.toFixed(2)), y: Number(newY.toFixed(2)) };
+          });
+          return next;
         });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTag, config]);
+  }, [selectedTag, selectedTags, config]);
+
+  const handlePageMouseDown = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    dragStartRef.current = { page: pageIndex, startX: x, startY: y };
+    isDraggingRef.current = true;
+  };
+
+  const handlePageMouseMove = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
+    if (!isDraggingRef.current || !dragStartRef.current || dragStartRef.current.page !== pageIndex) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const curX = e.clientX - rect.left;
+    const curY = e.clientY - rect.top;
+    const startX = dragStartRef.current.startX;
+    const startY = dragStartRef.current.startY;
+
+    const dist = Math.hypot(curX - startX, curY - startY);
+    if (dist > 5) {
+      setSelectionBox({
+        page: pageIndex,
+        startX,
+        startY,
+        currentX: curX,
+        currentY: curY,
+      });
+
+      const minX = Math.min(startX, curX);
+      const maxX = Math.max(startX, curX);
+      const minY = Math.min(startY, curY);
+      const maxY = Math.max(startY, curY);
+
+      const matched: string[] = [];
+      const pageDim = pageDimensions[pageIndex] || { width: A4_W, height: A4_H };
+      Object.entries(config).forEach(([tagKey, coord]) => {
+        if (coord.page !== pageIndex) return;
+        const tagLeft = coord.x * pdfScale;
+        const tagTop = (pageDim.height - coord.y) * pdfScale;
+
+        if (tagLeft >= minX - 15 && tagLeft <= maxX + 15 && tagTop >= minY - 15 && tagTop <= maxY + 15) {
+          matched.push(tagKey);
+        }
+      });
+
+      setSelectedTags(matched);
+    }
+  };
+
+  const handlePageMouseUp = () => {
+    if (isDraggingRef.current && selectionBox) {
+      setSelectionBox(null);
+    }
+    isDraggingRef.current = false;
+    dragStartRef.current = null;
+  };
 
   // Handle click on PDF to place the tag
   const handlePdfClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (selectionBox) return; // Don't place tag if we were drag selecting
     if (!selectedTag) return;
     
     const baseTag = selectedTag.split('#')[0];
@@ -138,14 +300,10 @@ export default function PdfMapperPage() {
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    const renderedHeight = rect.height;
-    const renderedWidth = rect.width;
+    const pageDim = pageDimensions[pageIndex] || { width: A4_W, height: A4_H };
 
-    const scaleX = A4_W / (renderedWidth / pdfScale);
-    const scaleY = A4_H / (renderedHeight / pdfScale);
-
-    const actualX = clickX * scaleX / pdfScale;
-    const actualY = A4_H - (clickY * scaleY / pdfScale);
+    const actualX = clickX / pdfScale;
+    const actualY = pageDim.height - (clickY / pdfScale);
 
     setConfig(prev => ({
       ...prev,
@@ -153,7 +311,7 @@ export default function PdfMapperPage() {
         page: pageIndex,
         x: Number(actualX.toFixed(2)),
         y: Number(actualY.toFixed(2)),
-        size: prev[selectedTag]?.size || 12,
+        size: prev[selectedTag]?.size || 9,
         type: baseTag.startsWith('line_') ? 'line' : baseTag.startsWith('circle_') ? 'circle' : 'text',
         width: baseTag.startsWith('line_') ? (prev[selectedTag]?.width || 100) : baseTag.startsWith('circle_') ? (prev[selectedTag]?.width || 20) : undefined,
         height: baseTag.startsWith('circle_') ? (prev[selectedTag]?.height || 20) : undefined,
@@ -212,6 +370,7 @@ export default function PdfMapperPage() {
       delete newConf[tag];
       return newConf;
     });
+    setSelectedTags(prev => prev.filter(t => t !== tag));
   };
 
   return (
@@ -296,40 +455,167 @@ export default function PdfMapperPage() {
                 className="flex-1 bg-rose-50 border border-rose-200 text-rose-700 text-[10px] py-1.5 rounded hover:bg-rose-100 font-medium whitespace-nowrap"
               >+ Khoanh Tròn</button>
             </div>
+
+            {/* Sidebar Auto-fill split-char */}
+            {selectedTag && (() => {
+              const info = getSplitSeriesInfo(selectedTag);
+              if (!info) return null;
+              const alreadyPinned = info.siblings.filter(s => config[s]).length;
+              const firstPinned = info.siblings.find(s => config[s]);
+              const baseCoord = firstPinned ? config[firstPinned] : null;
+              return (
+                <div className="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg">
+                  <div className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1">
+                    ⚡ Auto-fill dãy: <span className="font-mono text-emerald-600">{info.prefix}_*</span>
+                  </div>
+                  <div className="text-[10px] text-emerald-600 mb-2">
+                    Tổng: {info.total} thẻ | Đã ghim: {alreadyPinned} | Còn: {info.missingTags.length}
+                  </div>
+                  {info.missingTags.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-1.5 mb-2">
+                        <div>
+                          <label className="text-[10px] text-emerald-700 font-medium">Trang (0=đầu):</label>
+                          <input type="number" id="af_page" defaultValue={baseCoord?.page ?? 0} min={0} className="w-full text-xs p-1 border border-emerald-300 rounded mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-emerald-700 font-medium">Cỡ chữ:</label>
+                          <input type="number" id="af_size" defaultValue={baseCoord?.size ?? 9} className="w-full text-xs p-1 border border-emerald-300 rounded mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-emerald-700 font-medium">X gốc (thẻ 1):</label>
+                          <input type="number" step="0.5" id="af_x" defaultValue={baseCoord?.x ?? 100} className="w-full text-xs p-1 border border-emerald-300 rounded mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-emerald-700 font-medium">Y (hàng ngang):</label>
+                          <input type="number" step="0.5" id="af_y" defaultValue={baseCoord?.y ?? 500} className="w-full text-xs p-1 border border-emerald-300 rounded mt-0.5" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-[10px] text-emerald-700 font-medium whitespace-nowrap">Bước X:</label>
+                        <input type="number" step="0.5" value={autoFillStep} onChange={e => setAutoFillStep(Number(e.target.value) || 15)} className="w-16 text-xs p-1 border border-emerald-300 rounded text-center" />
+                        <span className="text-[10px] text-emerald-500">px/ô</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const pg = Number((document.getElementById('af_page') as HTMLInputElement)?.value ?? 0);
+                          const sz = Number((document.getElementById('af_size') as HTMLInputElement)?.value ?? 9);
+                          const bx = Number((document.getElementById('af_x') as HTMLInputElement)?.value ?? 100);
+                          const by = Number((document.getElementById('af_y') as HTMLInputElement)?.value ?? 500);
+                          setConfig(prev => {
+                            const next = { ...prev };
+                            for (const sib of info.siblings) {
+                              if (next[sib]) continue;
+                              const sibIdx = parseInt(sib.match(/_?(\d+)$/)?.[1] || '1', 10);
+                              next[sib] = {
+                                page: pg,
+                                x: Number((bx + (sibIdx - 1) * autoFillStep).toFixed(2)),
+                                y: by,
+                                size: sz,
+                                type: 'text',
+                              };
+                            }
+                            return next;
+                          });
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 rounded-lg font-bold transition-colors"
+                      >
+                        ⚡ Ghim {info.missingTags.length} thẻ còn lại
+                      </button>
+                      <p className="text-[9px] text-emerald-500 mt-1 text-center">
+                        Ghim {info.prefix}_1 → {info.prefix}_{info.total}, cùng hàng Y, cách đều X
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-emerald-600 font-medium">✅ Tất cả {info.total} thẻ đã được ghim</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">2. Các thẻ đã ghim ({Object.keys(config).length})</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                2. Các thẻ đã ghim ({Object.keys(config).length})
+              </h3>
+              {Object.keys(config).length > 0 && (
+                <label className="text-[10px] text-slate-500 cursor-pointer flex items-center gap-1 font-medium select-none">
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.length > 0 && selectedTags.length === Object.keys(config).length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedTags(Object.keys(config));
+                      else setSelectedTags([]);
+                    }}
+                    className="rounded border-slate-300 text-blue-600 text-[10px]"
+                  />
+                  Chọn tất cả
+                </label>
+              )}
+            </div>
+
+            {selectedTags.length > 0 && (
+              <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded flex items-center justify-between">
+                <span className="text-xs font-bold text-red-700">Đã chọn {selectedTags.length} thẻ</span>
+                <button
+                  onClick={() => handleBatchDelete(selectedTags)}
+                  className="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 rounded font-bold transition-colors shadow-sm"
+                >
+                  🗑️ Xóa {selectedTags.length} thẻ
+                </button>
+              </div>
+            )}
+
             <div className="space-y-2">
               {Object.entries(config)
                 .sort((a, b) => a[1].page - b[1].page || b[1].y - a[1].y) // Sort by page, then Y
-                .map(([tag, coord]) => (
-                <div 
-                  key={tag} 
-                  onClick={() => setSelectedTag(tag)}
-                  className={`flex items-center justify-between border p-2 rounded text-xs cursor-pointer transition-colors ${
-                    selectedTag === tag ? 'bg-blue-100 border-blue-300' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold text-blue-600">
-                      {getTagLabel(tag)} <span className="font-mono font-normal text-[10px] text-blue-400">({tag})</span>
+                .map(([tag, coord]) => {
+                  const isChecked = selectedTags.includes(tag);
+                  return (
+                    <div 
+                      key={tag} 
+                      onClick={() => setSelectedTag(tag)}
+                      className={`flex items-center justify-between border p-2 rounded text-xs cursor-pointer transition-colors ${
+                        isChecked 
+                          ? 'bg-red-50 border-red-300 ring-1 ring-red-200' 
+                          : selectedTag === tag 
+                            ? 'bg-blue-100 border-blue-300' 
+                            : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedTags(prev => [...prev, tag]);
+                            else setSelectedTags(prev => prev.filter(t => t !== tag));
+                          }}
+                          className="rounded border-slate-300 text-red-600"
+                        />
+                        <div>
+                          <div className="font-bold text-blue-600">
+                            {getTagLabel(tag)} <span className="font-mono font-normal text-[10px] text-blue-400">({tag})</span>
+                          </div>
+                          <div className="text-slate-500 mt-0.5">Trang {coord.page + 1} | X: {coord.x} | Y: {coord.y}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 items-end">
+                        <input 
+                          type="number" 
+                          className="w-12 border p-0.5 text-center rounded text-xs bg-white" 
+                          value={coord.size ?? 9}
+                          title="Cỡ chữ"
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => setConfig(prev => ({...prev, [tag]: {...prev[tag], size: Number(e.target.value)}}))}
+                        />
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag); }} className="text-red-500 hover:underline">Xóa</button>
+                      </div>
                     </div>
-                    <div className="text-slate-500 mt-0.5">Trang {coord.page + 1} | X: {coord.x} | Y: {coord.y}</div>
-                  </div>
-                  <div className="flex flex-col gap-1 items-end">
-                    <input 
-                      type="number" 
-                      className="w-12 border p-0.5 text-center rounded text-xs bg-white" 
-                      value={coord.size || 12}
-                      title="Cỡ chữ"
-                      onClick={e => e.stopPropagation()}
-                      onChange={e => setConfig(prev => ({...prev, [tag]: {...prev[tag], size: Number(e.target.value)}}))}
-                    />
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag); }} className="text-red-500 hover:underline">Xóa</button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
               {Object.keys(config).length === 0 && <p className="text-xs text-slate-400 italic">Chưa có thẻ nào</p>}
             </div>
           </div>
@@ -338,7 +624,25 @@ export default function PdfMapperPage() {
 
       {/* Right Content: PDF Viewer */}
       <div className="flex-1 bg-slate-300 rounded-xl overflow-hidden shadow-inner flex flex-col relative">
-        {selectedTag && (
+        {selectedTags.length > 0 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-2xl text-sm font-semibold z-50 flex items-center gap-3 animate-bounce">
+            <span>Đã chọn hàng loạt: <strong>{selectedTags.length} thẻ</strong></span>
+            <button
+              onClick={() => handleBatchDelete()}
+              className="bg-white text-red-700 hover:bg-red-50 px-3 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+            >
+              🗑️ Xóa tất cả thẻ đã chọn (Phím Delete)
+            </button>
+            <button
+              onClick={() => setSelectedTags([])}
+              className="text-red-200 hover:text-white text-xs underline"
+            >
+              Hủy chọn
+            </button>
+          </div>
+        )}
+
+        {selectedTag && selectedTags.length === 0 && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
             <MousePointer2 size={16} /> Đang chọn: {getTagLabel(selectedTag)} <span className="text-[10px] text-blue-200 font-mono">({selectedTag})</span> - Hãy click vào bản xem trước
           </div>
@@ -402,8 +706,42 @@ export default function PdfMapperPage() {
                   <label className="text-xs text-blue-600">Y (Dọc):</label>
                   <input type="number" step="0.5" value={config[selectedTag].y} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], y: Number(e.target.value)}}))} className="w-full text-sm p-1 border rounded mt-1" />
                 </div>
+                <div className="w-20">
+                  <label className="text-xs text-blue-600 font-semibold">Cỡ chữ:</label>
+                  <input type="number" min="4" max="72" value={config[selectedTag].size ?? 9} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], size: Number(e.target.value) || 9}}))} className="w-full text-sm p-1 border border-blue-300 rounded mt-1 text-center font-bold text-blue-800 bg-blue-50/80" />
+                </div>
               </div>
               
+              {/* Auto-fill split-char series */}
+              {(() => {
+                const seriesInfo = getSplitSeriesInfo(selectedTag);
+                if (!seriesInfo || seriesInfo.missingTags.length === 0) return null;
+                return (
+                  <div className="mb-3 p-2 bg-emerald-50 border border-emerald-200 rounded">
+                    <div className="text-xs font-bold text-emerald-700 mb-1">
+                      ⚡ Auto-fill dãy ({seriesInfo.total} thẻ, còn thiếu {seriesInfo.missingTags.length})
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-[10px] text-emerald-600 whitespace-nowrap">Bước X (px):</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={autoFillStep}
+                        onChange={(e) => setAutoFillStep(Number(e.target.value) || 15)}
+                        className="w-16 text-xs p-1 border border-emerald-300 rounded text-center"
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleAutoFillSeries(selectedTag, autoFillStep)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 rounded font-medium transition-colors"
+                    >
+                      Tự động ghim {seriesInfo.missingTags.length} thẻ còn lại
+                    </button>
+                    <p className="text-[9px] text-emerald-500 mt-1">Giữ nguyên Y={config[selectedTag]?.y}, cùng trang, cách đều X+={autoFillStep}px</p>
+                  </div>
+                );
+              })()}
+
               <div className="flex flex-col gap-1 mt-3">
                 <span className="text-xs text-blue-600 font-medium">Bắt điểm thẳng hàng (Snap):</span>
                 <select className="w-full text-xs p-1 border rounded mb-1" id="alignTarget" defaultValue="">
@@ -440,8 +778,6 @@ export default function PdfMapperPage() {
             </div>
           )}
 
-
-
         <div className="p-2 bg-slate-800 text-slate-200 flex justify-between items-center text-sm">
           <span className="font-medium text-slate-400">Bản xem trước ({selectedTemplate}.pdf)</span>
           <div className="flex items-center gap-4">
@@ -466,7 +802,10 @@ export default function PdfMapperPage() {
                 <div 
                   key={`page_${index}`}
                   data-page-index={index}
-                  className={`relative shadow-xl bg-white mb-8 transition-all ${selectedTag && !config[selectedTag] ? 'cursor-crosshair ring-4 ring-blue-400' : ''}`}
+                  onMouseDown={(e) => handlePageMouseDown(e, index)}
+                  onMouseMove={(e) => handlePageMouseMove(e, index)}
+                  onMouseUp={handlePageMouseUp}
+                  className={`relative shadow-xl bg-white mb-8 transition-all select-none ${selectedTag && !config[selectedTag] ? 'cursor-crosshair ring-4 ring-blue-400' : 'cursor-crosshair'}`}
                   onClick={handlePdfClick}
                 >
                   <Page 
@@ -474,30 +813,63 @@ export default function PdfMapperPage() {
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                     scale={pdfScale} 
+                    onLoadSuccess={(page) => {
+                      const unscaledWidth = page.originalWidth || (page.width / pdfScale);
+                      const unscaledHeight = page.originalHeight || (page.height / pdfScale);
+                      setPageDimensions(prev => ({
+                        ...prev,
+                        [index]: { width: unscaledWidth, height: unscaledHeight }
+                      }));
+                    }}
                   />
+
+                  {/* Marquee Selection Box Overlay */}
+                  {selectionBox && selectionBox.page === index && (
+                    <div
+                      className="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none z-50 rounded"
+                      style={{
+                        left: `${Math.min(selectionBox.startX, selectionBox.currentX)}px`,
+                        top: `${Math.min(selectionBox.startY, selectionBox.currentY)}px`,
+                        width: `${Math.abs(selectionBox.currentX - selectionBox.startX)}px`,
+                        height: `${Math.abs(selectionBox.currentY - selectionBox.startY)}px`,
+                      }}
+                    >
+                      <div className="absolute -top-6 left-0 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow font-bold whitespace-nowrap">
+                        Kéo chọn ({selectedTags.length} thẻ)
+                      </div>
+                    </div>
+                  )}
 
                   {/* Draw Pins for this page */}
                   {Object.entries(config)
                     .filter(([_, coord]) => coord.page === index)
                     .map(([tag, coord]) => {
-                      const top = A4_H - coord.y;
+                      const pageDim = pageDimensions[index] || { width: A4_W, height: A4_H };
+                      const top = pageDim.height - coord.y;
                       const left = coord.x;
                       
                       const isSelected = selectedTag === tag;
+                      const isBatchSelected = selectedTags.includes(tag);
                       
                       return (
                         <div 
                           key={tag}
-                          onClick={(e) => { e.stopPropagation(); setSelectedTag(tag); }}
-                          className={`absolute group cursor-pointer ${isSelected ? 'z-50' : 'z-10'}`}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedTag(tag);
+                            if (e.shiftKey) {
+                              setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+                            }
+                          }}
+                          className={`absolute group cursor-pointer ${isSelected ? 'z-50' : 'z-10'} ${isBatchSelected ? 'ring-4 ring-red-500 bg-red-100/50 rounded z-40' : ''}`}
                           style={{ 
                             left: `${left * pdfScale}px`, 
                             top: `${top * pdfScale}px`, 
                             transform: (!coord.type || coord.type === 'text') ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
-                            fontSize: `${(coord.size || 12) * pdfScale}px` 
+                            fontSize: `${(coord.size ?? 9) * pdfScale}px` 
                           }} 
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full absolute bottom-0 left-0 -translate-x-1/2 ${(!coord.type || coord.type === 'text') ? `translate-y-[${-PDF_BASELINE_OFFSET_EM}em]` : 'translate-y-1/2'} ${isSelected ? 'bg-blue-600 ring-2 ring-blue-300 z-50' : 'bg-red-500 z-10'}`}></div>
+                          <div className={`w-1.5 h-1.5 rounded-full absolute bottom-0 left-0 -translate-x-1/2 ${(!coord.type || coord.type === 'text') ? `translate-y-[${-PDF_BASELINE_OFFSET_EM}em]` : 'translate-y-1/2'} ${isBatchSelected ? 'bg-red-600 ring-2 ring-red-300 z-50' : isSelected ? 'bg-blue-600 ring-2 ring-blue-300 z-50' : 'bg-red-500 z-10'}`}></div>
                           
                           {coord.type === 'line' ? (
                             <div 

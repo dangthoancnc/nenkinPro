@@ -9,6 +9,7 @@ export const MOCK_DATA: Record<string, string> = {
   myNumber: '123456789012',
   nenkinNumber: '1234567890',
   phone: '09012345678',
+  passportNumber: 'TN1234567',
   occupation: 'Kỹ sư IT',
   headOfHouseholdName: 'NGUYEN VAN A',
   relationshipToHead: 'Bản thân',
@@ -86,6 +87,27 @@ export const MOCK_DATA: Record<string, string> = {
   serviceFeeJpy: '10000',
   exchangeRate: '165',
   serviceFeeVnd: '1,650,000',
+
+  // Bang 1_2 extra fields
+  lumpSumWithdrawalNumber: '12345678901234',
+  coverageMonths: '36',
+  lastCoverageMonth: '2024/03',
+  averageStandardRemuneration: '220000',
+  paymentsMultiplier: '2.8',
+  noticeDate_era_jp: '令和',
+  noticeDate_era_yr: '07',
+  // Tax rep bank
+  taxRep_bankName: 'みずほ銀行',
+  taxRep_branchName: '新宿支店',
+  taxRep_accountNumber: '1234567',
+  taxRep_accountName: 'トラン ティ B',
+  taxRep_accountType_1_mark: '○',
+  taxRep_accountType_2_mark: '',
+  // 第二表 income source
+  incomeSourceName: '日本年金機構',
+  incomeTypeName: '退職',
+  incomeSourceAmount: '500000',
+  incomeSourceWithheld: '102100',
 };
 
 // Generate split tags
@@ -195,4 +217,13 @@ MOCK_DATA['doc_date_d'] = MOCK_DATA['applyDate_d'] || '20';
 
 // Bank account type
 MOCK_DATA['bank_account_type'] = '普通';
+
+// Split tags for lumpSumNum
+for (let i = 0; i < 14; i++) {
+  MOCK_DATA[`lumpSumNum_${i + 1}`] = (MOCK_DATA.lumpSumWithdrawalNumber || '')[i] || '';
+}
+// Split tags for taxRep_account
+for (let i = 0; i < 7; i++) {
+  MOCK_DATA[`taxRep_account_${i + 1}`] = (MOCK_DATA.taxRep_accountNumber || '')[i] || '';
+}
 

@@ -150,6 +150,7 @@ model Customer {
   placeOfBirth           String?
   passportIssueDate      DateTime?
   passportExpiryDate     DateTime?
+  passportNumber         String?
   phone                  String?
   overseasAddress        String?
   overseasCountry        String?

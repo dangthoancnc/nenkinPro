@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       let pdfs: string[] = [];
       if (fs.existsSync(formsDir)) {
         const files = fs.readdirSync(formsDir);
-        pdfs = files.filter(f => f.endsWith('.pdf') && !f.includes('_grid')).map(f => f.replace('.pdf', ''));
+        pdfs = files.filter(f => f.endsWith('.pdf') && !f.includes('_grid') && !f.includes('_backup') && f !== '07.pdf' && f !== 'huong_dan_O7.pdf').map(f => f.replace('.pdf', ''));
       }
       return NextResponse.json({ success: true, data: pdfs });
     }

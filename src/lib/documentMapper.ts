@@ -138,6 +138,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     gender_female_check: customer.sex === 'FEMALE' ? '\u2713' : '',
 
     placeOfBirth:    customer.placeOfBirth ?? '',
+    passportNumber:  customer.passportNumber ?? '',
     nenkinKatakanaName: customer.nenkinKatakanaName ?? '',
     occupation:      customer.occupation ?? '',
     
@@ -395,13 +396,28 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
 
   const appExt = application as Record<string, any>;
   const totalExpectedJpy = application.totalExpectedJpy ? Number(application.totalExpectedJpy) : 0;
-  const withheldTax = application.withheldTax ? Number(application.withheldTax) : Math.floor(totalExpectedJpy * 0.2042);
-  const refundAmount = withheldTax;
+  const coverageMonths = appExt.coverageMonths ? Number(appExt.coverageMonths) : null;
   const taxYearStr = application.taxYear ? String(application.taxYear) : '';
+
+  // Tính thuế chính xác thay vì giả định hoàn 100%
+  const taxResult = calculateNenkinTax({
+    totalExpectedJpy,
+    coverageMonths,
+    withheldTax: application.withheldTax ? Number(application.withheldTax) : undefined,
+  });
+  const withheldTax = taxResult.withheldTax ?? Math.floor(totalExpectedJpy * 0.2042);
+  const retirementDeductionAmount = taxResult.retirementDeductionAmount ?? 0;
+  const taxableRetirementIncome = taxResult.taxableRetirementIncome ?? 0;
+  const calculatedTax = taxResult.calculatedTax ?? 0;
+  const refundAmount = taxResult.refundAmount ?? withheldTax;
 
   const lumpSumNum = appExt.lumpSumWithdrawalNumber || '';
   const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
   const noticeEra = application.noticeDate ? toJapaneseEra(new Date(application.noticeDate)) : null;
+
+  // Tax representative bank info (for refund account on 確定申告書)
+  const rep = taxRepresentative;
+  const repAccountNum = rep?.accountNumber ?? '';
 
   return {
     ...mapCustomerBase(customer),
@@ -414,8 +430,11 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     totalExpectedJpy: String(totalExpectedJpy),
     received1stJpy: application.received1stJpy ? String(application.received1stJpy) : '',
     withheldTax: String(withheldTax),
+    retirementDeductionAmount: String(retirementDeductionAmount),
+    taxableRetirementIncome: String(taxableRetirementIncome),
+    calculatedTax: String(calculatedTax),
     refundAmount: String(refundAmount),
-    tax2ndJpy: application.tax2ndJpy ? String(application.tax2ndJpy) : String(withheldTax),
+    tax2ndJpy: application.tax2ndJpy ? String(application.tax2ndJpy) : String(refundAmount),
     
     lumpSumWithdrawalNumber: lumpSumNum,
     ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
@@ -433,6 +452,21 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     lastCoverageMonth: appExt.lastCoverageMonth || '',
     averageStandardRemuneration: appExt.averageStandardRemuneration ? String(appExt.averageStandardRemuneration) : '',
     paymentsMultiplier: appExt.paymentsMultiplier ? String(appExt.paymentsMultiplier) : '',
+
+    // Tax representative bank details for refund section (還付金受取場所)
+    taxRep_bankName: rep?.bankName ?? '',
+    taxRep_branchName: rep?.branchName ?? '',
+    taxRep_accountNumber: repAccountNum,
+    ...splitChars(repAccountNum, 'taxRep_account', 7, true),
+    taxRep_accountName: rep?.accountName ?? '',
+    taxRep_accountType_1_mark: '', // To be set based on account type
+    taxRep_accountType_2_mark: '',
+
+    // 第二表 — Income source details
+    incomeSourceName: '日本年金機構',
+    incomeTypeName: '退職',
+    incomeSourceAmount: String(totalExpectedJpy),
+    incomeSourceWithheld: String(withheldTax),
     
     app_id: application.id.slice(0, 8),
     ...todayTags(),

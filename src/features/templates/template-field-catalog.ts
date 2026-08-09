@@ -121,12 +121,12 @@ export const TEMPLATE_FIELD_CATALOG: FieldGroup[] = [
       { id: 'applyDate_era_yr', label: 'Năm xin Nenkin Nhật (Nguyên khối)', appliesTo: ['don_xin_lan_1'] },
       ...generateSplitTags('applyDate_era_yr', 2, 'Năm xin Nenkin Nhật', ['don_xin_lan_1']),
       
-      { id: 'noticeDate_y', label: 'Năm nhận thông báo (Nguyên khối)', appliesTo: ['bang_3'] },
-      { id: 'noticeDate_m', label: 'Tháng nhận thông báo (Nguyên khối)', appliesTo: ['bang_3'] },
-      { id: 'noticeDate_d', label: 'Ngày nhận thông báo (Nguyên khối)', appliesTo: ['bang_3'] },
-      ...generateSplitTags('noticeDate_y', 4, 'Năm nhận thông báo', ['bang_3']),
-      ...generateSplitTags('noticeDate_m', 2, 'Tháng nhận thông báo', ['bang_3']),
-      ...generateSplitTags('noticeDate_d', 2, 'Ngày nhận thông báo', ['bang_3']),
+      { id: 'noticeDate_y', label: 'Năm nhận thông báo (Nguyên khối)', appliesTo: ['bang_3', 'bang_1_2'] },
+      { id: 'noticeDate_m', label: 'Tháng nhận thông báo (Nguyên khối)', appliesTo: ['bang_3', 'bang_1_2'] },
+      { id: 'noticeDate_d', label: 'Ngày nhận thông báo (Nguyên khối)', appliesTo: ['bang_3', 'bang_1_2'] },
+      ...generateSplitTags('noticeDate_y', 4, 'Năm nhận thông báo', ['bang_3', 'bang_1_2']),
+      ...generateSplitTags('noticeDate_m', 2, 'Tháng nhận thông báo', ['bang_3', 'bang_1_2']),
+      ...generateSplitTags('noticeDate_d', 2, 'Ngày nhận thông báo', ['bang_3', 'bang_1_2']),
       
       ...generateSplitTags('taxYear_era_yr', 2, 'Năm khai thuế (Nhật)'),
       
@@ -215,6 +215,32 @@ export const TEMPLATE_FIELD_CATALOG: FieldGroup[] = [
       { id: 'serviceFeeJpy', label: 'Phí dịch vụ (¥)', appliesTo: ['bang_1_2'] },
       { id: 'exchangeRate', label: 'Tỷ giá', appliesTo: ['bang_1_2'] },
       { id: 'serviceFeeVnd', label: 'Phí dịch vụ (VNĐ)', appliesTo: ['bang_1_2'] },
+    ]
+  },
+  {
+    name: '8. Thông tin thêm cho Bảng 1-2 (確定申告書)',
+    tags: [
+      { id: 'lumpSumWithdrawalNumber', label: 'Số QĐ thoái nhất thời kim (整理番号, Nguyên khối)', appliesTo: ['bang_1_2', 'bang_3'] },
+      ...generateSplitTags('lumpSumNum', 14, 'Số QĐ (整理番号)', ['bang_1_2', 'bang_3']),
+      { id: 'coverageMonths', label: 'Số tháng đóng bảo hiểm (被保険者期間の月数)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'lastCoverageMonth', label: 'Tháng cuối đóng BH (最終月)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'averageStandardRemuneration', label: 'Mức lương tiêu chuẩn TB (平均標準報酬額)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'paymentsMultiplier', label: 'Hệ số chi trả (支給率)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'noticeDate_era_jp', label: 'Ngày QĐ: Thời đại (元号)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'noticeDate_era_yr', label: 'Ngày QĐ: Năm Nhật (Nguyên khối)', appliesTo: ['bang_1_2', 'bang_3'] },
+      { id: 'taxRep_phone', label: 'Người đại diện thuế: SĐT (Nguyên khối)', appliesTo: ['bang_1_2'] },
+      ...generateSplitTags('taxRep_phone', 11, 'Người đại diện thuế: SĐT', ['bang_1_2']),
+      { id: 'taxRep_bankName', label: 'NH đại diện thuế: Tên NH', appliesTo: ['bang_1_2'] },
+      { id: 'taxRep_branchName', label: 'NH đại diện thuế: Tên chi nhánh', appliesTo: ['bang_1_2'] },
+      { id: 'taxRep_accountNumber', label: 'NH đại diện thuế: Số TK (Nguyên khối)', appliesTo: ['bang_1_2'] },
+      ...generateSplitTags('taxRep_account', 7, 'NH đại diện thuế: Số TK', ['bang_1_2']),
+      { id: 'taxRep_accountName', label: 'NH đại diện thuế: Tên TK', appliesTo: ['bang_1_2'] },
+      { id: 'taxRep_accountType_1_mark', label: 'NH đại diện thuế: TK Thường (普通) ○', format: 'mark', appliesTo: ['bang_1_2'] },
+      { id: 'taxRep_accountType_2_mark', label: 'NH đại diện thuế: TK Tiết kiệm (当座) ○', format: 'mark', appliesTo: ['bang_1_2'] },
+      { id: 'incomeSourceName', label: 'Nguồn thu nhập (第二表): Tên (日本年金機構)', appliesTo: ['bang_1_2'] },
+      { id: 'incomeTypeName', label: 'Nguồn thu nhập (第二表): Loại (退職)', appliesTo: ['bang_1_2'] },
+      { id: 'incomeSourceAmount', label: 'Nguồn thu nhập (第二表): Thu nhập (¥)', appliesTo: ['bang_1_2'] },
+      { id: 'incomeSourceWithheld', label: 'Nguồn thu nhập (第二表): Thuế KT (¥)', appliesTo: ['bang_1_2'] },
     ]
   }
 ];
