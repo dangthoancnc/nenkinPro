@@ -302,10 +302,15 @@ model TaxRepresentative {
   myNumber      String?
   relationship  String? @default("納税管理人")
   
-  bankName      String?
-  branchName    String?
-  accountNumber String?
-  accountName   String?
+  bankName            String?
+  branchName          String?
+  accountNumber       String?
+  accountName         String?
+  accountNameKatakana String?
+  isYucho             Boolean  @default(false)
+  bankAccountType     String?  // 'ORDINARY' hoặc 'CURRENT'
+  yuchoKigo           String?
+  yuchoBango          String?
 
   applications  NenkinApplication[]
 

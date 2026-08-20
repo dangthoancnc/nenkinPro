@@ -2,11 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PUT } from '../app/api/customers/[id]/route';
 
 vi.mock('@/lib/prisma', () => {
+  const customerMock = {
+    findUnique: vi.fn().mockResolvedValue({ id: 'test-id' }),
+    update: vi.fn().mockResolvedValue({ id: 'test-id' })
+  };
   return {
     default: {
-      customer: {
-        update: vi.fn().mockResolvedValue({ id: 'test-id' })
-      }
+      customer: customerMock,
+      $transaction: vi.fn().mockImplementation(async (cb) => cb({ customer: customerMock }))
     }
   };
 });

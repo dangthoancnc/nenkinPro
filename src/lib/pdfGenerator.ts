@@ -15,6 +15,8 @@ export type PdfCoordinate = {
   width?: number;     // for lines and circles
   height?: number;    // for circles
   thickness?: number; // for lines and circles
+  fontWeight?: 'normal' | 'bold';
+  align?: 'left' | 'center' | 'right';
 };
 
 export type PdfMappingConfig = Record<string, PdfCoordinate>;
@@ -88,16 +90,41 @@ export async function fillPdfTemplate(
 
     if (!textToDraw) continue;
 
+    const fontSize = coord.size || 12;
+    let drawX = coord.x;
+
+    if (customFont && coord.width && coord.align) {
+      const textWidth = customFont.widthOfTextAtSize(textToDraw, fontSize);
+      if (coord.align === 'right') {
+        drawX = coord.x + coord.width - textWidth;
+      } else if (coord.align === 'center') {
+        drawX = coord.x + (coord.width - textWidth) / 2;
+      }
+    }
+
     page.drawText(textToDraw, {
-      x: coord.x,
+      x: drawX,
       y: coord.y,
-      size: coord.size || 12,
+      size: fontSize,
       font: customFont,
       color: rgb(0, 0, 0),
       maxWidth: coord.width ? coord.width : undefined,
-      lineHeight: (coord.size || 12) * PDF_LINE_HEIGHT,
+      lineHeight: fontSize * PDF_LINE_HEIGHT,
       wordBreaks: [' '],
     });
+
+    if (coord.fontWeight === 'bold') {
+      page.drawText(textToDraw, {
+        x: drawX + 0.35,
+        y: coord.y,
+        size: fontSize,
+        font: customFont,
+        color: rgb(0, 0, 0),
+        maxWidth: coord.width ? coord.width : undefined,
+        lineHeight: fontSize * PDF_LINE_HEIGHT,
+        wordBreaks: [' '],
+      });
+    }
   }
 
   return await pdfDoc.save();

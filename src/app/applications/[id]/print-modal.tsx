@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, Loader2, FileImage, Download } from 'lucide-react';
 import { PrintContainer, PrintField, ImagePrintContainer, A4_W, A4_H } from '@/components/PrintOverlay';
+import dynamic from 'next/dynamic';
+const PdfMapperClient = dynamic(() => import('@/app/admin/pdf-mapper/PdfMapperClient'), { ssr: false });
 
 interface PrintModalProps {
   isOpen: boolean;
@@ -175,6 +177,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>(DOCUMENT_TYPES[0].id);
   const [zoomWidth, setZoomWidth] = useState<number>(800);
+  const [isLayoutMode, setIsLayoutMode] = useState(false);
 
   useEffect(() => {
     if (!id || !isOpen) return;
@@ -309,15 +312,40 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
 
     // Common aliases
     const aliases: Record<string, string[]> = {
+      // Bank aliases
       bank_name: ['bankName', 'bank_first_name'],
       bank_branch: ['branchName', 'bank_first_branch'],
       bank_account_type: ['bankAccountType'],
+      bankName: ['bank_name'],
+      branchName: ['bank_branch'],
+      // Postal code aliases
+      postalCodeFormat: ['postalCode', 'post'],
+      postalCode: ['postalCodeFormat'],
+      taxRep_postalCodeFormat: ['taxRep_postalCode', 'taxRep_post', 'rep_post'],
+      // My Number & Nenkin aliases
+      myNumber: ['my_num'],
+      nenkinNumber: ['nenkin'],
+      // Address aliases
+      address_jp: ['address', 'zairyuAddress'],
+      address: ['address_jp', 'zairyuAddress'],
+      // Representative aliases (rep_* ↔ taxRep_*)
+      rep_fullName: ['taxRep_fullName'],
+      rep_fullName_kata: ['taxRep_fullName_kata', 'taxRep_fullNameKana'],
+      rep_address: ['taxRep_address'],
       taxRep_fullName: ['rep_fullName', 'taxRep_fullNameKana'],
       taxRep_address: ['rep_address'],
       taxRep_phone: ['rep_phone'],
+      // Office aliases
       taxOfficeName: ['office_name'],
       taxOfficeAddress: ['office_address'],
-      address_jp: ['address', 'zairyuAddress'],
+      // Furigana aliases
+      fullNameFurigana: ['fullName_kata'],
+      fullName_kata: ['fullNameFurigana'],
+      // Sex checkmarks
+      sex_M_mark: ['gender_male_check', 'gender_male_check_mark'],
+      sex_F_mark: ['gender_female_check', 'gender_female_check_mark'],
+      gender_male_check_mark: ['sex_M_mark', 'gender_male_check'],
+      gender_female_check_mark: ['sex_F_mark', 'gender_female_check'],
     };
 
     const list = aliases[baseKey] || aliases[tagId];
@@ -327,217 +355,32 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       }
     }
 
+    // Dynamic aliases for indexed split tags (e.g. rep_post_3 → taxRep_post_3, bank_5 → accountNumber_5)
+    const splitAliases: [RegExp, string][] = [
+      [/^rep_post_(\d+)$/, 'taxRep_post_$1'],
+      [/^taxRep_post_(\d+)$/, 'rep_post_$1'],
+      [/^bank_(\d+)$/, 'accountNumber_$1'],
+      [/^accountNumber_(\d+)$/, 'bank_$1'],
+      [/^taxRep_account_(\d+)$/, 'taxRep_account_dig_$1'],
+      [/^taxRep_account_dig_(\d+)$/, 'taxRep_account_$1'],
+    ];
+    for (const [pattern, replacement] of splitAliases) {
+      const match = baseKey.match(pattern);
+      if (match) {
+        const aliasKey = baseKey.replace(pattern, replacement);
+        if (mappedData[aliasKey] !== undefined && mappedData[aliasKey] !== '') return mappedData[aliasKey];
+      }
+    }
+
+    // Fallback: try coord.value for static text
+    if (coord?.value !== undefined) return coord.value;
+
     return '';
   };
 
-  const renderFallbackFields = (formType: string) => {
-    switch (formType) {
-      case 'lan1_p1':
-        return (
-          <>
-            <PrintField x={65} y={15} value={mappedData.applyDate_y} charSpacing={15} />
-            <PrintField x={75} y={15} value={mappedData.applyDate_m} charSpacing={15} />
-            <PrintField x={85} y={15} value={mappedData.applyDate_d} charSpacing={15} />
-            
-            <PrintField x={22} y={57.3} value={customer.fullName} className="text-xl uppercase tracking-widest" />
-            <PrintField x={28} y={27} value={cleanStr(mappedData.dob_y)} charSpacing={16} />
-            <PrintField x={40} y={27} value={mappedData.dob_m} charSpacing={16} />
-            <PrintField x={48} y={27} value={mappedData.dob_d} charSpacing={16} />
-            
-            <PrintField x={25} y={30} value={customer.nationality || 'VIET NAM'} />
-            
-            <PrintField x={30} y={35} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={30} y={38} value={customer.overseasStreet} />
-            <PrintField x={30} y={40} value={customer.overseasCity} />
-            <PrintField x={60} y={40} value={customer.overseasProvince} />
-            <PrintField x={80} y={40} value={customer.overseasPostalCode} />
+  // Fallback fields removed — all rendering now uses JSON template configs from /public/templates/
 
-            <PrintField x={35} y={45} value={cleanPost(customer.nenkinNumber)} charSpacing={24} />
-            
-            {(() => {
-              const primaryBank = customer.bankAccounts?.[0] || {};
-              return (
-                <>
-                  <PrintField x={25} y={55} value={primaryBank.bankName || customer.bankName} />
-                  <PrintField x={55} y={55} value={primaryBank.branchName || customer.branchName} />
-                  <PrintField x={85} y={55} value={primaryBank.bankCountry || customer.bankCountry || 'VIET NAM'} />
-                  <PrintField x={25} y={58} value={primaryBank.bankBranchAddress || customer.bankBranchAddress} />
-                  
-                  <PrintField x={35} y={62} value={cleanStr(primaryBank.accountNumber || customer.accountNumber)} charSpacing={20} />
-                  <PrintField x={35} y={65} value={primaryBank.accountName || customer.accountName} />
-                  <PrintField x={35} y={68} value={primaryBank.accountNameKatakana || customer.accountNameKatakana} />
-                  
-                  <PrintField x={35} y={72} value={cleanStr(primaryBank.swiftCode || customer.swiftCode)} charSpacing={16} />
-                </>
-              );
-            })()}
-          </>
-        );
-
-      case 'lan1_p2':
-        return (
-          <>
-            {customer.workHistories?.slice(0, 5).map((wh: any, idx: number) => {
-              const yOffset = 30 + idx * 5.2;
-              return (
-                <React.Fragment key={wh.id || idx}>
-                  <PrintField x={15} y={yOffset} value={wh.companyName} className="max-w-[25%] truncate text-[9px]" />
-                  <PrintField x={40} y={yOffset} value={wh.companyAddress} className="max-w-[25%] truncate text-[9px]" />
-                  {wh.startDate && (
-                    <PrintField x={68} y={yOffset} value={`${new Date(wh.startDate).getFullYear()}/${new Date(wh.startDate).getMonth() + 1}/${new Date(wh.startDate).getDate()}`} className="text-[9px]" />
-                  )}
-                  {wh.endDate && (
-                    <PrintField x={80} y={yOffset} value={`${new Date(wh.endDate).getFullYear()}/${new Date(wh.endDate).getMonth() + 1}/${new Date(wh.endDate).getDate()}`} className="text-[9px]" />
-                  )}
-                  <PrintField x={91} y={yOffset} value={wh.pensionType === 'EPI' ? '厚生年金' : '国民年金'} className="text-[9px]" />
-                </React.Fragment>
-              );
-            })}
-          </>
-        );
-
-      case 'lan1_uyquyen':
-        return (
-          <>
-            <PrintField x={60} y={10} value={mappedData.applyDate_era_jp || '令和'} />
-            <PrintField x={68} y={10} value={mappedData.applyDate_era_yr} />
-            <PrintField x={76} y={10} value={mappedData.applyDate_m} />
-            <PrintField x={84} y={10} value={mappedData.applyDate_d} />
-
-            <PrintField x={30} y={20} value={rep.fullNameKana} />
-            <PrintField x={30} y={24} value={rep.fullName} />
-            <PrintField x={30} y={28} value={cleanPost(rep.postalCode)} charSpacing={12} />
-            <PrintField x={30} y={31} value={rep.address} />
-            <PrintField x={30} y={34} value={rep.phone} />
-            <PrintField x={80} y={34} value={rep.relationship || '納税管理人'} />
-
-            <PrintField x={30} y={40} value={cleanPost(customer.nenkinNumber)} charSpacing={20} />
-            <PrintField x={30} y={44} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
-            <PrintField x={30} y={48} value={customer.fullName} />
-            
-            <PrintField x={30} y={52} value={mappedData.dob_era_yr} />
-            <PrintField x={40} y={52} value={mappedData.dob_m} />
-            <PrintField x={50} y={52} value={mappedData.dob_d} />
-            
-            <PrintField x={30} y={56} value={cleanPost(customer.postalCode)} charSpacing={12} />
-            <PrintField x={30} y={59} value={customer.zairyuAddress} />
-            <PrintField x={30} y={62} value={customer.phone} />
-          </>
-        );
-
-      case 'lan2_donxin1':
-        return (
-          <>
-            <PrintField x={15} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={65} y={10} value={mappedData.taxYear_era_yr} />
-            
-            <PrintField x={20} y={15} value={cleanPost(customer.postalCode)} charSpacing={15} />
-            <PrintField x={20} y={18} value={customer.zairyuAddress} className="text-[12px] max-w-[40%]" />
-            <PrintField x={20} y={20} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
-            <PrintField x={20} y={22} value={customer.fullName} className="text-lg" />
-            
-            <PrintField x={70} y={22} value={cleanPost(customer.myNumber)} charSpacing={22} />
-            
-            <PrintField x={78} y={18} value={getEraNumber(customer.dob)} />
-            <PrintField x={82} y={18} value={mappedData.dob_era_yr} charSpacing={12} />
-            <PrintField x={88} y={18} value={mappedData.dob_m} charSpacing={12} />
-            <PrintField x={94} y={18} value={mappedData.dob_d} charSpacing={12} />
-            
-            <PrintField x={20} y={25} value={customer.occupation} />
-            <PrintField x={80} y={25} value={customer.headOfHouseholdName} />
-            <PrintField x={90} y={25} value={customer.relationshipToHead} />
-
-            <PrintField x={80} y={55} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={80} y={58} value="△" className="text-right" />
-            <PrintField x={80} y={65} value={mappedData.withheldTax} className="text-right" />
-            
-            <PrintField x={20} y={75} value={rep.bankName} />
-            <PrintField x={40} y={75} value={rep.branchName} />
-            <PrintField x={60} y={75} value={rep.accountNumber} />
-            <PrintField x={80} y={75} value={rep.fullName} />
-          </>
-        );
-
-      case 'lan2_donxin2':
-        return (
-          <>
-            <PrintField x={20} y={8} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
-            <PrintField x={20} y={10} value={customer.fullName} />
-            
-            <PrintField x={20} y={20} value="退職" />
-            <PrintField x={30} y={20} value="脱退一時金" />
-            <PrintField x={40} y={20} value="日本年金機構" />
-            <PrintField x={60} y={20} value={mappedData.totalExpectedJpy} className="text-right" />
-            <PrintField x={80} y={20} value={mappedData.withheldTax} className="text-right" />
-            
-            <PrintField x={80} y={35} value={mappedData.withheldTax} className="text-right" />
-          </>
-        );
-
-      case 'lan2_donxin3':
-        return (
-          <>
-            <PrintField x={15} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={65} y={10} value={mappedData.taxYear_era_yr} />
-            
-            <PrintField x={20} y={15} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={20} y={18} value={customer.fullName} />
-            
-            <PrintField x={60} y={40} value={mappedData.totalExpectedJpy} className="text-right" />
-            
-            <PrintField x={80} y={45} value="0" className="text-right" />
-            <PrintField x={80} y={50} value="0" className="text-right" />
-            <PrintField x={80} y={55} value="0" className="text-right" />
-            <PrintField x={80} y={60} value="0" className="text-right" />
-            
-            <PrintField x={80} y={70} value={mappedData.withheldTax} className="text-right" />
-            <PrintField x={80} y={75} value={mappedData.withheldTax} className="text-right" />
-            
-            <PrintField x={20} y={85} value="所法" />
-            <PrintField x={30} y={85} value="171" charSpacing={10} />
-            
-            <PrintField x={40} y={90} value={mappedData.totalExpectedJpy} className="text-right" />
-            <PrintField x={60} y={90} value={mappedData.retirementDeductionAmount} className="text-right" />
-          </>
-        );
-
-      case 'lan2_uyquyen':
-        return (
-          <>
-            <PrintField x={20} y={10} value={customer.taxOffice?.name} />
-            <PrintField x={60} y={10} value={mappedData.applyDate_y} />
-            <PrintField x={70} y={10} value={mappedData.applyDate_m} />
-            <PrintField x={80} y={10} value={mappedData.applyDate_d} />
-
-            <PrintField x={20} y={25} value={customer.overseasCountry || 'VIET NAM'} />
-            <PrintField x={20} y={28} value={customer.zairyuAddress} />
-            <PrintField x={20} y={32} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
-            <PrintField x={20} y={35} value={customer.fullName} />
-            <PrintField x={70} y={35} value={cleanPost(customer.myNumber)} charSpacing={22} />
-            
-            <PrintField x={30} y={40} value={mappedData.dob_era_yr} />
-            <PrintField x={40} y={40} value={mappedData.dob_m} />
-            <PrintField x={50} y={40} value={mappedData.dob_d} />
-
-            <PrintField x={20} y={50} value={cleanPost(rep.postalCode)} charSpacing={12} />
-            <PrintField x={20} y={53} value={rep.address} />
-            <PrintField x={20} y={56} value={rep.fullNameKana} />
-            <PrintField x={20} y={59} value={rep.fullName} />
-            <PrintField x={70} y={59} value={rep.phone} />
-            <PrintField x={80} y={59} value={rep.relationship || '納税管理人'} />
-            
-            <PrintField x={40} y={70} value={mappedData.departureDate_y} />
-            <PrintField x={50} y={70} value={mappedData.departureDate_m} />
-            <PrintField x={60} y={70} value={mappedData.departureDate_d} />
-          </>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const renderPageFields = (templateName: string, pageNumber: number, fallbackType: string) => {
+  const renderPageFields = (templateName: string, pageNumber: number, fallbackType: string, pageWidth: number = A4_W, pageHeight: number = A4_H) => {
     const config = allConfigs[templateName];
     if (config && Object.keys(config).length > 0) {
       const pageEntries = Object.entries(config).filter(([_, coord]) => coord.page === pageNumber);
@@ -545,8 +388,8 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
         return (
           <>
             {pageEntries.map(([tagId, coord]) => {
-              const xPercent = (coord.x / A4_W) * 100;
-              const yPercent = ((A4_H - coord.y) / A4_H) * 100;
+              const xPercent = (coord.x / pageWidth) * 100;
+              const yPercent = ((pageHeight - coord.y) / pageHeight) * 100;
               const baseKey = tagId.split('#')[0];
 
               if (coord.type === 'line' || baseKey.startsWith('line_')) {
@@ -558,6 +401,8 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
                     type="line"
                     width={coord.width}
                     thickness={coord.thickness}
+                    pageWidth={pageWidth}
+                    pageHeight={pageHeight}
                   />
                 );
               }
@@ -575,6 +420,8 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
                       width={coord.width || 20}
                       height={coord.height || 20}
                       thickness={coord.thickness || 1}
+                      pageWidth={pageWidth}
+                      pageHeight={pageHeight}
                     />
                   );
                 }
@@ -592,6 +439,9 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
                   value={textValue}
                   size={coord.size || 12}
                   width={coord.width}
+                  align={coord.align}
+                  pageWidth={pageWidth}
+                  pageHeight={pageHeight}
                 />
               );
             })}
@@ -600,13 +450,33 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       }
     }
 
-    return renderFallbackFields(fallbackType);
+    // No template config found — show placeholder
+    return (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-lg text-sm font-bold shadow">
+          ⚠️ Chưa có cấu hình tọa độ cho biểu mẫu này. Vui lòng thiết lập tại /admin/pdf-mapper
+        </div>
+      </div>
+    );
   };
 
   const activeDoc = DOCUMENT_TYPES.find(d => d.id === activeTab) || DOCUMENT_TYPES[0];
 
+  if (isLayoutMode) {
+    const firstTemplate = activeDoc.pages.find(p => p.templateName)?.templateName;
+    return (
+      <div className="fixed inset-0 z-[9999] bg-slate-100 flex flex-col h-screen overflow-hidden">
+        <PdfMapperClient 
+          inlineAppId={id} 
+          inlineTemplate={firstTemplate} 
+          onClose={() => setIsLayoutMode(false)} 
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col h-screen print:p-0 print:bg-white print:h-auto print:static overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col h-screen print:p-0 print:bg-white print:h-auto print:static overflow-hidden">
       
       {/* ── TOP CONTROLLER BAR ── */}
       <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between shrink-0 print:hidden border-b border-slate-800 shadow-md">
@@ -665,6 +535,20 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
             <Download className="w-3.5 h-3.5" />
             Tải PDF Trọn bộ
           </button>
+
+          {activeDoc.pages.some(p => p.templateName) && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsLayoutMode(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-md shadow-amber-600/20 transition-colors"
+              title="Mở PDF Mapper với dữ liệu hồ sơ này"
+            >
+              <FileImage className="w-3.5 h-3.5" />
+              Tùy chỉnh Tọa độ
+            </button>
+          )}
 
           <button
             type="button"
@@ -757,7 +641,7 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
               return (
                 <div key={`${activeDoc.id}-${idx}`} className="print:break-after-page mb-8 print:mb-0">
                   <PrintContainer pdfFile={page.pdfFile} pageNumber={page.pageNumber}>
-                    {renderPageFields(page.templateName, page.pageNumber, page.fallbackType)}
+                    {(dims) => renderPageFields(page.templateName, page.pageNumber, page.fallbackType, dims.width, dims.height)}
                   </PrintContainer>
                 </div>
               );

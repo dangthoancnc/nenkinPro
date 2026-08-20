@@ -45,6 +45,7 @@ export const MOCK_DATA: Record<string, string> = {
   noticeDate_m: '03',
   noticeDate_d: '01',
   taxYear_era_yr: '08', // Reiwa 8
+  taxYear_era_yr_unit: '8', // Reiwa 8 unit digit for preprinted 令和 0
   
   // 4. Tài khoản ngân hàng
   bankName: 'Vietcombank',
@@ -74,17 +75,17 @@ export const MOCK_DATA: Record<string, string> = {
   delegationPurpose: 'Đại diện làm thủ tục nhận tiền Nenkin và các thủ tục liên quan',
   agentRelationship: 'Đại lý ủy quyền',
   
-  // 7. Tính Thuế
-  totalExpectedJpy: '500000',
-  withheldTax: '102100',
-  received1stJpy: '397900',
-  received2ndJpy: '102100',
+  // 7. Tính Thuế (Số tiền nguyên khối có dấu phẩy phân cách hàng nghìn chuẩn Nhật)
+  totalExpectedJpy: '5,000,000',
+  withheldTax: '1,021,000',
+  received1stJpy: '3,979,000',
+  received2ndJpy: '1,021,000',
   tax2ndJpy: '0',
-  retirementDeductionAmount: '400000',
-  taxableRetirementIncome: '50000',
-  calculatedTax: '2500',
-  refundAmount: '99600',
-  serviceFeeJpy: '10000',
+  retirementDeductionAmount: '4,000,000',
+  taxableRetirementIncome: '1,000,000',
+  calculatedTax: '1,002,500',
+  refundAmount: '1,099,600',
+  serviceFeeJpy: '10,000',
   exchangeRate: '165',
   serviceFeeVnd: '1,650,000',
 
@@ -92,7 +93,7 @@ export const MOCK_DATA: Record<string, string> = {
   lumpSumWithdrawalNumber: '12345678901234',
   coverageMonths: '36',
   lastCoverageMonth: '2024/03',
-  averageStandardRemuneration: '220000',
+  averageStandardRemuneration: '220,000',
   paymentsMultiplier: '2.8',
   noticeDate_era_jp: '令和',
   noticeDate_era_yr: '07',
@@ -106,18 +107,31 @@ export const MOCK_DATA: Record<string, string> = {
   // 第二表 income source
   incomeSourceName: '日本年金機構',
   incomeTypeName: '退職',
-  incomeSourceAmount: '500000',
-  incomeSourceWithheld: '102100',
+  incomeSourceAmount: '5,000,000',
+  incomeSourceWithheld: '1,021,000',
 };
 
 // Generate split tags
 const generateSplitValues = (prefix: string, value: string, count: number) => {
-  const padded = value.padEnd(count, ' ');
   for (let i = 0; i < count; i++) {
-    MOCK_DATA[`${prefix}_${i + 1}`] = padded[i] !== ' ' ? padded[i] : '';
+    if (i < value.length) {
+      MOCK_DATA[`${prefix}_${i + 1}`] = value[i];
+    } else {
+      MOCK_DATA[`${prefix}_${i + 1}`] = '';
+    }
   }
 };
 
+const generateSplitValuesRight = (prefix: string, value: string, count: number = 10) => {
+  const digits = value.split('');
+  const padCount = Math.max(0, count - digits.length);
+  for (let i = 1; i <= count; i++) {
+    const digitIndex = i - 1 - padCount;
+    MOCK_DATA[`${prefix}_${i}`] = (digitIndex >= 0 && digitIndex < digits.length) ? digits[digitIndex] : '';
+  }
+};
+
+generateSplitValues('fullName_kata', 'グエン ヴァン A', 14);
 generateSplitValues('my_num', '123456789012', 12);
 generateSplitValues('nenkin', '1234567890', 10);
 generateSplitValues('phone', '09012345678', 11);
@@ -127,6 +141,11 @@ generateSplitValues('taxRep_phone', '08098765432', 11);
 generateSplitValues('taxRep_post', '1690074', 7);
 generateSplitValues('bank', '1234567', 7);
 generateSplitValues('swift', 'BFTVVNVX', 11);
+
+// Right aligned monetary split digits for boxes 48, 49, 52 (7 full slots - no empty slots in mock preview)
+generateSplitValuesRight('withheldTax_dig', '1021000', 7);
+generateSplitValuesRight('calculatedTax_dig', '1002500', 7);
+generateSplitValuesRight('refundAmount_dig', '1099600', 7);
 
 // Dates split tags
 generateSplitValues('dob_y', '1995', 4);
@@ -148,11 +167,73 @@ generateSplitValues('noticeDate_m', '03', 2);
 generateSplitValues('noticeDate_d', '01', 2);
 generateSplitValues('taxYear_era_yr', '08', 2);
 
+// Today & Doc Date mock values
+MOCK_DATA['today_era_jp'] = '令和';
+MOCK_DATA['today_era_yr'] = '08';
+MOCK_DATA['today_m'] = '02';
+MOCK_DATA['today_d'] = '15';
+generateSplitValues('today_era_yr', '08', 2);
+generateSplitValues('today_m', '02', 2);
+generateSplitValues('today_d', '15', 2);
+generateSplitValues('today_yymmdd', '080215', 6);
+
+MOCK_DATA['doc_date_era_jp'] = '令和';
+MOCK_DATA['doc_date_era_yr'] = '08';
+MOCK_DATA['doc_date_m'] = '02';
+MOCK_DATA['doc_date_d'] = '15';
+generateSplitValues('doc_date_era_yr', '08', 2);
+generateSplitValues('doc_date_m', '02', 2);
+generateSplitValues('doc_date_d', '15', 2);
+generateSplitValues('doc_date_yymmdd', '080215', 6);
+
 // Marks
 MOCK_DATA['permRes_YES_mark'] = '○';
 MOCK_DATA['permRes_NO_mark'] = '';
 MOCK_DATA['sex_M_mark'] = '○';
 MOCK_DATA['sex_F_mark'] = '';
+MOCK_DATA['dob_era_code'] = '3'; // Showa
+MOCK_DATA['bank_type_bank_mark'] = '○';
+MOCK_DATA['bank_type_shiten_mark'] = '○';
+MOCK_DATA['account_type_futsu_mark'] = '○';
+MOCK_DATA['furikae_danzoku_mark'] = '○';
+MOCK_DATA['bunri_mark'] = '○';
+
+// Phone groups
+MOCK_DATA['phone_group_1'] = '090';
+MOCK_DATA['phone_group_2'] = '1234';
+MOCK_DATA['phone_group_3'] = '5678';
+
+// Yucho Bank & Unified Bank Account Digits
+MOCK_DATA['yucho_kigo'] = '10120';
+generateSplitValues('yucho_kigo', '10120', 5);
+MOCK_DATA['yucho_bango'] = '1234567';
+generateSplitValues('yucho_bango', '1234567', 7);
+MOCK_DATA['yucho_dash'] = '-';
+MOCK_DATA['yucho_kigo_bango'] = '10120-1234567';
+generateSplitValues('account_dig', '10120-1234567', 13);
+
+// Income Breakdown (第二表)
+MOCK_DATA['incomeTypeName'] = '退職';
+MOCK_DATA['incomeItemName'] = '脱退一時金';
+MOCK_DATA['incomePayerName'] = '日本年金機構';
+MOCK_DATA['incomePayerAddress'] = '東京都杉並区高円寺南5-4-5';
+
+// Right-aligned Monetary Split Digits (7 box grid)
+function generateSplitDigitsRight(prefix: string, valueStr: string, count = 7) {
+  const digits = valueStr.replace(/\D/g, '');
+  for (let i = 1; i <= count; i++) {
+    const offsetFromRight = count - i;
+    if (offsetFromRight < digits.length) {
+      MOCK_DATA[`${prefix}_${i}`] = digits[digits.length - 1 - offsetFromRight];
+    } else {
+      MOCK_DATA[`${prefix}_${i}`] = '';
+    }
+  }
+}
+generateSplitDigitsRight('withheldTax_dig', '1021000', 7);
+generateSplitDigitsRight('calculatedTax_dig', '1002500', 7);
+generateSplitDigitsRight('refundAmount_dig', '1099600', 7);
+generateSplitValues('fullName_kata', 'グエン ヴァン A', 30);
 
 // Work histories
 for (let i = 1; i <= 5; i++) {

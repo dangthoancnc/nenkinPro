@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { Save, MousePointer2, Eye } from 'lucide-react';
+import { Save, MousePointer2, Eye, X } from 'lucide-react';
 import { MOCK_DATA } from '@/lib/mockData';
 import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCoords';
 
@@ -20,18 +21,90 @@ const TEMPLATE_NAMES: Record<string, string> = {
 
 import { getTagsForTemplate, getRequiredTags, FieldGroup } from '@/features/templates/template-field-catalog';
 
-type Coordinate = { x: number; y: number; size: number; page: number; value?: string; type?: string; width?: number; height?: number; thickness?: number };
+type Coordinate = { x: number; y: number; size: number; page: number; value?: string; type?: string; width?: number; height?: number; thickness?: number; fontWeight?: 'normal' | 'bold'; align?: 'left' | 'center' | 'right' };
 type ConfigMap = Record<string, Coordinate>;
 
-export default function PdfMapperPage() {
+export function calcAutoFitDimensions(
+  tag: string,
+  fontSize: number = 9,
+  customValue?: string,
+  config?: ConfigMap,
+  liveMappedData?: Record<string, string> | null
+): { width: number; height: number } {
+  const baseTag = tag.split('#')[0];
+  const type = config?.[tag]?.type;
+
+  if (type === 'line') {
+    return { width: 100, height: 14 };
+  }
+  if (type === 'circle') {
+    return { width: 22, height: 22 };
+  }
+
+  let text = customValue;
+  if (text === undefined) {
+    if (config?.[tag]?.value !== undefined) {
+      text = config[tag].value;
+    } else {
+      text = (liveMappedData ? liveMappedData[baseTag] : MOCK_DATA[baseTag]) || tag;
+    }
+  }
+
+  const str = String(text || '');
+  const len = Math.max(1, str.length);
+  const lineHeight = Math.round(fontSize * PDF_LINE_HEIGHT);
+
+  const isSingleChar = baseTag.includes('_dig_') || baseTag.endsWith('_unit') || /_\d+$/.test(baseTag);
+
+  if (isSingleChar) {
+    const w = Math.max(14, Math.ceil(fontSize * 1.4));
+    return { width: w, height: lineHeight };
+  }
+
+  let charWidthSum = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code > 255) {
+      charWidthSum += fontSize * 0.95;
+    } else {
+      charWidthSum += fontSize * 0.62;
+    }
+  }
+
+  const calculatedWidth = Math.max(24, Math.ceil(charWidthSum + 6));
+  return { width: calculatedWidth, height: lineHeight };
+}
+
+export default function PdfMapperClient({
+  inlineAppId,
+  inlineTemplate,
+  onClose
+}: {
+  inlineAppId?: string;
+  inlineTemplate?: string;
+  onClose?: () => void;
+} = {}) {
+  const searchParams = useSearchParams();
+  const initTemplate = inlineTemplate || searchParams.get('template') || '';
+  const initAppId = inlineAppId || searchParams.get('applicationId') || '';
+
   const [templates, setTemplates] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(initTemplate);
+  const [liveMappedData, setLiveMappedData] = useState<Record<string, string> | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [config, setConfig] = useState<ConfigMap>({});
   const [pageDimensions, setPageDimensions] = useState<Record<number, { width: number; height: number }>>({});
   
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [activeMode, setActiveMode] = useState<'select' | 'add' | 'delete'>('select');
+  const [strictFilter, setStrictFilter] = useState<boolean>(true);
+  
+  const [panelDock, setPanelDock] = useState<'right' | 'left'>('right');
+  const [panelMinimized, setPanelMinimized] = useState<boolean>(false);
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDraggingPanel, setIsDraggingPanel] = useState<boolean>(false);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<{
     page: number;
     startX: number;
@@ -41,11 +114,89 @@ export default function PdfMapperPage() {
   } | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ page: number; startX: number; startY: number } | null>(null);
+  const justFinishedDragSelectRef = useRef(false);
+  const justClickedPinRef = useRef(false);
 
   const [saving, setSaving] = useState(false);
   const [pdfScale, setPdfScale] = useState(1.0);
   const [showMockData, setShowMockData] = useState(false);
   const [autoFillStep, setAutoFillStep] = useState(15);
+
+  // Undo / Redo History Stack
+  const historyRef = useRef<ConfigMap[]>([]);
+  const historyPointerRef = useRef<number>(-1);
+  const isUndoRedoActionRef = useRef<boolean>(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const updateUndoRedoState = () => {
+    setCanUndo(historyPointerRef.current > 0);
+    setCanRedo(historyPointerRef.current < historyRef.current.length - 1);
+  };
+
+  const pushToHistory = (newConfig: ConfigMap) => {
+    if (isUndoRedoActionRef.current) {
+      isUndoRedoActionRef.current = false;
+      return;
+    }
+    const stack = historyRef.current.slice(0, historyPointerRef.current + 1);
+    if (stack.length > 0 && JSON.stringify(stack[stack.length - 1]) === JSON.stringify(newConfig)) {
+      return;
+    }
+    stack.push(JSON.parse(JSON.stringify(newConfig)));
+    if (stack.length > 50) stack.shift();
+    historyRef.current = stack;
+    historyPointerRef.current = stack.length - 1;
+    updateUndoRedoState();
+  };
+
+  const handleUndo = () => {
+    if (historyPointerRef.current > 0) {
+      isUndoRedoActionRef.current = true;
+      historyPointerRef.current -= 1;
+      const prevConfig = JSON.parse(JSON.stringify(historyRef.current[historyPointerRef.current]));
+      setConfig(prevConfig);
+      updateUndoRedoState();
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyPointerRef.current < historyRef.current.length - 1) {
+      isUndoRedoActionRef.current = true;
+      historyPointerRef.current += 1;
+      const nextConfig = JSON.parse(JSON.stringify(historyRef.current[historyPointerRef.current]));
+      setConfig(nextConfig);
+      updateUndoRedoState();
+    }
+  };
+
+  useEffect(() => {
+    pushToHistory(config);
+  }, [config]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: '/cmaps/',
@@ -66,7 +217,52 @@ export default function PdfMapperPage() {
     if (baseTag.startsWith('static_')) return 'Chữ tĩnh';
     if (baseTag.startsWith('line_')) return 'Đường kẻ';
     if (baseTag.startsWith('circle_')) return 'Khoanh tròn';
+    if (baseTag.startsWith('custom_') || baseTag.startsWith('the_moi_')) return 'Thẻ tự do / Thẻ mới';
     return baseTag;
+  };
+
+  const handleRemapTagSource = (oldTagKey: string, newFieldId: string) => {
+    if (!oldTagKey || !config[oldTagKey] || !newFieldId) return;
+
+    const currentCoord = config[oldTagKey];
+    let baseTargetTag = newFieldId;
+
+    if (newFieldId === 'custom') baseTargetTag = `custom_${Date.now()}`;
+    else if (newFieldId === 'static') baseTargetTag = `static_${Date.now()}`;
+    else if (newFieldId === 'line') baseTargetTag = `line_${Date.now()}`;
+    else if (newFieldId === 'circle') baseTargetTag = `circle_${Date.now()}`;
+
+    let finalTargetTag = baseTargetTag;
+    if (finalTargetTag === oldTagKey) return;
+
+    // Resolve duplicate tag key if tag already mapped
+    if (config[finalTargetTag]) {
+      let counter = 2;
+      while (config[`${baseTargetTag}#${counter}`]) {
+        counter++;
+      }
+      finalTargetTag = `${baseTargetTag}#${counter}`;
+    }
+
+    let newType = currentCoord.type || 'text';
+    if (baseTargetTag.startsWith('line')) newType = 'line';
+    else if (baseTargetTag.startsWith('circle')) newType = 'circle';
+    else newType = 'text';
+
+    setConfig(prev => {
+      const next = { ...prev };
+      delete next[oldTagKey];
+      next[finalTargetTag] = {
+        ...currentCoord,
+        type: newType,
+      };
+      return next;
+    });
+
+    setSelectedTag(finalTargetTag);
+    if (selectedTags.includes(oldTagKey)) {
+      setSelectedTags(prev => prev.map(t => t === oldTagKey ? finalTargetTag : t));
+    }
   };
 
   // Detect if a tag belongs to a split-char series (e.g. my_num_1 → prefix=my_num, index=1)
@@ -119,7 +315,38 @@ export default function PdfMapperPage() {
     });
   };
 
-  // Fetch templates list and setup PDF worker
+  const handleUpdateSeriesSpacing = (prefix: string, step: number) => {
+    const info = getSplitSeriesInfo(`${prefix}_1`);
+    if (!info) return;
+    const pinnedSiblings = info.siblings.filter(s => config[s]);
+    if (pinnedSiblings.length === 0) return;
+    
+    pinnedSiblings.sort((a, b) => {
+      const na = parseInt(a.match(/_?(\d+)$/)?.[1] || '0', 10);
+      const nb = parseInt(b.match(/_?(\d+)$/)?.[1] || '0', 10);
+      return na - nb;
+    });
+
+    const firstTag = pinnedSiblings[0];
+    const firstCoord = config[firstTag];
+    if (!firstCoord) return;
+    const firstIdx = parseInt(firstTag.match(/_?(\d+)$/)?.[1] || '1', 10);
+    const baseX = firstCoord.x - (firstIdx - 1) * step;
+
+    setConfig(prev => {
+      const next = { ...prev };
+      pinnedSiblings.forEach(sibTag => {
+        if (next[sibTag]) {
+          const sibIdx = parseInt(sibTag.match(/_?(\d+)$/)?.[1] || '1', 10);
+          const newX = Number((baseX + (sibIdx - 1) * step).toFixed(2));
+          next[sibTag] = { ...next[sibTag], x: newX };
+        }
+      });
+      return next;
+    });
+  };
+
+  // Fetch templates list, setup PDF worker, and optionally fetch live mapped data
   useEffect(() => {
     // Setup PDF worker on client side only, using local file to prevent CORS and version mismatch errors
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -129,10 +356,23 @@ export default function PdfMapperPage() {
       .then(data => {
         if (data.success && data.data) {
           setTemplates(data.data);
-          if (data.data.length > 0) setSelectedTemplate(data.data[0]);
+          if (!initTemplate && data.data.length > 0) {
+            setSelectedTemplate(data.data[0]);
+          }
         }
       });
-  }, []);
+
+    if (initAppId) {
+      fetch(`/api/applications/${initAppId}`)
+        .then(res => res.json())
+        .then(appData => {
+          if (appData && appData.mappedData) {
+            setLiveMappedData(appData.mappedData);
+          }
+        })
+        .catch(err => console.error('Failed to fetch live data:', err));
+    }
+  }, [initAppId, initTemplate]);
 
   // Fetch config when template changes
   useEffect(() => {
@@ -141,7 +381,21 @@ export default function PdfMapperPage() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          setConfig(data.data);
+          const normalized: ConfigMap = { ...data.data };
+          Object.keys(normalized).forEach(k => {
+            const baseK = k.split('#')[0];
+            const isSingle = baseK.includes('_dig_') || baseK.endsWith('_unit') || /_\d+$/.test(baseK);
+            if (isSingle) {
+              const sz = normalized[k].size || 9;
+              const compactW = Math.max(14, Math.ceil(sz * 1.4));
+              normalized[k] = { 
+                ...normalized[k], 
+                width: compactW, 
+                align: normalized[k].align || 'center' 
+              };
+            }
+          });
+          setConfig(normalized);
         } else {
           setConfig({});
         }
@@ -168,29 +422,184 @@ export default function PdfMapperPage() {
     }
   };
 
+  const handleBatchSetFontWeight = (weight: 'normal' | 'bold') => {
+    if (selectedTags.length === 0) return;
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) {
+          next[t] = { ...next[t], fontWeight: weight };
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBatchSetFontSize = (size: number) => {
+    if (selectedTags.length === 0 || size < 4 || size > 72) return;
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) {
+          next[t] = { ...next[t], size };
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBatchSetAlign = (align: 'left' | 'center' | 'right') => {
+    if (selectedTags.length === 0) return;
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) {
+          const autoDims = calcAutoFitDimensions(t, next[t].size || 9, next[t].value, next, liveMappedData);
+          next[t] = {
+            ...next[t],
+            align,
+            width: next[t].width || autoDims.width,
+            height: next[t].height || autoDims.height,
+          };
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBatchAlignTop = () => {
+    if (selectedTags.length < 2) return;
+    const existingCoords = selectedTags.map(t => config[t]).filter(Boolean);
+    if (existingCoords.length === 0) return;
+    const minY = Math.min(...existingCoords.map(c => c.y));
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) next[t] = { ...next[t], y: minY };
+      });
+      return next;
+    });
+  };
+
+  const handleBatchAlignBottom = () => {
+    if (selectedTags.length < 2) return;
+    const existingCoords = selectedTags.map(t => config[t]).filter(Boolean);
+    if (existingCoords.length === 0) return;
+    const maxY = Math.max(...existingCoords.map(c => c.y));
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) next[t] = { ...next[t], y: maxY };
+      });
+      return next;
+    });
+  };
+
+  const handleBatchAlignLeft = () => {
+    if (selectedTags.length < 2) return;
+    const existingCoords = selectedTags.map(t => config[t]).filter(Boolean);
+    if (existingCoords.length === 0) return;
+    const minX = Math.min(...existingCoords.map(c => c.x));
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) next[t] = { ...next[t], x: minX };
+      });
+      return next;
+    });
+  };
+
+  const handleBatchDistributeX = () => {
+    if (selectedTags.length < 3) return;
+    const items = selectedTags
+      .map(t => ({ tag: t, coord: config[t] }))
+      .filter(i => !!i.coord)
+      .sort((a, b) => a.coord.x - b.coord.x);
+    if (items.length < 3) return;
+
+    const minX = items[0].coord.x;
+    const maxX = items[items.length - 1].coord.x;
+    const step = (maxX - minX) / (items.length - 1);
+
+    setConfig(prev => {
+      const next = { ...prev };
+      items.forEach((item, index) => {
+        const newX = Math.round((minX + index * step) * 100) / 100;
+        if (next[item.tag]) next[item.tag] = { ...next[item.tag], x: newX };
+      });
+      return next;
+    });
+  };
+
+  const handleBatchAutoFit = () => {
+    if (selectedTags.length === 0) return;
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) {
+          const dims = calcAutoFitDimensions(t, next[t].size || 9, next[t].value, next, liveMappedData);
+          next[t] = { ...next[t], width: dims.width, height: dims.height };
+        }
+      });
+      return next;
+    });
+  };
+
+  const handlePanelMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
+    const panelEl = e.currentTarget.closest('.floating-panel') as HTMLElement;
+    if (!panelEl) return;
+    const rect = panelEl.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDraggingPanel(true);
+  };
+
+  useEffect(() => {
+    if (!isDraggingPanel) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setPanelPos({
+        x: e.clientX - dragOffsetRef.current.x,
+        y: e.clientY - dragOffsetRef.current.y
+      });
+    };
+    const handleMouseUp = () => setIsDraggingPanel(false);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingPanel]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName;
-      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+      const activeElement = document.activeElement;
+      const activeTag = activeElement?.tagName;
+      const isTextInput = activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && (activeElement as HTMLInputElement).type !== 'number');
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedTags.length > 0) {
-          e.preventDefault();
-          handleBatchDelete(selectedTags);
-        } else if (selectedTag && config[selectedTag]) {
-          e.preventDefault();
-          handleDeleteTag(selectedTag);
-          setSelectedTag(null);
+        if (!isTextInput) {
+          if (selectedTags.length > 0) {
+            e.preventDefault();
+            handleBatchDelete(selectedTags);
+          } else if (selectedTag && config[selectedTag]) {
+            e.preventDefault();
+            handleDeleteTag(selectedTag);
+            setSelectedTag(null);
+          }
+          return;
         }
-        return;
       }
 
       const activeTagsList = selectedTags.length > 0 ? selectedTags : (selectedTag && config[selectedTag] ? [selectedTag] : []);
       if (activeTagsList.length === 0) return;
 
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        if (isTextInput && !e.altKey && !e.ctrlKey) {
+          return;
+        }
         e.preventDefault();
-        const step = e.shiftKey ? 10 : 1;
+        const step = e.shiftKey ? 10 : (e.altKey ? 0.5 : 1);
         setConfig(prev => {
           const next = { ...prev };
           activeTagsList.forEach(t => {
@@ -213,74 +622,111 @@ export default function PdfMapperPage() {
   }, [selectedTag, selectedTags, config]);
 
   const handlePageMouseDown = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
+    if (e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
     
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const startX = e.clientX - rect.left;
+    const startY = e.clientY - rect.top;
 
-    dragStartRef.current = { page: pageIndex, startX: x, startY: y };
+    dragStartRef.current = { page: pageIndex, startX, startY };
     isDraggingRef.current = true;
-  };
 
-  const handlePageMouseMove = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
-    if (!isDraggingRef.current || !dragStartRef.current || dragStartRef.current.page !== pageIndex) return;
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current || !dragStartRef.current || dragStartRef.current.page !== pageIndex) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const curX = e.clientX - rect.left;
-    const curY = e.clientY - rect.top;
-    const startX = dragStartRef.current.startX;
-    const startY = dragStartRef.current.startY;
+      const curX = moveEvent.clientX - rect.left;
+      const curY = moveEvent.clientY - rect.top;
+      const sX = dragStartRef.current.startX;
+      const sY = dragStartRef.current.startY;
 
-    const dist = Math.hypot(curX - startX, curY - startY);
-    if (dist > 5) {
-      setSelectionBox({
-        page: pageIndex,
-        startX,
-        startY,
-        currentX: curX,
-        currentY: curY,
-      });
+      const dist = Math.hypot(curX - sX, curY - sY);
+      if (dist > 5) {
+        setSelectionBox({
+          page: pageIndex,
+          startX: sX,
+          startY: sY,
+          currentX: curX,
+          currentY: curY,
+        });
 
-      const minX = Math.min(startX, curX);
-      const maxX = Math.max(startX, curX);
-      const minY = Math.min(startY, curY);
-      const maxY = Math.max(startY, curY);
+        const minX = Math.min(sX, curX);
+        const maxX = Math.max(sX, curX);
+        const minY = Math.min(sY, curY);
+        const maxY = Math.max(sY, curY);
 
-      const matched: string[] = [];
-      const pageDim = pageDimensions[pageIndex] || { width: A4_W, height: A4_H };
-      Object.entries(config).forEach(([tagKey, coord]) => {
-        if (coord.page !== pageIndex) return;
-        const tagLeft = coord.x * pdfScale;
-        const tagTop = (pageDim.height - coord.y) * pdfScale;
+        const pageDim = pageDimensions[pageIndex] || { width: A4_W, height: A4_H };
+        const matched: string[] = [];
+        Object.entries(config).forEach(([tagKey, coord]) => {
+          if (coord.page !== pageIndex) return;
+          const tagLeft = coord.x * pdfScale;
+          const tagTop = (pageDim.height - coord.y) * pdfScale;
+          const tagRight = tagLeft + (coord.width || 40) * pdfScale;
+          const tagBottom = tagTop + (coord.height || 15) * pdfScale;
 
-        if (tagLeft >= minX - 15 && tagLeft <= maxX + 15 && tagTop >= minY - 15 && tagTop <= maxY + 15) {
-          matched.push(tagKey);
+          // Check if tag bounding box intersects marquee selection box
+          const intersects = !(tagRight < minX || tagLeft > maxX || tagBottom < minY || tagTop > maxY);
+          if (intersects) {
+            matched.push(tagKey);
+          }
+        });
+
+        setSelectedTags(matched);
+      }
+    };
+
+    const handleWindowMouseUp = (upEvent: MouseEvent) => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+
+      if (isDraggingRef.current && dragStartRef.current) {
+        const totalDist = Math.hypot(upEvent.clientX - (rect.left + dragStartRef.current.startX), upEvent.clientY - (rect.top + dragStartRef.current.startY));
+        if (totalDist > 5) {
+          justFinishedDragSelectRef.current = true;
         }
-      });
+        setSelectionBox(null);
+      }
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
+    };
 
-      setSelectedTags(matched);
-    }
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
   };
 
-  const handlePageMouseUp = () => {
-    if (isDraggingRef.current && selectionBox) {
-      setSelectionBox(null);
-    }
-    isDraggingRef.current = false;
-    dragStartRef.current = null;
-  };
-
-  // Handle click on PDF to place the tag
+  // Handle click on PDF to place the tag or deselect
   const handlePdfClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (justClickedPinRef.current) {
+      justClickedPinRef.current = false;
+      return;
+    }
+    const target = e.target as HTMLElement;
+    if (target.closest('.pdf-tag-pin')) {
+      return;
+    }
+    if (justFinishedDragSelectRef.current) {
+      justFinishedDragSelectRef.current = false;
+      return;
+    }
     if (selectionBox) return; // Don't place tag if we were drag selecting
-    if (!selectedTag) return;
+    if (activeMode !== 'add' || !selectedTag) {
+      if (activeMode === 'select') {
+        setSelectedTags([]);
+        setSelectedTag(null);
+      }
+      return;
+    }
+
+    // Require Ctrl + Click (or Cmd + Click on Mac) to place tag in Add mode
+    if (!e.ctrlKey && !e.metaKey) {
+      return;
+    }
     
     const baseTag = selectedTag.split('#')[0];
     let finalTag = baseTag;
 
-    if (!baseTag.startsWith('static_') && !baseTag.startsWith('line_') && !baseTag.startsWith('circle_')) {
+    if (!baseTag.startsWith('static_') && !baseTag.startsWith('line_') && !baseTag.startsWith('circle_') && !baseTag.startsWith('custom_') && !baseTag.startsWith('the_moi_')) {
       if (config[finalTag]) {
          let counter = 1;
          while (config[`${baseTag}#${counter}`]) {
@@ -305,36 +751,174 @@ export default function PdfMapperPage() {
     const actualX = clickX / pdfScale;
     const actualY = pageDim.height - (clickY / pdfScale);
 
-    setConfig(prev => ({
-      ...prev,
-      [finalTag]: {
-        page: pageIndex,
-        x: Number(actualX.toFixed(2)),
-        y: Number(actualY.toFixed(2)),
-        size: prev[selectedTag]?.size || 9,
-        type: baseTag.startsWith('line_') ? 'line' : baseTag.startsWith('circle_') ? 'circle' : 'text',
-        width: baseTag.startsWith('line_') ? (prev[selectedTag]?.width || 100) : baseTag.startsWith('circle_') ? (prev[selectedTag]?.width || 20) : undefined,
-        height: baseTag.startsWith('circle_') ? (prev[selectedTag]?.height || 20) : undefined,
-        thickness: (baseTag.startsWith('line_') || baseTag.startsWith('circle_')) ? (prev[selectedTag]?.thickness || 1) : undefined,
-      }
-    }));
+    setConfig(prev => {
+      const initialSize = prev[selectedTag]?.size || 9;
+      const initialType = baseTag.startsWith('line_') ? 'line' : baseTag.startsWith('circle_') ? 'circle' : 'text';
+      const autoDims = calcAutoFitDimensions(finalTag, initialSize, undefined, prev, liveMappedData);
+      const isSingleChar = baseTag.includes('_dig_') || baseTag.endsWith('_unit') || /_\d+$/.test(baseTag);
+      const defaultAlign = (isSingleChar || baseTag.startsWith('circle_')) ? 'center' : 'left';
+
+      return {
+        ...prev,
+        [finalTag]: {
+          page: pageIndex,
+          x: Number(actualX.toFixed(2)),
+          y: Number(actualY.toFixed(2)),
+          size: initialSize,
+          type: initialType,
+          align: prev[selectedTag]?.align || defaultAlign,
+          width: baseTag.startsWith('line_') ? (prev[selectedTag]?.width || 100) : baseTag.startsWith('circle_') ? (prev[selectedTag]?.width || 22) : (prev[selectedTag]?.width || autoDims.width),
+          height: baseTag.startsWith('circle_') ? (prev[selectedTag]?.height || 22) : (prev[selectedTag]?.height || autoDims.height),
+          thickness: (baseTag.startsWith('line_') || baseTag.startsWith('circle_')) ? (prev[selectedTag]?.thickness || 1) : undefined,
+        }
+      };
+    });
     
     setSelectedTag(finalTag);
+    setActiveMode('select'); // Return to select mode after placing
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent, tagKey: string, resizeType: 'line-width' | 'circle-size' | 'text-box') => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!config[tagKey]) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialWidth = config[tagKey].width || 100;
+    const initialHeight = config[tagKey].height || Math.round((config[tagKey].size || 12) * PDF_LINE_HEIGHT);
+
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      const dx = (moveEvent.clientX - startX) / pdfScale;
+      const dy = (moveEvent.clientY - startY) / pdfScale;
+
+      setConfig(prev => {
+        if (!prev[tagKey]) return prev;
+        const newWidth = Math.max(15, Math.round(initialWidth + dx));
+        const newHeight = Math.max(10, Math.round(initialHeight + dy));
+        return {
+          ...prev,
+          [tagKey]: {
+            ...prev[tagKey],
+            width: newWidth,
+            height: resizeType === 'line-width' ? prev[tagKey].height : newHeight,
+          }
+        };
+      });
+    };
+
+    const handleWindowMouseUp = () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+  };
+
+  const handlePinMouseDown = (e: React.MouseEvent, tagKey: string, pageIdx: number) => {
+    if (e.button !== 0) return;
+    justClickedPinRef.current = true;
+
+    // Decouple move from resize: do not start position move if clicking inside resize handle corner of textarea/input
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+      const rect = target.getBoundingClientRect();
+      const isResizeCorner = (e.clientX >= rect.right - 18) && (e.clientY >= rect.bottom - 18);
+      if (isResizeCorner) {
+        return;
+      }
+    }
+
+    e.stopPropagation();
+
+    if (activeMode === 'delete') {
+      handleDeleteTag(tagKey);
+      if (selectedTag === tagKey) setSelectedTag(null);
+      return;
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const isMulti = selectedTags.includes(tagKey);
+    const targets = isMulti ? selectedTags : [tagKey];
+
+    const initialCoords: Record<string, { x: number; y: number }> = {};
+    targets.forEach(t => {
+      if (config[t]) {
+        initialCoords[t] = { x: config[t].x, y: config[t].y };
+      }
+    });
+
+    let hasDragged = false;
+
+    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+      const dxScreen = moveEvent.clientX - startX;
+      const dyScreen = moveEvent.clientY - startY;
+
+      if (!hasDragged && Math.hypot(dxScreen, dyScreen) > 3) {
+        hasDragged = true;
+      }
+
+      if (hasDragged) {
+        const pdfDx = dxScreen / pdfScale;
+        const pdfDy = -dyScreen / pdfScale;
+
+        setConfig(prev => {
+          const next = { ...prev };
+          Object.entries(initialCoords).forEach(([t, orig]) => {
+            if (next[t]) {
+              next[t] = {
+                ...next[t],
+                x: Number((orig.x + pdfDx).toFixed(2)),
+                y: Number((orig.y + pdfDy).toFixed(2)),
+              };
+            }
+          });
+          return next;
+        });
+      }
+    };
+
+    const handleWindowMouseUp = (upEvent: MouseEvent) => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+
+      setSelectedTag(tagKey);
+      if (!hasDragged) {
+        if (upEvent.shiftKey) {
+          setSelectedTags(prev => prev.includes(tagKey) ? prev.filter(t => t !== tagKey) : [...prev, tagKey]);
+        }
+      }
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+  };
+
+  const handleAddCustomTag = () => {
+    const key = `custom_${Date.now()}`;
+    setSelectedTag(key);
+    setActiveMode('add');
   };
 
   const handleAddStaticTag = () => {
     const key = `static_${Date.now()}`;
     setSelectedTag(key);
+    setActiveMode('add');
   };
 
   const handleAddLineTag = () => {
     const key = `line_${Date.now()}`;
     setSelectedTag(key);
+    setActiveMode('add');
   };
 
   const handleAddCircleTag = () => {
     const key = `circle_${Date.now()}`;
     setSelectedTag(key);
+    setActiveMode('add');
   };
 
   const handleSave = async () => {
@@ -390,12 +974,27 @@ export default function PdfMapperPage() {
             {templates.map(t => <option key={t} value={t}>{TEMPLATE_NAMES[t] || t}</option>)}
           </select>
 
-          <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => setShowMockData(!showMockData)}>
-            <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${showMockData ? 'bg-blue-500' : 'bg-slate-300'}`}>
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showMockData ? 'translate-x-5' : 'translate-x-0'}`}></div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-full mb-3 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              <X size={16} /> Quay lại màn hình In
+            </button>
+          )}
+
+          {initAppId ? (
+            <div className="flex items-center gap-2 mb-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 font-medium text-xs">
+              <span>🌟 Đang dùng dữ liệu thực tế (Live Data)</span>
             </div>
-            <span className="text-sm font-medium text-slate-700 flex items-center gap-1"><Eye size={14}/> Hiển thị Dữ liệu mẫu</span>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => setShowMockData(!showMockData)}>
+              <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${showMockData ? 'bg-blue-500' : 'bg-slate-300'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showMockData ? 'translate-x-5' : 'translate-x-0'}`}></div>
+              </div>
+              <span className="text-sm font-medium text-slate-700 flex items-center gap-1"><Eye size={14}/> Hiển thị Dữ liệu mẫu</span>
+            </div>
+          )}
 
           <button
             onClick={handleSave}
@@ -408,10 +1007,24 @@ export default function PdfMapperPage() {
 
         <div className="p-4 flex-1 overflow-y-auto">
           <div className="mb-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">1. Chọn thẻ để ghim</h3>
+            <div className="flex items-center justify-between mb-3 bg-slate-100 p-1.5 rounded border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-600">Lọc thẻ theo mẫu:</span>
+              <button
+                type="button"
+                onClick={() => setStrictFilter(!strictFilter)}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-all ${
+                  strictFilter
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {strictFilter ? `🎯 Chỉ form ${selectedTemplate || ''}` : '🌐 Hiện tất cả thẻ'}
+              </button>
+            </div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Chọn thẻ để ghim</h3>
             <p className="text-xs text-slate-500 mb-3">Bấm vào một thẻ bên dưới, sau đó click vào vị trí tương ứng trên hình PDF để ghim.</p>
             <div className="flex flex-col gap-3">
-              {getTagsForTemplate(selectedTemplate || '*').map(group => (
+              {getTagsForTemplate(strictFilter ? (selectedTemplate || '*') : '*').map(group => (
                 <div key={group.name} className="border border-slate-200 rounded p-2 bg-white">
                   <h4 className="text-xs font-bold text-slate-600 mb-2">{group.name}</h4>
                   <div className="flex flex-wrap gap-1">
@@ -423,7 +1036,15 @@ export default function PdfMapperPage() {
                         <button
                           key={baseTag}
                           title={baseTag}
-                          onClick={() => setSelectedTag(isSelected ? null : baseTag)}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTag(null);
+                              setActiveMode('select');
+                            } else {
+                              setSelectedTag(baseTag);
+                              setActiveMode('add');
+                            }
+                          }}
                           className={`px-1.5 py-1 text-[10px] font-medium rounded border transition-colors text-left ${
                             isSelected
                               ? 'bg-blue-100 border-blue-500 text-blue-700 ring-1 ring-blue-200' 
@@ -441,18 +1062,22 @@ export default function PdfMapperPage() {
               ))}
             </div>
             
-            <div className="mt-3 flex gap-1">
+            <div className="mt-3 grid grid-cols-2 gap-1.5">
+              <button 
+                onClick={handleAddCustomTag}
+                className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] py-1.5 rounded hover:bg-blue-100 font-bold whitespace-nowrap"
+              >+ Thẻ Mới / Thẻ Trống</button>
               <button 
                 onClick={handleAddStaticTag}
-                className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] py-1.5 rounded hover:bg-amber-100 font-medium whitespace-nowrap"
+                className="bg-amber-50 border border-amber-200 text-amber-700 text-[10px] py-1.5 rounded hover:bg-amber-100 font-medium whitespace-nowrap"
               >+ Chữ Tĩnh</button>
               <button 
                 onClick={handleAddLineTag}
-                className="flex-1 bg-purple-50 border border-purple-200 text-purple-700 text-[10px] py-1.5 rounded hover:bg-purple-100 font-medium whitespace-nowrap"
+                className="bg-purple-50 border border-purple-200 text-purple-700 text-[10px] py-1.5 rounded hover:bg-purple-100 font-medium whitespace-nowrap"
               >+ Đường Kẻ</button>
               <button 
                 onClick={handleAddCircleTag}
-                className="flex-1 bg-rose-50 border border-rose-200 text-rose-700 text-[10px] py-1.5 rounded hover:bg-rose-100 font-medium whitespace-nowrap"
+                className="bg-rose-50 border border-rose-200 text-rose-700 text-[10px] py-1.5 rounded hover:bg-rose-100 font-medium whitespace-nowrap"
               >+ Khoanh Tròn</button>
             </div>
 
@@ -471,6 +1096,61 @@ export default function PdfMapperPage() {
                   <div className="text-[10px] text-emerald-600 mb-2">
                     Tổng: {info.total} thẻ | Đã ghim: {alreadyPinned} | Còn: {info.missingTags.length}
                   </div>
+                  <div className="flex flex-col gap-1.5 mb-2.5 bg-white p-2 rounded border border-emerald-200">
+                    <label className="text-[10px] text-emerald-800 font-bold">Giãn khoảng cách X giữa các ô:</label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setAutoFillStep(prev => Number(Math.max(5, prev - 0.5).toFixed(1)))}
+                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs w-6 h-6 rounded font-bold"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={autoFillStep}
+                        onChange={e => setAutoFillStep(Number(e.target.value) || 15)}
+                        className="w-16 text-xs p-1 border border-emerald-300 rounded text-center font-bold text-emerald-900 bg-emerald-50/50"
+                      />
+                      <span className="text-[10px] text-emerald-600 font-medium">px/ô</span>
+                      <button
+                        type="button"
+                        onClick={() => setAutoFillStep(prev => Number((prev + 0.5).toFixed(1)))}
+                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs w-6 h-6 rounded font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {[13, 14, 14.5, 15, 15.5, 16, 18, 20].map(s => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setAutoFillStep(s)}
+                          className={`px-1.5 py-0.5 text-[9px] rounded font-bold border ${
+                            autoFillStep === s
+                              ? 'bg-emerald-600 text-white border-emerald-700'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {s}px
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {alreadyPinned > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateSeriesSpacing(info.prefix, autoFillStep)}
+                      className="w-full mb-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] py-1.5 rounded-lg font-bold transition-colors flex items-center justify-center gap-1 shadow-sm"
+                      title="Cập nhật lại khoảng cách X giữa các ô cho các thẻ đã ghim"
+                    >
+                      ⚡ Cập nhật khoảng cách ({autoFillStep}px) cho {alreadyPinned} thẻ đã ghim
+                    </button>
+                  )}
+
                   {info.missingTags.length > 0 ? (
                     <>
                       <div className="grid grid-cols-2 gap-1.5 mb-2">
@@ -490,11 +1170,6 @@ export default function PdfMapperPage() {
                           <label className="text-[10px] text-emerald-700 font-medium">Y (hàng ngang):</label>
                           <input type="number" step="0.5" id="af_y" defaultValue={baseCoord?.y ?? 500} className="w-full text-xs p-1 border border-emerald-300 rounded mt-0.5" />
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <label className="text-[10px] text-emerald-700 font-medium whitespace-nowrap">Bước X:</label>
-                        <input type="number" step="0.5" value={autoFillStep} onChange={e => setAutoFillStep(Number(e.target.value) || 15)} className="w-16 text-xs p-1 border border-emerald-300 rounded text-center" />
-                        <span className="text-[10px] text-emerald-500">px/ô</span>
                       </div>
                       <button
                         onClick={() => {
@@ -523,11 +1198,11 @@ export default function PdfMapperPage() {
                         ⚡ Ghim {info.missingTags.length} thẻ còn lại
                       </button>
                       <p className="text-[9px] text-emerald-500 mt-1 text-center">
-                        Ghim {info.prefix}_1 → {info.prefix}_{info.total}, cùng hàng Y, cách đều X
+                        Ghim {info.prefix}_1 → {info.prefix}_{info.total}, cùng hàng Y, cách đều X ({autoFillStep}px)
                       </p>
                     </>
                   ) : (
-                    <p className="text-[10px] text-emerald-600 font-medium">✅ Tất cả {info.total} thẻ đã được ghim</p>
+                    <p className="text-[10px] text-emerald-600 font-medium text-center">✅ Tất cả {info.total} thẻ đã được ghim</p>
                   )}
                 </div>
               );
@@ -624,51 +1299,251 @@ export default function PdfMapperPage() {
 
       {/* Right Content: PDF Viewer */}
       <div className="flex-1 bg-slate-300 rounded-xl overflow-hidden shadow-inner flex flex-col relative">
-        {selectedTags.length > 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-2xl text-sm font-semibold z-50 flex items-center gap-3 animate-bounce">
-            <span>Đã chọn hàng loạt: <strong>{selectedTags.length} thẻ</strong></span>
+        {activeMode === 'add' && selectedTag && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 px-4 py-2 rounded-full shadow-2xl text-xs font-bold z-50 flex items-center gap-2 border-2 border-amber-300 animate-pulse">
+            <span>💡 Giữ phím <strong>Ctrl + Click</strong> vào vị trí trên phôi PDF để ghim thẻ <u>{getTagLabel(selectedTag)}</u></span>
             <button
-              onClick={() => handleBatchDelete()}
-              className="bg-white text-red-700 hover:bg-red-50 px-3 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              onClick={() => { setActiveMode('select'); setSelectedTag(null); }}
+              className="ml-2 bg-slate-900 text-white px-2 py-0.5 rounded-full text-[10px] hover:bg-slate-800 font-bold"
             >
-              🗑️ Xóa tất cả thẻ đã chọn (Phím Delete)
-            </button>
-            <button
-              onClick={() => setSelectedTags([])}
-              className="text-red-200 hover:text-white text-xs underline"
-            >
-              Hủy chọn
+              Hủy
             </button>
           </div>
         )}
 
-        {selectedTag && selectedTags.length === 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
-            <MousePointer2 size={16} /> Đang chọn: {getTagLabel(selectedTag)} <span className="text-[10px] text-blue-200 font-mono">({selectedTag})</span> - Hãy click vào bản xem trước
+        {selectedTags.length > 0 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full shadow-2xl text-sm font-semibold z-50 flex items-center gap-2 border border-slate-700 backdrop-blur-md animate-bounce">
+            <span className="text-xs text-slate-200">Đã chọn: <strong className="text-white">{selectedTags.length} thẻ</strong></span>
+            <div className="h-4 w-px bg-slate-700 my-auto"></div>
+            <button
+              onClick={handleBatchAlignTop}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              title="Căn hàng ngang theo mép Y trên cùng"
+            >
+              ⬆️ Căn Top
+            </button>
+            <button
+              onClick={handleBatchAlignBottom}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              title="Căn hàng ngang theo mép Y dưới cùng"
+            >
+              ⬇️ Căn Bottom
+            </button>
+            <button
+              onClick={handleBatchAlignLeft}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              title="Căn lề cột dọc theo X"
+            >
+              ⬅️ Căn Left
+            </button>
+            {selectedTags.length >= 3 && (
+              <button
+                onClick={handleBatchDistributeX}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+                title="Tự động phân bổ cách đều theo chiều ngang"
+              >
+                ↔️ Cách đều
+              </button>
+            )}
+            <button
+              onClick={handleBatchAutoFit}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              title="Tự động co dãn vừa khít chữ mẫu"
+            >
+              ✨ Auto-fit tất cả
+            </button>
+            <div className="h-4 w-px bg-slate-700 my-auto"></div>
+            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-600 px-2 py-1 rounded-full">
+              <span className="text-xs font-bold text-slate-300">Cỡ chữ:</span>
+              <button
+                onClick={() => {
+                  const current = config[selectedTags[0]]?.size ?? 9;
+                  handleBatchSetFontSize(Math.max(4, current - 1));
+                }}
+                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-5 h-5 rounded font-bold flex items-center justify-center border border-slate-500"
+                title="Giảm cỡ chữ cho tất cả thẻ đang chọn"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min="4"
+                max="72"
+                value={config[selectedTags[0]]?.size ?? 9}
+                onChange={(e) => handleBatchSetFontSize(Number(e.target.value) || 9)}
+                className="w-10 text-center bg-slate-950 border border-slate-600 text-white font-bold text-xs rounded py-0.5 focus:ring-1 focus:ring-blue-400 outline-none"
+                title="Nhập cỡ chữ cho tất cả thẻ đang chọn"
+              />
+              <button
+                onClick={() => {
+                  const current = config[selectedTags[0]]?.size ?? 9;
+                  handleBatchSetFontSize(Math.min(72, current + 1));
+                }}
+                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-5 h-5 rounded font-bold flex items-center justify-center border border-slate-500"
+                title="Tăng cỡ chữ cho tất cả thẻ đang chọn"
+              >
+                +
+              </button>
+            </div>
+            <button
+              onClick={() => handleBatchSetFontWeight('bold')}
+              className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded-full text-xs font-bold border border-slate-600 transition-all flex items-center gap-1"
+            >
+              <span className="font-bold text-xs">B</span> Đậm
+            </button>
+            <button
+              onClick={() => handleBatchSetFontWeight('normal')}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full text-xs font-medium border border-slate-600 transition-all"
+            >
+              Thường
+            </button>
+            <button
+              onClick={() => handleBatchSetAlign('right')}
+              className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded-full text-xs font-bold border border-slate-600 transition-all flex items-center gap-1"
+              title="Dạt tất cả thẻ đã chọn về lề phải ô"
+            >
+              ➡️ Căn Phải
+            </button>
+            <button
+              onClick={() => handleBatchDelete()}
+              className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+            >
+              🗑️ Xóa ({selectedTags.length})
+            </button>
+            <button
+              onClick={() => setSelectedTags([])}
+              className="text-slate-400 hover:text-white text-xs underline ml-1"
+            >
+              Hủy
+            </button>
+          </div>
+        )}
+
+        {activeMode === 'add' && selectedTag && selectedTags.length === 0 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
+            <MousePointer2 size={16} /> 📌 Chế độ Ghim Thẻ: {getTagLabel(selectedTag)} <span className="text-[10px] text-emerald-200 font-mono">({selectedTag})</span> - Click vào PDF để ghim!
+          </div>
+        )}
+
+        {activeMode === 'delete' && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
+            🗑️ Chế độ Xóa Thẻ: Click vào bất kỳ thẻ nào trên hình PDF để xóa
           </div>
         )}
         
         {/* Floating Tinh Chinh */}
         {selectedTag && config[selectedTag] && (
-            <div className="absolute top-20 right-4 w-64 bg-white/90 backdrop-blur shadow-xl rounded-xl border border-blue-200 p-4 z-50">
-              <h4 className="text-sm font-bold text-blue-800 mb-2">
-                Tinh chỉnh: {getTagLabel(selectedTag)}
-                <div className="text-[10px] font-mono font-normal text-blue-500">({selectedTag})</div>
-              </h4>
-              <p className="text-[10px] text-blue-600 mb-2 uppercase font-medium">Dùng phím mũi tên để dịch chuyển</p>
-              
-              {(!config[selectedTag].type || config[selectedTag].type === 'text') && (
-                <div className="mb-2">
-                  <label className="text-xs text-blue-600">Nội dung (Chữ tĩnh / Xem trước):</label>
-                  <input 
-                    type="text" 
-                    value={config[selectedTag].value || ''} 
-                    onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], value: e.target.value}}))} 
-                    placeholder="Nhập nội dung hiển thị..."
-                    className="w-full text-sm p-1.5 border border-blue-200 rounded mt-1" 
-                  />
+          <div
+            className={`floating-panel fixed z-50 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl border border-blue-200 transition-all ${
+              panelPos ? '' : panelDock === 'left' ? 'left-6 top-24' : 'right-6 top-24'
+            } ${panelMinimized ? 'w-64 p-2.5' : 'w-80 p-4'}`}
+            style={panelPos ? { left: `${panelPos.x}px`, top: `${panelPos.y}px`, position: 'fixed' } : undefined}
+          >
+            {/* Panel Header & Drag Bar */}
+            <div
+              onMouseDown={handlePanelMouseDown}
+              className="flex items-center justify-between cursor-move select-none border-b border-blue-100 pb-2 mb-2"
+            >
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <span className="text-slate-400 font-bold text-xs cursor-move">⋮⋮</span>
+                <h4 className="text-xs font-bold text-blue-900 truncate">
+                  {getTagLabel(selectedTag)}
+                  <span className="text-[10px] font-mono font-normal text-blue-500 ml-1">({selectedTag})</span>
+                </h4>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPanelDock(d => (d === 'right' ? 'left' : 'right'));
+                    setPanelPos(null);
+                  }}
+                  className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
+                  title={panelDock === 'right' ? 'Chuyển Popup sang góc trái' : 'Chuyển Popup sang góc phải'}
+                >
+                  {panelDock === 'right' ? '👈 Trái' : 'Phải 👉'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelMinimized(!panelMinimized)}
+                  className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 rounded border border-slate-300"
+                  title={panelMinimized ? 'Mở rộng bảng tinh chỉnh' : 'Thu gọn bảng tinh chỉnh'}
+                >
+                  {panelMinimized ? '＋' : '－'}
+                </button>
+              </div>
+            </div>
+
+            {panelMinimized ? (
+              <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                <span>📍 X:{config[selectedTag].x} Y:{config[selectedTag].y}</span>
+                <button
+                  onClick={() => setPanelMinimized(false)}
+                  className="text-blue-600 font-bold hover:underline"
+                >
+                  Mở rộng
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-[9px] text-blue-600 mb-2 font-medium">
+                  💡 Kéo tiêu đề để di chuyển Popup | Dùng Alt + Mũi tên để dịch chuyển
+                </p>
+                
+                {/* Tag Field Source Selector */}
+                <div className="mb-3 p-2 bg-blue-50/80 border border-blue-200 rounded-lg">
+                  <label className="text-[11px] font-bold text-blue-900 block mb-1">
+                    🎯 Nguồn thẻ (Trường dữ liệu):
+                  </label>
+                  <select
+                    value={selectedTag.split('#')[0]}
+                    onChange={(e) => handleRemapTagSource(selectedTag, e.target.value)}
+                    className="w-full text-xs p-1.5 border border-blue-300 rounded bg-white font-medium text-slate-800 shadow-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <optgroup label="── Loại Thẻ Tùy Chỉnh ──">
+                      <option value="custom">Thẻ mới / Thẻ tự do</option>
+                      <option value="static">Chữ tĩnh (Cố định)</option>
+                      <option value="line">Đường kẻ (Gạch chân)</option>
+                      <option value="circle">Khoanh tròn</option>
+                    </optgroup>
+                    {getTagsForTemplate(selectedTemplate || '*').map(group => (
+                      <optgroup key={group.name} label={`── ${group.name} ──`}>
+                        {group.tags.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.label} ({t.id})
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
-              )}
+              
+              {(!config[selectedTag].type || config[selectedTag].type === 'text') && (() => {
+                const baseKey = selectedTag.split('#')[0];
+                const monetaryKeys = [
+                  'totalExpectedJpy', 'received1stJpy', 'received2ndJpy', 'withheldTax',
+                  'retirementDeductionAmount', 'taxableRetirementIncome', 'calculatedTax',
+                  'refundAmount', 'tax2ndJpy', 'incomeSourceAmount', 'incomeSourceWithheld',
+                  'serviceFeeJpy', 'averageStandardRemuneration'
+                ];
+                let displayVal = config[selectedTag].value ?? ((liveMappedData ? liveMappedData[baseKey] : (showMockData ? MOCK_DATA[baseKey] : '')));
+                if (monetaryKeys.includes(baseKey) && displayVal) {
+                  const numStr = String(displayVal).replace(/\D/g, '');
+                  if (numStr) displayVal = Number(numStr).toLocaleString('en-US');
+                }
+                return (
+                  <div className="mb-2">
+                    <label className="text-xs text-blue-600">Nội dung (Chữ tĩnh / Xem trước):</label>
+                    <input 
+                      type="text" 
+                      value={displayVal || ''} 
+                      onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], value: e.target.value}}))} 
+                      placeholder="Nhập nội dung hiển thị..."
+                      className="w-full text-sm p-1.5 border border-blue-200 rounded mt-1 font-mono font-bold text-slate-800" 
+                    />
+                  </div>
+                );
+              })()}
 
               {(config[selectedTag].type === 'line' || config[selectedTag].type === 'circle' || !config[selectedTag].type || config[selectedTag].type === 'text') && (
                 <div className="flex gap-2 mb-2">
@@ -711,6 +1586,120 @@ export default function PdfMapperPage() {
                   <input type="number" min="4" max="72" value={config[selectedTag].size ?? 9} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], size: Number(e.target.value) || 9}}))} className="w-full text-sm p-1 border border-blue-300 rounded mt-1 text-center font-bold text-blue-800 bg-blue-50/80" />
                 </div>
               </div>
+
+              {/* Kiểu chữ In đậm / Hủy in đậm */}
+              <div className="flex items-center justify-between mb-3 p-2 bg-blue-50/70 border border-blue-200 rounded-lg">
+                <span className="text-xs text-blue-900 font-semibold">Kiểu chữ:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentWeight = config[selectedTag].fontWeight;
+                    const nextWeight = currentWeight === 'bold' ? 'normal' : 'bold';
+                    setConfig(prev => ({
+                      ...prev,
+                      [selectedTag]: { ...prev[selectedTag], fontWeight: nextWeight }
+                    }));
+                  }}
+                  className={`px-3 py-1 text-xs font-bold rounded border transition-all flex items-center gap-1.5 shadow-xs ${
+                    config[selectedTag].fontWeight === 'bold'
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="font-bold text-sm">B</span> {config[selectedTag].fontWeight === 'bold' ? 'Đang In Đậm' : 'In Thường (Hủy Đậm)'}
+                </button>
+              </div>
+
+              {/* Căn lề chữ: Trái / Giữa / Phải */}
+              <div className="flex items-center justify-between mb-3 p-2 bg-blue-50/70 border border-blue-200 rounded-lg">
+                <span className="text-xs text-blue-900 font-semibold">Căn lề chữ:</span>
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded border border-blue-200 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'left',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
+                      (!config[selectedTag].align || config[selectedTag].align === 'left')
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                    title="Căn lề Trái"
+                  >
+                    ⬅️ Trái
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'center',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
+                      config[selectedTag].align === 'center'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                    title="Căn lề Giữa"
+                  >
+                    ↔️ Giữa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'right',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
+                      config[selectedTag].align === 'right'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                    title="Căn lề Phải (Dành cho số tiền)"
+                  >
+                    ➡️ Phải
+                  </button>
+                </div>
+              </div>
+
+              {/* Auto-fit dimensions button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const dims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                  setConfig(prev => ({
+                    ...prev,
+                    [selectedTag]: { ...prev[selectedTag], width: dims.width, height: dims.height }
+                  }));
+                }}
+                className="w-full mb-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs py-1.5 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                ✨ Auto-fit kích thước (Vừa khít chữ)
+              </button>
               
               {/* Auto-fill split-char series */}
               {(() => {
@@ -775,16 +1764,86 @@ export default function PdfMapperPage() {
                   Xóa thẻ này
                 </button>
               </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
+        )}
 
-        <div className="p-2 bg-slate-800 text-slate-200 flex justify-between items-center text-sm">
-          <span className="font-medium text-slate-400">Bản xem trước ({selectedTemplate}.pdf)</span>
+        <div className="p-2 bg-slate-800 text-slate-200 flex justify-between items-center text-sm flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-slate-400">Bản xem trước ({selectedTemplate}.pdf)</span>
+
+            {/* Mode Switcher Toolbar */}
+            <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-700">
+              <button
+                onClick={() => setActiveMode('select')}
+                className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  activeMode === 'select'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Chế độ chọn và di chuyển thẻ (Mặc định)"
+              >
+                🖐️ Di chuyển (Move)
+              </button>
+              <button
+                onClick={() => setActiveMode('add')}
+                className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  activeMode === 'add'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Chế độ click để ghim thẻ mới vào PDF"
+              >
+                📌 Ghim thẻ (Add)
+              </button>
+              <button
+                onClick={() => setActiveMode('delete')}
+                className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  activeMode === 'delete'
+                    ? 'bg-red-600 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Chế độ click vào thẻ để xóa ngay"
+              >
+                🗑️ Xóa thẻ (Delete)
+              </button>
+            </div>
+
+            {/* Undo / Redo Control Toolbar */}
+            <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-700 gap-1">
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all ${
+                  canUndo
+                    ? 'bg-slate-700 text-white hover:bg-slate-600 shadow'
+                    : 'text-slate-600 opacity-40 cursor-not-allowed'
+                }`}
+                title="Khôi phục thao tác trước (Ctrl + Z)"
+              >
+                ↩️ Undo
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all ${
+                  canRedo
+                    ? 'bg-slate-700 text-white hover:bg-slate-600 shadow'
+                    : 'text-slate-600 opacity-40 cursor-not-allowed'
+                }`}
+                title="Làm lại thao tác vừa Undo (Ctrl + Y)"
+              >
+                ↪️ Redo
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-slate-700 px-2 py-1 rounded">
-              <button onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))} className="hover:text-white px-1 font-bold">-</button>
+              <button type="button" onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))} className="hover:text-white px-1 font-bold">-</button>
               <span className="text-xs font-mono">{Math.round(pdfScale * 100)}%</span>
-              <button onClick={() => setPdfScale(s => Math.min(3, s + 0.2))} className="hover:text-white px-1 font-bold">+</button>
+              <button type="button" onClick={() => setPdfScale(s => Math.min(3, s + 0.2))} className="hover:text-white px-1 font-bold">+</button>
             </div>
             <span>Tổng số trang: {numPages || '-'}</span>
           </div>
@@ -803,9 +1862,13 @@ export default function PdfMapperPage() {
                   key={`page_${index}`}
                   data-page-index={index}
                   onMouseDown={(e) => handlePageMouseDown(e, index)}
-                  onMouseMove={(e) => handlePageMouseMove(e, index)}
-                  onMouseUp={handlePageMouseUp}
-                  className={`relative shadow-xl bg-white mb-8 transition-all select-none ${selectedTag && !config[selectedTag] ? 'cursor-crosshair ring-4 ring-blue-400' : 'cursor-crosshair'}`}
+                  className={`relative shadow-xl bg-white mb-8 transition-all select-none ${
+                    activeMode === 'add'
+                      ? 'cursor-crosshair ring-4 ring-emerald-400'
+                      : activeMode === 'delete'
+                        ? 'cursor-not-allowed ring-4 ring-red-400'
+                        : 'cursor-default'
+                  }`}
                   onClick={handlePdfClick}
                 >
                   <Page 
@@ -854,14 +1917,8 @@ export default function PdfMapperPage() {
                       return (
                         <div 
                           key={tag}
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setSelectedTag(tag);
-                            if (e.shiftKey) {
-                              setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
-                            }
-                          }}
-                          className={`absolute group cursor-pointer ${isSelected ? 'z-50' : 'z-10'} ${isBatchSelected ? 'ring-4 ring-red-500 bg-red-100/50 rounded z-40' : ''}`}
+                          onMouseDown={(e) => handlePinMouseDown(e, tag, index)}
+                          className={`pdf-tag-pin absolute group cursor-move select-none ${isSelected ? 'z-50' : 'z-10'} ${isBatchSelected ? 'ring-4 ring-red-500 bg-red-100/50 rounded z-40' : ''}`}
                           style={{ 
                             left: `${left * pdfScale}px`, 
                             top: `${top * pdfScale}px`, 
@@ -871,11 +1928,28 @@ export default function PdfMapperPage() {
                         >
                           <div className={`w-1.5 h-1.5 rounded-full absolute bottom-0 left-0 -translate-x-1/2 ${(!coord.type || coord.type === 'text') ? `translate-y-[${-PDF_BASELINE_OFFSET_EM}em]` : 'translate-y-1/2'} ${isBatchSelected ? 'bg-red-600 ring-2 ring-red-300 z-50' : isSelected ? 'bg-blue-600 ring-2 ring-blue-300 z-50' : 'bg-red-500 z-10'}`}></div>
                           
+                          {isSelected && (
+                            <div 
+                              className="absolute -top-3.5 -left-3.5 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] flex items-center justify-center cursor-grab active:cursor-grabbing shadow z-50 hover:scale-110 transition-transform"
+                              title="Kéo để di chuyển vị trí (x, y)"
+                            >
+                              📍
+                            </div>
+                          )}
+
                           {coord.type === 'line' ? (
                             <div 
                               style={{ width: `${(coord.width || 100) * pdfScale}px`, height: `${(coord.thickness || 1) * pdfScale}px`, backgroundColor: 'black', position: 'absolute', bottom: 0, left: 0 }}
                               className={isSelected ? 'ring-2 ring-blue-400' : ''}
-                            />
+                            >
+                              {isSelected && (
+                                <div 
+                                  onMouseDown={(e) => handleResizeMouseDown(e, tag, 'line-width')}
+                                  className="absolute -right-1.5 -top-1 w-3 h-3 bg-blue-600 border border-white rounded-full cursor-ew-resize hover:scale-125 z-50 shadow"
+                                  title="Kéo để thay đổi độ dài đường kẻ"
+                                />
+                              )}
+                            </div>
                           ) : coord.type === 'circle' ? (
                             <div 
                               style={{ 
@@ -886,43 +1960,76 @@ export default function PdfMapperPage() {
                                 position: 'absolute', 
                                 bottom: `-${(coord.height || 20) * pdfScale / 2}px`, 
                                 left: `-${(coord.width || 20) * pdfScale / 2}px`,
-                                pointerEvents: 'none'
+                                pointerEvents: isSelected ? 'auto' : 'none'
                               }}
                               className={isSelected ? 'ring-2 ring-blue-400 bg-blue-100/30' : ''}
-                            />
-                          ) : (
-                            <textarea
-                              value={coord.value !== undefined ? coord.value : (showMockData && !tag.startsWith('static_') ? MOCK_DATA[tag.split('#')[0]] || '' : '')}
-                              placeholder={tag}
-                              onChange={(e) => setConfig(prev => ({...prev, [tag]: {...prev[tag], value: e.target.value}}))}
-                              onMouseUp={(e) => {
-                                const el = e.currentTarget;
-                                const w = Math.round(el.offsetWidth / pdfScale);
-                                const h = Math.round(el.offsetHeight / pdfScale);
-                                if ((coord.width && Math.abs(coord.width - w) > 2) || (coord.height && Math.abs(coord.height - h) > 2)) {
-                                  setConfig(prev => ({...prev, [tag]: {...prev[tag], width: w, height: h}}));
-                                } else if (!coord.width && w > 60) {
-                                  // Initial resize trigger
-                                  setConfig(prev => ({...prev, [tag]: {...prev[tag], width: w, height: h}}));
-                                }
-                              }}
-                              style={{ 
-                                fontSize: 'inherit',
-                                fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
-                                width: coord.width ? `${coord.width * pdfScale}px` : undefined,
-                                height: coord.height ? `${coord.height * pdfScale}px` : undefined,
-                                minWidth: '50px',
-                                minHeight: `${(coord.size || 12) * pdfScale * PDF_LINE_HEIGHT}px`,
-                                resize: 'both',
-                                overflow: 'hidden',
-                                lineHeight: `${PDF_LINE_HEIGHT}`,
-                                whiteSpace: coord.width ? 'pre-wrap' : 'pre',
-                                margin: 0,
-                                padding: 0
-                              }}
-                              className={`bg-transparent outline-none rounded font-semibold ${isSelected ? 'border border-blue-500 bg-blue-50/50 text-blue-900 shadow-sm ring-2 ring-blue-300' : 'border-b border-dashed border-slate-400 text-slate-800 hover:bg-slate-50/50'} focus:ring-0 block`}
-                            />
-                          )}
+                            >
+                              {isSelected && (
+                                <div 
+                                  onMouseDown={(e) => handleResizeMouseDown(e, tag, 'circle-size')}
+                                  className="absolute -right-1 -bottom-1 w-3.5 h-3.5 bg-blue-600 border border-white rounded-full cursor-se-resize hover:scale-125 z-50 shadow"
+                                  title="Kéo để thay đổi kích thước khoanh tròn"
+                                />
+                              )}
+                            </div>
+                          ) : (() => {
+                            const baseKey = tag.split('#')[0];
+                            const mockVal = (showMockData && !tag.startsWith('static_')) ? MOCK_DATA[baseKey] : undefined;
+                            const liveVal = (liveMappedData && !tag.startsWith('static_')) ? liveMappedData[baseKey] : undefined;
+                            const finalMockVal = liveVal ?? mockVal;
+                            let valToRender = coord.value !== undefined ? coord.value : (finalMockVal !== undefined ? finalMockVal : '');
+
+                            const monetaryKeys = [
+                              'totalExpectedJpy', 'received1stJpy', 'received2ndJpy', 'withheldTax',
+                              'retirementDeductionAmount', 'taxableRetirementIncome', 'calculatedTax',
+                              'refundAmount', 'tax2ndJpy', 'incomeSourceAmount', 'incomeSourceWithheld',
+                              'serviceFeeJpy', 'averageStandardRemuneration'
+                            ];
+                            if (monetaryKeys.includes(baseKey) && valToRender) {
+                              const numStr = String(valToRender).replace(/\D/g, '');
+                              if (numStr) {
+                                valToRender = Number(numStr).toLocaleString('en-US');
+                              }
+                            }
+
+                            const placeholderToRender = (liveMappedData || showMockData) ? '' : tag;
+
+                            return (
+                              <React.Fragment>
+                                <textarea
+                                  value={valToRender}
+                                  placeholder={placeholderToRender}
+                                  onChange={(e) => setConfig(prev => ({...prev, [tag]: {...prev[tag], value: e.target.value}}))}
+                                  style={{ 
+                                    fontSize: 'inherit',
+                                    fontWeight: coord.fontWeight || 600,
+                                    color: 'black',
+                                    fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
+                                    width: coord.width ? `${coord.width * pdfScale}px` : undefined,
+                                    height: coord.height ? `${coord.height * pdfScale}px` : undefined,
+                                    minHeight: `${(coord.size || 12) * pdfScale * PDF_LINE_HEIGHT}px`,
+                                    overflow: 'hidden',
+                                    lineHeight: `${PDF_LINE_HEIGHT}`,
+                                    whiteSpace: coord.width ? 'pre-wrap' : 'pre',
+                                    margin: 0,
+                                    padding: 0,
+                                    border: 'none',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    resize: 'none',
+                                    textAlign: coord.align || 'left'
+                                  }}
+                                />
+                                {isSelected && (
+                                  <div 
+                                    onMouseDown={(e) => handleResizeMouseDown(e, tag, 'text-box')}
+                                    className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 bg-blue-600 border border-white rounded-full cursor-se-resize hover:scale-125 z-50 shadow"
+                                    title="Kéo để thay đổi kích thước khung chữ"
+                                  />
+                                )}
+                              </React.Fragment>
+                            );
+                          })()}
                         </div>
                       );
                   })}

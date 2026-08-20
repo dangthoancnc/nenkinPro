@@ -15,7 +15,7 @@ interface PrintContainerProps {
   pdfFile: string;
   /** 0-indexed page to display */
   pageNumber: number;
-  children: React.ReactNode;
+  children: React.ReactNode | ((dims: { width: number; height: number }) => React.ReactNode);
   isLandscape?: boolean;
 }
 
@@ -28,6 +28,7 @@ interface PrintContainerProps {
  */
 export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = false }: PrintContainerProps) => {
   const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number }>({ width: A4_W, height: A4_H });
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Setup PDF.js worker on first mount
@@ -80,6 +81,7 @@ export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = fa
               width={containerWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
+              onLoadSuccess={(page) => setPageDimensions({ width: page.originalWidth || page.width, height: page.originalHeight || page.height })}
             />
           </Document>
         )}
@@ -87,7 +89,7 @@ export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = fa
 
       {/* Text Overlay Layer */}
       <div className="absolute inset-0 w-full h-full pointer-events-none">
-        {children}
+        {typeof children === 'function' ? children(pageDimensions) : children}
       </div>
 
       {/* Watermark for Dev/Preview (Hidden on Print) */}
@@ -150,21 +152,28 @@ export interface PrintFieldProps {
   height?: number; // Height for circles (PDF points)
   thickness?: number; // Border thickness
   isMock?: boolean;
+  align?: 'left' | 'center' | 'right';
+  pageWidth?: number;
+  pageHeight?: number;
 }
 
-export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false }: PrintFieldProps) => {
+export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false, align, pageWidth = A4_W, pageHeight = A4_H }: PrintFieldProps) => {
+  const widthPercent = width ? ((width / pageWidth) * 100) : undefined;
+
   // Common style for absolute positioning using percentages
   const style: React.CSSProperties = {
     left: `${x}%`,
     top: `${y}%`,
+    width: widthPercent ? `${widthPercent}%` : undefined,
     position: 'absolute',
     transform: type === 'text' || type === undefined ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
     margin: 0,
     padding: 0,
+    textAlign: align || (className.includes('text-right') ? 'right' : 'left'),
   };
 
   if (type === 'line') {
-    const widthPercent = ((width || 100) / A4_W) * 100;
+    const widthPercent = ((width || 100) / pageWidth) * 100;
     return (
       <div
         className="bg-black print:bg-black absolute"
@@ -179,8 +188,8 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
   }
 
   if (type === 'circle') {
-    const widthPercent = ((width || 20) / A4_W) * 100;
-    const heightPercent = ((height || 20) / A4_H) * 100;
+    const widthPercent = ((width || 20) / pageWidth) * 100;
+    const heightPercent = ((height || 20) / pageHeight) * 100;
     return (
       <div
         className="absolute border-black print:border-black rounded-full"
@@ -208,8 +217,8 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
     : value;
 
   // Font size: convert PDF points to container-relative units (cqi)
-  // A4 is 595.32 points wide. So 1pt = (1/595.32 * 100)% of container width = cqi units
-  const fontSizeVw = (size / A4_W) * 100;
+  // 1pt = (1/pageWidth * 100)% of container width = cqi units
+  const fontSizeVw = (size / pageWidth) * 100;
 
   return (
     <div

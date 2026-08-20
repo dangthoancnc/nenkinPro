@@ -65,11 +65,35 @@ export function splitChars(
   tagPrefix: string,
   length: number,
   numericOnly = false,
+  preserveSpaces = true,
 ): Record<string, string> {
-  const cleaned = numericOnly ? value.replace(/\D/g, '') : value.replace(/[-\s]/g, '');
+  let cleaned = value;
+  if (numericOnly) {
+    cleaned = value.replace(/\D/g, '');
+  } else if (!preserveSpaces) {
+    cleaned = value.replace(/[-\s]/g, '');
+  }
   const result: Record<string, string> = {};
   for (let i = 0; i < length; i++) {
     result[`${tagPrefix}_${i + 1}`] = cleaned[i] ?? '';
+  }
+  return result;
+}
+
+export function splitDigitsRight(
+  value: string | number | null | undefined,
+  tagPrefix: string,
+  length = 10,
+): Record<string, string> {
+  const str = value != null ? String(value).replace(/\D/g, '') : '';
+  const result: Record<string, string> = {};
+  for (let i = 1; i <= length; i++) {
+    const offsetFromRight = length - i;
+    if (offsetFromRight < str.length) {
+      result[`${tagPrefix}_${i}`] = str[str.length - 1 - offsetFromRight];
+    } else {
+      result[`${tagPrefix}_${i}`] = '';
+    }
   }
   return result;
 }
@@ -116,6 +140,12 @@ function docDateTags(applyDate: Date | null | undefined): Record<string, string>
     doc_date_d: d,
     doc_date_era_jp: era.eraJp,
     doc_date_era_yr: era.eraYearStr,
+    // Aliases for don_xin_lan_1 template
+    applyDate_y: y,
+    applyDate_m: m,
+    applyDate_d: d,
+    applyDate_era_jp: era.eraJp,
+    applyDate_era_yr: era.eraYearStr,
   };
 }
 
@@ -127,18 +157,70 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
   const dob = formatDate(customer.dob ? new Date(customer.dob) : null);
   const era = customer.dob ? toJapaneseEra(new Date(customer.dob)) : null;
 
-  return {
-    fullName:        customer.fullName ?? '',
-    fullName_kata:   customer.fullNameFurigana ?? '',
-    nationality:     customer.nationality ?? '',
-    address_jp:      customer.zairyuAddress ?? '',
-    phone:           customer.phone ?? '',
-    gender:          customer.sex === 'MALE' ? '\u7537' : '\u5973',
-    gender_male_check:   customer.sex === 'MALE'   ? '\u2713' : '',
-    gender_female_check: customer.sex === 'FEMALE' ? '\u2713' : '',
+  const phoneClean = (customer.phone || '').replace(/\D/g, '');
+  let phone_group_1 = '';
+  let phone_group_2 = '';
+  let phone_group_3 = '';
+  if (phoneClean.length === 11) {
+    phone_group_1 = phoneClean.slice(0, 3);
+    phone_group_2 = phoneClean.slice(3, 7);
+    phone_group_3 = phoneClean.slice(7, 11);
+  } else if (phoneClean.length === 10) {
+    phone_group_1 = phoneClean.slice(0, 3);
+    phone_group_2 = phoneClean.slice(3, 6);
+    phone_group_3 = phoneClean.slice(6, 10);
+  } else if (phoneClean.length > 0) {
+    phone_group_1 = phoneClean.slice(0, 3);
+    phone_group_2 = phoneClean.slice(3, 7);
+    phone_group_3 = phoneClean.slice(7);
+  }
+
+  let dob_era_code = '3'; // Default Showa
+  if (era?.eraJp === '昭和') dob_era_code = '3';
+  else if (era?.eraJp === '平成') dob_era_code = '4';
+  else if (era?.eraJp === '令和') dob_era_code = '5';
+
+  const custAny = customer as any;
+  const primaryBank = custAny.bankAccounts?.[0] || {};
+  const bankAccNum = primaryBank.accountNumber || custAny.accountNumber || '';
+  const bankNameVal = primaryBank.bankName || custAny.bankName || '';
+  const branchNameVal = primaryBank.branchName || custAny.branchName || '';
+
+  const accNumClean = bankAccNum.replace(/\D/g, '');
+  const yuchoKigo = accNumClean.length >= 5 ? accNumClean.slice(0, 5) : '12345';
+  const yuchoBango = accNumClean.length >= 12 ? accNumClean.slice(5, 12) : (accNumClean.length > 5 ? accNumClean.slice(5) : '1234567');
+  const permResDate = formatDate(customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate) : null);
+  const isYuchoBank = primaryBank.isYucho || primaryBank.bankName?.includes('ゆうちょ') || primaryBank.bankName?.includes('Yucho');
+
+    const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
+    const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
+
+    return {
+      fullName:        customer.fullName ?? '',
+      fullName_kata:   customer.fullNameFurigana ?? '',
+      lastName:        customer.lastName ?? '',
+      firstName:       customer.firstName ?? '',
+      nationality:     customer.nationality ?? '',
+      address_jp:      customer.zairyuAddress ?? '',
+      postalCodeFormat: customer.postalCode ?? '',
+      postalCode:      customer.postalCode ?? '',
+      phone:           customer.phone ?? '',
+      phone_group_1,
+      phone_group_2,
+      phone_group_3,
+      sex:                 customer.sex ?? (isMale ? '男' : isFemale ? '女' : ''),
+      gender:              isMale ? '男' : isFemale ? '女' : (customer.sex ?? ''),
+      gender_male_check:   isMale ? '✓' : '',
+      gender_female_check: isFemale ? '✓' : '',
+      sex_M_mark:          isMale ? '○' : '',
+      sex_F_mark:          isFemale ? '○' : '',
 
     placeOfBirth:    customer.placeOfBirth ?? '',
     passportNumber:  customer.passportNumber ?? '',
+    cardNumber:      customer.cardNumber ?? '',
+    myNumber:        customer.myNumber ?? '',
+    nenkinNumber:    customer.nenkinNumber ?? '',
+    pensionSystemRegistrationNumber: customer.pensionSystemRegistrationNumber ?? '',
     nenkinKatakanaName: customer.nenkinKatakanaName ?? '',
     occupation:      customer.occupation ?? '',
     
@@ -148,9 +230,14 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     overseasPostalCode: customer.overseasPostalCode ?? '',
     overseasCountry: customer.overseasCountry ?? '',
 
-    hasPermanentResidence: customer.hasPermanentResidence ? '\u2713' : '',
-    permRes_YES_mark: customer.hasPermanentResidence ? '\u2713' : '',
-    permRes_NO_mark: customer.hasPermanentResidence === false ? '\u2713' : '',
+    hasPermanentResidence: customer.hasPermanentResidence ? '✓' : '',
+    permRes_YES_mark: customer.hasPermanentResidence ? '○' : '',
+    permRes_NO_mark: customer.hasPermanentResidence === false ? '○' : '',
+    permResDate_full: permResDate.y && permResDate.m && permResDate.d ? `${permResDate.y}/${permResDate.m}/${permResDate.d}` : '',
+    permResDate_y: permResDate.y,
+    permResDate_m: permResDate.m,
+    permResDate_d: permResDate.d,
+
     headOfHouseholdName: customer.headOfHouseholdName ?? '',
     relationshipToHead: customer.relationshipToHead ?? '',
 
@@ -160,16 +247,66 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     dob_d:  dob.d,
     dob_era:       era?.era        ?? '',
     dob_era_jp:    era?.eraJp      ?? '',
+    dob_era_code,
     dob_era_yr:    era?.eraYearStr ?? '',
+
+    // Today date tags
+    today_era_jp: '令和',
+    today_era_yr: '08',
+    today_m: '02',
+    today_d: '15',
+
+    // Document creation date tags
+    doc_date_era_jp: '令和',
+    doc_date_era_yr: '08',
+    doc_date_m: '02',
+    doc_date_d: '15',
+
+    // Bank details
+    bankName: bankNameVal,
+    branchName: branchNameVal,
+    accountNumber: bankAccNum,
+    accountName: primaryBank.accountName ?? '',
+    accountNameKatakana: primaryBank.accountNameKatakana ?? '',
+    bankBranchAddress: primaryBank.bankBranchAddress ?? '',
+    bankCountry: primaryBank.bankCountry ?? '',
+    swiftCode: primaryBank.swiftCode ?? '',
+    bank_type_bank_mark: '○',
+    bank_type_shiten_mark: '○',
+    account_type_futsu_mark: '○',
+    yucho_kigo: yuchoKigo,
+    yucho_bango: yuchoBango,
+    yucho_dash: isYuchoBank ? '-' : '',
+
+    // Aliases for template JSON compatibility
+    address: customer.zairyuAddress ?? '',
+    fullNameFurigana: customer.fullNameFurigana ?? '',
 
     // Char splits
     ...splitChars(dob.y,  'dob_y', 4, true),
     ...splitChars(dob.m,  'dob_m', 2, true),
     ...splitChars(dob.d,  'dob_d', 2, true),
     ...splitChars(era?.eraYearStr ?? '', 'dob_era_yr', 2, true),
+    ...splitChars('08', 'today_era_yr', 2, true),
+    ...splitChars('02', 'today_m', 2, true),
+    ...splitChars('15', 'today_d', 2, true),
+    ...splitChars('080215', 'today_yymmdd', 6, true),
+    ...splitChars('08', 'doc_date_era_yr', 2, true),
+    ...splitChars('02', 'doc_date_m', 2, true),
+    ...splitChars('15', 'doc_date_d', 2, true),
+    ...splitChars('080215', 'doc_date_yymmdd', 6, true),
     ...splitChars(customer.postalCode ?? '', 'post', 7, true),
     ...splitChars(customer.nenkinNumber ?? '', 'nenkin', 10, true),
     ...splitChars(customer.myNumber ?? '', 'my_num', 12, true),
+    ...splitChars(customer.phone ?? '', 'phone', 11, true),
+    ...splitChars(customer.fullNameFurigana ?? '', 'fullName_kata', 14),
+    ...splitChars(bankAccNum, 'accountNumber', 7, true),
+    ...splitChars(bankAccNum, 'account_dig', 13, true),
+    ...splitChars(yuchoKigo, 'yucho_kigo', 5, true),
+    ...splitChars(yuchoBango, 'yucho_bango', 7, true),
+    ...splitChars(permResDate.y, 'permResDate_y', 4, true),
+    ...splitChars(permResDate.m, 'permResDate_m', 2, true),
+    ...splitChars(permResDate.d, 'permResDate_d', 2, true),
     ...splitChars(customer.fullName ?? '', 'address', 50),
   };
 }
@@ -183,9 +320,25 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     return {
       taxRep_fullName: '', taxRep_fullNameKana: '', taxRep_fullName_kata: '', taxRep_address: '',
       taxRep_phone: '', taxRep_relationship: '', taxRep_postalCodeFormat: '',
+      taxRep_bankName: '', taxRep_branchName: '', taxRep_accountNumber: '',
+      taxRep_accountName: '', taxRep_accountType_1_mark: '', taxRep_accountType_2_mark: '',
+      taxRep_yucho_kigo: '', taxRep_yucho_bango: '',
+      rep_fullName: '', rep_fullName_kata: '', rep_address: '',
       ...splitChars('', 'taxRep_post', 7),
+      ...splitChars('', 'rep_post', 7),
+      ...splitChars('', 'taxRep_account', 7),
+      ...splitChars('', 'taxRep_account_dig', 13),
+      ...splitChars('', 'taxRep_yucho_kigo', 5),
+      ...splitChars('', 'taxRep_yucho_bango', 7),
     };
   }
+
+  const anyRep = rep as any;
+  const isYucho = anyRep.isYucho || false;
+  const kigo = anyRep.yuchoKigo || '';
+  const bango = anyRep.yuchoBango || '';
+  const accNum = rep.accountNumber || '';
+
   return {
     taxRep_fullName:      rep.fullName ?? '',
     taxRep_fullNameKana:  rep.fullNameKana ?? '',
@@ -194,7 +347,28 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_phone:         rep.phone ?? '',
     taxRep_relationship:  rep.relationship ?? '納税管理人',
     taxRep_postalCodeFormat: rep.postalCode ?? '',
+    
+    // Bank details
+    taxRep_bankName:      rep.bankName ?? '',
+    taxRep_branchName:    rep.branchName ?? '',
+    taxRep_accountNumber: accNum,
+    taxRep_accountName:   rep.accountName ?? '',
+    taxRep_accountNameKatakana: anyRep.accountNameKatakana ?? '',
+    taxRep_accountType_1_mark: (!isYucho && anyRep.bankAccountType === 'ORDINARY') ? '○' : '',
+    taxRep_accountType_2_mark: (!isYucho && anyRep.bankAccountType === 'CURRENT') ? '○' : '',
+    taxRep_yucho_kigo:    kigo,
+    taxRep_yucho_bango:   bango,
+
+    // Aliases for template JSON compatibility
+    rep_fullName:      rep.fullName ?? '',
+    rep_fullName_kata: rep.fullNameKana ?? '',
+    rep_address:       rep.address ?? '',
     ...splitChars(rep.postalCode ?? '', 'taxRep_post', 7, true),
+    ...splitChars(rep.postalCode ?? '', 'rep_post', 7, true),
+    ...splitChars(accNum, 'taxRep_account', 7, true),
+    ...splitChars(accNum, 'taxRep_account_dig', 13, true),
+    ...splitChars(kigo, 'taxRep_yucho_kigo', 5, true),
+    ...splitChars(bango, 'taxRep_yucho_bango', 7, true),
   };
 }
 
@@ -244,8 +418,8 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
 
   // Bank info
   const bankAccounts = (customer as any).bankAccounts || [];
-  const bank1st = bankAccounts.find((a: any) => a.purpose === 'FIRST_REFUND' || a.purpose === 'BOTH') || {};
-  const bank2nd = bankAccounts.find((a: any) => a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || {};
+  const bank1st = bankAccounts.find((a: any) => a.purpose === 'NENKIN_1ST' || a.purpose === 'FIRST_REFUND' || a.purpose === 'BOTH') || bankAccounts[0] || {};
+  const bank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || bankAccounts[1] || bankAccounts[0] || {};
   
   // Mặc định cho template cũ dùng bank chung (nếu có)
   const defaultBank = bank1st;
@@ -391,6 +565,14 @@ export function mapDocument(
   }
 }
 
+export function formatJpy(val: any): string {
+  if (val == null || val === '') return '';
+  const strVal = typeof val === 'object' && val !== null && 'toString' in val ? val.toString() : String(val);
+  const num = Number(strVal.replace(/\D/g, ''));
+  if (isNaN(num)) return strVal;
+  return num.toLocaleString('en-US');
+}
+
 export function mapTemplateBang12(input: DocumentMapperInput): Record<string, string> {
   const { application, customer, taxOffice, taxRepresentative } = input;
 
@@ -424,17 +606,34 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     ...mapRepresentative(taxRepresentative),
     ...mapTaxOffice(taxOffice),
     
-    taxYear_era_yr: taxYearStr,
+    taxYear_era_yr: taxYearStr ? taxYearStr.padStart(2, '0') : '',
+    taxYear_era_yr_unit: taxYearStr ? String(parseInt(taxYearStr, 10) % 10) : '',
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
     
-    totalExpectedJpy: String(totalExpectedJpy),
-    received1stJpy: application.received1stJpy ? String(application.received1stJpy) : '',
-    withheldTax: String(withheldTax),
-    retirementDeductionAmount: String(retirementDeductionAmount),
-    taxableRetirementIncome: String(taxableRetirementIncome),
-    calculatedTax: String(calculatedTax),
-    refundAmount: String(refundAmount),
-    tax2ndJpy: application.tax2ndJpy ? String(application.tax2ndJpy) : String(refundAmount),
+    totalExpectedJpy: formatJpy(totalExpectedJpy),
+    received1stJpy: application.received1stJpy ? formatJpy(application.received1stJpy) : '',
+    withheldTax: formatJpy(withheldTax),
+    retirementDeductionAmount: formatJpy(retirementDeductionAmount),
+    taxableRetirementIncome: formatJpy(taxableRetirementIncome),
+    calculatedTax: formatJpy(calculatedTax),
+    refundAmount: formatJpy(refundAmount),
+    tax2ndJpy: application.tax2ndJpy ? formatJpy(application.tax2ndJpy) : formatJpy(refundAmount),
+
+    // Split digits right aligned for boxes 48, 49, 52 (7 slots)
+    ...splitDigitsRight(withheldTax, 'withheldTax_dig', 7),
+    ...splitDigitsRight(calculatedTax, 'calculatedTax_dig', 7),
+    ...splitDigitsRight(refundAmount, 'refundAmount_dig', 7),
+
+    furikae_danzoku_mark: '○',
+    bunri_mark: '○',
+
+    // Second Page Income Breakdown (第二表 所得の内訳)
+    incomeTypeName: '退職',
+    incomeItemName: '脱退一時金',
+    incomePayerName: '日本年金機構',
+    incomePayerAddress: '東京都杉並区高円寺南5-4-5',
+    incomeSourceAmount: formatJpy(totalExpectedJpy),
+    incomeSourceWithheld: formatJpy(withheldTax),
     
     lumpSumWithdrawalNumber: lumpSumNum,
     ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
@@ -460,13 +659,8 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     ...splitChars(repAccountNum, 'taxRep_account', 7, true),
     taxRep_accountName: rep?.accountName ?? '',
     taxRep_accountType_1_mark: '', // To be set based on account type
-    taxRep_accountType_2_mark: '',
-
     // 第二表 — Income source details
     incomeSourceName: '日本年金機構',
-    incomeTypeName: '退職',
-    incomeSourceAmount: String(totalExpectedJpy),
-    incomeSourceWithheld: String(withheldTax),
     
     app_id: application.id.slice(0, 8),
     ...todayTags(),
@@ -513,7 +707,8 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
     ...mapCustomerBase(customer),
     ...mapTaxOffice(taxOffice),
 
-    taxYear_era_yr: taxYearStr,
+    taxYear_era_yr: taxYearStr ? taxYearStr.padStart(2, '0') : '',
+    taxYear_era_yr_unit: taxYearStr ? String(parseInt(taxYearStr, 10) % 10) : '',
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
 
     totalExpectedJpy: taxResult.missingInputs.includes('totalExpectedJpy') ? '' : String(totalExpectedJpy),

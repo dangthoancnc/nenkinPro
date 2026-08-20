@@ -6,22 +6,27 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error } = await requireStaff();
-  if (error || !user) return error;
-
   try {
+    const { user, error } = await requireStaff();
+    if (error || !user) {
+      return error || NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
 
     const histories = await prisma.applicationHistory.findMany({
       where: { applicationId: id },
       orderBy: { createdAt: 'desc' },
       take: 50,
+    }).catch(err => {
+      console.warn('Application history findMany warning:', err?.message);
+      return [];
     });
 
     return NextResponse.json({ success: true, data: histories });
   } catch (err: any) {
     console.error('Fetch Application History Error:', err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: true, data: [], message: err?.message || 'Internal error' });
   }
 }
 
@@ -29,10 +34,12 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error } = await requireStaff();
-  if (error || !user) return error;
-
   try {
+    const { user, error } = await requireStaff();
+    if (error || !user) {
+      return error || NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
     const { action, description } = body;

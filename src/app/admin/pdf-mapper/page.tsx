@@ -1,5 +1,6 @@
 "use client";
 
+import React, { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 
 const PdfMapperClient = dynamic(() => import('./PdfMapperClient'), {
@@ -8,5 +9,9 @@ const PdfMapperClient = dynamic(() => import('./PdfMapperClient'), {
 });
 
 export default function PdfMapperPage() {
-  return <PdfMapperClient />;
+  return (
+    <Suspense fallback={<div className="p-10 flex justify-center items-center h-screen bg-slate-100 text-slate-500">Đang khởi tạo ứng dụng...</div>}>
+      <PdfMapperClient />
+    </Suspense>
+  );
 }

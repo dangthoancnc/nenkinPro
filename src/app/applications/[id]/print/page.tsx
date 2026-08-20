@@ -532,7 +532,7 @@ export default function ApplicationPrintView() {
     }
   };
 
-  const renderPageFields = (templateName: string, pageNumber: number, fallbackType: string) => {
+  const renderPageFields = (templateName: string, pageNumber: number, fallbackType: string, pageWidth: number = A4_W, pageHeight: number = A4_H) => {
     const config = allConfigs[templateName];
     if (config && Object.keys(config).length > 0) {
       const pageEntries = Object.entries(config).filter(([_, coord]) => coord.page === pageNumber);
@@ -540,8 +540,8 @@ export default function ApplicationPrintView() {
         return (
           <>
             {pageEntries.map(([tagId, coord]) => {
-              const xPercent = (coord.x / A4_W) * 100;
-              const yPercent = ((A4_H - coord.y) / A4_H) * 100;
+              const xPercent = (coord.x / pageWidth) * 100;
+              const yPercent = ((pageHeight - coord.y) / pageHeight) * 100;
               const baseKey = tagId.split('#')[0];
 
               if (coord.type === 'line' || baseKey.startsWith('line_')) {
@@ -553,6 +553,8 @@ export default function ApplicationPrintView() {
                     type="line"
                     width={coord.width}
                     thickness={coord.thickness}
+                    pageWidth={pageWidth}
+                    pageHeight={pageHeight}
                   />
                 );
               }
@@ -570,6 +572,8 @@ export default function ApplicationPrintView() {
                       width={coord.width || 20}
                       height={coord.height || 20}
                       thickness={coord.thickness || 1}
+                      pageWidth={pageWidth}
+                      pageHeight={pageHeight}
                     />
                   );
                 }
@@ -587,6 +591,8 @@ export default function ApplicationPrintView() {
                   value={textValue}
                   size={coord.size || 12}
                   width={coord.width}
+                  pageWidth={pageWidth}
+                  pageHeight={pageHeight}
                 />
               );
             })}
@@ -722,7 +728,7 @@ export default function ApplicationPrintView() {
               return (
                 <div key={`${activeDoc.id}-${idx}`} className="print:break-after-page mb-8 print:mb-0">
                   <PrintContainer pdfFile={page.pdfFile} pageNumber={page.pageNumber}>
-                    {renderPageFields(page.templateName, page.pageNumber, page.fallbackType)}
+                    {(dims) => renderPageFields(page.templateName, page.pageNumber, page.fallbackType, dims.width, dims.height)}
                   </PrintContainer>
                 </div>
               );
