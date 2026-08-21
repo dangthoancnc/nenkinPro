@@ -43,7 +43,7 @@ export function calcAutoFitDimensions(
 
   let text = customValue;
   if (text === undefined) {
-    if (config?.[tag]?.value !== undefined) {
+    if (config?.[tag]?.value !== undefined && config[tag].value !== '') {
       text = config[tag].value;
     } else {
       text = (liveMappedData ? liveMappedData[baseTag] : MOCK_DATA[baseTag]) || tag;
@@ -51,27 +51,32 @@ export function calcAutoFitDimensions(
   }
 
   const str = String(text || '');
-  const len = Math.max(1, str.length);
-  const lineHeight = Math.round(fontSize * PDF_LINE_HEIGHT);
+  const lineHeight = Math.max(12, Math.round(fontSize * PDF_LINE_HEIGHT));
 
-  const isSingleChar = baseTag.includes('_dig_') || baseTag.endsWith('_unit') || /_\d+$/.test(baseTag);
+  // Explicit single-character split box tags (e.g., my_num_1, lumpSumNum_1, phone_1 when splitting 11 digits)
+  // Tags like phone_group_1, phone_group_2, post_1 are multi-digit groups and must NOT be treated as 1-char!
+  const isExplicitSingleCharTag = 
+    baseTag.includes('_dig_') || 
+    baseTag.endsWith('_unit') ||
+    (/^(fullName_kata|my_num|nenkin|phone|post|tax_post|taxRep_phone|taxRep_post|bank|swift|withheldTax_dig|calculatedTax_dig|refundAmount_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|yucho_kigo|yucho_bango|taxRep_account|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseTag));
 
-  if (isSingleChar) {
-    const w = Math.max(14, Math.ceil(fontSize * 1.4));
-    return { width: w, height: lineHeight };
+  if (isExplicitSingleCharTag && str.length <= 1) {
+    const singleCharW = Math.max(14, Math.ceil(fontSize * 1.3));
+    return { width: singleCharW, height: lineHeight };
   }
 
+  // Calculate width dynamically based on actual content length and character types
   let charWidthSum = 0;
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
     if (code > 255) {
-      charWidthSum += fontSize * 0.95;
+      charWidthSum += fontSize * 0.95; // CJK / Full-width
     } else {
-      charWidthSum += fontSize * 0.62;
+      charWidthSum += fontSize * 0.65; // ASCII / Digits / Latin
     }
   }
 
-  const calculatedWidth = Math.max(24, Math.ceil(charWidthSum + 6));
+  const calculatedWidth = Math.max(20, Math.ceil(charWidthSum + 8));
   return { width: calculatedWidth, height: lineHeight };
 }
 
@@ -2087,7 +2092,7 @@ export default function PdfMapperClient({
                                     minHeight: `${(coord.size || 12) * pdfScale * PDF_LINE_HEIGHT}px`,
                                     overflow: 'hidden',
                                     lineHeight: `${PDF_LINE_HEIGHT}`,
-                                    whiteSpace: coord.width ? 'pre-wrap' : 'pre',
+                                    whiteSpace: coord.width ? ((coord.height && coord.height > (coord.size || 12) * 1.6) ? 'pre-wrap' : 'nowrap') : 'pre',
                                     margin: 0,
                                     padding: 0,
                                     border: 'none',
