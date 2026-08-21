@@ -99,12 +99,6 @@ export default function PdfMapperClient({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [activeMode, setActiveMode] = useState<'select' | 'add' | 'delete'>('select');
   const [strictFilter, setStrictFilter] = useState<boolean>(true);
-  
-  const [panelDock, setPanelDock] = useState<'right' | 'left'>('right');
-  const [panelMinimized, setPanelMinimized] = useState<boolean>(false);
-  const [panelPos, setPanelPos] = useState<{ x: number; y: number } | null>(null);
-  const [isDraggingPanel, setIsDraggingPanel] = useState<boolean>(false);
-  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<{
     page: number;
     startX: number;
@@ -558,32 +552,6 @@ export default function PdfMapperClient({
       return next;
     });
   };
-
-  const handlePanelMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
-    const panelEl = e.currentTarget.closest('.floating-panel') as HTMLElement;
-    if (!panelEl) return;
-    const rect = panelEl.getBoundingClientRect();
-    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    setIsDraggingPanel(true);
-  };
-
-  useEffect(() => {
-    if (!isDraggingPanel) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      setPanelPos({
-        x: e.clientX - dragOffsetRef.current.x,
-        y: e.clientY - dragOffsetRef.current.y
-      });
-    };
-    const handleMouseUp = () => setIsDraggingPanel(false);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDraggingPanel]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1325,522 +1293,9 @@ export default function PdfMapperClient({
           </div>
         )}
 
-        {selectedTags.length > 0 && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-3 py-1.5 rounded-xl shadow-2xl text-xs font-semibold z-50 flex items-center gap-1.5 border border-slate-700/90 backdrop-blur-md select-none max-w-[95%] overflow-x-auto">
-            <span className="text-xs text-slate-300 font-bold flex items-center gap-1 shrink-0">
-              🎯 Đã chọn: <strong className="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-700/50">{selectedTags.length} thẻ</strong>
-            </span>
-            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
-            
-            {/* Căn vị trí tọa độ */}
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={handleBatchAlignTop}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                title="Căn hàng ngang theo mép Y trên cùng"
-              >
-                ⬆️ Top
-              </button>
-              <button
-                type="button"
-                onClick={handleBatchAlignBottom}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                title="Căn hàng ngang theo mép Y dưới cùng"
-              >
-                ⬇️ Bottom
-              </button>
-              <button
-                type="button"
-                onClick={handleBatchAlignLeft}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                title="Căn lề cột dọc theo mép trái (Min X)"
-              >
-                ⬅️ Left
-              </button>
-              <button
-                type="button"
-                onClick={handleBatchAlignRight}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                title="Căn lề cột dọc theo mép phải (Max X)"
-              >
-                ➡️ Right
-              </button>
-              {selectedTags.length >= 3 && (
-                <button
-                  type="button"
-                  onClick={handleBatchDistributeX}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                  title="Tự động phân bổ cách đều theo chiều ngang"
-                >
-                  ↔️ Đều X
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleBatchAutoFit}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
-                title="Tự động co dãn kích thước vừa khít chữ mẫu"
-              >
-                ✨ Auto-fit
-              </button>
-            </div>
-
-            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
-
-            {/* Cỡ chữ */}
-            <div className="flex items-center gap-1 bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded shrink-0">
-              <span className="text-[11px] font-bold text-slate-300">Cỡ chữ:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const current = config[selectedTags[0]]?.size ?? 9;
-                  handleBatchSetFontSize(Math.max(4, current - 1));
-                }}
-                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
-                title="Giảm cỡ chữ cho tất cả thẻ đang chọn"
-              >
-                -
-              </button>
-              <input
-                type="number"
-                min="4"
-                max="72"
-                value={config[selectedTags[0]]?.size ?? 9}
-                onChange={(e) => handleBatchSetFontSize(Number(e.target.value) || 9)}
-                className="w-8 text-center bg-slate-950 border border-slate-600 text-white font-bold text-xs rounded py-0 focus:ring-1 focus:ring-blue-400 outline-none"
-                title="Nhập cỡ chữ cho tất cả thẻ đang chọn"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const current = config[selectedTags[0]]?.size ?? 9;
-                  handleBatchSetFontSize(Math.min(72, current + 1));
-                }}
-                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
-                title="Tăng cỡ chữ cho tất cả thẻ đang chọn"
-              >
-                +
-              </button>
-            </div>
-
-            {/* In đậm / In thường */}
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleBatchSetFontWeight('bold')}
-                className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-0.5 rounded text-xs font-bold border border-slate-600 transition-all flex items-center gap-0.5"
-                title="In đậm tất cả thẻ đã chọn"
-              >
-                <strong>B</strong> Đậm
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBatchSetFontWeight('normal')}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs font-medium border border-slate-600 transition-all"
-                title="Chữ thường tất cả thẻ đã chọn"
-              >
-                Thường
-              </button>
-            </div>
-
-            {/* Căn lề văn bản */}
-            <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-600 p-0.5 rounded shrink-0">
-              <button
-                type="button"
-                onClick={() => handleBatchSetAlign('left')}
-                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                title="Căn văn bản lề trái"
-              >
-                Trái
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBatchSetAlign('center')}
-                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                title="Căn văn bản chính giữa"
-              >
-                Giữa
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBatchSetAlign('right')}
-                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                title="Căn văn bản lề phải (dạt phải)"
-              >
-                Phải
-              </button>
-            </div>
-
-            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
-
-            {/* Xóa & Bỏ chọn */}
-            <button
-              type="button"
-              onClick={() => handleBatchDelete()}
-              className="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5 shrink-0"
-              title="Xóa tất cả các thẻ đang chọn"
-            >
-              🗑️ Xóa ({selectedTags.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedTags([])}
-              className="text-slate-400 hover:text-white text-xs underline ml-1 shrink-0"
-              title="Bỏ chọn tất cả"
-            >
-              ✕ Hủy
-            </button>
-          </div>
-        )}
-
-        {activeMode === 'add' && selectedTag && selectedTags.length === 0 && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none">
-            <MousePointer2 size={16} /> 📌 Chế độ Ghim Thẻ: {getTagLabel(selectedTag)} <span className="text-[10px] text-emerald-200 font-mono">({selectedTag})</span> - Click vào PDF để ghim!
-          </div>
-        )}
-
         {activeMode === 'delete' && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-1.5 rounded-full shadow-lg text-xs font-medium z-40 flex items-center gap-2 pointer-events-none">
             🗑️ Chế độ Xóa Thẻ: Click vào bất kỳ thẻ nào trên hình PDF để xóa
-          </div>
-        )}
-        
-        {/* Floating Tinh Chinh */}
-        {selectedTag && config[selectedTag] && selectedTags.length <= 1 && (
-          <div
-            className={`floating-panel fixed z-50 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl border border-blue-200 transition-all ${
-              panelPos ? '' : panelDock === 'left' ? 'left-6 top-24' : 'right-6 top-24'
-            } ${panelMinimized ? 'w-64 p-2.5' : 'w-80 p-4'}`}
-            style={panelPos ? { left: `${panelPos.x}px`, top: `${panelPos.y}px`, position: 'fixed' } : undefined}
-          >
-            {/* Panel Header & Drag Bar */}
-            <div
-              onMouseDown={handlePanelMouseDown}
-              className="flex items-center justify-between cursor-move select-none border-b border-blue-100 pb-2 mb-2"
-            >
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <span className="text-slate-400 font-bold text-xs cursor-move">⋮⋮</span>
-                <h4 className="text-xs font-bold text-blue-900 truncate">
-                  {getTagLabel(selectedTag)}
-                  <span className="text-[10px] font-mono font-normal text-blue-500 ml-1">({selectedTag})</span>
-                </h4>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPanelDock(d => (d === 'right' ? 'left' : 'right'));
-                    setPanelPos(null);
-                  }}
-                  className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200"
-                  title={panelDock === 'right' ? 'Chuyển Popup sang góc trái' : 'Chuyển Popup sang góc phải'}
-                >
-                  {panelDock === 'right' ? '👈 Trái' : 'Phải 👉'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelMinimized(!panelMinimized)}
-                  className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 rounded border border-slate-300"
-                  title={panelMinimized ? 'Mở rộng bảng tinh chỉnh' : 'Thu gọn bảng tinh chỉnh'}
-                >
-                  {panelMinimized ? '＋' : '－'}
-                </button>
-              </div>
-            </div>
-
-            {panelMinimized ? (
-              <div className="text-[10px] text-slate-500 flex items-center justify-between">
-                <span>📍 X:{config[selectedTag].x} Y:{config[selectedTag].y}</span>
-                <button
-                  onClick={() => setPanelMinimized(false)}
-                  className="text-blue-600 font-bold hover:underline"
-                >
-                  Mở rộng
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="text-[9px] text-blue-600 mb-2 font-medium">
-                  💡 Kéo tiêu đề để di chuyển Popup | Dùng Alt + Mũi tên để dịch chuyển
-                </p>
-                
-                {/* Tag Field Source Selector */}
-                <div className="mb-3 p-2 bg-blue-50/80 border border-blue-200 rounded-lg">
-                  <label className="text-[11px] font-bold text-blue-900 block mb-1">
-                    🎯 Nguồn thẻ (Trường dữ liệu):
-                  </label>
-                  <select
-                    value={selectedTag.split('#')[0]}
-                    onChange={(e) => handleRemapTagSource(selectedTag, e.target.value)}
-                    className="w-full text-xs p-1.5 border border-blue-300 rounded bg-white font-medium text-slate-800 shadow-sm focus:ring-2 focus:ring-blue-500"
-                  >
-                    <optgroup label="── Loại Thẻ Tùy Chỉnh ──">
-                      <option value="custom">Thẻ mới / Thẻ tự do</option>
-                      <option value="static">Chữ tĩnh (Cố định)</option>
-                      <option value="line">Đường kẻ (Gạch chân)</option>
-                      <option value="circle">Khoanh tròn</option>
-                    </optgroup>
-                    {getTagsForTemplate(selectedTemplate || '*').map(group => (
-                      <optgroup key={group.name} label={`── ${group.name} ──`}>
-                        {group.tags.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.label} ({t.id})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-              
-              {(!config[selectedTag].type || config[selectedTag].type === 'text') && (() => {
-                const baseKey = selectedTag.split('#')[0];
-                const monetaryKeys = [
-                  'totalExpectedJpy', 'received1stJpy', 'received2ndJpy', 'withheldTax',
-                  'retirementDeductionAmount', 'taxableRetirementIncome', 'calculatedTax',
-                  'refundAmount', 'tax2ndJpy', 'incomeSourceAmount', 'incomeSourceWithheld',
-                  'serviceFeeJpy', 'averageStandardRemuneration'
-                ];
-                let displayVal = config[selectedTag].value ?? ((liveMappedData ? liveMappedData[baseKey] : (showMockData ? MOCK_DATA[baseKey] : '')));
-                if (monetaryKeys.includes(baseKey) && displayVal) {
-                  const numStr = String(displayVal).replace(/\D/g, '');
-                  if (numStr) displayVal = Number(numStr).toLocaleString('en-US');
-                }
-                return (
-                  <div className="mb-2">
-                    <label className="text-xs text-blue-600">Nội dung (Chữ tĩnh / Xem trước):</label>
-                    <input 
-                      type="text" 
-                      value={displayVal || ''} 
-                      onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], value: e.target.value}}))} 
-                      placeholder="Nhập nội dung hiển thị..."
-                      className="w-full text-sm p-1.5 border border-blue-200 rounded mt-1 font-mono font-bold text-slate-800" 
-                    />
-                  </div>
-                );
-              })()}
-
-              {(config[selectedTag].type === 'line' || config[selectedTag].type === 'circle' || !config[selectedTag].type || config[selectedTag].type === 'text') && (
-                <div className="flex gap-2 mb-2">
-                  <div className="flex-1">
-                    <label className="text-xs text-blue-600">Độ rộng (Width):</label>
-                    <input 
-                      type="number" 
-                      step="1" 
-                      value={config[selectedTag].width || (config[selectedTag].type === 'circle' ? 20 : (config[selectedTag].type === 'line' ? 100 : ''))} 
-                      onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], width: Number(e.target.value) || undefined}}))} 
-                      className="w-full text-sm p-1 border rounded mt-1" 
-                    />
-                  </div>
-                  {config[selectedTag].type === 'circle' && (
-                    <div className="flex-1">
-                      <label className="text-xs text-blue-600">Độ cao (Height):</label>
-                      <input type="number" step="1" value={config[selectedTag].height || 20} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], height: Number(e.target.value)}}))} className="w-full text-sm p-1 border rounded mt-1" />
-                    </div>
-                  )}
-                  {(config[selectedTag].type === 'line' || config[selectedTag].type === 'circle') && (
-                    <div className="flex-1">
-                      <label className="text-xs text-blue-600">Độ dày (Thick):</label>
-                      <input type="number" step="0.5" value={config[selectedTag].thickness || 1} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], thickness: Number(e.target.value)}}))} className="w-full text-sm p-1 border rounded mt-1" />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex gap-2 mb-2">
-                <div className="flex-1">
-                  <label className="text-xs text-blue-600">X (Ngang):</label>
-                  <input type="number" step="0.5" value={config[selectedTag].x} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], x: Number(e.target.value)}}))} className="w-full text-sm p-1 border rounded mt-1" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-blue-600">Y (Dọc):</label>
-                  <input type="number" step="0.5" value={config[selectedTag].y} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], y: Number(e.target.value)}}))} className="w-full text-sm p-1 border rounded mt-1" />
-                </div>
-                <div className="w-20">
-                  <label className="text-xs text-blue-600 font-semibold">Cỡ chữ:</label>
-                  <input type="number" min="4" max="72" value={config[selectedTag].size ?? 9} onChange={(e) => setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], size: Number(e.target.value) || 9}}))} className="w-full text-sm p-1 border border-blue-300 rounded mt-1 text-center font-bold text-blue-800 bg-blue-50/80" />
-                </div>
-              </div>
-
-              {/* Kiểu chữ In đậm / Hủy in đậm */}
-              <div className="flex items-center justify-between mb-3 p-2 bg-blue-50/70 border border-blue-200 rounded-lg">
-                <span className="text-xs text-blue-900 font-semibold">Kiểu chữ:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const currentWeight = config[selectedTag].fontWeight;
-                    const nextWeight = currentWeight === 'bold' ? 'normal' : 'bold';
-                    setConfig(prev => ({
-                      ...prev,
-                      [selectedTag]: { ...prev[selectedTag], fontWeight: nextWeight }
-                    }));
-                  }}
-                  className={`px-3 py-1 text-xs font-bold rounded border transition-all flex items-center gap-1.5 shadow-xs ${
-                    config[selectedTag].fontWeight === 'bold'
-                      ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="font-bold text-sm">B</span> {config[selectedTag].fontWeight === 'bold' ? 'Đang In Đậm' : 'In Thường (Hủy Đậm)'}
-                </button>
-              </div>
-
-              {/* Căn lề chữ: Trái / Giữa / Phải */}
-              <div className="flex items-center justify-between mb-3 p-2 bg-blue-50/70 border border-blue-200 rounded-lg">
-                <span className="text-xs text-blue-900 font-semibold">Căn lề chữ:</span>
-                <div className="flex items-center gap-1 bg-white p-0.5 rounded border border-blue-200 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                      setConfig(prev => ({
-                        ...prev,
-                        [selectedTag]: {
-                          ...prev[selectedTag],
-                          align: 'left',
-                          width: prev[selectedTag].width || autoDims.width,
-                          height: prev[selectedTag].height || autoDims.height,
-                        }
-                      }));
-                    }}
-                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
-                      (!config[selectedTag].align || config[selectedTag].align === 'left')
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                    title="Căn lề Trái"
-                  >
-                    ⬅️ Trái
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                      setConfig(prev => ({
-                        ...prev,
-                        [selectedTag]: {
-                          ...prev[selectedTag],
-                          align: 'center',
-                          width: prev[selectedTag].width || autoDims.width,
-                          height: prev[selectedTag].height || autoDims.height,
-                        }
-                      }));
-                    }}
-                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
-                      config[selectedTag].align === 'center'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                    title="Căn lề Giữa"
-                  >
-                    ↔️ Giữa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                      setConfig(prev => ({
-                        ...prev,
-                        [selectedTag]: {
-                          ...prev[selectedTag],
-                          align: 'right',
-                          width: prev[selectedTag].width || autoDims.width,
-                          height: prev[selectedTag].height || autoDims.height,
-                        }
-                      }));
-                    }}
-                    className={`px-2 py-0.5 text-xs font-bold rounded transition-all ${
-                      config[selectedTag].align === 'right'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                    title="Căn lề Phải (Dành cho số tiền)"
-                  >
-                    ➡️ Phải
-                  </button>
-                </div>
-              </div>
-
-              {/* Auto-fit dimensions button */}
-              <button
-                type="button"
-                onClick={() => {
-                  const dims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                  setConfig(prev => ({
-                    ...prev,
-                    [selectedTag]: { ...prev[selectedTag], width: dims.width, height: dims.height }
-                  }));
-                }}
-                className="w-full mb-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs py-1.5 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                ✨ Auto-fit kích thước (Vừa khít chữ)
-              </button>
-              
-              {/* Auto-fill split-char series */}
-              {(() => {
-                const seriesInfo = getSplitSeriesInfo(selectedTag);
-                if (!seriesInfo || seriesInfo.missingTags.length === 0) return null;
-                return (
-                  <div className="mb-3 p-2 bg-emerald-50 border border-emerald-200 rounded">
-                    <div className="text-xs font-bold text-emerald-700 mb-1">
-                      ⚡ Auto-fill dãy ({seriesInfo.total} thẻ, còn thiếu {seriesInfo.missingTags.length})
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <label className="text-[10px] text-emerald-600 whitespace-nowrap">Bước X (px):</label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={autoFillStep}
-                        onChange={(e) => setAutoFillStep(Number(e.target.value) || 15)}
-                        className="w-16 text-xs p-1 border border-emerald-300 rounded text-center"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleAutoFillSeries(selectedTag, autoFillStep)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 rounded font-medium transition-colors"
-                    >
-                      Tự động ghim {seriesInfo.missingTags.length} thẻ còn lại
-                    </button>
-                    <p className="text-[9px] text-emerald-500 mt-1">Giữ nguyên Y={config[selectedTag]?.y}, cùng trang, cách đều X+={autoFillStep}px</p>
-                  </div>
-                );
-              })()}
-
-              <div className="flex flex-col gap-1 mt-3">
-                <span className="text-xs text-blue-600 font-medium">Bắt điểm thẳng hàng (Snap):</span>
-                <select className="w-full text-xs p-1 border rounded mb-1" id="alignTarget" defaultValue="">
-                  <option value="" disabled>Chọn thẻ mẫu...</option>
-                  {Object.keys(config).filter(t => t !== selectedTag).map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <div className="flex gap-1">
-                  <button className="flex-1 bg-white border border-blue-200 text-blue-700 text-xs py-1 rounded hover:bg-blue-100" onClick={() => {
-                     const target = (document.getElementById('alignTarget') as HTMLSelectElement).value;
-                     if(target && config[target]) {
-                       setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], y: config[target].y}}));
-                     }
-                  }}>Bằng Y (Ngang)</button>
-                  <button className="flex-1 bg-white border border-blue-200 text-blue-700 text-xs py-1 rounded hover:bg-blue-100" onClick={() => {
-                     const target = (document.getElementById('alignTarget') as HTMLSelectElement).value;
-                     if(target && config[target]) {
-                       setConfig(prev => ({...prev, [selectedTag]: {...prev[selectedTag], x: config[target].x}}));
-                     }
-                  }}>Bằng X (Dọc)</button>
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-3 border-t border-blue-100 flex justify-between items-center">
-                <button 
-                  onClick={() => {
-                    handleDeleteTag(selectedTag);
-                    setSelectedTag(null);
-                  }} 
-                  className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1"
-                >
-                  Xóa thẻ này
-                </button>
-              </div>
-              </>
-            )}
           </div>
         )}
 
@@ -1923,6 +1378,515 @@ export default function PdfMapperClient({
             <span>Tổng số trang: {numPages || '-'}</span>
           </div>
         </div>
+
+        {/* WORD-STYLE HORIZONTAL PROPERTY RIBBON TOOLBAR (SINGLE TAG) */}
+        {selectedTag && config[selectedTag] && selectedTags.length <= 1 && (
+          <div className="bg-slate-900 border-b border-slate-700 text-slate-200 px-3 py-1.5 flex items-center justify-between gap-2 text-xs flex-wrap shadow-md z-30 select-none">
+            {/* Nhóm 1: Thẻ & Nguồn dữ liệu */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div
+                className="flex items-center gap-1 bg-blue-950/80 border border-blue-600/60 px-2 py-0.5 rounded text-blue-200 font-bold max-w-[210px] truncate"
+                title={`${getTagLabel(selectedTag)} (${selectedTag})`}
+              >
+                <span className="text-blue-400 shrink-0">🏷️</span>
+                <span className="truncate">{getTagLabel(selectedTag)}</span>
+              </div>
+
+              <select
+                value={selectedTag.split('#')[0]}
+                onChange={(e) => handleRemapTagSource(selectedTag, e.target.value)}
+                className="h-6 text-[11px] bg-slate-800 border border-slate-600 rounded px-1.5 text-slate-200 focus:ring-1 focus:ring-blue-400 outline-none max-w-[150px]"
+                title="Đổi nguồn dữ liệu cho thẻ"
+              >
+                <optgroup label="── Loại Thẻ Tùy Chỉnh ──">
+                  <option value="custom">Thẻ tự do</option>
+                  <option value="static">Chữ tĩnh</option>
+                  <option value="line">Đường kẻ</option>
+                  <option value="circle">Khoanh tròn</option>
+                </optgroup>
+                {getTagsForTemplate(selectedTemplate || '*').map(group => (
+                  <optgroup key={group.name} label={`── ${group.name} ──`}>
+                    {group.tags.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.label} ({t.id})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            {/* Nhóm 2: Định dạng chữ & Căn chỉnh (Word Style) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Cỡ chữ */}
+              <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-700 p-0.5 rounded">
+                <span className="text-[10px] text-slate-400 px-1 font-semibold">Cỡ:</span>
+                <button
+                  type="button"
+                  onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.max(4, (prev[selectedTag].size ?? 9) - 1) } }))}
+                  className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
+                  title="Giảm cỡ chữ (1pt)"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="4"
+                  max="72"
+                  value={config[selectedTag].size ?? 9}
+                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Number(e.target.value) || 9 } }))}
+                  className="w-8 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white text-xs font-bold focus:ring-1 focus:ring-blue-400 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.min(72, (prev[selectedTag].size ?? 9) + 1) } }))}
+                  className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
+                  title="Tăng cỡ chữ (1pt)"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* In đậm B */}
+              <button
+                type="button"
+                onClick={() => {
+                  const nextWeight = config[selectedTag].fontWeight === 'bold' ? 'normal' : 'bold';
+                  setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], fontWeight: nextWeight } }));
+                }}
+                className={`h-6 px-2 rounded text-xs font-bold border transition-all flex items-center gap-1 ${
+                  config[selectedTag].fontWeight === 'bold'
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`}
+                title={config[selectedTag].fontWeight === 'bold' ? 'Đang In Đậm (Click để hủy)' : 'In Đậm (Bold)'}
+              >
+                <span className="font-extrabold text-xs">B</span>
+              </button>
+
+              {/* Căn lề Trái / Giữa / Phải */}
+              <div className="flex items-center bg-slate-800 border border-slate-700 p-0.5 rounded gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                    setConfig(prev => ({
+                      ...prev,
+                      [selectedTag]: {
+                        ...prev[selectedTag],
+                        align: 'left',
+                        width: prev[selectedTag].width || autoDims.width,
+                        height: prev[selectedTag].height || autoDims.height,
+                      }
+                    }));
+                  }}
+                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                    (!config[selectedTag].align || config[selectedTag].align === 'left')
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                  title="Căn lề Trái"
+                >
+                  Trái
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                    setConfig(prev => ({
+                      ...prev,
+                      [selectedTag]: {
+                        ...prev[selectedTag],
+                        align: 'center',
+                        width: prev[selectedTag].width || autoDims.width,
+                        height: prev[selectedTag].height || autoDims.height,
+                      }
+                    }));
+                  }}
+                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                    config[selectedTag].align === 'center'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                  title="Căn Giữa"
+                >
+                  Giữa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                    setConfig(prev => ({
+                      ...prev,
+                      [selectedTag]: {
+                        ...prev[selectedTag],
+                        align: 'right',
+                        width: prev[selectedTag].width || autoDims.width,
+                        height: prev[selectedTag].height || autoDims.height,
+                      }
+                    }));
+                  }}
+                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                    config[selectedTag].align === 'right'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                  title="Căn lề Phải"
+                >
+                  Phải
+                </button>
+              </div>
+
+              {/* Vị trí & Kích thước X, Y, W */}
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
+                <span className="text-slate-400 font-mono font-semibold">X:</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={config[selectedTag].x}
+                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], x: Number(e.target.value) } }))}
+                  className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                  title="Tọa độ X"
+                />
+                <span className="text-slate-400 font-mono font-semibold ml-1">Y:</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={config[selectedTag].y}
+                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], y: Number(e.target.value) } }))}
+                  className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                  title="Tọa độ Y"
+                />
+                <span className="text-slate-400 font-mono font-semibold ml-1">W:</span>
+                <input
+                  type="number"
+                  step="1"
+                  value={config[selectedTag].width || ''}
+                  placeholder="auto"
+                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: Number(e.target.value) || undefined } }))}
+                  className="w-11 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                  title="Độ rộng khung chứa (Width)"
+                />
+                {config[selectedTag].type === 'circle' && (
+                  <>
+                    <span className="text-slate-400 font-mono font-semibold ml-1">H:</span>
+                    <input
+                      type="number"
+                      step="1"
+                      value={config[selectedTag].height || 20}
+                      onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], height: Number(e.target.value) } }))}
+                      className="w-10 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                      title="Độ cao (Height)"
+                    />
+                  </>
+                )}
+                {(config[selectedTag].type === 'line' || config[selectedTag].type === 'circle') && (
+                  <>
+                    <span className="text-slate-400 font-mono font-semibold ml-1">Dày:</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={config[selectedTag].thickness || 1}
+                      onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], thickness: Number(e.target.value) } }))}
+                      className="w-10 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                      title="Độ dày nét vẽ"
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Auto-fit Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const dims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                  setConfig(prev => ({
+                    ...prev,
+                    [selectedTag]: { ...prev[selectedTag], width: dims.width, height: dims.height }
+                  }));
+                }}
+                className="h-6 px-2 bg-teal-700/80 hover:bg-teal-600 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1 shadow-xs"
+                title="Tự động co dãn chiều rộng vừa khít chữ"
+              >
+                ✨ Auto-fit
+              </button>
+            </div>
+
+            {/* Nhóm 3: Nội dung / Snap / Xóa / Đóng */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Content Text Input */}
+              {(!config[selectedTag].type || config[selectedTag].type === 'text') && (() => {
+                const baseKey = selectedTag.split('#')[0];
+                let displayVal = config[selectedTag].value ?? ((liveMappedData ? liveMappedData[baseKey] : (showMockData ? MOCK_DATA[baseKey] : '')));
+                return (
+                  <input
+                    type="text"
+                    value={displayVal || ''}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], value: e.target.value } }))}
+                    placeholder="Chữ tĩnh / Xem trước..."
+                    className="w-32 h-6 text-[11px] px-2 bg-slate-950 border border-slate-600 rounded text-slate-200 font-mono focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Nhập chữ tĩnh hoặc nội dung xem trước"
+                  />
+                );
+              })()}
+
+              {/* Series Auto-fill if applicable */}
+              {(() => {
+                const seriesInfo = getSplitSeriesInfo(selectedTag);
+                if (!seriesInfo || seriesInfo.missingTags.length === 0) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleAutoFillSeries(selectedTag, autoFillStep)}
+                    className="h-6 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1"
+                    title={`Tự động ghim ${seriesInfo.missingTags.length} thẻ còn lại của dãy`}
+                  >
+                    ⚡ Auto-fill ({seriesInfo.missingTags.length})
+                  </button>
+                );
+              })()}
+
+              {/* Snap to target */}
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded">
+                <select
+                  className="h-5 text-[10px] bg-slate-900 border border-slate-700 rounded text-slate-300 max-w-[90px]"
+                  id="snapTargetSelect"
+                  defaultValue=""
+                  title="Chọn thẻ mẫu để bắt thẳng hàng"
+                >
+                  <option value="" disabled>Bắt điểm...</option>
+                  {Object.keys(config).filter(t => t !== selectedTag).map(t => (
+                    <option key={t} value={t}>{getTagLabel(t)}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('snapTargetSelect') as HTMLSelectElement;
+                    const target = el?.value;
+                    if (target && config[target]) {
+                      setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], y: config[target].y } }));
+                    }
+                  }}
+                  className="h-5 px-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[10px] font-bold"
+                  title="Căn thẳng hàng ngang (bằng Y)"
+                >
+                  =Y
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('snapTargetSelect') as HTMLSelectElement;
+                    const target = el?.value;
+                    if (target && config[target]) {
+                      setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], x: config[target].x } }));
+                    }
+                  }}
+                  className="h-5 px-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[10px] font-bold"
+                  title="Căn thẳng hàng dọc (bằng X)"
+                >
+                  =X
+                </button>
+              </div>
+
+              {/* Delete button */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteTag(selectedTag);
+                  setSelectedTag(null);
+                }}
+                className="h-6 px-2 bg-red-600/80 hover:bg-red-600 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1 shadow-xs"
+                title="Xóa thẻ này"
+              >
+                🗑️ Xóa
+              </button>
+
+              {/* Close selection */}
+              <button
+                type="button"
+                onClick={() => setSelectedTag(null)}
+                className="h-6 w-6 text-slate-400 hover:text-white rounded hover:bg-slate-800 flex items-center justify-center font-bold text-xs"
+                title="Đóng thanh định dạng"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* WORD-STYLE HORIZONTAL MULTI-TAG RIBBON TOOLBAR (BATCH MODE) */}
+        {selectedTags.length > 1 && (
+          <div className="bg-slate-900 border-b border-slate-700 text-slate-200 px-3 py-1.5 flex items-center justify-between gap-2 text-xs flex-wrap shadow-md z-30 select-none">
+            {/* Nhóm 1: Thống kê & Căn vị trí */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs text-slate-300 font-bold flex items-center gap-1 shrink-0">
+                🎯 Đã chọn: <strong className="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-700/50">{selectedTags.length} thẻ</strong>
+              </span>
+              <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
+              
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleBatchAlignTop}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Căn hàng ngang theo mép Y trên cùng"
+                >
+                  ⬆️ Top
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchAlignBottom}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Căn hàng ngang theo mép Y dưới cùng"
+                >
+                  ⬇️ Bottom
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchAlignLeft}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Căn lề cột dọc theo mép trái (Min X)"
+                >
+                  ⬅️ Left
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchAlignRight}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Căn lề cột dọc theo mép phải (Max X)"
+                >
+                  ➡️ Right
+                </button>
+                {selectedTags.length >= 3 && (
+                  <button
+                    type="button"
+                    onClick={handleBatchDistributeX}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                    title="Tự động phân bổ cách đều theo chiều ngang"
+                  >
+                    ↔️ Đều X
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleBatchAutoFit}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Tự động co dãn kích thước vừa khít chữ mẫu"
+                >
+                  ✨ Auto-fit
+                </button>
+              </div>
+            </div>
+
+            {/* Nhóm 2: Cỡ chữ & Định dạng chữ */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Cỡ chữ */}
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded shrink-0">
+                <span className="text-[11px] font-bold text-slate-300">Cỡ:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = config[selectedTags[0]]?.size ?? 9;
+                    handleBatchSetFontSize(Math.max(4, current - 1));
+                  }}
+                  className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
+                  title="Giảm cỡ chữ cho tất cả thẻ đang chọn"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="4"
+                  max="72"
+                  value={config[selectedTags[0]]?.size ?? 9}
+                  onChange={(e) => handleBatchSetFontSize(Number(e.target.value) || 9)}
+                  className="w-8 text-center bg-slate-950 border border-slate-600 text-white font-bold text-xs rounded py-0 focus:ring-1 focus:ring-blue-400 outline-none"
+                  title="Nhập cỡ chữ cho tất cả thẻ đang chọn"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = config[selectedTags[0]]?.size ?? 9;
+                    handleBatchSetFontSize(Math.min(72, current + 1));
+                  }}
+                  className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
+                  title="Tăng cỡ chữ cho tất cả thẻ đang chọn"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* In đậm / In thường */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleBatchSetFontWeight('bold')}
+                  className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-0.5 rounded text-xs font-bold border border-slate-600 transition-all flex items-center gap-0.5"
+                  title="In đậm tất cả thẻ đã chọn"
+                >
+                  <strong>B</strong> Đậm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchSetFontWeight('normal')}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs font-medium border border-slate-600 transition-all"
+                  title="Chữ thường tất cả thẻ đã chọn"
+                >
+                  Thường
+                </button>
+              </div>
+
+              {/* Căn lề văn bản */}
+              <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-600 p-0.5 rounded shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleBatchSetAlign('left')}
+                  className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                  title="Căn văn bản lề trái"
+                >
+                  Trái
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchSetAlign('center')}
+                  className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                  title="Căn văn bản chính giữa"
+                >
+                  Giữa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBatchSetAlign('right')}
+                  className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                  title="Căn văn bản lề phải"
+                >
+                  Phải
+                </button>
+              </div>
+            </div>
+
+            {/* Nhóm 3: Xóa & Hủy */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleBatchDelete()}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5 shrink-0"
+                title="Xóa tất cả các thẻ đang chọn"
+              >
+                🗑️ Xóa ({selectedTags.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTags([])}
+                className="text-slate-400 hover:text-white text-xs underline ml-1 shrink-0"
+                title="Bỏ chọn tất cả"
+              >
+                ✕ Hủy
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto flex flex-col items-center p-8 gap-8">
           {selectedTemplate && (
