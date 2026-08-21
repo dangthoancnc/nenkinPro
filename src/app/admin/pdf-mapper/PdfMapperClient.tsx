@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -112,9 +112,10 @@ export default function PdfMapperClient({
   const justClickedPinRef = useRef(false);
 
   const [saving, setSaving] = useState(false);
-  const [pdfScale, setPdfScale] = useState(1.0);
+  const [pdfScale, setPdfScale] = useState(1.8);
   const [showMockData, setShowMockData] = useState(false);
   const [autoFillStep, setAutoFillStep] = useState(15);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   // Undo / Redo History Stack
   const historyRef = useRef<ConfigMap[]>([]);
@@ -395,6 +396,21 @@ export default function PdfMapperClient({
         }
       });
   }, [selectedTemplate]);
+
+  const handleFitWidth = useCallback(() => {
+    if (!pdfContainerRef.current) {
+      setPdfScale(1.8);
+      return;
+    }
+    const containerW = pdfContainerRef.current.clientWidth - 80;
+    const pageW = pageDimensions[0]?.width || A4_W;
+    if (containerW > 0 && pageW > 0) {
+      const calculatedScale = Math.min(3, Math.max(0.5, Math.round((containerW / pageW) * 10) / 10));
+      setPdfScale(calculatedScale);
+    } else {
+      setPdfScale(1.8);
+    }
+  }, [pageDimensions]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -1370,12 +1386,34 @@ export default function PdfMapperClient({
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-700 px-2 py-1 rounded">
-              <button type="button" onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))} className="hover:text-white px-1 font-bold">-</button>
-              <span className="text-xs font-mono">{Math.round(pdfScale * 100)}%</span>
-              <button type="button" onClick={() => setPdfScale(s => Math.min(3, s + 0.2))} className="hover:text-white px-1 font-bold">+</button>
+            <div className="flex items-center gap-1.5 bg-slate-700 px-2 py-1 rounded shadow-inner">
+              <button 
+                type="button" 
+                onClick={() => setPdfScale(s => Math.max(0.5, Math.round((s - 0.1) * 10) / 10))} 
+                className="hover:text-white px-1.5 font-bold hover:bg-slate-600 rounded text-xs"
+                title="Thu nhỏ (-10%)"
+              >
+                -
+              </button>
+              <span className="text-xs font-mono font-bold text-emerald-400 min-w-[42px] text-center">{Math.round(pdfScale * 100)}%</span>
+              <button 
+                type="button" 
+                onClick={() => setPdfScale(s => Math.min(3, Math.round((s + 0.1) * 10) / 10))} 
+                className="hover:text-white px-1.5 font-bold hover:bg-slate-600 rounded text-xs"
+                title="Phóng to (+10%)"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={handleFitWidth}
+                className="bg-slate-800 hover:bg-blue-600 text-white text-[11px] px-2 py-0.5 rounded font-medium ml-1 transition-colors border border-slate-600 shadow-xs flex items-center gap-1"
+                title="Phóng to tự động vừa khít chiều rộng màn hình"
+              >
+                ↔ Fit (180%)
+              </button>
             </div>
-            <span>Tổng số trang: {numPages || '-'}</span>
+            <span className="text-xs text-slate-300 font-medium">Tổng số trang: {numPages || '-'}</span>
           </div>
         </div>
 
@@ -1888,7 +1926,7 @@ export default function PdfMapperClient({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto flex flex-col items-center p-8 gap-8">
+        <div ref={pdfContainerRef} className="flex-1 overflow-auto flex flex-col items-center p-8 gap-8">
           {selectedTemplate && (
             <Document
               file={`/forms/${selectedTemplate}.pdf`}
