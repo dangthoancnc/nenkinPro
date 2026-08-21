@@ -509,6 +509,20 @@ export default function PdfMapperClient({
     });
   };
 
+  const handleBatchAlignRight = () => {
+    if (selectedTags.length < 2) return;
+    const existingCoords = selectedTags.map(t => config[t]).filter(Boolean);
+    if (existingCoords.length === 0) return;
+    const maxX = Math.max(...existingCoords.map(c => c.x));
+    setConfig(prev => {
+      const next = { ...prev };
+      selectedTags.forEach(t => {
+        if (next[t]) next[t] = { ...next[t], x: maxX };
+      });
+      return next;
+    });
+  };
+
   const handleBatchDistributeX = () => {
     if (selectedTags.length < 3) return;
     const items = selectedTags
@@ -1312,55 +1326,78 @@ export default function PdfMapperClient({
         )}
 
         {selectedTags.length > 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full shadow-2xl text-sm font-semibold z-50 flex items-center gap-2 border border-slate-700 backdrop-blur-md animate-bounce">
-            <span className="text-xs text-slate-200">Đã chọn: <strong className="text-white">{selectedTags.length} thẻ</strong></span>
-            <div className="h-4 w-px bg-slate-700 my-auto"></div>
-            <button
-              onClick={handleBatchAlignTop}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
-              title="Căn hàng ngang theo mép Y trên cùng"
-            >
-              ⬆️ Căn Top
-            </button>
-            <button
-              onClick={handleBatchAlignBottom}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
-              title="Căn hàng ngang theo mép Y dưới cùng"
-            >
-              ⬇️ Căn Bottom
-            </button>
-            <button
-              onClick={handleBatchAlignLeft}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
-              title="Căn lề cột dọc theo X"
-            >
-              ⬅️ Căn Left
-            </button>
-            {selectedTags.length >= 3 && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-3 py-1.5 rounded-xl shadow-2xl text-xs font-semibold z-50 flex items-center gap-1.5 border border-slate-700/90 backdrop-blur-md select-none max-w-[95%] overflow-x-auto">
+            <span className="text-xs text-slate-300 font-bold flex items-center gap-1 shrink-0">
+              🎯 Đã chọn: <strong className="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-700/50">{selectedTags.length} thẻ</strong>
+            </span>
+            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
+            
+            {/* Căn vị trí tọa độ */}
+            <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={handleBatchDistributeX}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
-                title="Tự động phân bổ cách đều theo chiều ngang"
+                type="button"
+                onClick={handleBatchAlignTop}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                title="Căn hàng ngang theo mép Y trên cùng"
               >
-                ↔️ Cách đều
+                ⬆️ Top
               </button>
-            )}
-            <button
-              onClick={handleBatchAutoFit}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
-              title="Tự động co dãn vừa khít chữ mẫu"
-            >
-              ✨ Auto-fit tất cả
-            </button>
-            <div className="h-4 w-px bg-slate-700 my-auto"></div>
-            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-600 px-2 py-1 rounded-full">
-              <span className="text-xs font-bold text-slate-300">Cỡ chữ:</span>
               <button
+                type="button"
+                onClick={handleBatchAlignBottom}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                title="Căn hàng ngang theo mép Y dưới cùng"
+              >
+                ⬇️ Bottom
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchAlignLeft}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                title="Căn lề cột dọc theo mép trái (Min X)"
+              >
+                ⬅️ Left
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchAlignRight}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                title="Căn lề cột dọc theo mép phải (Max X)"
+              >
+                ➡️ Right
+              </button>
+              {selectedTags.length >= 3 && (
+                <button
+                  type="button"
+                  onClick={handleBatchDistributeX}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                  title="Tự động phân bổ cách đều theo chiều ngang"
+                >
+                  ↔️ Đều X
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleBatchAutoFit}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5"
+                title="Tự động co dãn kích thước vừa khít chữ mẫu"
+              >
+                ✨ Auto-fit
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
+
+            {/* Cỡ chữ */}
+            <div className="flex items-center gap-1 bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded shrink-0">
+              <span className="text-[11px] font-bold text-slate-300">Cỡ chữ:</span>
+              <button
+                type="button"
                 onClick={() => {
                   const current = config[selectedTags[0]]?.size ?? 9;
                   handleBatchSetFontSize(Math.max(4, current - 1));
                 }}
-                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-5 h-5 rounded font-bold flex items-center justify-center border border-slate-500"
+                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
                 title="Giảm cỡ chữ cho tất cả thẻ đang chọn"
               >
                 -
@@ -1371,68 +1408,106 @@ export default function PdfMapperClient({
                 max="72"
                 value={config[selectedTags[0]]?.size ?? 9}
                 onChange={(e) => handleBatchSetFontSize(Number(e.target.value) || 9)}
-                className="w-10 text-center bg-slate-950 border border-slate-600 text-white font-bold text-xs rounded py-0.5 focus:ring-1 focus:ring-blue-400 outline-none"
+                className="w-8 text-center bg-slate-950 border border-slate-600 text-white font-bold text-xs rounded py-0 focus:ring-1 focus:ring-blue-400 outline-none"
                 title="Nhập cỡ chữ cho tất cả thẻ đang chọn"
               />
               <button
+                type="button"
                 onClick={() => {
                   const current = config[selectedTags[0]]?.size ?? 9;
                   handleBatchSetFontSize(Math.min(72, current + 1));
                 }}
-                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-5 h-5 rounded font-bold flex items-center justify-center border border-slate-500"
+                className="bg-slate-700 hover:bg-slate-600 text-white text-xs w-4 h-4 rounded font-bold flex items-center justify-center border border-slate-500"
                 title="Tăng cỡ chữ cho tất cả thẻ đang chọn"
               >
                 +
               </button>
             </div>
+
+            {/* In đậm / In thường */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleBatchSetFontWeight('bold')}
+                className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-0.5 rounded text-xs font-bold border border-slate-600 transition-all flex items-center gap-0.5"
+                title="In đậm tất cả thẻ đã chọn"
+              >
+                <strong>B</strong> Đậm
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBatchSetFontWeight('normal')}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs font-medium border border-slate-600 transition-all"
+                title="Chữ thường tất cả thẻ đã chọn"
+              >
+                Thường
+              </button>
+            </div>
+
+            {/* Căn lề văn bản */}
+            <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-600 p-0.5 rounded shrink-0">
+              <button
+                type="button"
+                onClick={() => handleBatchSetAlign('left')}
+                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                title="Căn văn bản lề trái"
+              >
+                Trái
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBatchSetAlign('center')}
+                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                title="Căn văn bản chính giữa"
+              >
+                Giữa
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBatchSetAlign('right')}
+                className="hover:bg-slate-700 text-slate-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition-all"
+                title="Căn văn bản lề phải (dạt phải)"
+              >
+                Phải
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-700 my-auto shrink-0"></div>
+
+            {/* Xóa & Bỏ chọn */}
             <button
-              onClick={() => handleBatchSetFontWeight('bold')}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded-full text-xs font-bold border border-slate-600 transition-all flex items-center gap-1"
-            >
-              <span className="font-bold text-xs">B</span> Đậm
-            </button>
-            <button
-              onClick={() => handleBatchSetFontWeight('normal')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-full text-xs font-medium border border-slate-600 transition-all"
-            >
-              Thường
-            </button>
-            <button
-              onClick={() => handleBatchSetAlign('right')}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded-full text-xs font-bold border border-slate-600 transition-all flex items-center gap-1"
-              title="Dạt tất cả thẻ đã chọn về lề phải ô"
-            >
-              ➡️ Căn Phải
-            </button>
-            <button
+              type="button"
               onClick={() => handleBatchDelete()}
-              className="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow transition-all flex items-center gap-1"
+              className="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-xs font-bold shadow transition-all flex items-center gap-0.5 shrink-0"
+              title="Xóa tất cả các thẻ đang chọn"
             >
               🗑️ Xóa ({selectedTags.length})
             </button>
             <button
+              type="button"
               onClick={() => setSelectedTags([])}
-              className="text-slate-400 hover:text-white text-xs underline ml-1"
+              className="text-slate-400 hover:text-white text-xs underline ml-1 shrink-0"
+              title="Bỏ chọn tất cả"
             >
-              Hủy
+              ✕ Hủy
             </button>
           </div>
         )}
 
         {activeMode === 'add' && selectedTag && selectedTags.length === 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none">
             <MousePointer2 size={16} /> 📌 Chế độ Ghim Thẻ: {getTagLabel(selectedTag)} <span className="text-[10px] text-emerald-200 font-mono">({selectedTag})</span> - Click vào PDF để ghim!
           </div>
         )}
 
         {activeMode === 'delete' && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none animate-pulse">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-10 flex items-center gap-2 pointer-events-none">
             🗑️ Chế độ Xóa Thẻ: Click vào bất kỳ thẻ nào trên hình PDF để xóa
           </div>
         )}
         
         {/* Floating Tinh Chinh */}
-        {selectedTag && config[selectedTag] && (
+        {selectedTag && config[selectedTag] && selectedTags.length <= 1 && (
           <div
             className={`floating-panel fixed z-50 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl border border-blue-200 transition-all ${
               panelPos ? '' : panelDock === 'left' ? 'left-6 top-24' : 'right-6 top-24'
