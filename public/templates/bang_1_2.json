@@ -1,0 +1,888 @@
+{
+  "taxYear_era_yr_unit": {
+    "page": 0,
+    "x": 176.75,
+    "y": 770.63,
+    "size": 15,
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "taxOfficeName": {
+    "page": 0,
+    "x": 39,
+    "y": 787.5,
+    "size": 11,
+    "width": 54,
+    "height": 14,
+    "fontWeight": "normal"
+  },
+  "post_1": {
+    "page": 0,
+    "x": 75.5,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "post_2": {
+    "page": 0,
+    "x": 90,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "post_3": {
+    "page": 0,
+    "x": 104,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "post_4": {
+    "page": 0,
+    "x": 126,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "post_5": {
+    "page": 0,
+    "x": 140,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "post_6": {
+    "page": 0,
+    "x": 154,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "post_7": {
+    "page": 0,
+    "x": 167,
+    "y": 751,
+    "size": 14,
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "address_jp": {
+    "page": 0,
+    "x": 75,
+    "y": 725,
+    "size": 10,
+    "width": 225,
+    "height": 34,
+    "fontWeight": "normal"
+  },
+  "fullName": {
+    "page": 0,
+    "x": 342,
+    "y": 711.88,
+    "size": 11,
+    "width": 183,
+    "height": 21,
+    "fontWeight": "normal"
+  },
+  "dob_era_code": {
+    "page": 0,
+    "x": 415,
+    "y": 751,
+    "size": 14,
+    "width": 24,
+    "height": 17,
+    "fontWeight": "normal"
+  },
+  "dob_era_yr_1": {
+    "page": 0,
+    "x": 428,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "dob_era_yr_2": {
+    "page": 0,
+    "x": 443,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "dob_m_1": {
+    "page": 0,
+    "x": 464.5,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "dob_m_2": {
+    "page": 0,
+    "x": 478,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "dob_d_1": {
+    "page": 0,
+    "x": 497.88,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "dob_d_2": {
+    "page": 0,
+    "x": 512.25,
+    "y": 751,
+    "size": 14,
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "phone_group_1": {
+    "page": 0,
+    "x": 448,
+    "y": 665.38,
+    "size": 10,
+    "width": 28,
+    "height": 13,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "phone_group_2": {
+    "page": 0,
+    "x": 476,
+    "y": 665.38,
+    "size": 10,
+    "width": 28,
+    "height": 11,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "phone_group_3": {
+    "page": 0,
+    "x": 506.02,
+    "y": 665.38,
+    "size": 10,
+    "width": 27,
+    "height": 12,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "totalExpectedJpy": {
+    "page": 0,
+    "x": 194.88,
+    "y": -280,
+    "size": 9,
+    "width": 46,
+    "height": 24
+  },
+  "account_type_futsu_mark": {
+    "page": 0,
+    "x": 435.44,
+    "y": 109.94,
+    "size": 12,
+    "width": 28,
+    "height": 14
+  },
+  "incomeTypeName": {
+    "page": 1,
+    "x": 38.38,
+    "y": 560.37,
+    "size": 7,
+    "width": 28,
+    "height": 17
+  },
+  "incomePayerName": {
+    "page": 1,
+    "x": 108.75,
+    "y": 564.38,
+    "size": 6,
+    "width": 75,
+    "height": 9
+  },
+  "incomePayerAddress": {
+    "page": 1,
+    "x": 105.62,
+    "y": 555,
+    "size": 6,
+    "width": 83,
+    "height": 10
+  },
+  "incomeSourceWithheld": {
+    "page": 1,
+    "x": 242.5,
+    "y": 554,
+    "size": 9,
+    "width": 45,
+    "height": 17,
+    "value": "1021 000"
+  },
+  "incomeItemName": {
+    "page": 1,
+    "x": 68.44,
+    "y": 560.37,
+    "size": 7,
+    "type": "text",
+    "width": 41,
+    "height": 21
+  },
+  "withheldTax_dig_1": {
+    "page": 0,
+    "x": 423.33,
+    "y": 432.95,
+    "size": 15,
+    "type": "text",
+    "align": "center",
+    "width": 34,
+    "height": 11,
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_2": {
+    "page": 0,
+    "x": 444,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_3": {
+    "page": 0,
+    "x": 458,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_4": {
+    "page": 0,
+    "x": 472,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_5": {
+    "page": 0,
+    "x": 485,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_6": {
+    "page": 0,
+    "x": 499,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "withheldTax_dig_7": {
+    "page": 0,
+    "x": 514,
+    "y": 432.39,
+    "size": 15,
+    "type": "text",
+    "width": 20,
+    "height": 17,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_1": {
+    "page": 0,
+    "x": 430.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "align": "center",
+    "width": 21,
+    "height": 18,
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_2": {
+    "page": 0,
+    "x": 444.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_3": {
+    "page": 0,
+    "x": 457.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_4": {
+    "page": 0,
+    "x": 472.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_5": {
+    "page": 0,
+    "x": 485.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_6": {
+    "page": 0,
+    "x": 499.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "calculatedTax_dig_7": {
+    "page": 0,
+    "x": 514.22,
+    "y": 416.05,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "refundAmount_dig_1": {
+    "page": 0,
+    "x": 430.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "align": "center",
+    "width": 21,
+    "height": 18,
+    "fontWeight": "normal"
+  },
+  "refundAmount_dig_2": {
+    "page": 0,
+    "x": 443.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "align": "center",
+    "height": 18,
+    "fontWeight": "normal"
+  },
+  "refundAmount_dig_3": {
+    "page": 0,
+    "x": 458.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "refundAmount_dig_4": {
+    "page": 0,
+    "x": 471.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "refundAmount_dig_5": {
+    "page": 0,
+    "x": 485.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "align": "center",
+    "fontWeight": "normal",
+    "height": 18
+  },
+  "refundAmount_dig_6": {
+    "page": 0,
+    "x": 499.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "refundAmount_dig_7": {
+    "page": 0,
+    "x": 514.33,
+    "y": 366.5,
+    "size": 15,
+    "type": "text",
+    "width": 21,
+    "height": 18,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "taxRep_branchName#2": {
+    "page": 0,
+    "x": 428,
+    "y": 137.5,
+    "size": 6,
+    "width": 71,
+    "height": 16,
+    "type": "text",
+    "align": "center"
+  },
+  "fullName_kata_1": {
+    "page": 0,
+    "x": 333.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "align": "center",
+    "width": 14,
+    "height": 11,
+    "fontWeight": "normal"
+  },
+  "fullName_kata_2": {
+    "page": 0,
+    "x": 347.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "height": 22,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_3": {
+    "page": 0,
+    "x": 362.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "height": 22,
+    "fontWeight": "normal"
+  },
+  "fullName_kata_4": {
+    "page": 0,
+    "x": 376.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "height": 22,
+    "value": "4 ",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_5": {
+    "page": 0,
+    "x": 389.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "height": 22,
+    "fontWeight": "normal"
+  },
+  "fullName_kata_6": {
+    "page": 0,
+    "x": 403.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_7": {
+    "page": 0,
+    "x": 417.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_8": {
+    "page": 0,
+    "x": 431.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "value": "8",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_9": {
+    "page": 0,
+    "x": 445.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_10": {
+    "page": 0,
+    "x": 459.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "value": "1",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_11": {
+    "page": 0,
+    "x": 473.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "value": "2",
+    "height": 22,
+    "fontWeight": "normal"
+  },
+  "fullName_kata_12": {
+    "page": 0,
+    "x": 487.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "align": "center",
+    "height": 22,
+    "value": "3",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_13": {
+    "page": 0,
+    "x": 500.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "height": 22,
+    "align": "center",
+    "value": "4",
+    "fontWeight": "normal"
+  },
+  "fullName_kata_14": {
+    "page": 0,
+    "x": 514.78,
+    "y": 734.06,
+    "size": 9,
+    "type": "text",
+    "width": 14,
+    "height": 22,
+    "align": "center",
+    "value": "5",
+    "fontWeight": "normal"
+  },
+  "taxRep_account_dig_1": {
+    "page": 0,
+    "x": 342.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "align": "center",
+    "width": 16,
+    "height": 13
+  },
+  "taxRep_account_dig_2": {
+    "page": 0,
+    "x": 358.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "height": 27,
+    "align": "center"
+  },
+  "taxRep_account_dig_3": {
+    "page": 0,
+    "x": 372.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_4": {
+    "page": 0,
+    "x": 386.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_5": {
+    "page": 0,
+    "x": 400.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_6": {
+    "page": 0,
+    "x": 414.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_7": {
+    "page": 0,
+    "x": 428.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_8": {
+    "page": 0,
+    "x": 442.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_9": {
+    "page": 0,
+    "x": 456.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_10": {
+    "page": 0,
+    "x": 469.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_11": {
+    "page": 0,
+    "x": 483.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_12": {
+    "page": 0,
+    "x": 497.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "align": "center"
+  },
+  "taxRep_account_dig_13": {
+    "page": 0,
+    "x": 512.34,
+    "y": 96.27,
+    "size": 11,
+    "type": "text",
+    "width": 16,
+    "height": 27,
+    "align": "center"
+  },
+  "fullName_kata": {
+    "page": 1,
+    "x": 102.22,
+    "y": 664.05,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 183,
+    "height": 13,
+    "fontWeight": "normal"
+  },
+  "fullName#1": {
+    "page": 1,
+    "x": 102.22,
+    "y": 649.6,
+    "size": 11,
+    "type": "text",
+    "align": "left",
+    "width": 183,
+    "height": 21,
+    "fontWeight": "normal"
+  },
+  "address": {
+    "page": 1,
+    "x": 81.66,
+    "y": 701.17,
+    "size": 11,
+    "type": "text",
+    "align": "left",
+    "width": 204,
+    "height": 28,
+    "fontWeight": "normal"
+  },
+  "withheldTax": {
+    "page": 1,
+    "x": 243.67,
+    "y": 466.27,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 46,
+    "height": 11
+  },
+  "doc_date_era_yr": {
+    "page": 0,
+    "x": 55.25,
+    "y": 771,
+    "size": 11,
+    "type": "text",
+    "align": "left",
+    "width": 24,
+    "height": 11,
+    "fontWeight": "normal"
+  },
+  "doc_date_m": {
+    "page": 0,
+    "x": 81.25,
+    "y": 771,
+    "size": 11,
+    "type": "text",
+    "align": "left",
+    "width": 24,
+    "height": 11,
+    "fontWeight": "normal"
+  },
+  "doc_date_d": {
+    "page": 0,
+    "x": 103.75,
+    "y": 771,
+    "size": 11,
+    "type": "text",
+    "align": "left",
+    "width": 24,
+    "height": 11,
+    "fontWeight": "normal"
+  },
+  "taxYear_era_yr_unit#1": {
+    "page": 1,
+    "x": 79.75,
+    "y": 771.5,
+    "size": 15,
+    "type": "text",
+    "align": "center",
+    "width": 21,
+    "height": 18,
+    "fontWeight": "normal"
+  },
+  "taxRep_accountType_1_mark": {
+    "page": 0,
+    "x": 394.67,
+    "y": 139.44,
+    "size": 15,
+    "width": 19,
+    "height": 12
+  },
+  "taxRep_bankName": {
+    "page": 0,
+    "x": 312.5,
+    "y": 137.5,
+    "size": 7,
+    "width": 82,
+    "height": 14,
+    "type": "text",
+    "align": "center"
+  }
+}

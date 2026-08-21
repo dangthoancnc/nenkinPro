@@ -67,8 +67,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing templateName or config' }, { status: 400 });
     }
 
-    const configPath = path.join(process.cwd(), 'public', 'templates', `${templateName}.json`);
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    const templatesDir = path.join(process.cwd(), 'public', 'templates');
+    if (!fs.existsSync(templatesDir)) {
+      fs.mkdirSync(templatesDir, { recursive: true });
+    }
+
+    const configPath = path.join(templatesDir, `${templateName}.json`);
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+    // Create a local backup copy
+    try {
+      const backupDir = path.join(templatesDir, 'backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(backupDir, `${templateName}_${timestamp}.json`);
+      fs.writeFileSync(backupPath, JSON.stringify(config, null, 2), 'utf-8');
+    } catch (bErr) {
+      console.warn('Could not save backup copy:', bErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
