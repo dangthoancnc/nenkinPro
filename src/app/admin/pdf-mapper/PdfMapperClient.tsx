@@ -95,6 +95,8 @@ export default function PdfMapperClient({
 
   const [templates, setTemplates] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>(initTemplate);
+  const [selectedAppId, setSelectedAppId] = useState<string>(initAppId);
+  const [appList, setAppList] = useState<{ id: string; customer?: { fullName?: string; code?: string } }[]>([]);
   const [liveMappedData, setLiveMappedData] = useState<Record<string, string> | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [config, setConfig] = useState<ConfigMap>({});
@@ -346,7 +348,7 @@ export default function PdfMapperClient({
     });
   };
 
-  // Fetch templates list, setup PDF worker, and optionally fetch live mapped data
+  // Fetch templates list, applications list, setup PDF worker
   useEffect(() => {
     // Setup PDF worker on client side only, using local file to prevent CORS and version mismatch errors
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -362,8 +364,20 @@ export default function PdfMapperClient({
         }
       });
 
-    if (initAppId) {
-      fetch(`/api/applications/${initAppId}`)
+    fetch('/api/applications')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAppList(data);
+        }
+      })
+      .catch(err => console.error('Failed to fetch applications list:', err));
+  }, [initTemplate]);
+
+  // Fetch application live mapped data when selectedAppId changes & sync state to URL
+  useEffect(() => {
+    if (selectedAppId) {
+      fetch(`/api/applications/${selectedAppId}`)
         .then(res => res.json())
         .then(appData => {
           if (appData && appData.mappedData) {
@@ -371,8 +385,19 @@ export default function PdfMapperClient({
           }
         })
         .catch(err => console.error('Failed to fetch live data:', err));
+    } else {
+      setLiveMappedData(null);
     }
-  }, [initAppId, initTemplate]);
+
+    // Preserve URL state without full page reload
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (selectedTemplate) url.searchParams.set('template', selectedTemplate);
+      if (selectedAppId) url.searchParams.set('applicationId', selectedAppId);
+      else url.searchParams.delete('applicationId');
+      window.history.replaceState(null, '', url.toString());
+    }
+  }, [selectedAppId, selectedTemplate]);
 
   // Fetch config when template changes
   useEffect(() => {
@@ -384,13 +409,16 @@ export default function PdfMapperClient({
           const normalized: ConfigMap = { ...data.data };
           Object.keys(normalized).forEach(k => {
             const baseK = k.split('#')[0];
-            const isSingle = baseK.includes('_dig_') || baseK.endsWith('_unit') || /_\d+$/.test(baseK);
-            if (isSingle) {
+            const isExplicitSingleCharTag = 
+              baseK.includes('_dig_') || 
+              baseK.endsWith('_unit') ||
+              (/^(fullName_kata|my_num|nenkin|phone|post|tax_post|taxRep_phone|taxRep_post|bank|swift|withheldTax_dig|calculatedTax_dig|refundAmount_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|yucho_kigo|yucho_bango|taxRep_account|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseK));
+            
+            if (normalized[k].width === undefined && isExplicitSingleCharTag) {
               const sz = normalized[k].size || 9;
-              const compactW = Math.max(14, Math.ceil(sz * 1.4));
               normalized[k] = { 
                 ...normalized[k], 
-                width: compactW, 
+                width: Math.max(14, Math.ceil(sz * 1.3)), 
                 align: normalized[k].align || 'center' 
               };
             }
@@ -986,16 +1014,41 @@ export default function PdfMapperClient({
             </button>
           )}
 
-          {initAppId ? (
-            <div className="flex items-center gap-2 mb-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 font-medium text-xs">
-              <span>🌟 Đang dùng dữ liệu thực tế (Live Data)</span>
-            </div>
-          ) : (
+          {/* CHỌN HỒ SƠ KHÁCH HÀNG XEM MẪU */}
+          <div className="mb-3">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Dữ liệu xem trước:
+            </label>
+            <select
+              value={selectedAppId}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedAppId(newId);
+                if (!newId) {
+                  setShowMockData(true);
+                }
+              }}
+              className="w-full text-xs bg-white border border-slate-300 rounded p-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 outline-none"
+            >
+              <option value="">── Dữ liệu Mẫu (Mock Data) ──</option>
+              {appList.map(app => (
+                <option key={app.id} value={app.id}>
+                  {app.customer?.fullName || 'Khách hàng'} ({app.customer?.code || 'HS'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!selectedAppId ? (
             <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 rounded border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => setShowMockData(!showMockData)}>
               <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${showMockData ? 'bg-blue-500' : 'bg-slate-300'}`}>
                 <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showMockData ? 'translate-x-5' : 'translate-x-0'}`}></div>
               </div>
               <span className="text-sm font-medium text-slate-700 flex items-center gap-1"><Eye size={14}/> Hiển thị Dữ liệu mẫu</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 font-medium text-xs">
+              <span>🌟 Đang nạp Dữ liệu thực tế của hồ sơ</span>
             </div>
           )}
 
