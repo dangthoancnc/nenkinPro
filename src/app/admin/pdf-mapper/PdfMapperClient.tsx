@@ -2346,7 +2346,7 @@ export default function PdfMapperClient({
                                   onChange={(e) => setConfig(prev => ({...prev, [tag]: {...prev[tag], value: e.target.value}}))}
                                   style={{ 
                                     fontSize: 'inherit',
-                                    fontWeight: coord.fontWeight || 600,
+                                    fontWeight: coord.fontWeight === 'bold' ? 'bold' : 'normal',
                                     color: 'black',
                                     fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
                                     width: coord.width ? `${coord.width * pdfScale}px` : undefined,

@@ -626,7 +626,7 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
 
     furikae_danzoku_mark: '○',
     furikae_aoiro_mark: '',
-    furikae_shiro_mark: '○',
+    furikae_shiro_mark: '',
     bunri_mark: '○',
     furikae_sonshitsu_mark: '',
     furikae_shusei_mark: '',

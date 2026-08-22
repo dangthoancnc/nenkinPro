@@ -153,11 +153,12 @@ export interface PrintFieldProps {
   thickness?: number; // Border thickness
   isMock?: boolean;
   align?: 'left' | 'center' | 'right';
+  fontWeight?: 'normal' | 'bold';
   pageWidth?: number;
   pageHeight?: number;
 }
 
-export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false, align, pageWidth = A4_W, pageHeight = A4_H }: PrintFieldProps) => {
+export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false, align, fontWeight = 'normal', pageWidth = A4_W, pageHeight = A4_H }: PrintFieldProps) => {
   const widthPercent = width ? ((width / pageWidth) * 100) : undefined;
 
   // Common style for absolute positioning using percentages
@@ -222,7 +223,7 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
 
   return (
     <div
-      className={`absolute ${width ? 'whitespace-pre-wrap' : 'whitespace-pre'} ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black font-semibold'} ${className}`}
+      className={`absolute ${width ? 'whitespace-pre-wrap' : 'whitespace-pre'} ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black'} ${fontWeight === 'bold' ? 'font-bold' : 'font-normal'} ${className}`}
       style={{
         ...style,
         fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
