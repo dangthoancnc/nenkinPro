@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { Save, MousePointer2, Eye, X } from 'lucide-react';
+import { Save, MousePointer2, Eye, X, Search, Check, Sparkles } from 'lucide-react';
 import { MOCK_DATA } from '@/lib/mockData';
 import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCoords';
 
@@ -23,6 +23,17 @@ import { getTagsForTemplate, getRequiredTags, FieldGroup } from '@/features/temp
 
 type Coordinate = { x: number; y: number; size: number; page: number; value?: string; type?: string; width?: number; height?: number; thickness?: number; fontWeight?: 'normal' | 'bold'; align?: 'left' | 'center' | 'right' };
 type ConfigMap = Record<string, Coordinate>;
+
+function normalizeSearchText(str: string): string {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .trim();
+}
 
 export function calcAutoFitDimensions(
   tag: string,
@@ -123,6 +134,82 @@ export default function PdfMapperClient({
   const [showMockData, setShowMockData] = useState(false);
   const [autoFillStep, setAutoFillStep] = useState(15);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+
+  // Real-time Tag Search Combobox State
+  const [tagSearchQuery, setTagSearchQuery] = useState<string>('');
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState<boolean>(false);
+  const tagComboboxRef = useRef<HTMLDivElement>(null);
+
+  // Close tag search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tagComboboxRef.current && !tagComboboxRef.current.contains(e.target as Node)) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Tag groups for active template
+  const allTemplateGroups = useMemo(() => {
+    return getTagsForTemplate(strictFilter ? (selectedTemplate || '*') : '*');
+  }, [strictFilter, selectedTemplate]);
+
+  // Flattened tag list for realtime search
+  const flatTagsList = useMemo(() => {
+    const list: { id: string; label: string; groupName: string; appliesTo?: string[] }[] = [];
+    allTemplateGroups.forEach(group => {
+      group.tags.forEach(tag => {
+        list.push({ id: tag.id, label: tag.label, groupName: group.name, appliesTo: tag.appliesTo });
+      });
+    });
+    return list;
+  }, [allTemplateGroups]);
+
+  // Realtime search matched tags
+  const searchMatchingTags = useMemo(() => {
+    if (!tagSearchQuery.trim()) return [];
+    const queryNorm = normalizeSearchText(tagSearchQuery);
+    return flatTagsList.filter(t => {
+      const labelNorm = normalizeSearchText(t.label);
+      const idNorm = normalizeSearchText(t.id);
+      const groupNorm = normalizeSearchText(t.groupName);
+      return (
+        labelNorm.includes(queryNorm) || 
+        idNorm.includes(queryNorm) || 
+        groupNorm.includes(queryNorm) || 
+        t.label.toLowerCase().includes(tagSearchQuery.toLowerCase()) ||
+        t.id.toLowerCase().includes(tagSearchQuery.toLowerCase())
+      );
+    });
+  }, [flatTagsList, tagSearchQuery]);
+
+  // Groups filtered by real-time search query
+  const displayedGroups = useMemo(() => {
+    if (!tagSearchQuery.trim()) return allTemplateGroups;
+    const queryNorm = normalizeSearchText(tagSearchQuery);
+    return allTemplateGroups
+      .map(group => {
+        const matchingTags = group.tags.filter(tag => {
+          const labelNorm = normalizeSearchText(tag.label);
+          const idNorm = normalizeSearchText(tag.id);
+          const groupNorm = normalizeSearchText(group.name);
+          return (
+            labelNorm.includes(queryNorm) || 
+            idNorm.includes(queryNorm) || 
+            groupNorm.includes(queryNorm) ||
+            tag.label.toLowerCase().includes(tagSearchQuery.toLowerCase()) ||
+            tag.id.toLowerCase().includes(tagSearchQuery.toLowerCase())
+          );
+        });
+        return {
+          ...group,
+          tags: matchingTags,
+        };
+      })
+      .filter(group => group.tags.length > 0);
+  }, [allTemplateGroups, tagSearchQuery]);
 
   // Undo / Redo History Stack
   const historyRef = useRef<ConfigMap[]>([]);
@@ -1063,6 +1150,7 @@ export default function PdfMapperClient({
 
         <div className="p-4 flex-1 overflow-y-auto">
           <div className="mb-4">
+            {/* LỌC THEO MẪU */}
             <div className="flex items-center justify-between mb-3 bg-slate-100 p-1.5 rounded border border-slate-200">
               <span className="text-[11px] font-bold text-slate-600">Lọc thẻ theo mẫu:</span>
               <button
@@ -1077,10 +1165,131 @@ export default function PdfMapperClient({
                 {strictFilter ? `🎯 Chỉ form ${selectedTemplate || ''}` : '🌐 Hiện tất cả thẻ'}
               </button>
             </div>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Chọn thẻ để ghim</h3>
+
+            {/* COMBOBOX TÌM KIẾM THẺ REALTIME */}
+            <div ref={tagComboboxRef} className="relative mb-3.5">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Search size={13} className="text-blue-600" />
+                  Tìm & Chọn Nhanh Thẻ (Combobox):
+                </span>
+                {tagSearchQuery && (
+                  <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-semibold border border-blue-200">
+                    {searchMatchingTags.length} thẻ
+                  </span>
+                )}
+              </label>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tagSearchQuery}
+                  onFocus={() => setIsTagDropdownOpen(true)}
+                  onChange={(e) => {
+                    setTagSearchQuery(e.target.value);
+                    setIsTagDropdownOpen(true);
+                  }}
+                  placeholder="Gõ tên thẻ (VD: sđt, shiro, trắng, tên, thuế, mizuho)..."
+                  className="w-full text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800 font-medium placeholder:text-slate-400 transition-all"
+                />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {tagSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTagSearchQuery('');
+                      setIsTagDropdownOpen(false);
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs w-4 h-4 rounded-full flex items-center justify-center hover:bg-slate-100"
+                    title="Xóa tìm kiếm"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* REAL-TIME POPUP DROPDOWN KHI GÕ TÌM KIẾM */}
+              {isTagDropdownOpen && tagSearchQuery.trim() !== '' && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100">
+                  {searchMatchingTags.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-500">
+                      Không tìm thấy thẻ nào khớp với &quot;<span className="font-semibold text-slate-700">{tagSearchQuery}</span>&quot;
+                    </div>
+                  ) : (
+                    searchMatchingTags.map(item => {
+                      const isSelected = selectedTag?.split('#')[0] === item.id;
+                      const isPinned = Object.keys(config).some(k => k === item.id || k.startsWith(`${item.id}#`));
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedTag(item.id);
+                            setActiveMode('add');
+                            setIsTagDropdownOpen(false);
+                          }}
+                          className={`p-2 cursor-pointer transition-colors flex items-start justify-between gap-2 hover:bg-blue-50/80 ${
+                            isSelected ? 'bg-blue-100/70 border-l-4 border-blue-600' : ''
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                              <span className="text-[9px] px-1 py-0.2 bg-slate-100 text-slate-600 rounded font-medium truncate max-w-[140px]">
+                                {item.groupName}
+                              </span>
+                              {isPinned && (
+                                <span className="text-[9px] px-1 py-0.2 bg-emerald-100 text-emerald-700 rounded font-bold">
+                                  ✓ Đã ghim
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-800 leading-tight">
+                              {item.label}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono truncate">
+                              {item.id}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className={`shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-all ${
+                              isSelected
+                                ? 'bg-blue-600 text-white border-blue-700'
+                                : isPinned
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                  : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'
+                            }`}
+                          >
+                            {isSelected ? 'Đang chọn' : isPinned ? 'Ghim lại' : '+ Ghim'}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                1. Danh mục thẻ ({displayedGroups.reduce((acc, g) => acc + g.tags.length, 0)} thẻ)
+              </h3>
+              {tagSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setTagSearchQuery('')}
+                  className="text-[10px] text-blue-600 hover:underline font-medium"
+                >
+                  Hiện tất cả
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mb-3">Bấm vào một thẻ bên dưới, sau đó click vào vị trí tương ứng trên hình PDF để ghim.</p>
             <div className="flex flex-col gap-3">
-              {getTagsForTemplate(strictFilter ? (selectedTemplate || '*') : '*').map(group => (
+              {displayedGroups.length === 0 ? (
+                <div className="p-4 bg-slate-50 rounded border border-slate-200 text-center text-xs text-slate-500">
+                  Không có thẻ nào phù hợp với bộ lọc hiện tại.
+                </div>
+              ) : displayedGroups.map(group => (
                 <div key={group.name} className="border border-slate-200 rounded p-2 bg-white">
                   <h4 className="text-xs font-bold text-slate-600 mb-2">{group.name}</h4>
                   <div className="flex flex-wrap gap-1">
