@@ -196,7 +196,14 @@ MOCK_DATA['bank_type_bank_mark'] = '○';
 MOCK_DATA['bank_type_shiten_mark'] = '○';
 MOCK_DATA['account_type_futsu_mark'] = '○';
 MOCK_DATA['furikae_danzoku_mark'] = '○';
+MOCK_DATA['furikae_aoiro_mark'] = '';
+MOCK_DATA['furikae_shiro_mark'] = '○';
 MOCK_DATA['bunri_mark'] = '○';
+MOCK_DATA['furikae_sonshitsu_mark'] = '';
+MOCK_DATA['furikae_shusei_mark'] = '';
+MOCK_DATA['furikae_tokunou_mark'] = '';
+MOCK_DATA['furikae_tokuten_mark'] = '';
+MOCK_DATA['furikae_tokurei_mark'] = '';
 
 // Phone groups
 MOCK_DATA['phone_group_1'] = '090';

@@ -625,7 +625,14 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     ...splitDigitsRight(refundAmount, 'refundAmount_dig', 7),
 
     furikae_danzoku_mark: '○',
+    furikae_aoiro_mark: '',
+    furikae_shiro_mark: '○',
     bunri_mark: '○',
+    furikae_sonshitsu_mark: '',
+    furikae_shusei_mark: '',
+    furikae_tokunou_mark: '',
+    furikae_tokuten_mark: '',
+    furikae_tokurei_mark: '',
 
     // Second Page Income Breakdown (第二表 所得の内訳)
     incomeTypeName: '退職',
