@@ -326,17 +326,73 @@ const BankForm: React.FC<
         </div>
       </div>
 
-      <FieldRow label="Tên ngân hàng">
+      {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
+        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-slate-500">Hình thức tổ chức</label>
+            <select
+              {...register(`bankAccounts.${idx}.isYucho`, {
+                setValueAs: v => v === true || v === 'true'
+              })}
+              disabled={!isEditing}
+              className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white font-medium"
+            >
+              <option value="false">🏦 Ngân hàng thường (銀行)</option>
+              <option value="true">📮 Bưu điện (ゆうちょ銀行 / 郵便局)</option>
+            </select>
+          </div>
+          {String(watch(`bankAccounts.${idx}.isYucho`)) !== 'true' ? (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-slate-500">Loại tài khoản (預金種目)</label>
+              <select
+                {...register(`bankAccounts.${idx}.bankAccountType`)}
+                disabled={!isEditing}
+                className="h-8 rounded-md border border-slate-200 px-2 text-xs bg-white"
+              >
+                <option value="ORDINARY">普通 (Thường - 1)</option>
+                <option value="CURRENT">当座 (Tiết kiệm/Vãng lai - 2)</option>
+              </select>
+            </div>
+          ) : (
+            <div className="text-[11px] text-amber-700 flex items-center font-medium">
+              Tờ khai nhận: 郵便局名など
+            </div>
+          )}
+        </div>
+      )}
+
+      <FieldRow label={String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? "Tên tổ chức (VD: ゆうちょ銀行)" : "Tên ngân hàng"}>
         <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
       </FieldRow>
-      <FieldRow label="Chi nhánh">
-        <Input {...register(`bankAccounts.${idx}.branchName`)} disabled={!isEditing} className="h-8 text-xs" />
-      </FieldRow>
+
+      {String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-slate-500">郵便局名など (Chi nhánh/Tiệm)</label>
+            <Input {...register(`bankAccounts.${idx}.branchName`)} disabled={!isEditing} className="h-8 text-xs" placeholder="VD: 〇一八店" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-slate-500">記号 (Ký hiệu 5 số)</label>
+            <Input {...register(`bankAccounts.${idx}.yuchoKigo`)} disabled={!isEditing} className="h-8 text-xs font-mono" placeholder="VD: 10120" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-slate-500">番号 (Số hiệu 7-8 số)</label>
+            <Input {...register(`bankAccounts.${idx}.yuchoBango`)} disabled={!isEditing} className="h-8 text-xs font-mono" placeholder="VD: 1234567" />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <FieldRow label="Chi nhánh">
+            <Input {...register(`bankAccounts.${idx}.branchName`)} disabled={!isEditing} className="h-8 text-xs" />
+          </FieldRow>
+          <FieldRow label="Số tài khoản (7 số)">
+            <Input {...register(`bankAccounts.${idx}.accountNumber`)} disabled={!isEditing} className="h-8 text-xs font-mono" />
+          </FieldRow>
+        </div>
+      )}
+
       <FieldRow label="Địa chỉ chi nhánh (Eng)">
         <Input {...register(`bankAccounts.${idx}.bankBranchAddress`)} disabled={!isEditing} className="h-8 text-xs" />
-      </FieldRow>
-      <FieldRow label="Số tài khoản">
-        <Input {...register(`bankAccounts.${idx}.accountNumber`)} disabled={!isEditing} className="h-8 text-xs font-mono" />
       </FieldRow>
       <FieldRow label="Tên chủ tài khoản (Romaji)">
         <Input {...register(`bankAccounts.${idx}.accountName`)} disabled={!isEditing} className="h-8 text-xs uppercase" />

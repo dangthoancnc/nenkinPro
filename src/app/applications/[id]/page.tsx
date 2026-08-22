@@ -944,13 +944,62 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       </select>
                     </FormField>
                   </div>
-                  <FormField label="Tên ngân hàng">
+                  {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
+                      <FormField label="Hình thức tổ chức">
+                        <select
+                          {...register(`bankAccounts.${idx}.isYucho` as const, {
+                            setValueAs: v => v === true || v === 'true'
+                          })}
+                          disabled={!isEditing}
+                          className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
+                        >
+                          <option value="false">🏦 Ngân hàng thường (銀行)</option>
+                          <option value="true">📮 Bưu điện (ゆうちょ銀行 / 郵便局)</option>
+                        </select>
+                      </FormField>
+                      {String(watch(`bankAccounts.${idx}.isYucho`)) !== 'true' ? (
+                        <FormField label="Loại tài khoản (預金種目)">
+                          <select
+                            {...register(`bankAccounts.${idx}.bankAccountType` as const)}
+                            disabled={!isEditing}
+                            className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full"
+                          >
+                            <option value="ORDINARY">普通 (Thường - 1)</option>
+                            <option value="CURRENT">当座 (Tiết kiệm/Vãng lai - 2)</option>
+                          </select>
+                        </FormField>
+                      ) : (
+                        <div className="text-[11px] text-amber-700 flex items-center font-medium">
+                          Tờ khai nhận: 郵便局名など
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <FormField label={String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? "Tên tổ chức (VD: ゆうちょ銀行)" : "Tên ngân hàng"}>
                     <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
                   </FormField>
-                  <div className="grid grid-cols-2 gap-2">
-                    <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
-                    <FormField label="Số tài khoản"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
-                  </div>
+
+                  {String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      <FormField label="郵便局名など (Chi nhánh/Tiệm)">
+                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店" />
+                      </FormField>
+                      <FormField label="記号 (Ký hiệu 5 số)">
+                        <Input {...register(`bankAccounts.${idx}.yuchoKigo` as const)} disabled={!isEditing} size="md" placeholder="VD: 10120" />
+                      </FormField>
+                      <FormField label="番号 (Số hiệu 7-8 số)">
+                        <Input {...register(`bankAccounts.${idx}.yuchoBango` as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567" />
+                      </FormField>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
+                      <FormField label="Số tài khoản (7 số)"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
+                    </div>
+                  )}
+
                   <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
                   <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
                   {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (

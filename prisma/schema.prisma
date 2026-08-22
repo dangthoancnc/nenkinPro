@@ -431,6 +431,9 @@ model BankAccount {
   bankInstitutionCode String?
   branchCode          String?
   bankAccountType     String?  // ORDINARY (1) hoặc CURRENT (2)
+  isYucho             Boolean  @default(false)
+  yuchoKigo           String?
+  yuchoBango          String?
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
