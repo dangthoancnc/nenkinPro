@@ -354,8 +354,10 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_accountNumber: accNum,
     taxRep_accountName:   rep.accountName ?? '',
     taxRep_accountNameKatakana: anyRep.accountNameKatakana ?? '',
-    taxRep_accountType_1_mark: (!isYucho && anyRep.bankAccountType === 'ORDINARY') ? '○' : '',
+    taxRep_accountType_1_mark: (!isYucho && anyRep.bankAccountType !== 'CURRENT') ? '○' : '',
     taxRep_accountType_2_mark: (!isYucho && anyRep.bankAccountType === 'CURRENT') ? '○' : '',
+    taxRep_bank_type_bank_mark: !isYucho ? '○' : '',
+    taxRep_bank_type_shiten_mark: !isYucho ? '○' : '',
     taxRep_yucho_kigo:    kigo,
     taxRep_yucho_bango:   bango,
 
@@ -377,9 +379,16 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
 // ---------------------------------------------------------------------------
 
 function mapTaxOffice(taxOffice: TaxOffice | null): Record<string, string> {
+  const full = taxOffice?.name ?? '';
+  const short = full.replace(/税務署$/, '').trim();
   return {
-    taxOfficeName:    taxOffice?.name    ?? '',
-    taxOfficeAddress: taxOffice?.address ?? '',
+    taxOfficeName:       full,
+    taxOffice_name:      full,
+    taxOffice_shortName: short || full,
+    taxOfficeAddress:    taxOffice?.address ?? '',
+    taxOffice_address:   taxOffice?.address ?? '',
+    taxOffice_phone:     taxOffice?.phone ?? '',
+    taxOffice_postalCode: taxOffice?.postalCode ?? '',
   };
 }
 
@@ -660,12 +669,15 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     paymentsMultiplier: appExt.paymentsMultiplier ? String(appExt.paymentsMultiplier) : '',
 
     // Tax representative bank details for refund section (還付金受取場所)
-    taxRep_bankName: rep?.bankName ?? '',
-    taxRep_branchName: rep?.branchName ?? '',
-    taxRep_accountNumber: repAccountNum,
-    ...splitChars(repAccountNum, 'taxRep_account', 7, true),
-    taxRep_accountName: rep?.accountName ?? '',
-    taxRep_accountType_1_mark: '', // To be set based on account type
+    taxRep_bankName: rep?.bankName || ((customer as any).bankAccounts?.[0]?.bankName ?? ''),
+    taxRep_branchName: rep?.branchName || ((customer as any).bankAccounts?.[0]?.branchName ?? ''),
+    taxRep_accountNumber: repAccountNum || ((customer as any).bankAccounts?.[0]?.accountNumber ?? ''),
+    ...splitChars(repAccountNum || ((customer as any).bankAccounts?.[0]?.accountNumber ?? ''), 'taxRep_account', 7, true),
+    taxRep_accountName: rep?.accountName || ((customer as any).bankAccounts?.[0]?.accountName ?? ''),
+    taxRep_accountType_1_mark: '○',
+    account_type_futsu_mark: '○',
+    bank_type_bank_mark: '○',
+    bank_type_shiten_mark: '○',
     // 第二表 — Income source details
     incomeSourceName: '日本年金機構',
     

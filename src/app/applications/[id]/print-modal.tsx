@@ -313,21 +313,38 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
     // Common aliases
     const aliases: Record<string, string[]> = {
       // Bank aliases
-      bank_name: ['bankName', 'bank_first_name'],
-      bank_branch: ['branchName', 'bank_first_branch'],
+      bank_name: ['bankName', 'bank_first_name', 'taxRep_bankName'],
+      bank_branch: ['branchName', 'bank_first_branch', 'taxRep_branchName'],
       bank_account_type: ['bankAccountType'],
-      bankName: ['bank_name'],
-      branchName: ['bank_branch'],
+      bankName: ['bank_name', 'taxRep_bankName'],
+      branchName: ['bank_branch', 'taxRep_branchName'],
+      accountNumber: ['taxRep_accountNumber'],
+      taxRep_bankName: ['bankName', 'bank_name'],
+      taxRep_branchName: ['branchName', 'bank_branch'],
+      taxRep_accountNumber: ['accountNumber'],
+      taxRep_accountName: ['accountName'],
+      taxRep_accountType_1_mark: ['account_type_futsu_mark'],
+      account_type_futsu_mark: ['taxRep_accountType_1_mark'],
+      taxRep_accountType_2_mark: ['account_type_toza_mark'],
+      bank_type_bank_mark: ['taxRep_bank_type_bank_mark'],
+      bank_type_shiten_mark: ['taxRep_bank_type_shiten_mark'],
+      // Income aliases
+      incomeSourceAmount: ['totalExpectedJpy', 'income_amount'],
+      totalExpectedJpy: ['incomeSourceAmount'],
+      incomeSourceWithheld: ['withheldTax', 'tax2ndJpy'],
+      withheldTax: ['incomeSourceWithheld'],
       // Postal code aliases
       postalCodeFormat: ['postalCode', 'post'],
-      postalCode: ['postalCodeFormat'],
+      postalCode: ['postalCodeFormat', 'post'],
       taxRep_postalCodeFormat: ['taxRep_postalCode', 'taxRep_post', 'rep_post'],
+      taxRep_postalCode: ['taxRep_postalCodeFormat', 'taxRep_post', 'rep_post'],
       // My Number & Nenkin aliases
       myNumber: ['my_num'],
       nenkinNumber: ['nenkin'],
       // Address aliases
       address_jp: ['address', 'zairyuAddress'],
       address: ['address_jp', 'zairyuAddress'],
+      zairyuAddress: ['address_jp', 'address'],
       // Representative aliases (rep_* ↔ taxRep_*)
       rep_fullName: ['taxRep_fullName'],
       rep_fullName_kata: ['taxRep_fullName_kata', 'taxRep_fullNameKana'],
@@ -336,8 +353,11 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       taxRep_address: ['rep_address'],
       taxRep_phone: ['rep_phone'],
       // Office aliases
-      taxOfficeName: ['office_name'],
-      taxOfficeAddress: ['office_address'],
+      taxOfficeName: ['taxOffice_name', 'office_name', 'taxOffice_shortName'],
+      taxOffice_name: ['taxOfficeName', 'taxOffice_shortName', 'office_name'],
+      taxOffice_shortName: ['taxOfficeName', 'taxOffice_name', 'office_name'],
+      taxOfficeAddress: ['office_address', 'taxOffice_address'],
+      taxOffice_address: ['taxOfficeAddress', 'office_address'],
       // Furigana aliases
       fullNameFurigana: ['fullName_kata'],
       fullName_kata: ['fullNameFurigana'],
@@ -363,6 +383,8 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       [/^accountNumber_(\d+)$/, 'bank_$1'],
       [/^taxRep_account_(\d+)$/, 'taxRep_account_dig_$1'],
       [/^taxRep_account_dig_(\d+)$/, 'taxRep_account_$1'],
+      [/^post_(\d+)$/, 'postalCode_dig_$1'],
+      [/^postalCode_dig_(\d+)$/, 'post_$1'],
     ];
     for (const [pattern, replacement] of splitAliases) {
       const match = baseKey.match(pattern);
