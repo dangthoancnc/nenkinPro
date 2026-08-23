@@ -310,6 +310,8 @@ model TaxRepresentative {
   phone         String?
   myNumber      String?
   relationship  String? @default("納税管理人")
+  occupation    String? @default("会社員")
+  dob           DateTime?
   
   bankName            String?
   branchName          String?

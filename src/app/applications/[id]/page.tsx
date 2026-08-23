@@ -265,6 +265,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       const customerPayload = {
         fullName: data.fullName, dob: data.dob ? new Date(data.dob).toISOString() : undefined,
         nationality: data.nationality, myNumber: data.myNumber,
+        passportNumber: data.passportNumber,
+        occupation: data.occupation,
+        headOfHouseholdName: data.headOfHouseholdName,
+        relationshipToHead: data.relationshipToHead,
         zairyuAddress: data.zairyuAddress, cardNumber: data.cardNumber,
         nenkinNumber: data.nenkinNumber, nenkinKatakanaName: data.nenkinKatakanaName,
         postalCode: data.postalCode, taxOfficeId: data.taxOfficeId,
@@ -283,6 +287,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       };
       const applicationPayload = {
         status: data.status,
+        taxRepresentativeId: data.taxRepresentativeId || null,
         applyDate:       data.applyDate       ? new Date(data.applyDate).toISOString()       : null,
         sent1stDate:     data.sent1stDate     ? new Date(data.sent1stDate).toISOString()     : null,
         received1stDate: data.received1stDate ? new Date(data.received1stDate).toISOString() : null,

@@ -44,6 +44,7 @@ export const customerSchema = z.object({
   firstName: z.string().nullable().optional(),
   passportIssueDate: z.string().nullable().optional(),
   passportExpiryDate: z.string().nullable().optional(),
+  passportNumber: z.string().nullable().optional(),
   placeOfBirth: z.string().nullable().optional(),
   overseasAddress: z.string().nullable().optional(),
   overseasCountry: z.string().nullable().optional(),

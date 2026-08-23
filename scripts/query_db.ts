@@ -9,37 +9,34 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  // Check NenkinApplication for card data
-  const apps = await prisma.nenkinApplication.findMany({
-    take: 10,
-    select: {
-      id: true,
-      status: true,
-      customer: {
-        select: { id: true, code: true, fullName: true, cardNumber: true, passwordPin: true }
+  const reps = await prisma.taxRepresentative.findMany();
+  console.log('=== TAX REPRESENTATIVES ===', reps.length);
+  if (reps.length === 0) {
+    const created = await prisma.taxRepresentative.create({
+      data: {
+        fullName: 'DAO THI DUYEN',
+        fullNameKana: 'ダオ ティ デュエン',
+        address: '神奈川県川崎市幸区南加瀬4丁目18-48-205号',
+        postalCode: '212-0055',
+        phone: '080-9876-5432',
+        relationship: '納税管理人',
+        occupation: '会社員',
+        dob: new Date('1991-04-02'),
       }
+    });
+    console.log('Created default tax rep:', created);
+  } else {
+    for (const r of reps) {
+      const updated = await prisma.taxRepresentative.update({
+        where: { id: r.id },
+        data: {
+          occupation: r.occupation || '会社員',
+          dob: r.dob || new Date('1991-04-02'),
+          relationship: r.relationship || '納税管理人',
+        }
+      });
+      console.log('Tax rep updated:', updated.id, updated.fullName, updated.occupation, updated.dob);
     }
-  });
-  console.log('=== APPLICATIONS (first 10) ===');
-  for (const a of apps) {
-    console.log(`  App: ${a.id} | Status: ${a.status} | Customer: ${a.customer.fullName} | Card: ${a.customer.cardNumber} | Pin: ${a.customer.passwordPin}`);
-  }
-
-  // Search for NP4412243GEA anywhere
-  console.log('\n=== SEARCHING NP4412243GEA ===');
-  const byCard = await prisma.customer.findFirst({
-    where: { cardNumber: 'NP4412243GEA' }
-  });
-  console.log('By cardNumber:', byCard ? `Found: ${byCard.fullName}` : 'NOT FOUND');
-
-  // Check the customers page data (which might store cardNumber in a different way)
-  const customerWithCards = await prisma.customer.findMany({
-    where: { cardNumber: { not: null } },
-    select: { code: true, fullName: true, cardNumber: true, passwordPin: true }
-  });
-  console.log(`\nCustomers with cardNumber set: ${customerWithCards.length}`);
-  for (const c of customerWithCards) {
-    console.log(`  ${c.code} | ${c.fullName} | Card: ${c.cardNumber} | Pin: ${c.passwordPin}`);
   }
 
   process.exit(0);

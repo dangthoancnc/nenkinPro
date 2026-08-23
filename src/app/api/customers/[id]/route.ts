@@ -180,6 +180,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         fullNameFurigana: rawBody.fullNameFurigana,
         nationality: body.nationality,
         sex: body.sex,
+        passportNumber: body.passportNumber,
         placeOfBirth: body.placeOfBirth,
         passportIssueDate: body.passportIssueDate ? new Date(body.passportIssueDate) : null,
         passportExpiryDate: body.passportExpiryDate ? new Date(body.passportExpiryDate) : null,
