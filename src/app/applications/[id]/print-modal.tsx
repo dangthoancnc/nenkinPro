@@ -11,7 +11,18 @@ interface PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   id: string;
+  initialTemplate?: string;
+  initialTab?: string;
 }
+
+const TEMPLATE_TO_TAB: Record<string, string> = {
+  don_xin_lan_1: 'lan1_donxin',
+  ininjyo_yoshiki_lan_1: 'lan1_uyquyen',
+  bang_1_2: 'lan2_donxin_12',
+  bang_3: 'lan2_donxin_3',
+  giay_uy_thac_lan_2: 'lan2_uyquyen',
+  nouzeikanrinin: 'lan2_tonghop',
+};
 
 const DOCUMENT_TYPES = [
   // ── LẦN 1 ────────────────────────────
@@ -171,13 +182,25 @@ const DOCUMENT_TYPES = [
   }
 ];
 
-export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
+export default function PrintModal({ isOpen, onClose, id, initialTemplate, initialTab }: PrintModalProps) {
   const [appData, setAppData] = useState<any | null>(null);
   const [allConfigs, setAllConfigs] = useState<Record<string, Record<string, any>>>({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>(DOCUMENT_TYPES[0].id);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (initialTab) return initialTab;
+    if (initialTemplate && TEMPLATE_TO_TAB[initialTemplate]) return TEMPLATE_TO_TAB[initialTemplate];
+    return DOCUMENT_TYPES[0].id;
+  });
   const [zoomWidth, setZoomWidth] = useState<number>(800);
   const [isLayoutMode, setIsLayoutMode] = useState(false);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    } else if (initialTemplate && TEMPLATE_TO_TAB[initialTemplate]) {
+      setActiveTab(TEMPLATE_TO_TAB[initialTemplate]);
+    }
+  }, [initialTab, initialTemplate, isOpen]);
 
   useEffect(() => {
     if (!id || !isOpen) return;
