@@ -1168,6 +1168,7 @@ export default function PdfMapperClient({
 
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
               className="w-full mb-3 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors"
             >
@@ -1214,6 +1215,7 @@ export default function PdfMapperClient({
           )}
 
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
@@ -1383,6 +1385,7 @@ export default function PdfMapperClient({
                       return (
                         <button
                           key={baseTag}
+                          type="button"
                           title={baseTag}
                           onClick={() => {
                             if (isSelected) {
@@ -1502,6 +1505,7 @@ export default function PdfMapperClient({
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
                           const pg = Number((document.getElementById('af_page') as HTMLInputElement)?.value ?? 0);
                           const sz = Number((document.getElementById('af_size') as HTMLInputElement)?.value ?? 9);
@@ -1564,6 +1568,7 @@ export default function PdfMapperClient({
               <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded flex items-center justify-between">
                 <span className="text-xs font-bold text-red-700">Đã chọn {selectedTags.length} thẻ</span>
                 <button
+                  type="button"
                   onClick={() => handleBatchDelete(selectedTags)}
                   className="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 rounded font-bold transition-colors shadow-sm"
                 >
@@ -1616,7 +1621,7 @@ export default function PdfMapperClient({
                           onClick={e => e.stopPropagation()}
                           onChange={e => setConfig(prev => ({...prev, [tag]: {...prev[tag], size: Number(e.target.value)}}))}
                         />
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag); }} className="text-red-500 hover:underline">Xóa</button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag); }} className="text-red-500 hover:underline">Xóa</button>
                       </div>
                     </div>
                   );
@@ -1633,6 +1638,7 @@ export default function PdfMapperClient({
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 px-4 py-2 rounded-full shadow-2xl text-xs font-bold z-50 flex items-center gap-2 border-2 border-amber-300 animate-pulse">
             <span>💡 Giữ phím <strong>Ctrl + Click</strong> vào vị trí trên phôi PDF để ghim thẻ <u>{getTagLabel(selectedTag)}</u></span>
             <button
+              type="button"
               onClick={() => { setActiveMode('select'); setSelectedTag(null); }}
               className="ml-2 bg-slate-900 text-white px-2 py-0.5 rounded-full text-[10px] hover:bg-slate-800 font-bold"
             >
@@ -1654,6 +1660,7 @@ export default function PdfMapperClient({
             {/* Mode Switcher Toolbar */}
             <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-700">
               <button
+                type="button"
                 onClick={() => setActiveMode('select')}
                 className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   activeMode === 'select'
@@ -1665,6 +1672,7 @@ export default function PdfMapperClient({
                 🖐️ Di chuyển (Move)
               </button>
               <button
+                type="button"
                 onClick={() => setActiveMode('add')}
                 className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   activeMode === 'add'
@@ -1676,6 +1684,7 @@ export default function PdfMapperClient({
                 📌 Ghim thẻ (Add)
               </button>
               <button
+                type="button"
                 onClick={() => setActiveMode('delete')}
                 className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   activeMode === 'delete'
@@ -1691,6 +1700,7 @@ export default function PdfMapperClient({
             {/* Undo / Redo Control Toolbar */}
             <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-700 gap-1">
               <button
+                type="button"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all ${
@@ -1703,6 +1713,7 @@ export default function PdfMapperClient({
                 ↩️ Undo
               </button>
               <button
+                type="button"
                 onClick={handleRedo}
                 disabled={!canRedo}
                 className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all ${

@@ -1549,7 +1549,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
+    <>
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
@@ -1766,11 +1767,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           </>
         )}
       </div>
+      </form>
 
       {/* Lightbox */}
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
-          <button className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-all" onClick={() => setLightboxUrl(null)}>
+          <button type="button" className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-all" onClick={() => setLightboxUrl(null)}>
             <X className="w-5 h-5" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1833,7 +1835,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             .catch(console.error);
         }}
       />
-    </form>
+    </>
   );
 
   async function runOcrExtract(imageUrl: string) {
