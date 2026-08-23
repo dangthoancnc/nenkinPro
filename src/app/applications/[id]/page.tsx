@@ -1249,8 +1249,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <span>🔵 Tiến độ Lần 1 (Xin 80% Thoát BH)</span>
                   <span className="font-semibold">{watch('received1stDate') ? '✓ Đã nhận' : watch('sent1stDate') ? '⏳ Đã gửi' : '○ Chuẩn bị'}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Nộp Lần 1">
+                <div className="grid grid-cols-3 gap-1.5">
+                  <FormField label="Ngày viết đơn (In giấy)">
+                    <Input type="date" value={watch('applyDate') || ''} onChange={e => setValue('applyDate', e.target.value, { shouldDirty: true })} disabled={!isEditing} size="sm" />
+                  </FormField>
+                  <FormField label="Ngày gửi L1 (Đi Nhật)">
                     <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
                       const val = e.target.value;
                       setValue('sent1stDate', val, { shouldDirty: true });
@@ -1260,13 +1263,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       }
                     }} disabled={!isEditing} size="sm" />
                   </FormField>
-                  <FormField label="Nhận Lần 1">
+                  <FormField label="Ngày nhận L1 (Về TK)">
                     <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
                       const val = e.target.value;
                       setValue('received1stDate', val, { shouldDirty: true });
                       const s1 = watch('sent1stDate');
                       if (val && s1 && new Date(val) < new Date(s1)) {
-                        toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Nộp Lần 1');
+                        toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Gửi Lần 1');
                       }
                       if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
                         setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
@@ -1281,17 +1284,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       const today = new Date().toISOString().split('T')[0];
                       setValue('sent1stDate', today, { shouldDirty: true });
                       setValue('status', 'SENT_1ST', { shouldDirty: true });
-                      toast.success('Đã nộp Lần 1 hôm nay!');
+                      toast.success('Đã ghi nhận gửi Lần 1 hôm nay!');
                     }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
-                      + Hôm nay Nộp L1
+                      + Hôm nay gửi L1
                     </button>
                     <button type="button" onClick={() => {
                       const today = new Date().toISOString().split('T')[0];
                       setValue('received1stDate', today, { shouldDirty: true });
                       setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
-                      toast.success('Đã nhận Lần 1 hôm nay!');
+                      toast.success('Đã ghi nhận nhận tiền Lần 1 hôm nay!');
                     }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
-                      + Hôm nay Nhận L1
+                      + Hôm nay nhận L1
                     </button>
                   </div>
                 )}
@@ -1304,13 +1307,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <span className="font-semibold">{watch('received2ndDate') ? '✓ Đã hoàn thuế' : watch('sent2ndDate') ? '⏳ Đã nộp thuế' : '○ Chuẩn bị'}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Nộp Lần 2">
+                  <FormField label="Ngày gửi L2 (Tới Cục thuế)">
                     <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
                       const val = e.target.value;
                       setValue('sent2ndDate', val, { shouldDirty: true });
                       const r1 = watch('received1stDate');
                       if (val && r1 && new Date(val) < new Date(r1)) {
-                        toast.warning('Ngày Nộp Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
+                        toast.warning('Ngày Gửi Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
                       }
                       if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
                         setValue('status', 'SENT_2ND', { shouldDirty: true });
@@ -1318,13 +1321,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       }
                     }} disabled={!isEditing} size="sm" />
                   </FormField>
-                  <FormField label="Nhận Lần 2">
+                  <FormField label="Ngày nhận L2 (Hoàn thuế)">
                     <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
                       const val = e.target.value;
                       setValue('received2ndDate', val, { shouldDirty: true });
                       const s2 = watch('sent2ndDate');
                       if (val && s2 && new Date(val) < new Date(s2)) {
-                        toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Nộp Lần 2');
+                        toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Gửi Lần 2');
                       }
                       if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
                         setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
@@ -1339,15 +1342,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       const today = new Date().toISOString().split('T')[0];
                       setValue('sent2ndDate', today, { shouldDirty: true });
                       setValue('status', 'SENT_2ND', { shouldDirty: true });
-                      toast.success('Đã nộp Lần 2 hôm nay!');
+                      toast.success('Đã ghi nhận gửi Lần 2 hôm nay!');
                     }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
-                      + Hôm nay Nộp L2
+                      + Hôm nay gửi L2
                     </button>
                     <button type="button" onClick={() => {
                       const today = new Date().toISOString().split('T')[0];
                       setValue('received2ndDate', today, { shouldDirty: true });
                       setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
-                      toast.success('Đã nhận Lần 2 hôm nay!');
+                      toast.success('Đã ghi nhận nhận tiền Lần 2 hôm nay!');
                     }} className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors">
                       + Hôm nay Nhận L2
                     </button>

@@ -23,6 +23,50 @@
     "y": 636.78,
     "size": 10
   },
+  "post_4": {
+    "page": 0,
+    "x": 434.44,
+    "y": 817.22,
+    "size": 10
+  },
+  "post_5": {
+    "page": 0,
+    "x": 444.44,
+    "y": 817.22,
+    "size": 10
+  },
+  "address_jp": {
+    "page": 0,
+    "x": 225,
+    "y": 817.44,
+    "size": 12
+  },
+  "doc_date_era_jp": {
+    "page": 0,
+    "x": 145,
+    "y": 789.11,
+    "size": 11
+  },
+  "doc_date_era_yr": {
+    "page": 0,
+    "x": 204.22,
+    "y": 788.55,
+    "size": 11,
+    "width": 23,
+    "height": 13
+  },
+  "doc_date_m": {
+    "page": 0,
+    "x": 230,
+    "y": 789.11,
+    "size": 11
+  },
+  "doc_date_d": {
+    "page": 0,
+    "x": 263.89,
+    "y": 789.11,
+    "size": 11
+  },
   "departureDate_y": {
     "page": 0,
     "x": 202.78,
@@ -163,7 +207,7 @@
     "width": 20,
     "height": 12
   },
-  "doc_date_y": {
+  "today_y": {
     "page": 0,
     "x": 79.72,
     "y": 640.89,
@@ -173,7 +217,7 @@
     "width": 32,
     "height": 12
   },
-  "doc_date_m": {
+  "today_m": {
     "page": 0,
     "x": 121.39,
     "y": 640.89,
@@ -183,7 +227,7 @@
     "width": 20,
     "height": 12
   },
-  "doc_date_d": {
+  "today_d": {
     "page": 0,
     "x": 158.05,
     "y": 640.89,

@@ -105,7 +105,17 @@ export const TEMPLATE_FIELD_CATALOG: FieldGroup[] = [
   {
     name: '3. Ngày tháng & Năm nộp đơn',
     tags: [
-      // --- 1. Ngày sinh khách hàng (Date of Birth) ---
+      // --- 1. Ngày viết đơn / Ngày lập hồ sơ (Ghi trên đơn in ra) ---
+      { id: 'doc_date_y', label: 'Ngày viết đơn: Năm Dương lịch YYYY (VD: 2026)', appliesTo: ALL_TEMPLATES },
+      { id: 'doc_date_m', label: 'Ngày viết đơn: Tháng MM (VD: 08)', appliesTo: ALL_TEMPLATES },
+      { id: 'doc_date_d', label: 'Ngày viết đơn: Ngày DD (VD: 24)', appliesTo: ALL_TEMPLATES },
+      { id: 'doc_date_era_jp', label: 'Ngày viết đơn: Chữ Reiwa (令和)', appliesTo: ALL_TEMPLATES },
+      { id: 'doc_date_era_yr', label: 'Ngày viết đơn: Năm Reiwa (Nguyên khối 2 chữ số - VD: 08)', appliesTo: ALL_TEMPLATES },
+      ...generateSplitTags('doc_date_era_yr', 2, 'Ngày viết đơn: Năm Reiwa'),
+      ...generateSplitTags('doc_date_m', 2, 'Ngày viết đơn: Tháng'),
+      ...generateSplitTags('doc_date_d', 2, 'Ngày viết đơn: Ngày'),
+
+      // --- 2. Ngày sinh khách hàng (Date of Birth) ---
       { id: 'dob_y', label: 'Ngày sinh: Năm Tây (Nguyên khối YYYY - VD: 1997)', appliesTo: ALL_TEMPLATES },
       { id: 'dob_m', label: 'Ngày sinh: Tháng (Nguyên khối 2 chữ số - VD: 04)', appliesTo: ALL_TEMPLATES },
       { id: 'dob_d', label: 'Ngày sinh: Ngày (Nguyên khối 2 chữ số - VD: 02)', appliesTo: ALL_TEMPLATES },
@@ -117,51 +127,37 @@ export const TEMPLATE_FIELD_CATALOG: FieldGroup[] = [
       ...generateSplitTags('dob_m', 2, 'Ngày sinh: Tháng'),
       ...generateSplitTags('dob_d', 2, 'Ngày sinh: Ngày'),
 
-      // --- 2. Ngày tạo/lập hồ sơ / Ngày viết đơn (Document Date) ---
-      { id: 'doc_date_y', label: 'Năm viết/lập đơn (Nguyên khối YYYY - VD: 2026)', appliesTo: ALL_TEMPLATES },
-      { id: 'doc_date_m', label: 'Tháng lập hồ sơ (Nguyên khối - VD: 08)', appliesTo: ALL_TEMPLATES },
-      { id: 'doc_date_d', label: 'Ngày lập hồ sơ (Nguyên khối - VD: 24)', appliesTo: ALL_TEMPLATES },
-      { id: 'doc_date_era_jp', label: 'Chữ Reiwa (令和)', appliesTo: ALL_TEMPLATES },
-      { id: 'doc_date_era_yr', label: 'Năm lập hồ sơ theo Reiwa (Nguyên khối 2 chữ số - VD: 08)', appliesTo: ALL_TEMPLATES },
-      ...generateSplitTags('doc_date_era_yr', 2, 'Năm lập hồ sơ (Reiwa)'),
-      ...generateSplitTags('doc_date_m', 2, 'Tháng lập hồ sơ'),
-      ...generateSplitTags('doc_date_d', 2, 'Ngày lập hồ sơ'),
-      { id: 'today_y', label: 'Năm hiện tại (Nguyên khối YYYY - VD: 2026)', appliesTo: ALL_TEMPLATES },
-      { id: 'today_m', label: 'Tháng hiện tại (Nguyên khối MM)', appliesTo: ALL_TEMPLATES },
-      { id: 'today_d', label: 'Ngày hiện tại (Nguyên khối DD)', appliesTo: ALL_TEMPLATES },
+      // --- 3. Ngày xuất cảnh khỏi Nhật (Departure Date) ---
+      { id: 'departureDate_y', label: 'Ngày xuất cảnh: Năm YYYY (VD: 2024)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
+      { id: 'departureDate_m', label: 'Ngày xuất cảnh: Tháng MM (VD: 12)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
+      { id: 'departureDate_d', label: 'Ngày xuất cảnh: Ngày DD (VD: 20)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
+      { id: 'departure_y', label: 'Ngày xuất cảnh: Năm YYYY (departure_y)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
+      { id: 'departure_m', label: 'Ngày xuất cảnh: Tháng MM (departure_m)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
+      { id: 'departure_d', label: 'Ngày xuất cảnh: Ngày DD (departure_d)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
+      ...generateSplitTags('departureDate_y', 4, 'Ngày xuất cảnh: Năm', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
+      ...generateSplitTags('departureDate_m', 2, 'Ngày xuất cảnh: Tháng', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
+      ...generateSplitTags('departureDate_d', 2, 'Ngày xuất cảnh: Ngày', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
+      ...generateSplitTags('departure_y', 4, 'Ngày xuất cảnh: Năm (Ô departure_y)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
+      ...generateSplitTags('departure_m', 2, 'Ngày xuất cảnh: Tháng (Ô departure_m)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
+      ...generateSplitTags('departure_d', 2, 'Ngày xuất cảnh: Ngày (Ô departure_d)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
 
-      // --- 3. Năm khai thuế (Tax Year) ---
-      { id: 'taxYear_era_yr', label: 'Năm khai thuế Nhật (Nguyên khối 2 chữ số - VD: 08)', appliesTo: ALL_TEMPLATES },
-      { id: 'taxYear_era_yr_unit', label: 'Năm khai thuế Nhật (Chỉ hàng đơn vị - VD: 8 cho mẫu 令和 0 ⎕)', appliesTo: ALL_TEMPLATES },
-      ...generateSplitTags('taxYear_era_yr', 2, 'Năm khai thuế Nhật'),
+      // --- 4. Năm khai thuế (Tax Year) ---
+      { id: 'taxYear_era_yr', label: 'Năm khai thuế: Năm Reiwa (Nguyên khối 2 chữ số - VD: 08)', appliesTo: ALL_TEMPLATES },
+      { id: 'taxYear_era_yr_unit', label: 'Năm khai thuế: Hàng đơn vị (VD: 8 cho ô 令和 0 ⎕)', appliesTo: ALL_TEMPLATES },
+      ...generateSplitTags('taxYear_era_yr', 2, 'Năm khai thuế: Năm Reiwa'),
 
-      // --- 4. Ngày xuất cảnh / Ngày xin Nenkin / Thông báo ---
-      { id: 'departureDate_y', label: 'Năm xuất cảnh (Nguyên khối YYYY - VD: 2024)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
-      { id: 'departureDate_m', label: 'Tháng xuất cảnh (Nguyên khối MM - VD: 12)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
-      { id: 'departureDate_d', label: 'Ngày xuất cảnh (Nguyên khối DD - VD: 20)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1'] },
-      { id: 'departure_y', label: 'Năm xuất cảnh (departure_y YYYY)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
-      { id: 'departure_m', label: 'Tháng xuất cảnh (departure_m MM)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
-      { id: 'departure_d', label: 'Ngày xuất cảnh (departure_d DD)', appliesTo: ['giay_uy_thac_lan_2', 'nouzeikanrinin'] },
-      ...generateSplitTags('departureDate_y', 4, 'Năm xuất cảnh', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
-      ...generateSplitTags('departureDate_m', 2, 'Tháng xuất cảnh', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
-      ...generateSplitTags('departureDate_d', 2, 'Ngày xuất cảnh', ['giay_uy_thac_lan_2', 'nouzeikanrinin', 'don_xin_lan_1']),
-      ...generateSplitTags('departure_y', 4, 'Năm xuất cảnh (Ô departure_y)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
-      ...generateSplitTags('departure_m', 2, 'Tháng xuất cảnh (Ô departure_m)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
-      ...generateSplitTags('departure_d', 2, 'Ngày xuất cảnh (Ô departure_d)', ['giay_uy_thac_lan_2', 'nouzeikanrinin']),
-
-      { id: 'applyDate_y', label: 'Năm xin Nenkin (Nguyên khối YYYY)', appliesTo: ['don_xin_lan_1'] },
-      { id: 'applyDate_m', label: 'Tháng xin Nenkin (Nguyên khối MM)', appliesTo: ['don_xin_lan_1'] },
-      { id: 'applyDate_d', label: 'Ngày xin Nenkin (Nguyên khối DD)', appliesTo: ['don_xin_lan_1'] },
-      ...generateSplitTags('applyDate_y', 4, 'Năm xin Nenkin', ['don_xin_lan_1']),
-      ...generateSplitTags('applyDate_m', 2, 'Tháng xin Nenkin', ['don_xin_lan_1']),
-      ...generateSplitTags('applyDate_d', 2, 'Ngày xin Nenkin', ['don_xin_lan_1']),
-
+      // --- 5. Ngày nhận thông báo chi trả Nenkin (Giấy 20% Lần 1) ---
       { id: 'noticeDate_y', label: 'Giấy 20%: Năm nhận thông báo (VD: 2026)', appliesTo: ['bang_3', 'bang_1_2'] },
       { id: 'noticeDate_m', label: 'Giấy 20%: Tháng nhận thông báo (VD: 03)', appliesTo: ['bang_3', 'bang_1_2'] },
       { id: 'noticeDate_d', label: 'Giấy 20%: Ngày nhận thông báo (VD: 01)', appliesTo: ['bang_3', 'bang_1_2'] },
       ...generateSplitTags('noticeDate_y', 4, 'Giấy 20%: Năm nhận thông báo', ['bang_3', 'bang_1_2']),
       ...generateSplitTags('noticeDate_m', 2, 'Giấy 20%: Tháng nhận thông báo', ['bang_3', 'bang_1_2']),
       ...generateSplitTags('noticeDate_d', 2, 'Giấy 20%: Ngày nhận thông báo', ['bang_3', 'bang_1_2']),
+
+      // --- 6. [Dự phòng] Ngày hiện tại in phiếu (Today) ---
+      { id: 'today_y', label: 'Hôm nay: Năm hiện tại (Dương lịch YYYY - VD: 2026)', appliesTo: ALL_TEMPLATES },
+      { id: 'today_m', label: 'Hôm nay: Tháng hiện tại (MM - VD: 08)', appliesTo: ALL_TEMPLATES },
+      { id: 'today_d', label: 'Hôm nay: Ngày hiện tại (DD - VD: 24)', appliesTo: ALL_TEMPLATES },
 
       { id: 'applicantSignature', label: 'Chữ ký người làm đơn', appliesTo: ['don_xin_lan_1'], required: true },
       { id: 'principalSignature', label: 'Chữ ký người ủy quyền', appliesTo: ['ininjyo_yoshiki_lan_1'], required: true },
