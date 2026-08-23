@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { Save, MousePointer2, Eye, X, Search, Check, Sparkles } from 'lucide-react';
+import { Save, MousePointer2, Eye, X, Search, Check, Sparkles, Printer } from 'lucide-react';
 import { MOCK_DATA } from '@/lib/mockData';
 import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCoords';
 
@@ -1131,6 +1131,15 @@ export default function PdfMapperClient({
     }
   };
 
+  const handleOpenPrintPreview = () => {
+    const targetAppId = selectedAppId || appList[0]?.id;
+    if (targetAppId) {
+      window.open(`/applications/${targetAppId}/print?template=${selectedTemplate}`, '_blank');
+    } else {
+      alert('Vui lòng chọn một hồ sơ khách hàng ở mục "Dữ liệu xem trước" để mở trang in thực tế.');
+    }
+  };
+
   const handleDeleteTag = (tag: string) => {
     setConfig(prev => {
       const newConf = { ...prev };
@@ -1207,9 +1216,18 @@ export default function PdfMapperClient({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
           >
             <Save size={16} /> {saving ? 'Đang lưu...' : 'Lưu Cấu Hình'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenPrintPreview}
+            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-sm"
+            title="Mở trang in PDF thực tế của hồ sơ đang chọn trong tab mới"
+          >
+            <Printer size={16} /> Xem Trang In Thực Tế 🖨️
           </button>
         </div>
 
@@ -1697,6 +1715,16 @@ export default function PdfMapperClient({
                 ↪️ Redo
               </button>
             </div>
+
+            {/* Quick Link to Actual Print Page */}
+            <button
+              type="button"
+              onClick={handleOpenPrintPreview}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow transition-all"
+              title="Mở trang in PDF thực tế của hồ sơ đang chọn trong tab mới"
+            >
+              <Printer size={14} /> Xem Trang In
+            </button>
           </div>
 
           <div className="flex items-center gap-4">

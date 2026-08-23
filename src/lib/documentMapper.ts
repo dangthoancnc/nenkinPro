@@ -195,9 +195,13 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
     const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
 
+    const kataName = (customer as any).nenkinKatakanaName || (customer as any).fullNameFurigana || '';
+
     return {
       fullName:        customer.fullName ?? '',
-      fullName_kata:   customer.fullNameFurigana ?? '',
+      fullName_kata:   kataName,
+      fullNameFurigana: kataName,
+      nenkinKatakanaName: kataName,
       lastName:        customer.lastName ?? '',
       firstName:       customer.firstName ?? '',
       nationality:     customer.nationality ?? '',
@@ -221,7 +225,6 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     myNumber:        customer.myNumber ?? '',
     nenkinNumber:    customer.nenkinNumber ?? '',
     pensionSystemRegistrationNumber: customer.pensionSystemRegistrationNumber ?? '',
-    nenkinKatakanaName: customer.nenkinKatakanaName ?? '',
     occupation:      customer.occupation ?? '',
     
     overseasStreet:  customer.overseasStreet ?? '',
@@ -280,7 +283,6 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
 
     // Aliases for template JSON compatibility
     address: customer.zairyuAddress ?? '',
-    fullNameFurigana: customer.fullNameFurigana ?? '',
 
     // Char splits
     ...splitChars(dob.y,  'dob_y', 4, true),
@@ -299,7 +301,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     ...splitChars(customer.nenkinNumber ?? '', 'nenkin', 10, true),
     ...splitChars(customer.myNumber ?? '', 'my_num', 12, true),
     ...splitChars(customer.phone ?? '', 'phone', 11, true),
-    ...splitChars(customer.fullNameFurigana ?? '', 'fullName_kata', 14),
+    ...splitChars(kataName, 'fullName_kata', 14),
     ...splitChars(bankAccNum, 'accountNumber', 7, true),
     ...splitChars(bankAccNum, 'account_dig', 13, true),
     ...splitChars(yuchoKigo, 'yucho_kigo', 5, true),
@@ -819,7 +821,8 @@ export function mapApplicationToTemplate(application: any): Record<string, strin
   
   const result: Record<string, string> = {
     fullName: customer.fullName || '',
-    fullName_kata: customer.fullNameFurigana || '',
+    fullName_kata: customer.nenkinKatakanaName || customer.fullNameFurigana || '',
+    fullNameFurigana: customer.nenkinKatakanaName || customer.fullNameFurigana || '',
     dob: customer.dob ? new Date(customer.dob).toLocaleDateString() : '',
     nationality: customer.nationality || '',
     sex: customer.sex || '',
