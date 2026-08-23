@@ -306,6 +306,16 @@
     "width": 251,
     "height": 22
   },
+  "taxRep_phone": {
+    "page": 0,
+    "x": 383.06,
+    "y": 367,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 73,
+    "height": 12
+  },
   "phone_group_1": {
     "page": 0,
     "x": 429.72,
@@ -333,76 +343,6 @@
     "size": 9,
     "type": "text",
     "width": 32,
-    "height": 12
-  },
-  "taxRep_fullName": {
-    "page": 0,
-    "x": 141.39,
-    "y": 392,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 159,
-    "height": 10
-  },
-  "taxRep_fullNameKana": {
-    "page": 0,
-    "x": 141.39,
-    "y": 407.56,
-    "size": 7,
-    "type": "text",
-    "align": "left",
-    "width": 89,
-    "height": 12
-  },
-  "taxRep_postalCodeFormat": {
-    "page": 0,
-    "x": 154.17,
-    "y": 459.22,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 55,
-    "height": 12
-  },
-  "taxRep_phone": {
-    "page": 0,
-    "x": 378.06,
-    "y": 367.56,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 73,
-    "height": 12
-  },
-  "taxRep_dob_y": {
-    "page": 0,
-    "x": 411.94,
-    "y": 425.89,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 32,
-    "height": 12
-  },
-  "taxRep_dob_m": {
-    "page": 0,
-    "x": 457.5,
-    "y": 425.89,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 20,
-    "height": 12
-  },
-  "taxRep_dob_d": {
-    "page": 0,
-    "x": 493.61,
-    "y": 425.89,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 20,
     "height": 12
   }
 }
