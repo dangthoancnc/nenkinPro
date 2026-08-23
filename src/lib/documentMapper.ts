@@ -175,6 +175,10 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     phone_group_3 = phoneClean.slice(7);
   }
 
+  const postClean = (customer.postalCode || '').replace(/\D/g, '');
+  const postalCode_part1 = postClean.length >= 3 ? postClean.slice(0, 3) : postClean;
+  const postalCode_part2 = postClean.length > 3 ? postClean.slice(3, 7) : '';
+
   let dob_era_code = '3'; // Default Showa
   if (era?.eraJp === '昭和') dob_era_code = '3';
   else if (era?.eraJp === '平成') dob_era_code = '4';
@@ -192,32 +196,44 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
   const permResDate = formatDate(customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate) : null);
   const isYuchoBank = primaryBank.isYucho || primaryBank.bankName?.includes('ゆうちょ') || primaryBank.bankName?.includes('Yucho');
 
-    const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
-    const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
+  const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
+  const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
 
-    const kataName = (customer as any).nenkinKatakanaName || (customer as any).fullNameFurigana || '';
+  const kataName = (customer as any).nenkinKatakanaName || (customer as any).fullNameFurigana || '';
 
-    return {
-      fullName:        customer.fullName ?? '',
-      fullName_kata:   kataName,
-      fullNameFurigana: kataName,
-      nenkinKatakanaName: kataName,
-      lastName:        customer.lastName ?? '',
-      firstName:       customer.firstName ?? '',
-      nationality:     customer.nationality ?? '',
-      address_jp:      customer.zairyuAddress ?? '',
-      postalCodeFormat: customer.postalCode ?? '',
-      postalCode:      customer.postalCode ?? '',
-      phone:           customer.phone ?? '',
-      phone_group_1,
-      phone_group_2,
-      phone_group_3,
-      sex:                 customer.sex ?? (isMale ? '男' : isFemale ? '女' : ''),
-      gender:              isMale ? '男' : isFemale ? '女' : (customer.sex ?? ''),
-      gender_male_check:   isMale ? '✓' : '',
-      gender_female_check: isFemale ? '✓' : '',
-      sex_M_mark:          isMale ? '○' : '',
-      sex_F_mark:          isFemale ? '○' : '',
+  return {
+    fullName:        customer.fullName ?? '',
+    fullName_kata:   kataName,
+    fullNameFurigana: kataName,
+    nenkinKatakanaName: kataName,
+    lastName:        customer.lastName ?? '',
+    firstName:       customer.firstName ?? '',
+    nationality:     customer.nationality ?? '',
+    address_jp:      customer.zairyuAddress ?? '',
+    postalCodeFormat: customer.postalCode ?? '',
+    postalCode:      customer.postalCode ?? '',
+    postalCode_part1,
+    postalCode_part2,
+    post_part1: postalCode_part1,
+    post_part2: postalCode_part2,
+    tax_residence_mark: '○',
+    address_tax_mark: '○',
+    phone:           customer.phone ?? '',
+    phone_group_1,
+    phone_group_2,
+    phone_group_3,
+    phone_1: phone_group_1,
+    phone_2: phone_group_2,
+    phone_3: phone_group_3,
+    phone_part1: phone_group_1,
+    phone_part2: phone_group_2,
+    phone_part3: phone_group_3,
+    sex:                 customer.sex ?? (isMale ? '男' : isFemale ? '女' : ''),
+    gender:              isMale ? '男' : isFemale ? '女' : (customer.sex ?? ''),
+    gender_male_check:   isMale ? '✓' : '',
+    gender_female_check: isFemale ? '✓' : '',
+    sex_M_mark:          isMale ? '○' : '',
+    sex_F_mark:          isFemale ? '○' : '',
 
     placeOfBirth:    customer.placeOfBirth ?? '',
     passportNumber:  customer.passportNumber ?? '',
@@ -254,12 +270,14 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     dob_era_yr:    era?.eraYearStr ?? '',
 
     // Today date tags
+    today_y: dob.y ? String(new Date().getFullYear()) : '2026',
+    today_m: String(new Date().getMonth() + 1).padStart(2, '0'),
+    today_d: String(new Date().getDate()).padStart(2, '0'),
     today_era_jp: '令和',
     today_era_yr: '08',
-    today_m: '02',
-    today_d: '15',
 
     // Document creation date tags
+    doc_date_y: String(new Date().getFullYear()),
     doc_date_era_jp: '令和',
     doc_date_era_yr: '08',
     doc_date_m: '02',
@@ -321,7 +339,11 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
   if (!rep) {
     return {
       taxRep_fullName: '', taxRep_fullNameKana: '', taxRep_fullName_kata: '', taxRep_address: '',
-      taxRep_phone: '', taxRep_relationship: '', taxRep_postalCodeFormat: '',
+      taxRep_phone: '', taxRep_relationship: '納税管理人', taxRep_postalCodeFormat: '',
+      taxRep_postalCode_part1: '', taxRep_postalCode_part2: '',
+      taxRep_post_part1: '', taxRep_post_part2: '',
+      rep_post_part1: '', rep_post_part2: '',
+      taxRep_occupation: '', taxRep_dob_y: '', taxRep_dob_m: '', taxRep_dob_d: '',
       taxRep_bankName: '', taxRep_branchName: '', taxRep_accountNumber: '',
       taxRep_accountName: '', taxRep_accountType_1_mark: '', taxRep_accountType_2_mark: '',
       taxRep_yucho_kigo: '', taxRep_yucho_bango: '',
@@ -341,6 +363,11 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
   const bango = anyRep.yuchoBango || '';
   const accNum = rep.accountNumber || '';
 
+  const repPostClean = (rep.postalCode || '').replace(/\D/g, '');
+  const taxRep_postalCode_part1 = repPostClean.length >= 3 ? repPostClean.slice(0, 3) : repPostClean;
+  const taxRep_postalCode_part2 = repPostClean.length > 3 ? repPostClean.slice(3, 7) : '';
+  const repDob = formatDate(anyRep.dob ? new Date(anyRep.dob) : null);
+
   return {
     taxRep_fullName:      rep.fullName ?? '',
     taxRep_fullNameKana:  rep.fullNameKana ?? '',
@@ -349,6 +376,16 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_phone:         rep.phone ?? '',
     taxRep_relationship:  rep.relationship ?? '納税管理人',
     taxRep_postalCodeFormat: rep.postalCode ?? '',
+    taxRep_postalCode_part1,
+    taxRep_postalCode_part2,
+    taxRep_post_part1: taxRep_postalCode_part1,
+    taxRep_post_part2: taxRep_postalCode_part2,
+    rep_post_part1: taxRep_postalCode_part1,
+    rep_post_part2: taxRep_postalCode_part2,
+    taxRep_occupation:    anyRep.occupation ?? '会社員',
+    taxRep_dob_y:         repDob.y || '1991',
+    taxRep_dob_m:         repDob.m || '04',
+    taxRep_dob_d:         repDob.d || '02',
     
     // Bank details
     taxRep_bankName:      rep.bankName ?? '',
@@ -551,6 +588,7 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     ...splitChars(dep.m, 'departureDate_m', 2, true),
     ...splitChars(dep.d, 'departureDate_d', 2, true),
 
+    doc_date_y:      docDate.y,
     doc_date_era_jp: docEra.eraJp,
     doc_date_era_yr: docEra.eraYearStr,
     doc_date_m:      docDate.m,
