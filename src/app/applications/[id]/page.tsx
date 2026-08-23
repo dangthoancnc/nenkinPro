@@ -11,6 +11,7 @@ import { TransferApplicationModal } from '@/components/applications/TransferAppl
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
+import { calculateNenkinTax } from '@/lib/taxCalculator';
 import { BankAutocomplete } from '../components/BankAutocomplete';
 import ImageCropModal from '@/components/ImageCropModal';
 import { Button }         from '@/components/ui/Button';
@@ -87,7 +88,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const { register, handleSubmit, formState: { errors }, reset, setValue, getValues, watch, control } =
     useForm<WorkspaceFormValues>({
       mode: 'onBlur',
-      resolver: zodResolver(workspaceSchema),
+      resolver: zodResolver(workspaceSchema) as any,
       defaultValues: { status: 'DRAFT' },
     });
 
@@ -159,6 +160,25 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
             revisionNote:                data.revisionNote                || '',
           };
+          
+          const totalExpectedJpy = data.totalExpectedJpy ? Number(data.totalExpectedJpy) : 0;
+          const coverageMonths = data.coverageMonths ? Number(data.coverageMonths) : undefined;
+          const withheldTaxVal = data.withheldTax ? Number(data.withheldTax) : undefined;
+          
+          const taxResult = calculateNenkinTax({
+            totalExpectedJpy,
+            coverageMonths,
+            withheldTax: withheldTaxVal,
+          });
+
+          formValues.tokureiTekio              = data.tokureiTekio || '1 7 1';
+          formValues.tokureiShohoMark          = data.tokureiShohoMark ?? true;
+          formValues.calculatedTax             = data.calculatedTax             ?? (taxResult.calculatedTax ?? '');
+          formValues.calculatedTax93           = data.calculatedTax93           ?? (taxResult.calculatedTax ?? '');
+          formValues.totalGeneralTax           = data.totalGeneralTax           ?? '0';
+          formValues.taxableRetirementIncome   = data.taxableRetirementIncome   ?? (taxResult.taxableRetirementIncome ?? '');
+          formValues.retirementDeductionAmount = data.retirementDeductionAmount ?? (taxResult.retirementDeductionAmount ?? '');
+
           Object.keys(formValues).forEach(key => {
             if (formValues[key] === null)
               formValues[key] = key === 'hasPermanentResidence' ? false : '';
@@ -283,6 +303,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         averageStandardRemuneration: data.averageStandardRemuneration ? parseFloat(String(data.averageStandardRemuneration)) : null,
         lumpSumWithdrawalNumber: data.lumpSumWithdrawalNumber || null,
         revisionNote: data.revisionNote || null,
+        tokureiTekio: data.tokureiTekio || null,
+        tokureiShohoMark: data.tokureiShohoMark || false,
+        calculatedTax: data.calculatedTax ? parseFloat(String(data.calculatedTax)) : null,
+        calculatedTax93: data.calculatedTax93 ? parseFloat(String(data.calculatedTax93)) : null,
+        totalGeneralTax: data.totalGeneralTax ? parseFloat(String(data.totalGeneralTax)) : null,
+        taxableRetirementIncome: data.taxableRetirementIncome ? parseFloat(String(data.taxableRetirementIncome)) : null,
+        retirementDeductionAmount: data.retirementDeductionAmount ? parseFloat(String(data.retirementDeductionAmount)) : null,
       };
       if (isNew) {
         const cRes = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customerPayload) });
@@ -467,7 +494,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       if (ext.lastCoverageMonth)           setValue('lastCoverageMonth',           ext.lastCoverageMonth,           { shouldDirty: true });
       if (ext.paymentsMultiplier)          setValue('paymentsMultiplier',          ext.paymentsMultiplier,          { shouldDirty: true });
       if (ext.averageStandardRemuneration) setValue('averageStandardRemuneration', ext.averageStandardRemuneration, { shouldDirty: true });
-
+      if (ext.tokureiTekio)                setValue('tokureiTekio',                ext.tokureiTekio,                { shouldDirty: true });
+      if (ext.tokureiShohoMark !== undefined) setValue('tokureiShohoMark',         ext.tokureiShohoMark,            { shouldDirty: true });
+      if (ext.calculatedTax)               setValue('calculatedTax',               ext.calculatedTax,               { shouldDirty: true });
+      if (ext.calculatedTax93)             setValue('calculatedTax93',             ext.calculatedTax93,             { shouldDirty: true });
+      if (ext.totalGeneralTax !== undefined) setValue('totalGeneralTax',           ext.totalGeneralTax,             { shouldDirty: true });
+      if (ext.taxableRetirementIncome)     setValue('taxableRetirementIncome',     ext.taxableRetirementIncome,     { shouldDirty: true });
+      if (ext.retirementDeductionAmount)   setValue('retirementDeductionAmount',   ext.retirementDeductionAmount,   { shouldDirty: true });
       setRefundStage('lan2');
       toast.success('Đã trích xuất Giấy thông báo Lần 1 thành công!', {
         description: `Tổng tiền: ¥${ext.totalExpectedJpy || 0} | Thuế bị giữ: ¥${ext.withheldTax || 0} | BH: ${ext.coverageMonths || 0} tháng`
@@ -889,6 +922,42 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <FormField label="Lương bình quân tháng (平均標準報酬額)">
                     <Input type="number" {...register('averageStandardRemuneration')} disabled={!isEditing} size="md" prefix="¥" placeholder="VD: 226970" />
                   </FormField>
+
+                  <div className="pt-2">
+                    <div className="text-[11px] font-bold text-teal-700 border-b border-teal-100 pb-1 mb-2 flex items-center justify-between">
+                      <span>📑 TÙY CHỈNH THUẾ BẢNG 3 LẦN 2 (確定申告書 第三表)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <FormField label="Điều khoản áp dụng (特例適用)">
+                        <Input {...register('tokureiTekio')} disabled={!isEditing} size="md" placeholder="VD: 1 7 1" />
+                      </FormField>
+                      <FormField label="Khoanh chọn 所法">
+                        <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                          <input type="checkbox" {...register('tokureiShohoMark')} disabled={!isEditing} className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500" />
+                          <span className="text-xs font-medium text-slate-700">Áp dụng 所法</span>
+                        </label>
+                      </FormField>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <FormField label="Thu nhập chịu thuế (Ô 76)">
+                        <Input type="number" {...register('taxableRetirementIncome')} disabled={!isEditing} size="md" prefix="¥" placeholder="Tự động tính nếu trống" />
+                      </FormField>
+                      <FormField label="Miễn giảm thu nhập (退職所得控除額)">
+                        <Input type="number" {...register('retirementDeductionAmount')} disabled={!isEditing} size="md" prefix="¥" placeholder="Tự động tính nếu trống" />
+                      </FormField>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <FormField label="Thuế tính (Ô 92 / 49)">
+                        <Input type="number" {...register('calculatedTax')} disabled={!isEditing} size="md" prefix="¥" placeholder="Tự động" />
+                      </FormField>
+                      <FormField label="Thuế tính (Ô 93)">
+                        <Input type="number" {...register('calculatedTax93')} disabled={!isEditing} size="md" prefix="¥" placeholder="Mặc định = Ô 92" />
+                      </FormField>
+                      <FormField label="Tổng thuế (Ô 12)">
+                        <Input type="number" {...register('totalGeneralTax')} disabled={!isEditing} size="md" prefix="¥" placeholder="VD: 0" />
+                      </FormField>
+                    </div>
+                  </div>
                 </div>
               );
 

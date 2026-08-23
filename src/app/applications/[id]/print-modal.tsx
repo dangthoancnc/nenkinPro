@@ -186,8 +186,8 @@ export default function PrintModal({ isOpen, onClose, id }: PrintModalProps) {
       setLoading(true);
       try {
         const [appRes, configRes] = await Promise.all([
-          fetch(`/api/applications/${id}`),
-          fetch('/api/templates/mapping?template=all')
+          fetch(`/api/applications/${id}`, { cache: 'no-store' }),
+          fetch('/api/templates/mapping?template=all', { cache: 'no-store' })
         ]);
 
         if (appRes.ok) {

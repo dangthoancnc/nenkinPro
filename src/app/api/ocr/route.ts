@@ -296,6 +296,26 @@ export async function POST(request: Request) {
         }
       }
 
+      // === 2c. Auto-calculate fields for Nenkin Notice ===
+      if (extractedData && (documentType === 'noticeOfPayment' || documentType === 'noticeOfEntitlement')) {
+        const data = extractedData as Record<string, any>;
+        if (!data.error) {
+          const { calculateNenkinTax } = await import('@/lib/taxCalculator');
+          const taxResult = calculateNenkinTax({
+            totalExpectedJpy: data.totalExpectedJpy ? Number(data.totalExpectedJpy) : 0,
+            coverageMonths: data.coverageMonths ? Number(data.coverageMonths) : undefined,
+            withheldTax: data.withheldTax ? Number(data.withheldTax) : undefined,
+          });
+          data.tokureiTekio = data.tokureiTekio || '1 7 1';
+          data.tokureiShohoMark = data.tokureiShohoMark ?? true;
+          data.calculatedTax = data.calculatedTax ?? taxResult.calculatedTax;
+          data.calculatedTax93 = data.calculatedTax93 ?? taxResult.calculatedTax;
+          data.totalGeneralTax = data.totalGeneralTax ?? 0;
+          data.taxableRetirementIncome = data.taxableRetirementIncome ?? taxResult.taxableRetirementIncome;
+          data.retirementDeductionAmount = data.retirementDeductionAmount ?? taxResult.retirementDeductionAmount;
+        }
+      }
+
       // === 3. Save to OcrResult if we have a customerId ===
       // customerId is already parsed at the top of the function
       if (customerId && extractedData && !(extractedData as any).error) {

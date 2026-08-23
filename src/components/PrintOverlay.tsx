@@ -81,7 +81,10 @@ export const PrintContainer = ({ pdfFile, pageNumber, children, isLandscape = fa
               width={containerWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
-              onLoadSuccess={(page) => setPageDimensions({ width: page.originalWidth || page.width, height: page.originalHeight || page.height })}
+              onLoadSuccess={(page) => {
+                const viewport = page.getViewport({ scale: 1 });
+                setPageDimensions({ width: viewport.width, height: viewport.height });
+              }}
             />
           </Document>
         )}

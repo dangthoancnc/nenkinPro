@@ -64,12 +64,12 @@ export function calcAutoFitDimensions(
   const str = String(text || '');
   const lineHeight = Math.max(12, Math.round(fontSize * PDF_LINE_HEIGHT));
 
-  // Explicit single-character split box tags (e.g., my_num_1, lumpSumNum_1, phone_1 when splitting 11 digits)
-  // Tags like phone_group_1, phone_group_2, post_1 are multi-digit groups and must NOT be treated as 1-char!
+  // Explicit single-character split box tags (e.g., my_num_1, lumpSumNum_1)
+  // Tags like phone_1, post_1, bank_1 are multi-digit groups and must NOT be treated as 1-char!
   const isExplicitSingleCharTag = 
     baseTag.includes('_dig_') || 
     baseTag.endsWith('_unit') ||
-    (/^(fullName_kata|my_num|nenkin|phone|post|tax_post|taxRep_phone|taxRep_post|bank|swift|withheldTax_dig|calculatedTax_dig|refundAmount_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|yucho_kigo|yucho_bango|taxRep_account|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseTag));
+    (/^(fullName_kata|my_num|nenkin|withheldTax_dig|calculatedTax_dig|refundAmount_dig|calculatedTax93_dig|totalGeneralTax_dig|taxableRetirementIncome_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseTag));
 
   if (isExplicitSingleCharTag && str.length <= 1) {
     const singleCharW = Math.max(14, Math.ceil(fontSize * 1.3));
@@ -128,6 +128,7 @@ export default function PdfMapperClient({
   const dragStartRef = useRef<{ page: number; startX: number; startY: number } | null>(null);
   const justFinishedDragSelectRef = useRef(false);
   const justClickedPinRef = useRef(false);
+  const clipboardRef = useRef<Record<string, Coordinate> | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [pdfScale, setPdfScale] = useState(1.8);
@@ -499,7 +500,7 @@ export default function PdfMapperClient({
             const isExplicitSingleCharTag = 
               baseK.includes('_dig_') || 
               baseK.endsWith('_unit') ||
-              (/^(fullName_kata|my_num|nenkin|phone|post|tax_post|taxRep_phone|taxRep_post|bank|swift|withheldTax_dig|calculatedTax_dig|refundAmount_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|yucho_kigo|yucho_bango|taxRep_account|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseK));
+              (/^(fullName_kata|my_num|nenkin|withheldTax_dig|calculatedTax_dig|refundAmount_dig|calculatedTax93_dig|totalGeneralTax_dig|taxableRetirementIncome_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseK));
             
             if (normalized[k].width === undefined && isExplicitSingleCharTag) {
               const sz = normalized[k].size || 9;
@@ -695,6 +696,71 @@ export default function PdfMapperClient({
       const activeTag = activeElement?.tagName;
       const isTextInput = activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && (activeElement as HTMLInputElement).type !== 'number');
 
+      const activeTagsList = selectedTags.length > 0 ? selectedTags : (selectedTag && config[selectedTag] ? [selectedTag] : []);
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === 'c') {
+          if (!isTextInput && activeTagsList.length > 0) {
+            e.preventDefault();
+            const clipboard: Record<string, Coordinate> = {};
+            activeTagsList.forEach(t => {
+              if (config[t]) clipboard[t] = { ...config[t] };
+            });
+            clipboardRef.current = clipboard;
+          }
+          return;
+        } else if (e.key.toLowerCase() === 'v') {
+          if (!isTextInput && clipboardRef.current && Object.keys(clipboardRef.current).length > 0) {
+            e.preventDefault();
+            setConfig(prev => {
+              const next = { ...prev };
+              const newSelectedTags: string[] = [];
+              Object.entries(clipboardRef.current!).forEach(([oldTag, coord]) => {
+                const isSystem = !oldTag.startsWith('custom_') && !oldTag.startsWith('static_') && !oldTag.startsWith('line_') && !oldTag.startsWith('circle_');
+                let newTag = oldTag;
+                if (isSystem) {
+                  const base = oldTag.split('#')[0];
+                  let maxSuffix = 0;
+                  Object.keys(next).forEach(k => {
+                    if (k.startsWith(base + '#')) {
+                      const suffix = parseInt(k.split('#')[1]);
+                      if (!isNaN(suffix) && suffix > maxSuffix) maxSuffix = suffix;
+                    } else if (k === base) {
+                      if (maxSuffix === 0) maxSuffix = 1;
+                    }
+                  });
+                  newTag = maxSuffix > 0 ? `${base}#${maxSuffix + 1}` : `${base}#2`;
+                } else {
+                   const prefix = oldTag.split('_')[0];
+                   newTag = `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                }
+
+                next[newTag] = {
+                  ...coord,
+                  x: Number((coord.x + 10).toFixed(2)),
+                  y: Number((coord.y - 10).toFixed(2)),
+                };
+                newSelectedTags.push(newTag);
+              });
+              
+              // setTimeout to update selection state after config is set
+              setTimeout(() => {
+                if (newSelectedTags.length === 1) {
+                  setSelectedTag(newSelectedTags[0]);
+                  setSelectedTags([]);
+                } else {
+                  setSelectedTags(newSelectedTags);
+                  setSelectedTag(null);
+                }
+              }, 0);
+              
+              return next;
+            });
+          }
+          return;
+        }
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!isTextInput) {
           if (selectedTags.length > 0) {
@@ -709,7 +775,6 @@ export default function PdfMapperClient({
         }
       }
 
-      const activeTagsList = selectedTags.length > 0 ? selectedTags : (selectedTag && config[selectedTag] ? [selectedTag] : []);
       if (activeTagsList.length === 0) return;
 
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -1327,24 +1392,6 @@ export default function PdfMapperClient({
               ))}
             </div>
             
-            <div className="mt-3 grid grid-cols-2 gap-1.5">
-              <button 
-                onClick={handleAddCustomTag}
-                className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] py-1.5 rounded hover:bg-blue-100 font-bold whitespace-nowrap"
-              >+ Thẻ Mới / Thẻ Trống</button>
-              <button 
-                onClick={handleAddStaticTag}
-                className="bg-amber-50 border border-amber-200 text-amber-700 text-[10px] py-1.5 rounded hover:bg-amber-100 font-medium whitespace-nowrap"
-              >+ Chữ Tĩnh</button>
-              <button 
-                onClick={handleAddLineTag}
-                className="bg-purple-50 border border-purple-200 text-purple-700 text-[10px] py-1.5 rounded hover:bg-purple-100 font-medium whitespace-nowrap"
-              >+ Đường Kẻ</button>
-              <button 
-                onClick={handleAddCircleTag}
-                className="bg-rose-50 border border-rose-200 text-rose-700 text-[10px] py-1.5 rounded hover:bg-rose-100 font-medium whitespace-nowrap"
-              >+ Khoanh Tròn</button>
-            </div>
 
             {/* Sidebar Auto-fill split-char */}
             {selectedTag && (() => {
@@ -1922,7 +1969,8 @@ export default function PdfMapperClient({
               {/* Content Text Input */}
               {(!config[selectedTag].type || config[selectedTag].type === 'text') && (() => {
                 const baseKey = selectedTag.split('#')[0];
-                let displayVal = config[selectedTag].value ?? ((liveMappedData ? liveMappedData[baseKey] : (showMockData ? MOCK_DATA[baseKey] : '')));
+                const liveVal = liveMappedData ? liveMappedData[baseKey] : undefined;
+                let displayVal = config[selectedTag].value ?? ((liveVal !== undefined && liveVal !== '' && liveVal !== null) ? liveVal : (showMockData ? MOCK_DATA[baseKey] : ''));
                 return (
                   <input
                     type="text"
@@ -2221,11 +2269,10 @@ export default function PdfMapperClient({
                     renderAnnotationLayer={false}
                     scale={pdfScale} 
                     onLoadSuccess={(page) => {
-                      const unscaledWidth = page.originalWidth || (page.width / pdfScale);
-                      const unscaledHeight = page.originalHeight || (page.height / pdfScale);
+                      const viewport = page.getViewport({ scale: 1 });
                       setPageDimensions(prev => ({
                         ...prev,
-                        [index]: { width: unscaledWidth, height: unscaledHeight }
+                        [index]: { width: viewport.width, height: viewport.height }
                       }));
                     }}
                   />
@@ -2320,7 +2367,7 @@ export default function PdfMapperClient({
                             const baseKey = tag.split('#')[0];
                             const mockVal = (showMockData && !tag.startsWith('static_')) ? MOCK_DATA[baseKey] : undefined;
                             const liveVal = (liveMappedData && !tag.startsWith('static_')) ? liveMappedData[baseKey] : undefined;
-                            const finalMockVal = liveVal ?? mockVal;
+                            const finalMockVal = (liveVal !== undefined && liveVal !== '' && liveVal !== null) ? liveVal : mockVal;
                             let valToRender = coord.value !== undefined ? coord.value : (finalMockVal !== undefined ? finalMockVal : '');
 
                             const monetaryKeys = [

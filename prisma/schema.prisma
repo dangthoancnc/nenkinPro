@@ -260,6 +260,15 @@ model NenkinApplication {
   averageStandardRemuneration Decimal? // 平均標準報酬(月)額 - Lương bình quân (VD: 226970)
   lumpSumWithdrawalNumber     String?  // 脱退一時金整理番号 - Mã số thụ hưởng Lần 1 (VD: 42650954055050)
 
+  // --- Thuế Bảng 3 & Override Fields ---
+  tokureiTekio               String?  // 特例適用条文 (VD: 171)
+  tokureiShohoMark           Boolean? // Khoanh chọn 所法
+  calculatedTax              Decimal? // Thuế đã tính (mục 49 / 92)
+  calculatedTax93            Decimal? // Thuế đã tính (mục 93)
+  totalGeneralTax            Decimal? // Tổng số thuế thông thường (mục 12)
+  taxableRetirementIncome    Decimal? // Thu nhập chịu thuế (mục 76)
+  retirementDeductionAmount  Decimal? // Mức miễn giảm thu nhập (退職所得控除額)
+
   customerId          String
   customer            Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   

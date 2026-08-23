@@ -12,10 +12,10 @@
   "taxOfficeName": {
     "page": 0,
     "x": 39,
-    "y": 779.5,
-    "size": 10,
-    "width": 67,
-    "height": 13,
+    "y": 781.5,
+    "size": 11,
+    "width": 54,
+    "height": 14,
     "fontWeight": "normal"
   },
   "post_1": {
@@ -561,6 +561,7 @@
     "width": 14,
     "align": "center",
     "height": 22,
+    "value": "4 ",
     "fontWeight": "normal"
   },
   "fullName_kata_5": {
@@ -602,6 +603,7 @@
     "type": "text",
     "width": 14,
     "align": "center",
+    "value": "8",
     "fontWeight": "normal"
   },
   "fullName_kata_9": {
@@ -622,6 +624,7 @@
     "type": "text",
     "width": 14,
     "align": "center",
+    "value": "1",
     "fontWeight": "normal"
   },
   "fullName_kata_11": {
@@ -632,6 +635,7 @@
     "type": "text",
     "width": 14,
     "align": "center",
+    "value": "2",
     "height": 22,
     "fontWeight": "normal"
   },
@@ -644,6 +648,7 @@
     "width": 14,
     "align": "center",
     "height": 22,
+    "value": "3",
     "fontWeight": "normal"
   },
   "fullName_kata_13": {
@@ -655,6 +660,7 @@
     "width": 14,
     "height": 22,
     "align": "center",
+    "value": "4",
     "fontWeight": "normal"
   },
   "fullName_kata_14": {
@@ -666,6 +672,7 @@
     "width": 14,
     "height": 22,
     "align": "center",
+    "value": "5",
     "fontWeight": "normal"
   },
   "taxRep_account_dig_1": {
@@ -924,48 +931,5 @@
     "align": "left",
     "width": 20,
     "height": 12
-  },
-  "bank_type_shiten_mark": {
-    "page": 0,
-    "x": 520.83,
-    "y": 133.31,
-    "size": 13,
-    "type": "text",
-    "align": "left",
-    "width": 18,
-    "height": 10
-  },
-  "line_1787480321979": {
-    "page": 0,
-    "x": 253.61,
-    "y": 771.65,
-    "size": 9,
-    "type": "line",
-    "align": "center",
-    "width": 56,
-    "height": 12,
-    "thickness": 1
-  },
-  "line_1787480335587": {
-    "page": 0,
-    "x": 254.17,
-    "y": 762.76,
-    "size": 9,
-    "type": "line",
-    "align": "center",
-    "width": 56,
-    "height": 12,
-    "thickness": 1
-  },
-  "static_1787480346243": {
-    "page": 0,
-    "x": 231.39,
-    "y": 780.54,
-    "size": 9,
-    "type": "text",
-    "align": "center",
-    "width": 125,
-    "height": 12,
-    "value": "退職所得の選択課税"
   }
 }

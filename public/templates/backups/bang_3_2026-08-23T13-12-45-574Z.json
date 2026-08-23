@@ -1,0 +1,133 @@
+{
+  "fullName": {
+    "page": 0,
+    "x": 91.67,
+    "y": 652.22,
+    "size": 12,
+    "width": 184,
+    "height": 10
+  },
+  "address_jp": {
+    "page": 0,
+    "x": 89.99,
+    "y": 699.43,
+    "size": 9,
+    "width": 190,
+    "height": 20
+  },
+  "totalExpectedJpy": {
+    "page": 0,
+    "x": 240,
+    "y": 365,
+    "size": 12
+  },
+  "withheldTax": {
+    "page": 0,
+    "x": 490,
+    "y": 245,
+    "size": 12
+  },
+  "retirementDeductionAmount": {
+    "page": 0,
+    "x": 490,
+    "y": 145,
+    "size": 12
+  },
+  "refundAmount": {
+    "page": 0,
+    "x": 490,
+    "y": 300,
+    "size": 12
+  },
+  "taxYear_era_yr_unit": {
+    "page": 0,
+    "x": 120.28,
+    "y": 765.76,
+    "size": 14,
+    "type": "text",
+    "align": "center",
+    "width": 16,
+    "height": 10
+  },
+  "fullName_kata": {
+    "page": 0,
+    "x": 93.06,
+    "y": 668.87,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 95,
+    "height": 10
+  },
+  "line_1787487064589_373": {
+    "page": 0,
+    "x": 193.61,
+    "y": 772.21,
+    "size": 9,
+    "type": "line",
+    "align": "center",
+    "width": 56,
+    "height": 12,
+    "thickness": 1
+  },
+  "line_1787487064589_621": {
+    "page": 0,
+    "x": 194.17,
+    "y": 763.32,
+    "size": 9,
+    "type": "line",
+    "align": "center",
+    "width": 56,
+    "height": 12,
+    "thickness": 1
+  },
+  "static_1787487064589_226": {
+    "page": 0,
+    "x": 171.39,
+    "y": 781.1,
+    "size": 9,
+    "type": "text",
+    "align": "center",
+    "width": 125,
+    "height": 12,
+    "value": "退職所得の選択課税"
+  },
+  "tokureiShohoMark": {
+    "page": 0,
+    "x": 297,
+    "y": 680.09,
+    "size": 14,
+    "type": "text",
+    "align": "left",
+    "width": 22,
+    "height": 17
+  },
+  "tokureiTekio_1": {
+    "page": 0,
+    "x": 365.56,
+    "y": 680.09,
+    "size": 10,
+    "type": "text",
+    "align": "center",
+    "width": 20,
+    "height": 12
+  },
+  "tokureiTekio_2": {
+    "page": 0,
+    "x": 387.12,
+    "y": 680.09,
+    "size": 10,
+    "type": "text",
+    "width": 20,
+    "height": 12
+  },
+  "tokureiTekio_3": {
+    "page": 0,
+    "x": 401.56,
+    "y": 680.09,
+    "size": 10,
+    "type": "text",
+    "width": 20,
+    "height": 12
+  }
+}

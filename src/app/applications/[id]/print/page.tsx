@@ -183,8 +183,8 @@ export default function ApplicationPrintView() {
     async function initData() {
       try {
         const [appRes, configRes] = await Promise.all([
-          fetch(`/api/applications/${id}`),
-          fetch('/api/templates/mapping?template=all')
+          fetch(`/api/applications/${id}`, { cache: 'no-store' }),
+          fetch('/api/templates/mapping?template=all', { cache: 'no-store' })
         ]);
 
         if (appRes.ok) {
@@ -472,7 +472,7 @@ export default function ApplicationPrintView() {
             <PrintField x={80} y={34} value={rep.relationship || '納税管理人'} />
 
             <PrintField x={30} y={40} value={cleanPost(customer.nenkinNumber)} charSpacing={20} />
-            <PrintField x={30} y={44} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
+            <PrintField x={30} y={44} value={customer.fullNameFurigana} charSpacing={14} />
             <PrintField x={30} y={48} value={customer.fullName} />
             
             <PrintField x={30} y={52} value={mappedData.dob_era_yr} />
@@ -493,7 +493,7 @@ export default function ApplicationPrintView() {
             
             <PrintField x={20} y={15} value={cleanPost(customer.postalCode)} charSpacing={15} />
             <PrintField x={20} y={18} value={customer.zairyuAddress} className="text-[12px] max-w-[40%]" />
-            <PrintField x={20} y={20} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
+            <PrintField x={20} y={20} value={customer.fullNameFurigana} charSpacing={12} />
             <PrintField x={20} y={22} value={customer.fullName} className="text-lg" />
             
             <PrintField x={70} y={22} value={cleanPost(customer.myNumber)} charSpacing={22} />
@@ -521,7 +521,7 @@ export default function ApplicationPrintView() {
       case 'lan2_donxin2':
         return (
           <>
-            <PrintField x={20} y={8} value={cleanStr(customer.fullNameFurigana)} charSpacing={12} />
+            <PrintField x={20} y={8} value={customer.fullNameFurigana} charSpacing={12} />
             <PrintField x={20} y={10} value={customer.fullName} />
             
             <PrintField x={20} y={20} value="退職" />
@@ -571,7 +571,7 @@ export default function ApplicationPrintView() {
 
             <PrintField x={20} y={25} value={customer.overseasCountry || 'VIET NAM'} />
             <PrintField x={20} y={28} value={customer.zairyuAddress} />
-            <PrintField x={20} y={32} value={cleanStr(customer.fullNameFurigana)} charSpacing={14} />
+            <PrintField x={20} y={32} value={customer.fullNameFurigana} charSpacing={14} />
             <PrintField x={20} y={35} value={customer.fullName} />
             <PrintField x={70} y={35} value={cleanPost(customer.myNumber)} charSpacing={22} />
             

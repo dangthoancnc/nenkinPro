@@ -596,11 +596,11 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     coverageMonths,
     withheldTax: application.withheldTax ? Number(application.withheldTax) : undefined,
   });
-  const withheldTax = taxResult.withheldTax ?? Math.floor(totalExpectedJpy * 0.2042);
-  const retirementDeductionAmount = taxResult.retirementDeductionAmount ?? 0;
-  const taxableRetirementIncome = taxResult.taxableRetirementIncome ?? 0;
-  const calculatedTax = taxResult.calculatedTax ?? 0;
-  const refundAmount = taxResult.refundAmount ?? withheldTax;
+  const withheldTax = application.withheldTax != null ? Number(application.withheldTax) : (taxResult.withheldTax ?? Math.floor(totalExpectedJpy * 0.2042));
+  const retirementDeductionAmount = appExt.retirementDeductionAmount != null ? Number(appExt.retirementDeductionAmount) : (taxResult.retirementDeductionAmount ?? 0);
+  const taxableRetirementIncome = appExt.taxableRetirementIncome != null ? Number(appExt.taxableRetirementIncome) : (taxResult.taxableRetirementIncome ?? 0);
+  const calculatedTax = appExt.calculatedTax != null ? Number(appExt.calculatedTax) : (taxResult.calculatedTax ?? 0);
+  const refundAmount = withheldTax - calculatedTax;
 
   const lumpSumNum = appExt.lumpSumWithdrawalNumber || '';
   const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
@@ -632,6 +632,7 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     ...splitDigitsRight(withheldTax, 'withheldTax_dig', 7),
     ...splitDigitsRight(calculatedTax, 'calculatedTax_dig', 7),
     ...splitDigitsRight(refundAmount, 'refundAmount_dig', 7),
+    ...splitDigitsRight(totalExpectedJpy, 'totalExpectedJpy_dig', 9),
 
     furikae_danzoku_mark: '○',
     furikae_aoiro_mark: '',
@@ -722,6 +723,17 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
   const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
   const noticeEra = application.noticeDate ? toJapaneseEra(new Date(application.noticeDate)) : null;
 
+  const totalExpectedJpyNum = totalExpectedJpy ?? 0;
+  const withheldTaxNum = application.withheldTax != null ? Number(application.withheldTax) : (taxResult.withheldTax ?? Math.floor(totalExpectedJpyNum * 0.2042));
+  const retirementDeductionAmountNum = appExt.retirementDeductionAmount != null ? Number(appExt.retirementDeductionAmount) : (taxResult.retirementDeductionAmount ?? 0);
+  const taxableRetirementIncomeNum = appExt.taxableRetirementIncome != null ? Number(appExt.taxableRetirementIncome) : (taxResult.taxableRetirementIncome ?? 0);
+  const calculatedTaxNum = appExt.calculatedTax != null ? Number(appExt.calculatedTax) : (taxResult.calculatedTax ?? 0);
+  const refundAmountNum = withheldTaxNum - calculatedTaxNum;
+  
+  const calculatedTax93Num = appExt.calculatedTax93 != null ? Number(appExt.calculatedTax93) : calculatedTaxNum;
+  const totalGeneralTaxNum = appExt.totalGeneralTax != null ? Number(appExt.totalGeneralTax) : 0;
+  const tokureiTekioStr = appExt.tokureiTekio || '';
+
   return {
     ...mapCustomerBase(customer),
     ...mapTaxOffice(taxOffice),
@@ -730,13 +742,29 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
     taxYear_era_yr_unit: taxYearStr ? String(parseInt(taxYearStr, 10) % 10) : '',
     ...splitChars(taxYearStr, 'taxYear_era_yr', 2, true),
 
-    totalExpectedJpy: taxResult.missingInputs.includes('totalExpectedJpy') ? '' : String(totalExpectedJpy),
-    received1stJpy: application.received1stJpy ? String(application.received1stJpy) : '',
-    withheldTax: taxResult.withheldTax == null ? '' : String(taxResult.withheldTax),
-    retirementDeductionAmount: taxResult.retirementDeductionAmount == null ? '' : String(taxResult.retirementDeductionAmount),
-    taxableRetirementIncome: taxResult.taxableRetirementIncome == null ? '' : String(taxResult.taxableRetirementIncome),
-    calculatedTax: taxResult.calculatedTax == null ? '' : String(taxResult.calculatedTax),
-    refundAmount: taxResult.refundAmount == null ? '' : String(taxResult.refundAmount),
+    totalExpectedJpy: formatJpy(totalExpectedJpyNum),
+    received1stJpy: application.received1stJpy ? formatJpy(application.received1stJpy) : '',
+    withheldTax: formatJpy(withheldTaxNum),
+    retirementDeductionAmount: formatJpy(retirementDeductionAmountNum),
+    taxableRetirementIncome: formatJpy(taxableRetirementIncomeNum),
+    calculatedTax: formatJpy(calculatedTaxNum),
+    calculatedTax93: formatJpy(calculatedTax93Num),
+    refundAmount: formatJpy(refundAmountNum),
+    tax2ndJpy: application.tax2ndJpy ? formatJpy(application.tax2ndJpy) : formatJpy(refundAmountNum),
+    totalGeneralTax: formatJpy(totalGeneralTaxNum),
+    
+    ...splitDigitsRight(withheldTaxNum, 'withheldTax_dig', 7),
+    ...splitDigitsRight(calculatedTaxNum, 'calculatedTax_dig', 7),
+    ...splitDigitsRight(refundAmountNum, 'refundAmount_dig', 7),
+    ...splitDigitsRight(calculatedTax93Num, 'calculatedTax93_dig', 7),
+    ...splitDigitsRight(totalGeneralTaxNum, 'totalGeneralTax_dig', 7),
+    ...splitDigitsRight(taxableRetirementIncomeNum, 'taxableRetirementIncome_dig', 7),
+    ...splitDigitsRight(totalExpectedJpyNum, 'totalExpectedJpy_dig', 9),
+
+    bunri_mark: '○',
+    tokureiTekio: tokureiTekioStr,
+    ...splitChars(tokureiTekioStr, 'tokureiTekio', 3, true),
+    tokureiShohoMark: appExt.tokureiShohoMark ? '○' : '',
     
     lumpSumWithdrawalNumber: lumpSumNum,
     ...splitChars(lumpSumNum, 'lumpSumNum', 14, true),
