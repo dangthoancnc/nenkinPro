@@ -161,47 +161,65 @@ export interface PrintFieldProps {
   pageHeight?: number;
 }
 
-export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12, type = 'text', width, height, thickness = 1, isMock = false, align, fontWeight = 'normal', pageWidth = A4_W, pageHeight = A4_H }: PrintFieldProps) => {
+export const PrintField = ({
+  x,
+  y,
+  value,
+  className = '',
+  charSpacing,
+  size = 12,
+  type = 'text',
+  width,
+  height,
+  thickness = 1,
+  isMock = false,
+  align,
+  fontWeight = 'normal',
+  pageWidth = A4_W,
+  pageHeight = A4_H
+}: PrintFieldProps) => {
   const widthPercent = width ? ((width / pageWidth) * 100) : undefined;
+  const heightPercent = height ? ((height / pageHeight) * 100) : undefined;
 
   // Common style for absolute positioning using percentages
   const style: React.CSSProperties = {
     left: `${x}%`,
     top: `${y}%`,
     width: widthPercent ? `${widthPercent}%` : undefined,
+    height: heightPercent ? `${heightPercent}%` : undefined,
     position: 'absolute',
-    transform: type === 'text' || type === undefined ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
+    transform: (!type || type === 'text') ? `translateY(${PDF_BASELINE_OFFSET_EM}em)` : 'none',
     margin: 0,
     padding: 0,
     textAlign: align || (className.includes('text-right') ? 'right' : 'left'),
   };
 
   if (type === 'line') {
-    const widthPercent = ((width || 100) / pageWidth) * 100;
+    const wPct = ((width || 100) / pageWidth) * 100;
     return (
       <div
         className="bg-black print:bg-black absolute"
         style={{
           ...style,
-          width: `${widthPercent}%`,
+          width: `${wPct}%`,
           height: `${thickness}px`,
-          transform: 'none' // Lines draw from exactly x, y
+          transform: 'none'
         }}
       />
     );
   }
 
   if (type === 'circle') {
-    const widthPercent = ((width || 20) / pageWidth) * 100;
-    const heightPercent = ((height || 20) / pageHeight) * 100;
+    const wPct = ((width || 20) / pageWidth) * 100;
+    const hPct = ((height || 20) / pageHeight) * 100;
     return (
       <div
         className="absolute border-black print:border-black rounded-full"
         style={{
           left: `${x}%`,
           top: `${y}%`,
-          width: `${widthPercent}%`,
-          height: `${heightPercent}%`,
+          width: `${wPct}%`,
+          height: `${hPct}%`,
           borderWidth: `${thickness}px`,
           borderStyle: 'solid',
           transform: 'translate(-50%, -50%)',
@@ -220,18 +238,18 @@ export const PrintField = ({ x, y, value, className = '', charSpacing, size = 12
       ))
     : value;
 
-  // Font size: convert PDF points to container-relative units (cqi)
-  // 1pt = (1/pageWidth * 100)% of container width = cqi units
   const fontSizeVw = (size / pageWidth) * 100;
+  const isMultiLine = width && height && height > (size || 12) * 1.6;
 
   return (
     <div
-      className={`absolute ${width ? 'whitespace-pre-wrap' : 'whitespace-pre'} ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black'} ${fontWeight === 'bold' ? 'font-bold' : 'font-normal'} ${className}`}
+      className={`absolute ${isMock ? 'text-red-500/70 print:text-transparent print:hidden' : 'text-black print:text-black'} ${fontWeight === 'bold' ? 'font-bold' : 'font-normal'} ${className}`}
       style={{
         ...style,
         fontFamily: "'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Yu Gothic', sans-serif",
-        fontSize: className.includes('text-') ? undefined : `${fontSizeVw}cqi`, // container query inline: scales with PrintContainer width
+        fontSize: className.includes('text-') ? undefined : `${fontSizeVw}cqi`,
         lineHeight: PDF_LINE_HEIGHT,
+        whiteSpace: width ? (isMultiLine ? 'pre-wrap' : 'nowrap') : 'pre',
       }}
     >
       {content}

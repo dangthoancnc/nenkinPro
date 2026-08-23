@@ -648,14 +648,31 @@ export default function ApplicationPrintView() {
               const textValue = getValueForTag(tagId, coord);
               if (!textValue) return null;
 
+              const monetaryKeys = [
+                'totalExpectedJpy', 'received1stJpy', 'received2ndJpy', 'withheldTax',
+                'retirementDeductionAmount', 'taxableRetirementIncome', 'calculatedTax',
+                'refundAmount', 'tax2ndJpy', 'incomeSourceAmount', 'incomeSourceWithheld',
+                'serviceFeeJpy', 'averageStandardRemuneration'
+              ];
+              let formattedTextValue = textValue;
+              if (monetaryKeys.includes(baseKey) && formattedTextValue) {
+                const numStr = String(formattedTextValue).replace(/\D/g, '');
+                if (numStr) {
+                  formattedTextValue = Number(numStr).toLocaleString('en-US');
+                }
+              }
+
               return (
                 <PrintField
                   key={tagId}
                   x={xPercent}
                   y={yPercent}
-                  value={textValue}
+                  value={formattedTextValue}
                   size={coord.size || 12}
                   width={coord.width}
+                  height={coord.height}
+                  align={coord.align}
+                  fontWeight={coord.fontWeight}
                   pageWidth={pageWidth}
                   pageHeight={pageHeight}
                 />
