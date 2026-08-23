@@ -74,8 +74,8 @@
     "size": 9,
     "type": "text",
     "align": "left",
-    "width": 249,
-    "height": 11
+    "width": 175,
+    "height": 12
   },
   "taxRep_relationship": {
     "page": 0,
@@ -305,15 +305,5 @@
     "align": "left",
     "width": 251,
     "height": 22
-  },
-  "taxRep_phone": {
-    "page": 0,
-    "x": 383.06,
-    "y": 367,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 73,
-    "height": 12
   }
 }

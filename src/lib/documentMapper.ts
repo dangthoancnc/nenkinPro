@@ -363,6 +363,17 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
   const bango = anyRep.yuchoBango || '';
   const accNum = rep.accountNumber || '';
 
+  const repPhoneClean = (rep.phone || '').trim();
+  let taxRep_phone = repPhoneClean;
+  if (!taxRep_phone.includes('-')) {
+    const d = taxRep_phone.replace(/\D/g, '');
+    if (d.length === 11) {
+      taxRep_phone = `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+    } else if (d.length === 10) {
+      taxRep_phone = `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+    }
+  }
+
   const repPostClean = (rep.postalCode || '').replace(/\D/g, '');
   const taxRep_postalCode_part1 = repPostClean.length >= 3 ? repPostClean.slice(0, 3) : repPostClean;
   const taxRep_postalCode_part2 = repPostClean.length > 3 ? repPostClean.slice(3, 7) : '';
@@ -376,7 +387,7 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_fullName_kata: rep.fullNameKana ?? '',
     taxRep_name_kata:     rep.fullNameKana ?? '',
     taxRep_address:       rep.address ?? '',
-    taxRep_phone:         rep.phone ?? '',
+    taxRep_phone:         taxRep_phone,
     taxRep_relationship:  rep.relationship ?? '納税管理人',
     taxRep_postalCodeFormat: rep.postalCode ?? '',
     taxRep_postalCode_part1,

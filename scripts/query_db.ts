@@ -34,7 +34,7 @@ async function main() {
           fullNameKana: 'ダオ ティ デュエン',
           address: '神奈川県川崎市幸区南加瀬4丁目18-48-205号',
           postalCode: '212-0055',
-          phone: '08098765432',
+          phone: '080-9876-5432',
           occupation: '会社員',
           dob: new Date('1991-04-02'),
           relationship: '納税管理人',
