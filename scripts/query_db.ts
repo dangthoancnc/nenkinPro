@@ -30,12 +30,17 @@ async function main() {
       const updated = await prisma.taxRepresentative.update({
         where: { id: r.id },
         data: {
-          occupation: r.occupation || '会社員',
-          dob: r.dob || new Date('1991-04-02'),
-          relationship: r.relationship || '納税管理人',
+          fullName: 'DAO THI DUYEN',
+          fullNameKana: 'ダオ ティ デュエン',
+          address: '神奈川県川崎市幸区南加瀬4丁目18-48-205号',
+          postalCode: '212-0055',
+          phone: '08098765432',
+          occupation: '会社員',
+          dob: new Date('1991-04-02'),
+          relationship: '納税管理人',
         }
       });
-      console.log('Tax rep updated:', updated.id, updated.fullName, updated.occupation, updated.dob);
+      console.log('Tax rep updated:', updated);
     }
   }
 

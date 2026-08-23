@@ -109,7 +109,7 @@ export const MOCK_DATA: Record<string, string> = {
   taxRep_appoint_mark: '○',
   taxRep_dismiss_mark: '',
   taxRep_appoint_reason: '出国のため',
-  income_salary_mark: '',
+  income_salary_mark: '○',
   income_business_mark: '',
   income_realestate_mark: '',
   income_transfer_mark: '',

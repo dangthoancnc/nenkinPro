@@ -370,8 +370,11 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
 
   return {
     taxRep_fullName:      rep.fullName ?? '',
+    taxRep_name:          rep.fullName ?? '',
     taxRep_fullNameKana:  rep.fullNameKana ?? '',
+    taxRep_furigana:      rep.fullNameKana ?? '',
     taxRep_fullName_kata: rep.fullNameKana ?? '',
+    taxRep_name_kata:     rep.fullNameKana ?? '',
     taxRep_address:       rep.address ?? '',
     taxRep_phone:         rep.phone ?? '',
     taxRep_relationship:  rep.relationship ?? '納税管理人',
@@ -603,7 +606,7 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     taxRep_dismiss_mark: '',
     taxRep_appoint_reason: '出国のため',
     taxRep_relationship: taxRepresentative?.relationship || '納税管理人',
-    income_salary_mark: '',
+    income_salary_mark: '○',
     income_business_mark: '',
     income_realestate_mark: '',
     income_transfer_mark: '',
