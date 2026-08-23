@@ -69,7 +69,7 @@ export function calcAutoFitDimensions(
   const isExplicitSingleCharTag = 
     baseTag.includes('_dig_') || 
     baseTag.endsWith('_unit') ||
-    (/^(fullName_kata|my_num|nenkin|withheldTax_dig|calculatedTax_dig|refundAmount_dig|calculatedTax93_dig|totalGeneralTax_dig|taxableRetirementIncome_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|taxRep_account_dig|lumpSumNum|myNumber)_\d+$/.test(baseTag));
+    (/^(fullName_kata|my_num|nenkin|withheldTax_dig|calculatedTax_dig|refundAmount_dig|calculatedTax93_dig|totalGeneralTax_dig|taxableRetirementIncome_dig|dob_y|dob_m|dob_d|dob_era_yr|permResDate_y|permResDate_m|permResDate_d|departureDate_y|departureDate_m|departureDate_d|departure_y|departure_m|departure_d|applyDate_y|applyDate_m|applyDate_d|applyDate_era_yr|noticeDate_y|noticeDate_m|noticeDate_d|taxYear_era_yr|today_era_yr|today_m|today_d|today_yymmdd|doc_date_era_yr|doc_date_m|doc_date_d|doc_date_yymmdd|taxRep_account_dig|taxRep_post|rep_post|lumpSumNum|myNumber)_\d+$/.test(baseTag));
 
   if (isExplicitSingleCharTag && str.length <= 1) {
     const singleCharW = Math.max(14, Math.ceil(fontSize * 1.3));

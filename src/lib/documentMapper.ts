@@ -523,14 +523,19 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
   const docDate = formatDate(new Date(application.createdAt));
   const docEra  = toJapaneseEra(new Date(application.createdAt));
 
-  // Departure date (ngày rời Nhật)
-  const depField = (application as Record<string, unknown>).departureDate;
+  // Departure date (ngày rời Nhật) - check both customer and application
+  const depField = (customer as any)?.departureDate || (application as any)?.departureDate;
   const dep = formatDate(depField ? new Date(depField as string) : null);
+
+  const overseasAddr = customer.overseasAddress || [customer.overseasStreet, customer.overseasCity, customer.overseasProvince, customer.overseasCountry].filter(Boolean).join(', ') || 'VIET NAM';
 
   return {
     ...mapCustomerBase(customer),
     ...mapRepresentative(taxRepresentative),
     ...mapTaxOffice(taxOffice),
+
+    overseasAddress: overseasAddr,
+    overseasStreet: customer.overseasStreet || overseasAddr,
 
     departure_y: dep.y,
     departure_m: dep.m,
@@ -550,10 +555,22 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     doc_date_era_yr: docEra.eraYearStr,
     doc_date_m:      docDate.m,
     doc_date_d:      docDate.d,
+    ...splitChars(docEra.eraYearStr, 'doc_date_era_yr', 2, true),
+    ...splitChars(docDate.m, 'doc_date_m', 2, true),
+    ...splitChars(docDate.d, 'doc_date_d', 2, true),
+
     app_id: application.id.slice(0, 8),
     ...todayTags(),
-    taxRep_appoint_mark: taxRepresentative ? '\u2713' : '',
+    taxRep_appoint_mark: '○',
     taxRep_dismiss_mark: '',
+    taxRep_appoint_reason: '出国のため',
+    taxRep_relationship: taxRepresentative?.relationship || '納税管理人',
+    income_salary_mark: '',
+    income_business_mark: '',
+    income_realestate_mark: '',
+    income_transfer_mark: '',
+    income_other_detail: '退職所得（脱退一時金）',
+    other_reference_note: '',
   };
 }
 

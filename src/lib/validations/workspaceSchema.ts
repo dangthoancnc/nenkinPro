@@ -33,6 +33,7 @@ export const applicationSchema = z.object({
   totalGeneralTax: z.union([z.string(), z.number()]).nullable().optional(),
   taxableRetirementIncome: z.union([z.string(), z.number()]).nullable().optional(),
   retirementDeductionAmount: z.union([z.string(), z.number()]).nullable().optional(),
+  taxRepresentativeId: z.string().nullable().optional(),
 });
 
 export const workspaceSchema = customerSchema.merge(applicationSchema);

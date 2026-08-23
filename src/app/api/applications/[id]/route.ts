@@ -80,12 +80,19 @@ export async function GET(
       orderBy: { startDate: 'asc' }
     });
 
+    let taxRep = application.taxRepresentative;
+    if (!taxRep) {
+      taxRep = await prisma.taxRepresentative.findFirst({
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
     const mapperInput = {
       application,
       customer: application.customer,
       workHistories,
       taxOffice: application.customer.taxOffice,
-      taxRepresentative: application.taxRepresentative,
+      taxRepresentative: taxRep,
     };
 
     const templates: TemplateType[] = ['don_xin_lan_1', 'ininjyo_yoshiki_lan_1', 'nouzeikanrinin', 'bang_1_2', 'bang_3', 'giay_uy_thac_lan_2'];
