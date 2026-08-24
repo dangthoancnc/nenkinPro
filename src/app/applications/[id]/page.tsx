@@ -85,6 +85,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
 
+  const verifyAllFields = () => {
+    const allKeys = [
+      'fullName', 'dob', 'nationality', 'cardNumber', 'myNumber', 'zairyuAddress', 'postalCode',
+      'passportNumber', 'sex', 'nenkinNumber', 'nenkinKatakanaName', 'departureDate',
+      'noticeDate', 'lumpSumWithdrawalNumber', 'totalExpectedJpy', 'withheldTax', 'received1stJpy',
+      'bankName', 'branchName', 'accountNumber', 'accountName', 'swiftCode',
+      'taxOffice_verified', 'taxOffice_name', 'taxOffice_postalCode', 'taxOffice_address', 'taxOffice_phone'
+    ];
+    const newVerified: Record<string, boolean> = {};
+    allKeys.forEach(k => { newVerified[k] = true; });
+    setVerifiedFields(newVerified);
+    setManualConfirmed(true);
+    toast.success('Đã đối chiếu và đánh dấu khớp tất cả các trường dữ liệu!');
+  };
+
   const { register, handleSubmit, formState: { errors }, reset, setValue, getValues, watch, control } =
     useForm<WorkspaceFormValues>({
       mode: 'onBlur',
@@ -799,7 +814,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
                         state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
                     </FormField>
-                    <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Quốc tịch">
+                      <Input {...register('nationality')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['nationality']} showVerify onVerify={() => toggleVerify('nationality')} />
+                    </FormField>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Số thẻ ngoại kiều">
@@ -807,7 +825,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['cardNumber']} showVerify onVerify={() => toggleVerify('cardNumber')}
                         state={verifiedFields['cardNumber'] ? 'verified' : 'default'} />
                     </FormField>
-                    <FormField label="My Number"><Input {...register('myNumber')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="My Number">
+                      <Input {...register('myNumber')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['myNumber']} showVerify onVerify={() => toggleVerify('myNumber')} />
+                    </FormField>
                   </div>
                   <FormField label="Địa chỉ trên thẻ (Kanji)">
                     <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
@@ -837,6 +858,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               return (
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN HỘ CHIẾU</div>
+                  <FormField label="Số hộ chiếu">
+                    <Input {...register('passportNumber')} disabled={!isEditing} size="md" placeholder="VD: C1234567"
+                      verified={verifiedFields['passportNumber']} showVerify onVerify={() => toggleVerify('passportNumber')} />
+                  </FormField>
                   <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
                     <Input {...register('fullName')} disabled={!isEditing} size="md"
                       verified={verifiedFields['fullName']} showVerify onVerify={() => toggleVerify('fullName')}
@@ -848,7 +873,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['dob']} showVerify onVerify={() => toggleVerify('dob')}
                         state={errors.dob ? 'error' : verifiedFields['dob'] ? 'verified' : 'default'} />
                     </FormField>
-                    <FormField label="Quốc tịch"><Input {...register('nationality')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Quốc tịch">
+                      <Input {...register('nationality')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['nationality']} showVerify onVerify={() => toggleVerify('nationality')} />
+                    </FormField>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Giới tính">
@@ -871,8 +899,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN SỔ NENKIN</div>
                   <div className="grid grid-cols-2 gap-2">
-                    <FormField label="Mã số Nenkin"><Input {...register('nenkinNumber')} disabled={!isEditing} size="md" /></FormField>
-                    <FormField label="Tên Katakana"><Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Mã số Nenkin">
+                      <Input {...register('nenkinNumber')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['nenkinNumber']} showVerify onVerify={() => toggleVerify('nenkinNumber')} />
+                    </FormField>
+                    <FormField label="Tên Katakana">
+                      <Input {...register('nenkinKatakanaName')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['nenkinKatakanaName']} showVerify onVerify={() => toggleVerify('nenkinKatakanaName')} />
+                    </FormField>
                   </div>
                 </div>
               );
@@ -882,7 +916,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN DẤU XUẤT CẢNH</div>
                   <FormField label="Ngày xuất cảnh Nhật Bản">
-                    <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md" />
+                    <Input type="date" {...register('departureDate')} disabled={!isEditing} size="md"
+                      verified={verifiedFields['departureDate']} showVerify onVerify={() => toggleVerify('departureDate')} />
                   </FormField>
                 </div>
               );
@@ -896,21 +931,26 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Ngày ra quyết định">
-                      <Input type="date" {...register('noticeDate')} disabled={!isEditing} size="md" />
+                      <Input type="date" {...register('noticeDate')} disabled={!isEditing} size="md"
+                        verified={verifiedFields['noticeDate']} showVerify onVerify={() => toggleVerify('noticeDate')} />
                     </FormField>
                     <FormField label="Mã số thụ hưởng (整理番号)">
-                      <Input {...register('lumpSumWithdrawalNumber')} disabled={!isEditing} size="md" placeholder="VD: 42650954055050" />
+                      <Input {...register('lumpSumWithdrawalNumber')} disabled={!isEditing} size="md" placeholder="VD: 42650954055050"
+                        verified={verifiedFields['lumpSumWithdrawalNumber']} showVerify onVerify={() => toggleVerify('lumpSumWithdrawalNumber')} />
                     </FormField>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <FormField label="Tổng tiền (支給額)">
-                      <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-slate-800" />
+                      <Input type="number" {...register('totalExpectedJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-slate-800"
+                        verified={verifiedFields['totalExpectedJpy']} showVerify onVerify={() => toggleVerify('totalExpectedJpy')} />
                     </FormField>
                     <FormField label="Thuế 20.42% (所得税)">
-                      <Input type="number" {...register('withheldTax')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-amber-700 bg-amber-50/60" />
+                      <Input type="number" {...register('withheldTax')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-amber-700 bg-amber-50/60"
+                        verified={verifiedFields['withheldTax']} showVerify onVerify={() => toggleVerify('withheldTax')} />
                     </FormField>
                     <FormField label="Thực nhận L1 (支払額)">
-                      <Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-indigo-700" />
+                      <Input type="number" {...register('received1stJpy')} disabled={!isEditing} size="md" prefix="¥" className="font-bold text-indigo-700"
+                        verified={verifiedFields['received1stJpy']} showVerify onVerify={() => toggleVerify('received1stJpy')} />
                     </FormField>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -1058,29 +1098,50 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   {String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? (
                     <div className="grid grid-cols-3 gap-2">
                       <FormField label="郵便局名など (Chi nhánh/Tiệm)">
-                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店" />
+                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店"
+                          verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
                       </FormField>
                       <FormField label="記号 (Ký hiệu 5 số)">
-                        <Input {...register(`bankAccounts.${idx}.yuchoKigo` as const)} disabled={!isEditing} size="md" placeholder="VD: 10120" />
+                        <Input {...register(`bankAccounts.${idx}.yuchoKigo` as const)} disabled={!isEditing} size="md" placeholder="VD: 10120"
+                          verified={verifiedFields['yuchoKigo']} showVerify onVerify={() => toggleVerify('yuchoKigo')} />
                       </FormField>
                       <FormField label="番号 (Số hiệu 7-8 số)">
-                        <Input {...register(`bankAccounts.${idx}.yuchoBango` as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567" />
+                        <Input {...register(`bankAccounts.${idx}.yuchoBango` as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567"
+                          verified={verifiedFields['yuchoBango']} showVerify onVerify={() => toggleVerify('yuchoBango')} />
                       </FormField>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <FormField label="Chi nhánh"><Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" /></FormField>
-                      <FormField label="Số tài khoản (7 số)"><Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md" /></FormField>
+                      <FormField label="Chi nhánh">
+                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md"
+                          verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
+                      </FormField>
+                      <FormField label="Số tài khoản (7 số)">
+                        <Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md"
+                          verified={verifiedFields['accountNumber']} showVerify onVerify={() => toggleVerify('accountNumber')} />
+                      </FormField>
                     </div>
                   )}
 
-                  <FormField label="Địa chỉ chi nhánh (Eng)"><Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md" /></FormField>
-                  <FormField label="Chủ tài khoản (Romaji)"><Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                  <FormField label="Địa chỉ chi nhánh (Eng)">
+                    <Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md"
+                      verified={verifiedFields['bankBranchAddress']} showVerify onVerify={() => toggleVerify('bankBranchAddress')} />
+                  </FormField>
+                  <FormField label="Chủ tài khoản (Romaji)">
+                    <Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase"
+                      verified={verifiedFields['accountName']} showVerify onVerify={() => toggleVerify('accountName')} />
+                  </FormField>
                   {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
-                    <FormField label="Chủ TK (Katakana)"><Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md" /></FormField>
+                    <FormField label="Chủ TK (Katakana)">
+                      <Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md"
+                        verified={verifiedFields['accountNameKatakana']} showVerify onVerify={() => toggleVerify('accountNameKatakana')} />
+                    </FormField>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <FormField label="Swift Code"><Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase" /></FormField>
+                    <FormField label="Swift Code">
+                      <Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase font-mono font-bold"
+                        verified={verifiedFields['swiftCode']} showVerify onVerify={() => toggleVerify('swiftCode')} placeholder="VD: BFTVVNVX" />
+                    </FormField>
                   </div>
                   {isEditing && bankFields.length > 1 && (
                     <div className="pt-2 border-t border-slate-100">
@@ -1099,29 +1160,38 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Verify confirm */}
         {!isNew && (() => {
-          const required = ['fullName','dob','cardNumber','zairyuAddress','postalCode','taxOffice_name','taxOffice_postalCode','taxOffice_address','taxOffice_romajiAddress','taxOffice_phone','taxOffice_websiteUrl'];
-          const allVerified = required.every(f => verifiedFields[f]);
           return (
             <div className="mt-4 space-y-2">
-              <div className={`p-2.5 border rounded-lg flex items-start gap-2 transition-all ${
-                allVerified ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50/80 border-slate-200 opacity-70'
+              <div className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-all ${
+                manualConfirmed ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50/80 border-slate-200'
               }`}>
-                <input type="checkbox" id="manual-confirm"
-                  disabled={!isEditing || !allVerified}
-                  checked={manualConfirmed && allVerified}
-                  onChange={e => setManualConfirmed(e.target.checked)}
-                  className={`rounded w-4 h-4 mt-0.5 ${allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`} />
-                <label htmlFor="manual-confirm"
-                  className={`text-xs font-semibold leading-snug select-none ${
-                    allVerified ? 'text-indigo-950 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
-                  }`}>
-                  Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
-                </label>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="manual-confirm"
+                    disabled={!isEditing}
+                    checked={manualConfirmed}
+                    onChange={e => setManualConfirmed(e.target.checked)}
+                    className="rounded w-4 h-4 text-indigo-600 cursor-pointer" />
+                  <label htmlFor="manual-confirm"
+                    className="text-xs font-semibold select-none text-indigo-950 cursor-pointer">
+                    Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+                  </label>
+                </div>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={verifyAllFields}
+                    className="text-[10px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2.5 py-1 rounded-md shrink-0 transition-colors shadow-2xs"
+                  >
+                    ✓ Tích xanh tất cả
+                  </button>
+                )}
               </div>
-              {!allVerified && isEditing && (
-                <div className="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 p-2 rounded-lg flex items-start gap-1.5 leading-snug">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                  <span><strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xanh ✓ vào tất cả 5 trường KH và 5 trường Cục thuế trước khi phê duyệt.</span>
+              {!manualConfirmed && isEditing && (
+                <div className="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 p-2 rounded-lg flex items-center justify-between gap-1.5 leading-snug">
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span><strong>💡 Đối chiếu dữ liệu:</strong> Tích xanh ✓ từng trường hoặc nhấn "Tích xanh tất cả" sau khi kiểm tra xong ảnh.</span>
+                  </div>
                 </div>
               )}
             </div>

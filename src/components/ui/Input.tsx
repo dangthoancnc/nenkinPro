@@ -142,14 +142,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               type="button"
               onClick={onVerify}
               className={cn(
-                "ml-1 shrink-0 p-0.5 rounded transition-colors flex items-center justify-center",
+                "ml-1 shrink-0 p-0.5 px-1 rounded transition-all flex items-center justify-center gap-0.5 text-[10px] font-bold cursor-pointer select-none",
                 verified
-                  ? "text-emerald-600 hover:text-emerald-700"
-                  : "text-slate-300 hover:text-slate-500"
+                  ? "text-emerald-700 bg-emerald-100/90 border border-emerald-300 hover:bg-emerald-200"
+                  : "text-slate-400 bg-slate-100 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200"
               )}
-              title={verified ? "Đã xác nhận khớp" : "Xác nhận khớp dữ liệu"}
+              title={verified ? "Đã đối chiếu khớp ✓ (Bấm để hủy)" : "Bấm để đánh dấu đã đối chiếu khớp ✓"}
             >
-              <CheckCircle className="w-3.5 h-3.5" />
+              <CheckCircle className={cn("w-3.5 h-3.5", verified ? "text-emerald-600" : "text-slate-400")} />
             </button>
           )}
 

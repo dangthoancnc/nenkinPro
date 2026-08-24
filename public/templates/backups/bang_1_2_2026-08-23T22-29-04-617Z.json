@@ -205,6 +205,15 @@
     "align": "center",
     "fontWeight": "normal"
   },
+  "totalExpectedJpy": {
+    "page": 0,
+    "x": 192.8,
+    "y": -269,
+    "size": 9,
+    "width": 44,
+    "height": 12,
+    "fontWeight": "normal"
+  },
   "account_type_futsu_mark": {
     "page": 0,
     "x": 435.44,
@@ -240,15 +249,23 @@
     "height": 10,
     "fontWeight": "normal"
   },
-  "incomeSourceWithheld": {
+  "incomeSourceAmount": {
     "page": 1,
-    "x": 236.61,
-    "y": 548.2,
+    "x": 242.5,
+    "y": 550,
     "size": 9,
     "width": 45,
     "height": 17,
-    "fontWeight": "normal",
-    "align": "right"
+    "fontWeight": "normal"
+  },
+  "incomeSourceWithheld": {
+    "page": 1,
+    "x": 275.5,
+    "y": 556,
+    "size": 9,
+    "width": 45,
+    "height": 17,
+    "fontWeight": "normal"
   },
   "incomeItemName": {
     "page": 1,
@@ -950,15 +967,5 @@
     "width": 125,
     "height": 12,
     "value": "退職所得の選択課税"
-  },
-  "totalExpectedJpy": {
-    "page": 1,
-    "x": 184.16,
-    "y": 548.2,
-    "size": 9,
-    "type": "text",
-    "align": "right",
-    "width": 49,
-    "height": 12
   }
 }
