@@ -92,6 +92,28 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       defaultValues: { status: 'DRAFT' },
     });
 
+  // Tự động hủy tích xanh (unverify) ngay khi người dùng chỉnh sửa bất kỳ trường nào đã đối chiếu
+  useEffect(() => {
+    const subscription = watch((value, { name }) => {
+      if (!name) return;
+      let verifyKey: string = String(name);
+      if (verifyKey === 'taxOfficeId') {
+        verifyKey = 'taxOffice';
+      } else if (verifyKey.startsWith('bankAccounts.')) {
+        const parts = verifyKey.split('.');
+        verifyKey = parts[parts.length - 1];
+      }
+
+      setVerifiedFields(prev => {
+        if (prev[verifyKey]) {
+          return { ...prev, [verifyKey]: false };
+        }
+        return prev;
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
   const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({
     control,
     name: 'bankAccounts',
@@ -236,6 +258,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         return [...prev, data.data].sort((a, b) => a.name.localeCompare(b.name));
       });
       setValue('taxOfficeId', data.data.id, { shouldDirty: true });
+      setVerifiedFields(prev => ({ ...prev, taxOffice: false }));
       toast.success(isUpdate ? `Đã cập nhật: ${data.data.name}` : `Đã tạo mới: ${data.data.name}`, { id: tid });
       setTaxPanel('card');
     } catch (err: any) {
@@ -256,6 +279,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Lỗi đồng bộ');
     setTaxOffices(prev => prev.map(t => t.id === data.data.id ? data.data : t));
+    setVerifiedFields(prev => ({ ...prev, taxOffice: false }));
   }, [selectedTaxOffice]);
 
   const onSubmit = async (data: WorkspaceFormValues) => {
