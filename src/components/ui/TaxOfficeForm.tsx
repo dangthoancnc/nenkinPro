@@ -85,6 +85,32 @@ export function TaxOfficeForm({
 }: TaxOfficeFormProps) {
   const isEdit = !!initialData
 
+  const [verifiedTaxFields, setVerifiedTaxFields] = React.useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    if (verified) {
+      const keys = [
+        'name', 'romajiName', 'postalCode', 'phone', 'address', 'romajiAddress',
+        'websiteUrl', 'mapUrl', 'mailingName', 'mailingPostalCode', 'mailingAddress',
+        'jurisdiction', 'consultationPhone', 'generalPhone', 'receptionInfo',
+      ];
+      keys.forEach(k => { initial[k] = true; });
+    }
+    return initial;
+  });
+
+  const toggleTaxFieldVerify = (field: string) => {
+    setVerifiedTaxFields(prev => {
+      const next = { ...prev, [field]: !prev[field] };
+      // Nếu các trường chính (name, postalCode, address) đều được tích, kích hoạt tích Cục thuế
+      const coreKeys = ['name', 'postalCode', 'address'];
+      const hasCore = coreKeys.every(k => next[k]);
+      if (hasCore && !verified && onToggleVerify) {
+        onToggleVerify();
+      }
+      return next;
+    });
+  };
+
   const {
     register,
     handleSubmit,
@@ -112,6 +138,20 @@ export function TaxOfficeForm({
       generalPhone:       initialData?.generalPhone       ?? '',
     },
   })
+
+  // Tự động hủy tích xanh trường đó khi chỉnh sửa nội dung
+  useEffect(() => {
+    const subscription = watch((value, { name }) => {
+      if (!name) return;
+      setVerifiedTaxFields(prev => {
+        if (prev[name]) {
+          return { ...prev, [name]: false };
+        }
+        return prev;
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
   // Re-sync khi initialData thay đổi (ví dụ sau khi AI pre-fill)
   useEffect(() => {
@@ -164,7 +204,7 @@ export function TaxOfficeForm({
               type="button"
               onClick={onToggleVerify}
               className={cn(
-                "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none ml-1 shadow-2xs",
+                "flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none ml-1 shadow-2xs",
                 verified
                   ? "text-emerald-800 bg-emerald-100 border-emerald-300 hover:bg-emerald-200"
                   : "text-amber-900 bg-amber-100 border-amber-300 hover:bg-amber-200 animate-pulse"
@@ -198,7 +238,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('name')}
                 placeholder="堂税務署"
-                state={errors.name ? 'error' : 'default'}
+                state={errors.name ? 'error' : verifiedTaxFields['name'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['name']}
+                onVerify={() => toggleTaxFieldVerify('name')}
               />
             </FormField>
 
@@ -206,7 +249,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('romajiName')}
                 placeholder="Sakai Zeimusho"
-                state={errors.romajiName ? 'error' : 'default'}
+                state={errors.romajiName ? 'error' : verifiedTaxFields['romajiName'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['romajiName']}
+                onVerify={() => toggleTaxFieldVerify('romajiName')}
               />
             </FormField>
 
@@ -215,8 +261,11 @@ export function TaxOfficeForm({
                 <Input
                   {...register('postalCode')}
                   placeholder="593-8511"
-                  state={errors.postalCode ? 'error' : 'default'}
+                  state={errors.postalCode ? 'error' : verifiedTaxFields['postalCode'] ? 'verified' : 'default'}
                   leftIcon={<MapPin className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['postalCode']}
+                  onVerify={() => toggleTaxFieldVerify('postalCode')}
                 />
               </FormField>
 
@@ -225,8 +274,11 @@ export function TaxOfficeForm({
                   {...register('phone')}
                   placeholder="072-271-3441"
                   type="tel"
-                  state={errors.phone ? 'error' : 'default'}
+                  state={errors.phone ? 'error' : verifiedTaxFields['phone'] ? 'verified' : 'default'}
                   leftIcon={<Phone className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['phone']}
+                  onVerify={() => toggleTaxFieldVerify('phone')}
                 />
               </FormField>
             </div>
@@ -235,7 +287,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('address')}
                 placeholder="大阪府堤市西区浜寺石津町東4丁390-1"
-                state={errors.address ? 'error' : 'default'}
+                state={errors.address ? 'error' : verifiedTaxFields['address'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['address']}
+                onVerify={() => toggleTaxFieldVerify('address')}
               />
             </FormField>
 
@@ -243,7 +298,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('romajiAddress')}
                 placeholder="4-390-1 Hamadera Ishizu-cho Higashi, Nishi-ku, Sakai-shi"
-                state={errors.romajiAddress ? 'error' : 'default'}
+                state={errors.romajiAddress ? 'error' : verifiedTaxFields['romajiAddress'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['romajiAddress']}
+                onVerify={() => toggleTaxFieldVerify('romajiAddress')}
               />
             </FormField>
 
@@ -253,8 +311,11 @@ export function TaxOfficeForm({
                   {...register('websiteUrl')}
                   placeholder="https://..."
                   type="url"
-                  state={errors.websiteUrl ? 'error' : 'default'}
+                  state={errors.websiteUrl ? 'error' : verifiedTaxFields['websiteUrl'] ? 'verified' : 'default'}
                   leftIcon={<Globe className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['websiteUrl']}
+                  onVerify={() => toggleTaxFieldVerify('websiteUrl')}
                 />
               </FormField>
 
@@ -263,8 +324,11 @@ export function TaxOfficeForm({
                   {...register('mapUrl')}
                   placeholder="https://maps.google.com/..."
                   type="url"
-                  state={errors.mapUrl ? 'error' : 'default'}
+                  state={errors.mapUrl ? 'error' : verifiedTaxFields['mapUrl'] ? 'verified' : 'default'}
                   leftIcon={<Globe className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['mapUrl']}
+                  onVerify={() => toggleTaxFieldVerify('mapUrl')}
                 />
               </FormField>
             </div>
@@ -301,7 +365,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('mailingName')}
                 placeholder="堤税務署 汚税相課部門"
-                state={errors.mailingName ? 'error' : mailingName ? 'verified' : 'default'}
+                state={errors.mailingName ? 'error' : verifiedTaxFields['mailingName'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['mailingName']}
+                onVerify={() => toggleTaxFieldVerify('mailingName')}
               />
             </FormField>
 
@@ -313,8 +380,11 @@ export function TaxOfficeForm({
                 <Input
                   {...register('mailingPostalCode')}
                   placeholder="593-8511"
-                  state={errors.mailingPostalCode ? 'error' : mailingPostalCode ? 'verified' : 'default'}
+                  state={errors.mailingPostalCode ? 'error' : verifiedTaxFields['mailingPostalCode'] ? 'verified' : 'default'}
                   leftIcon={<Mail className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['mailingPostalCode']}
+                  onVerify={() => toggleTaxFieldVerify('mailingPostalCode')}
                 />
               </FormField>
 
@@ -325,7 +395,10 @@ export function TaxOfficeForm({
                 <Input
                   {...register('mailingAddress')}
                   placeholder="大阪府堤市西区..."
-                  state={errors.mailingAddress ? 'error' : mailingAddress ? 'verified' : 'default'}
+                  state={errors.mailingAddress ? 'error' : verifiedTaxFields['mailingAddress'] ? 'verified' : 'default'}
+                  showVerify
+                  verified={!!verifiedTaxFields['mailingAddress']}
+                  onVerify={() => toggleTaxFieldVerify('mailingAddress')}
                 />
               </FormField>
             </div>
@@ -350,7 +423,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('jurisdiction')}
                 placeholder="堤市西区全域..."
-                state={errors.jurisdiction ? 'error' : 'default'}
+                state={errors.jurisdiction ? 'error' : verifiedTaxFields['jurisdiction'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['jurisdiction']}
+                onVerify={() => toggleTaxFieldVerify('jurisdiction')}
               />
             </FormField>
 
@@ -363,8 +439,11 @@ export function TaxOfficeForm({
                   {...register('consultationPhone')}
                   placeholder="072-271-3441"
                   type="tel"
-                  state={errors.consultationPhone ? 'error' : 'default'}
+                  state={errors.consultationPhone ? 'error' : verifiedTaxFields['consultationPhone'] ? 'verified' : 'default'}
                   leftIcon={<Phone className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['consultationPhone']}
+                  onVerify={() => toggleTaxFieldVerify('consultationPhone')}
                 />
               </FormField>
 
@@ -376,8 +455,11 @@ export function TaxOfficeForm({
                   {...register('generalPhone')}
                   placeholder="072-271-3441"
                   type="tel"
-                  state={errors.generalPhone ? 'error' : 'default'}
+                  state={errors.generalPhone ? 'error' : verifiedTaxFields['generalPhone'] ? 'verified' : 'default'}
                   leftIcon={<Phone className="w-3 h-3" />}
+                  showVerify
+                  verified={!!verifiedTaxFields['generalPhone']}
+                  onVerify={() => toggleTaxFieldVerify('generalPhone')}
                 />
               </FormField>
             </div>
@@ -386,7 +468,10 @@ export function TaxOfficeForm({
               <Input
                 {...register('receptionInfo')}
                 placeholder="平日 8:30～17:00"
-                state={errors.receptionInfo ? 'error' : 'default'}
+                state={errors.receptionInfo ? 'error' : verifiedTaxFields['receptionInfo'] ? 'verified' : 'default'}
+                showVerify
+                verified={!!verifiedTaxFields['receptionInfo']}
+                onVerify={() => toggleTaxFieldVerify('receptionInfo')}
               />
             </FormField>
 
