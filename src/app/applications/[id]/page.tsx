@@ -85,21 +85,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
 
-  const verifyAllFields = () => {
-    const allKeys = [
-      'fullName', 'dob', 'nationality', 'cardNumber', 'myNumber', 'zairyuAddress', 'postalCode',
-      'passportNumber', 'sex', 'nenkinNumber', 'nenkinKatakanaName', 'departureDate',
-      'noticeDate', 'lumpSumWithdrawalNumber', 'totalExpectedJpy', 'withheldTax', 'received1stJpy',
-      'bankName', 'branchName', 'accountNumber', 'accountName', 'swiftCode',
-      'taxOffice_verified', 'taxOffice_name', 'taxOffice_postalCode', 'taxOffice_address', 'taxOffice_phone'
-    ];
-    const newVerified: Record<string, boolean> = {};
-    allKeys.forEach(k => { newVerified[k] = true; });
-    setVerifiedFields(newVerified);
-    setManualConfirmed(true);
-    toast.success('Đã đối chiếu và đánh dấu khớp tất cả các trường dữ liệu!');
-  };
-
   const { register, handleSubmit, formState: { errors }, reset, setValue, getValues, watch, control } =
     useForm<WorkspaceFormValues>({
       mode: 'onBlur',
@@ -1160,37 +1145,105 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Verify confirm */}
         {!isNew && (() => {
+          const REQUIRED_VERIFY_ITEMS = [
+            { key: 'fullName', label: 'Họ và tên' },
+            { key: 'dob', label: 'Ngày sinh' },
+            { key: 'nationality', label: 'Quốc tịch' },
+            { key: 'cardNumber', label: 'Số thẻ ngoại kiều' },
+            { key: 'zairyuAddress', label: 'Địa chỉ trên thẻ' },
+            { key: 'postalCode', label: 'Mã Bưu Điện' },
+            { key: 'taxOffice', label: 'Cục thuế quản lý' },
+          ];
+          const missingFields = REQUIRED_VERIFY_ITEMS.filter(item => !verifiedFields[item.key]);
+          const isFullyVerified = missingFields.length === 0;
+
+          // Auto-sync manualConfirmed state with verification result
+          if (isFullyVerified !== manualConfirmed) {
+            setManualConfirmed(isFullyVerified);
+          }
+
+          const handleBlockClick = () => {
+            if (!isFullyVerified) {
+              toast.warning(`Chưa thể xác nhận! Còn thiếu ${missingFields.length} mục chưa tích chọn: ${missingFields.map(f => f.label).join(', ')}`, {
+                duration: 6000,
+                description: 'Vui lòng kiểm tra và tích xanh (✓) từng trường dữ liệu hoặc Cục thuế quản lý trước khi tiếp tục.',
+              });
+            } else {
+              toast.success('Đã đối chiếu thủ công đầy đủ 7/7 mục đạt chuẩn khớp tài liệu!');
+            }
+          };
+
           return (
             <div className="mt-4 space-y-2">
-              <div className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-all ${
-                manualConfirmed ? 'bg-indigo-50/80 border-indigo-200' : 'bg-slate-50/80 border-slate-200'
-              }`}>
+              <div
+                onClick={handleBlockClick}
+                className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-all cursor-pointer select-none ${
+                  isFullyVerified
+                    ? 'bg-emerald-50 border-emerald-300 shadow-2xs'
+                    : 'bg-amber-50/80 border-amber-200 hover:bg-amber-100/70'
+                }`}
+              >
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id="manual-confirm"
-                    disabled={!isEditing}
-                    checked={manualConfirmed}
-                    onChange={e => setManualConfirmed(e.target.checked)}
-                    className="rounded w-4 h-4 text-indigo-600 cursor-pointer" />
-                  <label htmlFor="manual-confirm"
-                    className="text-xs font-semibold select-none text-indigo-950 cursor-pointer">
-                    Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
+                  <input
+                    type="checkbox"
+                    id="manual-confirm"
+                    readOnly
+                    checked={isFullyVerified}
+                    className={`rounded w-4 h-4 cursor-pointer ${
+                      isFullyVerified ? 'text-emerald-600 focus:ring-emerald-500' : 'text-slate-300'
+                    }`}
+                  />
+                  <label
+                    htmlFor="manual-confirm"
+                    className={`text-xs font-semibold leading-snug cursor-pointer ${
+                      isFullyVerified ? 'text-emerald-950 font-bold' : 'text-slate-700'
+                    }`}
+                  >
+                    {isFullyVerified
+                      ? '✓ Đã hoàn tất đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu'
+                      : 'Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu (Tự động kích hoạt khi tích đủ)'}
                   </label>
                 </div>
-                {isEditing && (
-                  <button
-                    type="button"
-                    onClick={verifyAllFields}
-                    className="text-[10px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2.5 py-1 rounded-md shrink-0 transition-colors shadow-2xs"
-                  >
-                    ✓ Tích xanh tất cả
-                  </button>
-                )}
+                <div className="shrink-0 text-[11px] font-bold">
+                  {isFullyVerified ? (
+                    <span className="text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                      ✓ Đạt chuẩn 7/7
+                    </span>
+                  ) : (
+                    <span className="text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                      Thiếu {missingFields.length}/7 mục
+                    </span>
+                  )}
+                </div>
               </div>
-              {!manualConfirmed && isEditing && (
-                <div className="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 p-2 rounded-lg flex items-center justify-between gap-1.5 leading-snug">
-                  <div className="flex items-center gap-1.5">
+
+              {!isFullyVerified && (
+                <div className="text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200 p-2.5 rounded-lg space-y-1.5 leading-snug">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
                     <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span><strong>💡 Đối chiếu dữ liệu:</strong> Tích xanh ✓ từng trường hoặc nhấn "Tích xanh tất cả" sau khi kiểm tra xong ảnh.</span>
+                    <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích):</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {REQUIRED_VERIFY_ITEMS.map(item => {
+                      const isDone = !!verifiedFields[item.key];
+                      return (
+                        <span
+                          key={item.key}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleVerify(item.key);
+                          }}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-all ${
+                            isDone
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs'
+                          }`}
+                          title={`Bấm để chuyển trạng thái ${item.label}`}
+                        >
+                          {isDone ? '✓' : '✗'} {item.label}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1549,13 +1602,30 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
+          <button
+            type="button"
+            onClick={() => {
+              toggleVerify('taxOffice');
+              if (!verifiedFields['taxOffice']) {
+                toast.success('Đã tích chọn đối chiếu Cục thuế quản lý ✓');
+              } else {
+                toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
+              }
+            }}
+            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none ${
+              verifiedFields['taxOffice']
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 shadow-2xs'
+                : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
+            }`}
+            title={verifiedFields['taxOffice'] ? 'Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)' : 'Bấm để tích chọn đối chiếu Cục thuế'}
+          >
+            <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxOffice'] ? 'text-emerald-600' : 'text-amber-600'}`} />
+            {verifiedFields['taxOffice'] ? 'Đã đối chiếu ✓' : 'Tích chọn đối chiếu'}
+          </button>
           {selectedTaxOffice && (
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
                 {selectedTaxOffice.name}
-              </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                ✓ Khớp NTA (100%)
               </span>
             </div>
           )}

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { BankAutocomplete } from './BankAutocomplete';
+import { toast } from 'sonner';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -425,10 +426,14 @@ const BankForm: React.FC<
 // ─────────────────────────────────────────────────────────────────
 // ManualConfirmBlock
 // ─────────────────────────────────────────────────────────────────
-const REQUIRED_VERIFY_KEYS = [
-  'fullName', 'dob', 'cardNumber', 'zairyuAddress', 'postalCode',
-  'taxOffice_name', 'taxOffice_postalCode', 'taxOffice_address',
-  'taxOffice_romajiAddress', 'taxOffice_phone', 'taxOffice_websiteUrl',
+const REQUIRED_VERIFY_ITEMS = [
+  { key: 'fullName', label: 'Họ và tên' },
+  { key: 'dob', label: 'Ngày sinh' },
+  { key: 'nationality', label: 'Quốc tịch' },
+  { key: 'cardNumber', label: 'Số thẻ ngoại kiều' },
+  { key: 'zairyuAddress', label: 'Địa chỉ trên thẻ' },
+  { key: 'postalCode', label: 'Mã Bưu Điện' },
+  { key: 'taxOffice', label: 'Cục thuế quản lý' },
 ];
 
 const ManualConfirmBlock: React.FC<{
@@ -436,37 +441,93 @@ const ManualConfirmBlock: React.FC<{
   verifiedFields: Record<string, boolean>;
   manualConfirmed: boolean;
   onChange: (v: boolean) => void;
-}> = ({ isEditing, verifiedFields, manualConfirmed, onChange }) => {
-  const allVerified = REQUIRED_VERIFY_KEYS.every((k) => verifiedFields[k]);
+  onToggleVerify?: (field: string) => void;
+}> = ({ isEditing, verifiedFields, manualConfirmed, onChange, onToggleVerify }) => {
+  const missingFields = REQUIRED_VERIFY_ITEMS.filter((item) => !verifiedFields[item.key]);
+  const isFullyVerified = missingFields.length === 0;
+
+  React.useEffect(() => {
+    if (isFullyVerified !== manualConfirmed) {
+      onChange(isFullyVerified);
+    }
+  }, [isFullyVerified, manualConfirmed, onChange]);
+
+  const handleBlockClick = () => {
+    if (!isFullyVerified) {
+      toast.warning(`Chưa thể xác nhận! Còn thiếu ${missingFields.length} mục chưa tích chọn: ${missingFields.map(f => f.label).join(', ')}`, {
+        duration: 6000,
+        description: 'Vui lòng kiểm tra và tích xanh (✓) từng trường dữ liệu hoặc Cục thuế quản lý trước khi tiếp tục.',
+      });
+    } else {
+      toast.success('Đã đối chiếu thủ công đầy đủ 7/7 mục đạt chuẩn khớp tài liệu!');
+    }
+  };
+
   return (
     <div className="mt-4 space-y-2">
-      <div className={[
-        'p-3 border rounded-xl flex items-start gap-2.5 transition-all',
-        allVerified ? 'bg-indigo-50/40 border-indigo-100' : 'bg-slate-50 border-slate-200 opacity-60',
-      ].join(' ')}>
-        <input
-          type="checkbox"
-          id="manual-confirm"
-          disabled={!isEditing || !allVerified}
-          checked={manualConfirmed && allVerified}
-          onChange={(e) => onChange(e.target.checked)}
-          className={['mt-0.5 rounded w-4 h-4 focus:ring-indigo-500', allVerified ? 'text-indigo-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'].join(' ')}
-        />
-        <label
-          htmlFor="manual-confirm"
-          className={['text-xs font-semibold select-none leading-snug', allVerified ? 'text-indigo-900 cursor-pointer' : 'text-slate-400 cursor-not-allowed'].join(' ')}
-        >
-          Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu
-        </label>
+      <div
+        onClick={handleBlockClick}
+        className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-all cursor-pointer select-none ${
+          isFullyVerified ? 'bg-emerald-50 border-emerald-300 shadow-2xs' : 'bg-amber-50/80 border-amber-200 hover:bg-amber-100/70'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="manual-confirm"
+            readOnly
+            checked={isFullyVerified}
+            className={`rounded w-4 h-4 cursor-pointer ${isFullyVerified ? 'text-emerald-600 focus:ring-emerald-500' : 'text-slate-300'}`}
+          />
+          <label
+            htmlFor="manual-confirm"
+            className={`text-xs font-semibold leading-snug cursor-pointer ${isFullyVerified ? 'text-emerald-950 font-bold' : 'text-slate-700'}`}
+          >
+            {isFullyVerified
+              ? '✓ Đã hoàn tất đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu'
+              : 'Tôi đã đối chiếu thủ công từng trường và xác nhận khớp với ảnh tài liệu (Tự động kích hoạt khi tích đủ)'}
+          </label>
+        </div>
+        <div className="shrink-0 text-[11px] font-bold">
+          {isFullyVerified ? (
+            <span className="text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+              ✓ Đạt chuẩn 7/7
+            </span>
+          ) : (
+            <span className="text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+              Thiếu {missingFields.length}/7 mục
+            </span>
+          )}
+        </div>
       </div>
-      {!allVerified && isEditing && (
-        <div className="flex items-start gap-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 p-2.5 rounded-xl">
-          <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-          <span>
-            <strong>⚠️ Yêu cầu đối chiếu:</strong> Tích xác nhận{' '}
-            <CheckCircle className="w-3 h-3 inline text-emerald-600 mx-0.5" />{' '}
-            bên cạnh đủ 5 trường khách hàng và 6 trường Cục thuế trước khi phê duyệt.
-          </span>
+      {!isFullyVerified && (
+        <div className="text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200 p-2.5 rounded-lg space-y-1.5 leading-snug">
+          <div className="flex items-center gap-1.5 font-bold text-amber-900">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích):</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {REQUIRED_VERIFY_ITEMS.map((item) => {
+              const isDone = !!verifiedFields[item.key];
+              return (
+                <span
+                  key={item.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onToggleVerify) onToggleVerify(item.key);
+                  }}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-all ${
+                    isDone
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs'
+                  }`}
+                  title={`Bấm để chuyển trạng thái ${item.label}`}
+                >
+                  {isDone ? '✓' : '✗'} {item.label}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -513,6 +574,7 @@ export const DocumentFormPanel: React.FC<DocumentFormPanelProps> = (props) => {
             verifiedFields={verifiedFields}
             manualConfirmed={manualConfirmed}
             onChange={onManualConfirmedChange}
+            onToggleVerify={onToggleVerify}
           />
         )}
       </div>
