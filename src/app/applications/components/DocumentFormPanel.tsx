@@ -463,6 +463,32 @@ const ManualConfirmBlock: React.FC<{
     }
   };
 
+  const scrollToField = (fieldKey: string) => {
+    if (fieldKey === 'taxOffice') {
+      const el = document.getElementById('tax-office-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-indigo-400', 'bg-indigo-50/30');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'bg-indigo-50/30'), 2500);
+      }
+      toast.info('Đã định vị đến Cục thuế quản lý. Hãy kiểm tra thông tin và tự bấm nút [✓ Tích chọn đối chiếu] để xác nhận.');
+      return;
+    }
+
+    const inputEl = document.querySelector(`[name="${fieldKey}"]`) as HTMLElement | null;
+    if (inputEl) {
+      inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      inputEl.focus();
+      const parent = inputEl.closest('.space-y-1') || inputEl.parentElement;
+      if (parent) {
+        parent.classList.add('ring-2', 'ring-amber-400', 'bg-amber-50/60', 'rounded-lg');
+        setTimeout(() => parent.classList.remove('ring-2', 'ring-amber-400', 'bg-amber-50/60', 'rounded-lg'), 2500);
+      }
+    }
+    const item = REQUIRED_VERIFY_ITEMS.find((i) => i.key === fieldKey);
+    toast.info(`Đã định vị đến ô [${item?.label || fieldKey}]. Hãy kiểm tra ảnh và tự bấm nút [✓] bên cạnh.`);
+  };
+
   return (
     <div className="mt-4 space-y-2">
       <div
@@ -504,7 +530,7 @@ const ManualConfirmBlock: React.FC<{
         <div className="text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200 p-2.5 rounded-lg space-y-1.5 leading-snug">
           <div className="flex items-center gap-1.5 font-bold text-amber-900">
             <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích):</span>
+            <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích - Nhấp để nhảy đến ô):</span>
           </div>
           <div className="flex flex-wrap gap-1.5 pt-0.5">
             {REQUIRED_VERIFY_ITEMS.map((item) => {
@@ -514,14 +540,14 @@ const ManualConfirmBlock: React.FC<{
                   key={item.key}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onToggleVerify) onToggleVerify(item.key);
+                    scrollToField(item.key);
                   }}
                   className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-all ${
                     isDone
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                      : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs'
+                      : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs hover:scale-105'
                   }`}
-                  title={`Bấm để chuyển trạng thái ${item.label}`}
+                  title={`Nhấp để chuyển đến vị trí trường ${item.label}`}
                 >
                   {isDone ? '✓' : '✗'} {item.label}
                 </span>

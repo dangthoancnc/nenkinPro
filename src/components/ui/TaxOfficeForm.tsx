@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Building2, MapPin, Phone, Globe, Mail,
-  Save, X, Loader2, AlertCircle, Info,
+  Save, X, Loader2, AlertCircle, Info, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from './Input'
@@ -40,14 +40,16 @@ export type TaxOfficeFormValues = z.infer<typeof taxOfficeSchema>
 // ─── Props ──────────────────────────────────────────────────────────────
 export interface TaxOfficeFormProps {
   /** Nếu truyền vào → mode Edit (pre-fill); nếu null → mode Create */
-  initialData?:   TaxOfficeData | null
+  initialData?:    TaxOfficeData | null
   /** Trạng thái đang gửi API */
-  isSubmitting?:  boolean
+  isSubmitting?:   boolean
+  verified?:       boolean
+  onToggleVerify?: () => void
   /** Gọi khi submit form hợp lệ */
-  onSubmit:       (values: TaxOfficeFormValues, id?: string) => Promise<void> | void
+  onSubmit:        (values: TaxOfficeFormValues, id?: string) => Promise<void> | void
   /** Gọi khi nhấn Hủy */
-  onCancel:       () => void
-  className?:     string
+  onCancel:        () => void
+  className?:      string
 }
 
 // ─── Section Divider ──────────────────────────────────────────────────
@@ -75,6 +77,8 @@ function SectionDivider({
 export function TaxOfficeForm({
   initialData,
   isSubmitting = false,
+  verified,
+  onToggleVerify,
   onSubmit,
   onCancel,
   className,
@@ -150,11 +154,27 @@ export function TaxOfficeForm({
       {/* ── Header ───────────────────────────────────────── */}
       <div className="flex items-center justify-between px-3 py-2
                       bg-slate-900 border-b border-slate-700">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 text-indigo-400" />
           <span className="text-[10px] font-bold text-white uppercase tracking-wider">
             {isEdit ? '✉️ Cập nhật cục thuế' : '➕ Tạo cục thuế mới'}
           </span>
+          {onToggleVerify && (
+            <button
+              type="button"
+              onClick={onToggleVerify}
+              className={cn(
+                "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none ml-1 shadow-2xs",
+                verified
+                  ? "text-emerald-800 bg-emerald-100 border-emerald-300 hover:bg-emerald-200"
+                  : "text-amber-900 bg-amber-100 border-amber-300 hover:bg-amber-200 animate-pulse"
+              )}
+              title={verified ? "Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)" : "Bấm để tích xanh đối chiếu Cục thuế"}
+            >
+              <Check className="w-3 h-3 text-emerald-600" />
+              {verified ? "✓ Đã đối chiếu" : "Bấm tích xanh đối chiếu"}
+            </button>
+          )}
         </div>
         <button
           type="button"

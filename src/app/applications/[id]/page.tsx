@@ -1173,6 +1173,36 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             }
           };
 
+          const scrollToField = (fieldKey: string) => {
+            if (fieldKey === 'taxOffice') {
+              const el = document.getElementById('tax-office-section');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('ring-2', 'ring-indigo-400', 'bg-indigo-50/30');
+                setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'bg-indigo-50/30'), 2500);
+              }
+              toast.info('Đã định vị đến Cục thuế quản lý. Hãy kiểm tra thông tin và tự bấm nút [✓ Tích chọn đối chiếu] để xác nhận.');
+              return;
+            }
+
+            // Customer fields
+            setActiveDoc('zairyuFront');
+            setTimeout(() => {
+              const inputEl = document.querySelector(`[name="${fieldKey}"]`) as HTMLElement | null;
+              if (inputEl) {
+                inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                inputEl.focus();
+                const parent = inputEl.closest('.space-y-1') || inputEl.parentElement;
+                if (parent) {
+                  parent.classList.add('ring-2', 'ring-amber-400', 'bg-amber-50/60', 'rounded-lg');
+                  setTimeout(() => parent.classList.remove('ring-2', 'ring-amber-400', 'bg-amber-50/60', 'rounded-lg'), 2500);
+                }
+              }
+              const item = REQUIRED_VERIFY_ITEMS.find(i => i.key === fieldKey);
+              toast.info(`Đã định vị đến ô [${item?.label || fieldKey}]. Hãy kiểm tra ảnh và tự bấm nút [✓] bên cạnh.`);
+            }, 120);
+          };
+
           return (
             <div className="mt-4 space-y-2">
               <div
@@ -1221,7 +1251,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 <div className="text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200 p-2.5 rounded-lg space-y-1.5 leading-snug">
                   <div className="flex items-center gap-1.5 font-bold text-amber-900">
                     <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích):</span>
+                    <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích - Nhấp để nhảy đến ô):</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
                     {REQUIRED_VERIFY_ITEMS.map(item => {
@@ -1231,14 +1261,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           key={item.key}
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleVerify(item.key);
+                            scrollToField(item.key);
                           }}
                           className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-all ${
                             isDone
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs'
+                              : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs hover:scale-105'
                           }`}
-                          title={`Bấm để chuyển trạng thái ${item.label}`}
+                          title={`Nhấp để chuyển đến vị trí trường ${item.label}`}
                         >
                           {isDone ? '✓' : '✗'} {item.label}
                         </span>
@@ -1598,7 +1628,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   // TAX OFFICE PANEL
   // ─────────────────────────────────────────────
   const taxPanelNode = (
-    <div className={`${glassPanel}`}>
+    <div id="tax-office-section" className={`${glassPanel} transition-all duration-300`}>
       <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
@@ -1612,15 +1642,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
               }
             }}
-            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none ${
+            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
               verifiedFields['taxOffice']
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 shadow-2xs'
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                 : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
             }`}
             title={verifiedFields['taxOffice'] ? 'Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)' : 'Bấm để tích chọn đối chiếu Cục thuế'}
           >
             <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxOffice'] ? 'text-emerald-600' : 'text-amber-600'}`} />
-            {verifiedFields['taxOffice'] ? 'Đã đối chiếu ✓' : 'Tích chọn đối chiếu'}
+            {verifiedFields['taxOffice'] ? '✓ Đã đối chiếu' : 'Tích chọn đối chiếu'}
           </button>
           {selectedTaxOffice && (
             <div className="flex items-center gap-1.5 min-w-0">
@@ -1667,6 +1697,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           <TaxOfficeCard
             taxOffice={selectedTaxOffice}
             isEditing={isEditing}
+            verified={!!verifiedFields['taxOffice']}
+            onToggleVerify={() => toggleVerify('taxOffice')}
             onEdit={() => setTaxPanel('form')}
             onDiff={() => setTaxPanel('diff')}
             className="border-0 rounded-none shadow-none p-0"
@@ -1676,6 +1708,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           <div className="p-3">
             <TaxOfficeForm
               initialData={selectedTaxOffice ?? undefined}
+              verified={!!verifiedFields['taxOffice']}
+              onToggleVerify={() => toggleVerify('taxOffice')}
               onSubmit={handleTaxFormSubmit}
               onCancel={() => setTaxPanel('card')}
               isSubmitting={taxFormSaving}

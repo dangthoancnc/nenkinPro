@@ -33,11 +33,13 @@ export interface TaxOfficeData {
 
 export interface TaxOfficeCardProps {
   /** Dữ liệu cục thuế từ DB — null = chưa xác định */
-  taxOffice:  TaxOfficeData | null
-  isEditing?: boolean
-  onEdit?:    () => void
-  onDiff?:    () => void
-  className?: string
+  taxOffice:       TaxOfficeData | null
+  isEditing?:      boolean
+  verified?:       boolean
+  onToggleVerify?: () => void
+  onEdit?:         () => void
+  onDiff?:         () => void
+  className?:      string
 }
 
 // ─── useCopy ───────────────────────────────────────────────────────────────
@@ -221,6 +223,8 @@ function EmptyState({ isEditing, onEdit }: { isEditing?: boolean; onEdit?: () =>
 export function TaxOfficeCard({
   taxOffice,
   isEditing,
+  verified,
+  onToggleVerify,
   onEdit,
   onDiff,
   className,
@@ -247,7 +251,22 @@ export function TaxOfficeCard({
           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
             Cục thuế quản lý
           </span>
-          {taxOffice ? (
+          {onToggleVerify ? (
+            <button
+              type="button"
+              onClick={onToggleVerify}
+              className={cn(
+                "flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none shadow-2xs",
+                verified
+                  ? "text-emerald-800 bg-emerald-100 border-emerald-300 hover:bg-emerald-200"
+                  : "text-amber-800 bg-amber-100 border-amber-300 hover:bg-amber-200 animate-pulse"
+              )}
+              title={verified ? "Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)" : "Bấm để tích xanh đối chiếu Cục thuế"}
+            >
+              <Check className="w-3 h-3 text-emerald-600" />
+              {verified ? "✓ Đã đối chiếu Cục thuế" : "Bấm tích xanh đối chiếu"}
+            </button>
+          ) : taxOffice ? (
             <span className="flex items-center gap-0.5 text-[9px] font-semibold
                              text-emerald-700 bg-emerald-50 border border-emerald-200
                              px-1.5 py-0.5 rounded-full">
