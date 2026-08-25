@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Settings, FileText, Building2, Banknote } from 'lucide-react';
+import { Settings, FileText, Building2, Banknote, UserCheck } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 
 export default function SettingsPage() {
@@ -32,6 +32,23 @@ export default function SettingsPage() {
           </Card>
         </Link>
 
+        {/* Tax Representatives Card */}
+        <Link href="/tax-representatives" className="block group">
+          <Card className="p-6 h-full bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl hover:border-indigo-400 hover:shadow-2xl transition-all cursor-pointer">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
+                <UserCheck className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 transition-colors">Người Đại Diện Thuế</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-3">
+                  Quản lý danh sách Người đại diện thuế tại Nhật và cấu hình sẵn Tài khoản Ngân hàng (JPY) nhận tiền hoàn thuế Lần 2.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         {/* Tax Offices Card */}
         <Link href="/tax-offices" className="block group">
           <Card className="p-6 h-full bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl hover:border-teal-400 hover:shadow-2xl transition-all cursor-pointer">
@@ -40,9 +57,9 @@ export default function SettingsPage() {
                 <Building2 className="w-6 h-6 text-teal-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-600 transition-colors">Cục Thuế & Người đại diện</h3>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-600 transition-colors">Cục Thuế Quản Lý</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-3">
-                  Quản lý danh sách các Cục Thuế địa phương và thiết lập Người đại diện Thuế mặc định cho từng khu vực.
+                  Quản lý danh sách các Cục Thuế địa phương và thông tin gửi thư / tiếp nhận hồ sơ.
                 </p>
               </div>
             </div>

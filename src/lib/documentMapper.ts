@@ -191,10 +191,10 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
   const branchNameVal = primaryBank.branchName || custAny.branchName || '';
 
   const accNumClean = bankAccNum.replace(/\D/g, '');
-  const yuchoKigo = accNumClean.length >= 5 ? accNumClean.slice(0, 5) : '12345';
-  const yuchoBango = accNumClean.length >= 12 ? accNumClean.slice(5, 12) : (accNumClean.length > 5 ? accNumClean.slice(5) : '1234567');
-  const permResDate = formatDate(customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate) : null);
   const isYuchoBank = primaryBank.isYucho || primaryBank.bankName?.includes('ゆうちょ') || primaryBank.bankName?.includes('Yucho');
+  const yuchoKigo = primaryBank.yuchoKigo ?? (accNumClean.length >= 5 ? accNumClean.slice(0, 5) : '');
+  const yuchoBango = primaryBank.yuchoBango ?? (accNumClean.length >= 12 ? accNumClean.slice(5, 12) : (accNumClean.length > 5 ? accNumClean.slice(5) : ''));
+  const permResDate = formatDate(customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate) : null);
 
   const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
   const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
@@ -250,8 +250,8 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     overseasCountry: customer.overseasCountry ?? '',
 
     hasPermanentResidence: customer.hasPermanentResidence ? '✓' : '',
-    permRes_YES_mark: customer.hasPermanentResidence ? '○' : '',
-    permRes_NO_mark: customer.hasPermanentResidence === false ? '○' : '',
+    permRes_YES_mark: customer.hasPermanentResidence ? '✓' : '',
+    permRes_NO_mark: customer.hasPermanentResidence === false ? '✓' : '',
     permResDate_full: permResDate.y && permResDate.m && permResDate.d ? `${permResDate.y}/${permResDate.m}/${permResDate.d}` : '',
     permResDate_y: permResDate.y,
     permResDate_m: permResDate.m,
@@ -456,16 +456,34 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   const workTags: Record<string, string> = {};
   workHistories.slice(0, 5).forEach((wh, i) => {
     const n = i + 1;
+    const startDate = formatDate(wh.startDate ? new Date(wh.startDate) : null);
+    const endDate = formatDate(wh.endDate ? new Date(wh.endDate) : null);
+    const pType = wh.pensionType || '';
+
     workTags[`work_company_${n}`] = (wh as Record<string, unknown>).companyName as string ?? '';
     workTags[`work_start_${n}`]   = wh.startDate  ? new Date(wh.startDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
     workTags[`work_end_${n}`]     = wh.endDate    ? new Date(wh.endDate).toISOString().slice(0, 10).replace(/-/g, '/') : '';
     // Aliases: workHistory_N_xxx ↔ work_xxx_N
     workTags[`workHistory_${n}_companyName`] = workTags[`work_company_${n}`];
+    workTags[`workHistory_${n}_companyAddress`] = (wh as Record<string, unknown>).companyAddress as string ?? '';
     workTags[`workHistory_${n}_start_full`] = workTags[`work_start_${n}`];
+    workTags[`workHistory_${n}_start_y`] = startDate.y;
+    workTags[`workHistory_${n}_start_m`] = startDate.m;
+    workTags[`workHistory_${n}_start_d`] = startDate.d;
     workTags[`workHistory_${n}_end_full`] = workTags[`work_end_${n}`];
-    // Plus split tags for start/end dates
-    const startDate = formatDate(wh.startDate ? new Date(wh.startDate) : null);
-    const endDate = formatDate(wh.endDate ? new Date(wh.endDate) : null);
+    workTags[`workHistory_${n}_end_y`] = endDate.y;
+    workTags[`workHistory_${n}_end_m`] = endDate.m;
+    workTags[`workHistory_${n}_end_d`] = endDate.d;
+    workTags[`workHistory_${n}_pensionType`] = pType || '厚生年金';
+    workTags[`work_pension_type_${n}`] = pType || '厚生年金';
+
+    // Pension type marks (○)
+    workTags[`workHistory_${n}_type_1_mark`] = pType.includes('国民') ? '○' : '';
+    workTags[`workHistory_${n}_type_2_mark`] = (!pType || pType.includes('厚生')) ? '○' : '';
+    workTags[`workHistory_${n}_type_3_mark`] = pType.includes('船員') ? '○' : '';
+    workTags[`workHistory_${n}_type_4_mark`] = pType.includes('共済') ? '○' : '';
+
+    // Plus split tags for start/end dates (fallback)
     Object.assign(workTags, splitChars(startDate.y, `workHistory_${n}_start_y`, 4));
     Object.assign(workTags, splitChars(startDate.m, `workHistory_${n}_start_m`, 2));
     Object.assign(workTags, splitChars(startDate.d, `workHistory_${n}_start_d`, 2));

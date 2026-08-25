@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
       include: {
         customer: {
           include: {
-            taxOffice: true
+            taxOffice: true,
+            bankAccounts: true
           }
         },
         taxRepresentative: true,

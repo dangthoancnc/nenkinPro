@@ -24,6 +24,10 @@ import type { TaxOfficeData }  from '@/components/ui/TaxOfficeCard';
 import { TaxOfficeForm }       from '@/components/ui/TaxOfficeForm';
 import type { TaxOfficeFormValues } from '@/components/ui/TaxOfficeForm';
 import { TaxOfficeDiffPanel }  from '@/components/ui/TaxOfficeDiffPanel';
+import { TaxRepresentativeCard } from '@/components/ui/TaxRepresentativeCard';
+import type { TaxRepresentativeData } from '@/components/ui/TaxRepresentativeCard';
+import { TaxRepresentativeForm } from '@/components/ui/TaxRepresentativeForm';
+import type { TaxRepresentativeFormValues } from '@/components/ui/TaxRepresentativeForm';
 import { toast } from 'sonner';
 import { SettlementModal } from '@/components/SettlementModal';
 import PrintModal from './print-modal';
@@ -76,6 +80,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [taxOffices,        setTaxOffices]        = useState<TaxOfficeData[]>([]);
   const [taxPanel,          setTaxPanel]          = useState<'card' | 'form' | 'diff'>('card');
   const [taxFormSaving,     setTaxFormSaving]     = useState(false);
+  const [taxRepresentatives, setTaxRepresentatives] = useState<TaxRepresentativeData[]>([]);
+  const [taxRepPanel,       setTaxRepPanel]       = useState<'card' | 'form'>('card');
+  const [taxRepFormSaving,  setTaxRepFormSaving]  = useState(false);
+  const [bottomLegalTab,    setBottomLegalTab]    = useState<'office' | 'rep'>('office');
   const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
   const [historyList,       setHistoryList]       = useState<any[]>([]);
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
@@ -99,6 +107,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       let verifyKey: string = String(name);
       if (verifyKey === 'taxOfficeId') {
         verifyKey = 'taxOffice';
+      } else if (verifyKey === 'taxRepresentativeId') {
+        verifyKey = 'taxRepresentative';
       } else if (verifyKey.startsWith('bankAccounts.')) {
         const parts = verifyKey.split('.');
         verifyKey = parts[parts.length - 1];
@@ -237,10 +247,47 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       .then(r => r.json())
       .then(d => { if (d.success) setTaxOffices(d.data as TaxOfficeData[]); })
       .catch(console.error);
+    fetch('/api/tax-representatives')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          setTaxRepresentatives(d.data as TaxRepresentativeData[]);
+        }
+      })
+      .catch(console.error);
   }, [id, isNew, reset]);
 
   const selectedTaxOfficeId = watch('taxOfficeId');
   const selectedTaxOffice   = taxOffices.find(t => t.id === selectedTaxOfficeId) ?? null;
+
+  const selectedTaxRepresentativeId = watch('taxRepresentativeId');
+  const selectedTaxRepresentative   = taxRepresentatives.find(t => t.id === selectedTaxRepresentativeId) ?? taxRepresentatives[0] ?? null;
+
+  const handleTaxRepFormSubmit = useCallback(async (values: TaxRepresentativeFormValues, repId?: string) => {
+    setTaxRepFormSaving(true);
+    const isUpdate = !!repId;
+    const url      = isUpdate ? `/api/tax-representatives/${repId}` : '/api/tax-representatives';
+    const method   = isUpdate ? 'PUT' : 'POST';
+    const tid      = toast.loading(isUpdate ? 'Cập nhật Người đại diện...' : 'Tạo mới Người đại diện...');
+    try {
+      const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Lỗi lưu');
+      setTaxRepresentatives(prev => {
+        const exists = prev.findIndex(t => t.id === data.data.id);
+        if (exists >= 0) { const next = [...prev]; next[exists] = data.data; return next; }
+        return [data.data, ...prev];
+      });
+      setValue('taxRepresentativeId', data.data.id, { shouldDirty: true });
+      setVerifiedFields(prev => ({ ...prev, taxRepresentative: false }));
+      toast.success(isUpdate ? `Đã cập nhật: ${data.data.fullName}` : `Đã tạo mới: ${data.data.fullName}`, { id: tid });
+      setTaxRepPanel('card');
+    } catch (err: any) {
+      toast.error('Lỗi: ' + err.message, { id: tid });
+    } finally {
+      setTaxRepFormSaving(false);
+    }
+  }, [setValue]);
 
   const handleTaxFormSubmit = useCallback(async (values: TaxOfficeFormValues) => {
     setTaxFormSaving(true);
@@ -1649,108 +1696,239 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   // ─────────────────────────────────────────────
-  // TAX OFFICE PANEL
+  // TAX OFFICE & TAX REPRESENTATIVE LEGAL PANEL
   // ─────────────────────────────────────────────
   const taxPanelNode = (
-    <div id="tax-office-section" className={`${glassPanel} transition-all duration-300`}>
-      <div className="px-3.5 py-2 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
-          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider shrink-0">🏛 Cục Thuế quản lý</span>
-          <button
-            type="button"
-            onClick={() => {
-              toggleVerify('taxOffice');
-              if (!verifiedFields['taxOffice']) {
-                toast.success('Đã tích chọn đối chiếu Cục thuế quản lý ✓');
-              } else {
-                toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
-              }
-            }}
-            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
-              verifiedFields['taxOffice']
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
-                : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
-            }`}
-            title={verifiedFields['taxOffice'] ? 'Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)' : 'Bấm để tích chọn đối chiếu Cục thuế'}
-          >
-            <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxOffice'] ? 'text-emerald-600' : 'text-amber-600'}`} />
-            {verifiedFields['taxOffice'] ? '✓ Đã đối chiếu' : 'Tích chọn đối chiếu'}
-          </button>
-          {selectedTaxOffice && (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
-                {selectedTaxOffice.name}
-              </span>
-            </div>
+    <div id="tax-office-section" className={`${glassPanel} transition-all duration-300 overflow-hidden`}>
+      {/* Top Legal Tab Switcher */}
+      <div className="flex items-center gap-1 px-3 pt-1.5 bg-slate-100/70 border-b border-slate-200/80 shrink-0">
+        <button
+          type="button"
+          onClick={() => setBottomLegalTab('office')}
+          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 border-t border-x ${
+            bottomLegalTab === 'office'
+              ? 'bg-white text-indigo-700 border-slate-200/90 shadow-2xs'
+              : 'bg-transparent text-slate-500 hover:text-slate-700 border-transparent'
+          }`}
+        >
+          <span>🏛 Cục Thuế quản lý</span>
+          {verifiedFields['taxOffice'] && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           )}
-          {isEditing && (
-            <select
-              value={selectedTaxOfficeId || ''}
-              onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
-              className="h-6 rounded-lg border border-slate-200/80 px-1.5 text-[11px] bg-white/80 max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
-            >
-              <option value="">-- Đổi Cục thuế --</option>
-              {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setBottomLegalTab('rep')}
+          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 border-t border-x ${
+            bottomLegalTab === 'rep'
+              ? 'bg-white text-indigo-700 border-slate-200/90 shadow-2xs'
+              : 'bg-transparent text-slate-500 hover:text-slate-700 border-transparent'
+          }`}
+        >
+          <span>👤 Người Đại Diện Thuế & TK Nhật (Lần 2)</span>
+          {verifiedFields['taxRepresentative'] && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           )}
-        </div>
-        <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
-          <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-            className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
-            🔍 Tra cứu ZIP
-          </button>
-          {selectedTaxOffice?.websiteUrl && (
-            <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-              className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
-              🔍 NTA
-            </a>
-          )}
-          {(['card', 'form', 'diff'] as const).map(panel => (
-            <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-              className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
-              }`}>
-              {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
-            </button>
-          ))}
-        </div>
+        </button>
       </div>
 
-      <div className="p-1.5">
-        {taxPanel === 'card' && (
-          <TaxOfficeCard
-            taxOffice={selectedTaxOffice}
-            isEditing={isEditing}
-            verified={!!verifiedFields['taxOffice']}
-            onToggleVerify={() => toggleVerify('taxOffice')}
-            onEdit={() => setTaxPanel('form')}
-            onDiff={() => setTaxPanel('diff')}
-            className="border-0 rounded-none shadow-none p-0"
-          />
-        )}
-        {taxPanel === 'form' && (
-          <div className="p-3">
-            <TaxOfficeForm
-              initialData={selectedTaxOffice ?? undefined}
-              verified={!!verifiedFields['taxOffice']}
-              onToggleVerify={() => toggleVerify('taxOffice')}
-              onSubmit={handleTaxFormSubmit}
-              onCancel={() => setTaxPanel('card')}
-              isSubmitting={taxFormSaving}
-              className="border-0 shadow-none p-0"
-            />
+      {bottomLegalTab === 'office' ? (
+        <>
+          <div className="px-3.5 py-1.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleVerify('taxOffice');
+                  if (!verifiedFields['taxOffice']) {
+                    toast.success('Đã tích chọn đối chiếu Cục thuế quản lý ✓');
+                  } else {
+                    toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
+                  }
+                }}
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
+                  verifiedFields['taxOffice']
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                    : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
+                }`}
+                title={verifiedFields['taxOffice'] ? 'Đã đối chiếu khớp Cục thuế ✓ (Bấm để hủy)' : 'Bấm để tích chọn đối chiếu Cục thuế'}
+              >
+                <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxOffice'] ? 'text-emerald-600' : 'text-amber-600'}`} />
+                {verifiedFields['taxOffice'] ? '✓ Đã đối chiếu' : 'Tích chọn đối chiếu'}
+              </button>
+              {selectedTaxOffice && (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
+                    {selectedTaxOffice.name}
+                  </span>
+                </div>
+              )}
+              {isEditing && (
+                <select
+                  value={selectedTaxOfficeId || ''}
+                  onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
+                  className="h-6 rounded-lg border border-slate-200/80 px-1.5 text-[11px] bg-white/80 max-w-[140px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
+                >
+                  <option value="">-- Đổi Cục thuế --</option>
+                  {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
+              <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
+                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
+                🔍 Tra cứu ZIP
+              </button>
+              {selectedTaxOffice?.websiteUrl && (
+                <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
+                  🔍 NTA
+                </a>
+              )}
+              {(['card', 'form', 'diff'] as const).map(panel => (
+                <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
+                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                    taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
+                  }`}>
+                  {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-        {taxPanel === 'diff' && (
-          <TaxOfficeDiffPanel
-            dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
-            postalCode={watch('postalCode') as string | undefined}
-            onSyncFields={handleTaxSyncFields}
-            onClose={() => setTaxPanel('card')}
-            className="border-0 rounded-none shadow-none p-0"
-          />
-        )}
-      </div>
+
+          <div className="p-1.5">
+            {taxPanel === 'card' && (
+              <TaxOfficeCard
+                taxOffice={selectedTaxOffice}
+                isEditing={isEditing}
+                verified={!!verifiedFields['taxOffice']}
+                onToggleVerify={() => toggleVerify('taxOffice')}
+                onEdit={() => setTaxPanel('form')}
+                onDiff={() => setTaxPanel('diff')}
+                className="border-0 rounded-none shadow-none p-0"
+              />
+            )}
+            {taxPanel === 'form' && (
+              <div className="p-3">
+                <TaxOfficeForm
+                  initialData={selectedTaxOffice ?? undefined}
+                  verified={!!verifiedFields['taxOffice']}
+                  onToggleVerify={() => toggleVerify('taxOffice')}
+                  onSubmit={handleTaxFormSubmit}
+                  onCancel={() => setTaxPanel('card')}
+                  isSubmitting={taxFormSaving}
+                  className="border-0 shadow-none p-0"
+                />
+              </div>
+            )}
+            {taxPanel === 'diff' && (
+              <TaxOfficeDiffPanel
+                dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
+                postalCode={watch('postalCode') as string | undefined}
+                onSyncFields={handleTaxSyncFields}
+                onClose={() => setTaxPanel('card')}
+                className="border-0 rounded-none shadow-none p-0"
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="px-3.5 py-1.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-white/50 border-b border-slate-100/80 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleVerify('taxRepresentative');
+                  if (!verifiedFields['taxRepresentative']) {
+                    toast.success('Đã tích chọn đối chiếu Người đại diện thuế ✓');
+                  } else {
+                    toast.info('Đã bỏ tích đối chiếu Người đại diện thuế');
+                  }
+                }}
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
+                  verifiedFields['taxRepresentative']
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                    : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
+                }`}
+                title={verifiedFields['taxRepresentative'] ? 'Đã đối chiếu khớp Người đại diện ✓ (Bấm để hủy)' : 'Bấm để tích chọn đối chiếu Người đại diện'}
+              >
+                <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxRepresentative'] ? 'text-emerald-600' : 'text-amber-600'}`} />
+                {verifiedFields['taxRepresentative'] ? '✓ Đã đối chiếu' : 'Tích chọn đối chiếu'}
+              </button>
+              {selectedTaxRepresentative && (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-full truncate">
+                    {selectedTaxRepresentative.fullName}
+                  </span>
+                </div>
+              )}
+              {isEditing && (
+                <select
+                  value={selectedTaxRepresentativeId || selectedTaxRepresentative?.id || ''}
+                  onChange={e => setValue('taxRepresentativeId', e.target.value, { shouldDirty: true })}
+                  className="h-6 rounded-lg border border-slate-200/80 px-1.5 text-[11px] bg-white/80 max-w-[170px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
+                >
+                  <option value="">-- Đổi Người đại diện --</option>
+                  {taxRepresentatives.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.fullName} ({r.bankName || 'Chưa có NH'})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
+              <a
+                href="/tax-representatives"
+                target="_blank"
+                rel="noreferrer"
+                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all"
+                title="Mở trang Quản lý Danh mục Người đại diện thuế"
+              >
+                ⚙️ Danh mục ↗
+              </a>
+              {(['card', 'form'] as const).map(panel => (
+                <button
+                  key={panel}
+                  type="button"
+                  onClick={() => setTaxRepPanel(panel)}
+                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                    taxRepPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
+                  }`}
+                >
+                  {panel === 'card' ? '📋 Chi tiết' : '✏️ Sửa / Thêm'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-1.5">
+            {taxRepPanel === 'card' && (
+              <TaxRepresentativeCard
+                representative={selectedTaxRepresentative}
+                isEditing={isEditing}
+                verified={!!verifiedFields['taxRepresentative']}
+                onToggleVerify={() => toggleVerify('taxRepresentative')}
+                onEdit={() => setTaxRepPanel('form')}
+                className="border-0 rounded-none shadow-none p-0"
+              />
+            )}
+            {taxRepPanel === 'form' && (
+              <div className="p-3">
+                <TaxRepresentativeForm
+                  initialData={selectedTaxRepresentative ?? undefined}
+                  onSubmit={handleTaxRepFormSubmit}
+                  onCancel={() => setTaxRepPanel('card')}
+                  isSubmitting={taxRepFormSaving}
+                  className="border-0 shadow-none p-0"
+                />
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 

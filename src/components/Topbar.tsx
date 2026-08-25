@@ -10,8 +10,9 @@ import { useEffect, useState, FormEvent } from 'react';
 const PAGE_TITLES: Record<string, string> = {
   '/':             'Tổng quan',
   '/customers':    'Quản lý Khách hàng',
-  '/tax-offices':  'Quản lý Cục Thuế',
-  '/applications': 'Hồ sơ Nenkin',
+  '/tax-offices':          'Quản lý Cục Thuế',
+  '/tax-representatives':  'Quản lý Người Đại Diện Thuế',
+  '/applications':         'Hồ sơ Nenkin',
   '/hr':           'Quản lý Nhân sự',
   '/finance':      'Tài chính & Hoa hồng',
   '/settings':     'Cài đặt hệ thống',

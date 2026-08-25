@@ -18,7 +18,7 @@ export async function GET(
       where: { id },
       include: {
         customer: {
-          include: { taxOffice: true }
+          include: { taxOffice: true, bankAccounts: true }
         },
         taxRepresentative: true,
         assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },

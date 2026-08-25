@@ -235,7 +235,7 @@ generateSplitValues('doc_date_d', '15', 2);
 generateSplitValues('doc_date_yymmdd', '080215', 6);
 
 // Marks
-MOCK_DATA['permRes_YES_mark'] = '○';
+MOCK_DATA['permRes_YES_mark'] = '✓';
 MOCK_DATA['permRes_NO_mark'] = '';
 MOCK_DATA['sex_M_mark'] = '○';
 MOCK_DATA['sex_F_mark'] = '';
@@ -295,13 +295,19 @@ for (let i = 1; i <= 5; i++) {
   MOCK_DATA[`workHistory_${i}_companyName`] = `Công ty số ${i}`;
   MOCK_DATA[`workHistory_${i}_companyAddress`] = `Địa chỉ Cty số ${i}`;
   MOCK_DATA[`workHistory_${i}_start_full`] = `202${i}/01/01`;
+  MOCK_DATA[`workHistory_${i}_start_y`] = `202${i}`;
+  MOCK_DATA[`workHistory_${i}_start_m`] = '01';
+  MOCK_DATA[`workHistory_${i}_start_d`] = '01';
   generateSplitValues(`workHistory_${i}_start_y`, `202${i}`, 4);
   generateSplitValues(`workHistory_${i}_start_m`, '01', 2);
   generateSplitValues(`workHistory_${i}_start_d`, '01', 2);
   MOCK_DATA[`workHistory_${i}_end_full`] = `202${i}/12/31`;
+  MOCK_DATA[`workHistory_${i}_end_y`] = `202${i}`;
+  MOCK_DATA[`workHistory_${i}_end_m`] = '12';
+  MOCK_DATA[`workHistory_${i}_end_d`] = '31';
   generateSplitValues(`workHistory_${i}_end_y`, `202${i}`, 4);
   generateSplitValues(`workHistory_${i}_end_m`, '12', 2);
-  generateSplitValues(`workHistory_${i}_end_d`, '31', 2);
+  MOCK_DATA[`workHistory_${i}_pensionType`] = '厚生年金';
   MOCK_DATA[`workHistory_${i}_type_1_mark`] = '';
   MOCK_DATA[`workHistory_${i}_type_2_mark`] = '○';
   MOCK_DATA[`workHistory_${i}_type_3_mark`] = '';

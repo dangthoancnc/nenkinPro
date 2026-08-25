@@ -24,7 +24,7 @@ export async function GET(
     const application = await prisma.nenkinApplication.findUnique({
       where: { id },
       include: {
-        customer: { include: { taxOffice: true } },
+        customer: { include: { taxOffice: true, bankAccounts: true } },
         taxRepresentative: true,
       },
     });

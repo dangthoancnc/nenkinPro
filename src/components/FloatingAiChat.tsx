@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   MessageSquare, X, Send, Bot, User, Sparkles, Headset, ArrowRight,
-  CheckCircle2, HelpCircle, FileText, Clock, Wallet, ChevronRight
+  CheckCircle2, HelpCircle, FileText, Clock, Wallet, ChevronRight,
+  GripVertical, Minimize2, Maximize2, Move
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -39,6 +40,89 @@ export function FloatingAiChat() {
   const [customerContact, setCustomerContact] = useState('');
   const [handoverDone, setHandoverDone] = useState(false);
   const [handoverLoading, setHandoverLoading] = useState(false);
+
+  // Floating Position, Minimize & Hide States
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{
+    isDragging: boolean;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    hasMoved: boolean;
+  }>({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    initialX: 0,
+    initialY: 0,
+    hasMoved: false,
+  });
+
+  // Restore saved position or default to safe location
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vietnenkin_ai_chat_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          const safeX = Math.min(Math.max(10, parsed.x), window.innerWidth - 70);
+          const safeY = Math.min(Math.max(10, parsed.y), window.innerHeight - 70);
+          setPosition({ x: safeX, y: safeY });
+        }
+      }
+    } catch {}
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const defaultX = window.innerWidth - (isMinimized ? 70 : 200);
+    const defaultY = window.innerHeight - 70;
+    const currentX = position ? position.x : defaultX;
+    const currentY = position ? position.y : defaultY;
+
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: currentX,
+      initialY: currentY,
+      hasMoved: false,
+    };
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (!dragRef.current.isDragging) return;
+      const dx = moveEvent.clientX - dragRef.current.startX;
+      const dy = moveEvent.clientY - dragRef.current.startY;
+      if (Math.hypot(dx, dy) > 5) {
+        dragRef.current.hasMoved = true;
+      }
+      const newX = Math.min(Math.max(10, dragRef.current.initialX + dx), window.innerWidth - (isMinimized ? 60 : 190));
+      const newY = Math.min(Math.max(10, dragRef.current.initialY + dy), window.innerHeight - 60);
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handlePointerUp = () => {
+      if (dragRef.current.isDragging) {
+        dragRef.current.isDragging = false;
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+        if (dragRef.current.hasMoved) {
+          setPosition(prev => {
+            if (prev) {
+              try { localStorage.setItem('vietnenkin_ai_chat_pos', JSON.stringify(prev)); } catch {}
+            }
+            return prev;
+          });
+        }
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -434,19 +518,85 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 
   return (
     <>
-      {/* ── FLOATING BUTTON AT BOTTOM RIGHT ── */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-5 right-5 z-50 p-3.5 bg-gradient-to-r from-indigo-600 to-teal-500 hover:from-indigo-700 hover:to-teal-600 text-white rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2 group border border-white/20"
-        aria-label="Trợ lý AI & Hỗ trợ khách hàng"
-      >
-        <div className="relative">
-          <Bot className="w-6 h-6 animate-pulse" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 border-2 border-slate-900 rounded-full" />
+      {/* ── TINY RESTORE BUTTON WHEN HIDDEN ── */}
+      {isHidden && (
+        <button
+          type="button"
+          onClick={() => setIsHidden(false)}
+          className="fixed bottom-3 right-3 z-50 px-2.5 py-1 bg-slate-900/85 hover:bg-slate-900 text-indigo-400 hover:text-indigo-300 border border-indigo-500/40 rounded-full text-[10px] font-bold shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition-all"
+          title="Hiện lại Trợ lý AI"
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Hiện Trợ lý AI</span>
+        </button>
+      )}
+
+      {/* ── DRAGGABLE & COLLAPSIBLE FLOATING BUTTON ── */}
+      {!isHidden && (
+        <div
+          style={{
+            position: 'fixed',
+            left: position ? `${position.x}px` : undefined,
+            top: position ? `${position.y}px` : undefined,
+            bottom: position ? undefined : '20px',
+            right: position ? undefined : '20px',
+            zIndex: 50,
+            touchAction: 'none',
+          }}
+          className="flex items-center gap-1 group select-none"
+        >
+          {/* Main Floating Button */}
+          <div
+            onPointerDown={handlePointerDown}
+            onClick={() => {
+              if (!dragRef.current.hasMoved) {
+                setIsOpen(!isOpen);
+              }
+            }}
+            className={`cursor-grab active:cursor-grabbing bg-gradient-to-r from-indigo-600 to-teal-500 hover:from-indigo-700 hover:to-teal-600 text-white rounded-full shadow-2xl transition-all duration-200 flex items-center gap-2 border border-white/25 hover:scale-105 ${
+              isMinimized ? 'w-10 h-10 p-2 justify-center' : 'px-3.5 py-2.5'
+            }`}
+            aria-label="Trợ lý AI & Hỗ trợ khách hàng"
+            title="Kéo thả để dời vị trí, bấm để mở chat"
+          >
+            <div className="relative flex-shrink-0">
+              <Bot className="w-5 h-5 animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 border border-slate-900 rounded-full" />
+            </div>
+            {!isMinimized && (
+              <span className="text-xs font-bold whitespace-nowrap pr-0.5">
+                Trợ Lý AI VietNenkin
+              </span>
+            )}
+          </div>
+
+          {/* Quick Controls on Hover (Minimize / Hide) */}
+          <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 backdrop-blur-sm p-0.5 rounded-lg border border-slate-700/80 shadow-md">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMinimized(!isMinimized);
+              }}
+              className="p-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded transition-colors"
+              title={isMinimized ? 'Mở rộng nhãn' : 'Thu nhỏ thành icon tròn'}
+            >
+              {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHidden(true);
+              }}
+              className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors"
+              title="Tạm ẩn icon Trợ lý AI"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-        <span className="text-xs font-bold hidden sm:inline-block pr-1">Trợ Lý AI VietNenkin</span>
-      </button>
+      )}
 
       {/* ── CHAT POPUP WINDOW ── */}
       {isOpen && (

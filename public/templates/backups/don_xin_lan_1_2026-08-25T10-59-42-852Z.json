@@ -79,6 +79,24 @@
     "width": 388,
     "height": 10
   },
+  "work_company_1": {
+    "page": 2,
+    "x": 75,
+    "y": 690,
+    "size": 12
+  },
+  "work_start_1": {
+    "page": 2,
+    "x": 428,
+    "y": 695,
+    "size": 10
+  },
+  "work_end_1": {
+    "page": 2,
+    "x": 428,
+    "y": 645,
+    "size": 10
+  },
   "nenkin_1": {
     "page": 1,
     "x": 299.67,
@@ -362,46 +380,6 @@
     "type": "text",
     "align": "left",
     "width": 73,
-    "height": 12
-  },
-  "workHistory_1_companyAddress": {
-    "page": 2,
-    "x": 160,
-    "y": 553.36,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 110,
-    "height": 58
-  },
-  "workHistory_1_companyName": {
-    "page": 2,
-    "x": 24.72,
-    "y": 551.36,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 128,
-    "height": 53
-  },
-  "workHistory_1_start_full": {
-    "page": 2,
-    "x": 328.05,
-    "y": 528.03,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 67,
-    "height": 12
-  },
-  "workHistory_1_end_full": {
-    "page": 2,
-    "x": 328.06,
-    "y": 506.92,
-    "size": 9,
-    "type": "text",
-    "align": "left",
-    "width": 67,
     "height": 12
   }
 }
