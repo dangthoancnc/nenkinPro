@@ -37,6 +37,7 @@ const BASE_DOCUMENTS = [
   { key: 'zairyuBack',          title: 'Thẻ Ngoại Kiều (Sau)',   urlField: 'zairyuBackUrl'     },
   { key: 'passport',            title: 'Hộ chiếu',               urlField: 'passportUrl'       },
   { key: 'nenkinBook',          title: 'Sổ Nenkin',              urlField: 'nenkinBookUrl'     },
+  { key: 'bankAccounts',        title: 'Tài khoản Ngân hàng',    urlField: 'bankAccounts'      },
   { key: 'noticeOfEntitlement', title: 'Thông báo Lần 1',        urlField: 'noticeImageUrl'    },
   { key: 'departureStamp',      title: 'Dấu xuất cảnh',          urlField: 'departureStampUrl' },
   { key: 'vietnamContact',      title: 'Liên lạc VN & Ghi chú',  urlField: 'contactImageUrls'  },
@@ -129,26 +130,9 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     name: 'bankAccounts',
   });
 
-  const dynamicDocuments = React.useMemo(() => {
-    const banks = watch('bankAccounts') || [];
-    const bankDocs = banks.flatMap((bank, index) => {
-      const urls = bank.bankPassbookUrls || [];
-      const purposeLabel = bank.purpose === 'FIRST_REFUND' ? 'Lần 1'
-        : bank.purpose === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
-      const items = urls.map((url: string, urlIndex: number) => ({
-        key: `bankPassbook_${index}_${urlIndex}`,
-        title: `Sổ Ngân hàng (${purposeLabel}) - Ảnh ${urlIndex + 1}`,
-        urlField: `bankAccounts.${index}.bankPassbookUrls.${urlIndex}`,
-      }));
-      items.push({
-        key: `bankPassbook_${index}_${urls.length}`,
-        title: `Sổ Ngân hàng (${purposeLabel}) - Thêm ảnh`,
-        urlField: `bankAccounts.${index}.bankPassbookUrls.${urls.length}`,
-      });
-      return items;
-    });
-    return [BASE_DOCUMENTS[0], BASE_DOCUMENTS[1], BASE_DOCUMENTS[2], BASE_DOCUMENTS[3], ...bankDocs, BASE_DOCUMENTS[4], BASE_DOCUMENTS[5], BASE_DOCUMENTS[6]];
-  }, [watch('bankAccounts')]);
+  const [selectedBankIndex, setSelectedBankIndex] = useState<number>(0);
+  const [selectedBankImageIndex, setSelectedBankImageIndex] = useState<number>(0);
+  const dynamicDocuments = BASE_DOCUMENTS;
 
   useEffect(() => {
     if (isNew) return;
@@ -622,13 +606,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  const currentDoc      = dynamicDocuments.find(d => d.key === activeDoc);
-  const currentDocField = currentDoc?.urlField || 'zairyuFrontUrl';
+  const isBankDoc = activeDoc === 'bankAccounts';
+  const currentDoc = dynamicDocuments.find(d => d.key === activeDoc);
+  const currentBank = isBankDoc ? (watch(`bankAccounts.${selectedBankIndex}` as any) || {}) : null;
+  const currentBankUrls: string[] = isBankDoc ? (currentBank?.bankPassbookUrls || []) : [];
+  const currentDocField = isBankDoc
+    ? `bankAccounts.${selectedBankIndex}.bankPassbookUrls`
+    : (currentDoc?.urlField || 'zairyuFrontUrl');
   const currentDocValue = watch(currentDocField as any);
   const isMultiUrl = activeDoc === 'vietnamContact';
-  const currentDocUrl   = isMultiUrl ? undefined : (currentDocValue as string | undefined);
+  const currentDocUrl = isBankDoc
+    ? (currentBankUrls[selectedBankImageIndex] || currentBankUrls[0])
+    : isMultiUrl ? undefined : (currentDocValue as string | undefined);
   const currentMultiUrls = isMultiUrl ? (currentDocValue as string[] || []) : [];
-  const currentDocTitle = currentDoc?.title || '';
+  const currentDocTitle = isBankDoc
+    ? `Sổ Ngân hàng (TK ${selectedBankIndex + 1}: ${currentBank?.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam'})`
+    : (currentDoc?.title || '');
   const appStatus  = watch('status') as string || 'DRAFT';
   const statusCfg  = statusConfig[appStatus] ?? statusConfig['DRAFT'];
   const StatusIcon = statusCfg.icon;
@@ -646,11 +639,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className={`${glassPanelHeader} min-w-0`}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Danh mục tài liệu</div>
         <div className="relative min-w-0">
-          <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-1.5 pb-1 sm:pb-0 scrollbar-none min-w-0">
+          <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-1.5 pb-1 sm:pb-0 scrollbar-none min-w-0">
             {dynamicDocuments.map(doc => {
               const isActive = activeDoc === doc.key;
+              const isBank = doc.key === 'bankAccounts';
+              const bankList = watch('bankAccounts') || [];
               const val = watch(doc.urlField as any);
-              const hasUrl = Array.isArray(val) ? val.length > 0 : !!val;
+              const hasUrl = isBank
+                ? bankList.some((b: any) => b.bankPassbookUrls?.length > 0)
+                : Array.isArray(val) ? val.length > 0 : !!val;
               return (
                 <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
                   className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
@@ -663,13 +660,6 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 </button>
               );
             })}
-            {isEditing && (
-              <button type="button"
-                onClick={() => { const i = bankFields.length; appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] }); setActiveDoc(`bankPassbook_${i}`); }}
-                className="sm:col-span-3 px-2 py-1.5 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all text-center whitespace-nowrap sm:whitespace-normal shrink-0 sm:shrink">
-                ＋ Thêm Ngân hàng
-              </button>
-            )}
           </div>
           {/* Scroll fade indicator — mobile only */}
           <div className="sm:hidden absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-white/90 to-transparent pointer-events-none rounded-r-lg" />
@@ -680,7 +670,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className="flex-1 flex flex-col min-h-0 min-w-0 p-2.5 bg-slate-100/40 max-w-full overflow-hidden">
         <div className="flex items-center justify-between mb-1 shrink-0">
           <span className="text-xs font-bold text-slate-800 truncate">{currentDocTitle}</span>
-          {isMultiUrl ? (
+          {isBankDoc ? (
+            currentBankUrls.length > 0 ? (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải {currentBankUrls.length} ảnh</span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có ảnh</span>
+            )
+          ) : isMultiUrl ? (
             currentMultiUrls.length > 0 ? (
                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải {currentMultiUrls.length} ảnh</span>
             ) : (
@@ -692,6 +688,41 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có</span>
           )}
         </div>
+
+        {/* Sub-bar for multiple bank photos */}
+        {isBankDoc && currentBankUrls.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 shrink-0 border-b border-slate-200/60 mb-2 w-full">
+            {currentBankUrls.map((_: string, idx: number) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSelectedBankImageIndex(idx)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all shrink-0 ${
+                  selectedBankImageIndex === idx
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                Ảnh {idx + 1}
+              </button>
+            ))}
+            {isEditing && (
+              <label className="cursor-pointer px-2.5 py-1 text-[11px] font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all shrink-0">
+                <span>＋ Thêm ảnh</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    setSelectedBankImageIndex(currentBankUrls.length);
+                    handleFileSelect(e, activeDoc, currentDocField);
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-w-0 max-w-full">
           {isMultiUrl ? (
             <div className="w-full h-full p-2 overflow-y-auto">
@@ -789,6 +820,20 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-all"
                       onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
                         action: { label: 'Xóa', onClick: async () => {
+                          if (isBankDoc) {
+                            const currentUrls = getValues(`bankAccounts.${selectedBankIndex}.bankPassbookUrls` as any) || [];
+                            const newUrls = [...currentUrls];
+                            const removed = newUrls.splice(selectedBankImageIndex, 1)[0];
+                            if (removed) fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: removed }) }).catch(console.error);
+                            setValue(`bankAccounts.${selectedBankIndex}.bankPassbookUrls` as any, newUrls, { shouldDirty: true });
+                            setSelectedBankImageIndex(Math.max(0, newUrls.length - 1));
+                            if (!isNew && customerId) {
+                              const allBanks = getValues('bankAccounts') || [];
+                              fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bankAccounts: allBanks }) }).catch(console.error);
+                            }
+                            toast.success('Đã xóa ảnh ngân hàng');
+                            return;
+                          }
                           const prev = getValues(currentDocField as any);
                           if (prev) fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prev }) }).catch(console.error);
                           setValue(currentDocField as any, '');
@@ -1126,30 +1171,98 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               );
 
-            default: {
-              if (!activeDoc.startsWith('bankPassbook_')) return null;
-              const idx = parseInt(activeDoc.split('_')[1], 10);
-              if (isNaN(idx) || !bankFields[idx]) return null;
-              const purposeLabel = watch(`bankAccounts.${idx}.purpose`) === 'FIRST_REFUND' ? 'Lần 1'
-                : watch(`bankAccounts.${idx}.purpose`) === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
+            case 'bankAccounts': {
+              const idx = selectedBankIndex;
+              if (bankFields.length === 0) {
+                return (
+                  <div className="text-center py-6">
+                    <p className="text-xs text-slate-500 mb-3">Chưa có tài khoản ngân hàng nào.</p>
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] });
+                          setSelectedBankIndex(0);
+                          setSelectedBankImageIndex(0);
+                        }}
+                      >
+                        ＋ Thêm tài khoản ngân hàng
+                      </Button>
+                    )}
+                  </div>
+                );
+              }
+
+              const currentAcc = (watch(`bankAccounts.${idx}` as any) as any) || {};
+              const purposeLabel = currentAcc.purpose === 'FIRST_REFUND' ? 'Lần 1'
+                : currentAcc.purpose === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
+              const countryLabel = currentAcc.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam';
+
               return (
                 <div className="space-y-2.5">
-                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN NGÂN HÀNG ({purposeLabel})</div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-indigo-100">
+                    {bankFields.map((field, bIdx) => {
+                      const acc = (watch(`bankAccounts.${bIdx}` as any) as any) || {};
+                      const isSelected = selectedBankIndex === bIdx;
+                      const cLabel = acc.bankCountry === 'JAPAN' ? 'Nhật' : 'VN';
+                      const pLabel = acc.purpose === 'FIRST_REFUND' ? 'L1'
+                        : acc.purpose === 'SECOND_REFUND' ? 'L2' : 'Chung';
+                      return (
+                        <button
+                          key={field.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedBankIndex(bIdx);
+                            setSelectedBankImageIndex(0);
+                          }}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shrink-0 flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>TK {bIdx + 1}: {cLabel} ({pLabel})</span>
+                        </button>
+                      );
+                    })}
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIdx = bankFields.length;
+                          appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                          setSelectedBankIndex(nextIdx);
+                          setSelectedBankImageIndex(0);
+                        }}
+                        className="px-2 py-1 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all shrink-0"
+                      >
+                        ＋ Thêm TK
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">
+                    THÔNG TIN TÀI KHOẢN {idx + 1}: {countryLabel.toUpperCase()} ({purposeLabel.toUpperCase()})
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Quốc gia">
                       <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
-                        <option value="JAPAN">Nhật Bản</option>
                         <option value="VIETNAM">Việt Nam</option>
+                        <option value="JAPAN">Nhật Bản</option>
                       </select>
                     </FormField>
                     <FormField label="Mục đích">
                       <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
                         <option value="BOTH">Chung cả 2 lần</option>
-                        <option value="FIRST_REFUND">Lần 1 (Tiền Nhật)</option>
-                        <option value="SECOND_REFUND">Lần 2 (Tiền Việt)</option>
+                        <option value="FIRST_REFUND">Lần 1 (Tiền Nhật/Việt nhận L1)</option>
+                        <option value="SECOND_REFUND">Lần 2 (Nhận hoàn thuế L2)</option>
                       </select>
                     </FormField>
                   </div>
+
                   {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
                     <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
                       <FormField label="Hình thức tổ chức">
@@ -1239,7 +1352,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     <div className="pt-2 border-t border-slate-100">
                       <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
                         onClick={() => toast('Xóa tài khoản ngân hàng này?', {
-                          action: { label: 'Xóa', onClick: () => { removeBank(idx); setActiveDoc('zairyuFront'); toast.success('Đã xóa tài khoản'); } },
+                          action: { label: 'Xóa', onClick: () => {
+                            removeBank(idx);
+                            setSelectedBankIndex(Math.max(0, idx - 1));
+                            setSelectedBankImageIndex(0);
+                            toast.success('Đã xóa tài khoản');
+                          } },
                           cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
                         })}>Xóa tài khoản này</Button>
                     </div>
@@ -2147,7 +2265,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </div>
               <div className="flex gap-1.5 overflow-x-auto scrollbar-none min-w-0">
                 {dynamicDocuments.map(doc => {
-                  const docUrl = watch(doc.urlField as any) as string | undefined;
+                  const isBank = doc.key === 'bankAccounts';
+                  const docUrl = isBank
+                    ? (watch('bankAccounts') || [])[0]?.bankPassbookUrls?.[0]
+                    : (watch(doc.urlField as any) as string | undefined);
                   const isActive = activeDoc === doc.key;
                   return (
                     <button

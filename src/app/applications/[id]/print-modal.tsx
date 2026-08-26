@@ -35,8 +35,8 @@ const DOCUMENT_TYPES = [
       { templateName: 'ininjyo_yoshiki_lan_1', pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_uyquyen' },
       { isImage: true, imageKey: 'zairyu' },
       { isImage: true, imageKey: 'passport' },
+      { isImage: true, imageKey: 'nenkinBook' },
       { isImage: true, imageKey: 'bank_first' },
-      { isImage: true, imageKey: 'bank_first_confirm' },
       { isImage: true, imageKey: 'departureStamp' },
     ]
   },
@@ -74,19 +74,19 @@ const DOCUMENT_TYPES = [
     ]
   },
   {
-    id: 'lan1_bank',
-    name: '5. Sổ ngân hàng',
+    id: 'lan1_nenkin_book',
+    name: '5. Sổ Nenkin (Sổ hưu trí)',
     category: 'LẦN 1',
     pages: [
-      { isImage: true, imageKey: 'bank_first' }
+      { isImage: true, imageKey: 'nenkinBook' }
     ]
   },
   {
-    id: 'lan1_bank_confirm',
-    name: '6. Giấy xác nhận ngân hàng',
+    id: 'lan1_bank',
+    name: '6. Tài liệu ngân hàng nhận Nenkin (Lần 1)',
     category: 'LẦN 1',
     pages: [
-      { isImage: true, imageKey: 'bank_first_confirm' }
+      { isImage: true, imageKey: 'bank_first' }
     ]
   },
   {
@@ -110,8 +110,9 @@ const DOCUMENT_TYPES = [
       { templateName: 'bang_3', pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fallbackType: 'lan2_donxin3' },
       { isImage: true, imageKey: 'zairyu' },
       { isImage: true, imageKey: 'passport' },
+      { isImage: true, imageKey: 'nenkinBook' },
       { isImage: true, imageKey: 'bank_second' },
-      { isImage: true, imageKey: 'bank_second_confirm' },
+      { isImage: true, imageKey: 'departureStamp' },
     ]
   },
   {
@@ -156,19 +157,19 @@ const DOCUMENT_TYPES = [
     ]
   },
   {
-    id: 'lan2_bank',
-    name: '6. Sổ ngân hàng',
+    id: 'lan2_nenkin_book',
+    name: '6. Sổ Nenkin (Lần 2)',
     category: 'LẦN 2',
     pages: [
-      { isImage: true, imageKey: 'bank_second' }
+      { isImage: true, imageKey: 'nenkinBook' }
     ]
   },
   {
-    id: 'lan2_bank_confirm',
-    name: '7. Giấy xác nhận ngân hàng',
+    id: 'lan2_bank',
+    name: '7. Tài liệu ngân hàng (Lần 2)',
     category: 'LẦN 2',
     pages: [
-      { isImage: true, imageKey: 'bank_second_confirm' }
+      { isImage: true, imageKey: 'bank_second' }
     ]
   },
   {
@@ -194,45 +195,25 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
   const [isLayoutMode, setIsLayoutMode] = useState(false);
 
   useEffect(() => {
-    if (initialTab) {
-      setActiveTab(initialTab);
-    } else if (initialTemplate && TEMPLATE_TO_TAB[initialTemplate]) {
-      setActiveTab(TEMPLATE_TO_TAB[initialTemplate]);
-    }
-  }, [initialTab, initialTemplate, isOpen]);
+    if (!isOpen || !id) return;
+    setLoading(true);
 
-  useEffect(() => {
-    if (!id || !isOpen) return;
-
-    async function initData() {
-      setLoading(true);
-      try {
-        const [appRes, configRes] = await Promise.all([
-          fetch(`/api/applications/${id}`, { cache: 'no-store' }),
-          fetch('/api/templates/mapping?template=all', { cache: 'no-store' })
-        ]);
-
-        if (appRes.ok) {
-          const data = await appRes.json();
-          setAppData(data);
-        } else {
-          alert('Không tìm thấy dữ liệu hồ sơ để in!');
-        }
-
-        if (configRes.ok) {
-          const cfgData = await configRes.json();
-          if (cfgData.success && cfgData.data) {
-            setAllConfigs(cfgData.data);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch print data:', error);
-      } finally {
+    Promise.all([
+      fetch(`/api/applications/${id}`).then((r) => r.json()),
+      fetch('/api/templates/mapping?template=all', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((res) => (res.success ? res.data : {})),
+    ])
+      .then(([appRes, configs]) => {
+        setAppData(appRes);
+        setAllConfigs(configs);
         setLoading(false);
-      }
-    }
-    initData();
-  }, [id, isOpen]);
+      })
+      .catch((err) => {
+        console.error('Error fetching print data:', err);
+        setLoading(false);
+      });
+  }, [isOpen, id]);
 
   const handlePrint = () => {
     window.print();
@@ -257,7 +238,6 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
   const rep = appData.taxRepresentative || {};
   const mappedData = appData.mappedData || {};
 
-  // String helpers
   const cleanStr = (str: string | null | undefined) => str?.replace(/[\s-]/g, '') || '';
   const cleanPost = (str: string | null | undefined) => str?.replace(/-/g, '') || '';
   
@@ -265,9 +245,9 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
     if (!dateStr) return '';
     const d = new Date(dateStr);
     const ymd = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-    if (ymd >= 20190501) return '5'; // Reiwa
-    if (ymd >= 19890108) return '4'; // Heisei
-    if (ymd >= 19261225) return '3'; // Showa
+    if (ymd >= 20190501) return '5';
+    if (ymd >= 19890108) return '4';
+    if (ymd >= 19261225) return '3';
     return '';
   };
 
@@ -281,36 +261,29 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
       case 'passport':
         if (customer.passportUrl) return [[customer.passportUrl]];
         return [];
+      case 'nenkinBook':
+        if (customer.nenkinBookUrl) return [[customer.nenkinBookUrl]];
+        return [];
       case 'departureStamp':
         if (customer.departureStampUrl) return [[customer.departureStampUrl]];
         return [];
       case 'bank_first': {
         const banks = customer.bankAccounts || [];
         const fBank = banks.find((b: any) => b.purpose === 'FIRST_REFUND' || b.purpose === 'BOTH') || banks[0];
-        if (!fBank || !fBank.bankPassbookUrls || fBank.bankPassbookUrls.length === 0) {
-          return customer.bankPassbookUrl ? [[customer.bankPassbookUrl]] : [];
+        if (fBank && fBank.bankPassbookUrls && fBank.bankPassbookUrls.length > 0) {
+          return fBank.bankPassbookUrls.filter(Boolean).map((url: string) => [url]);
         }
-        return [[fBank.bankPassbookUrls[0]]];
-      }
-      case 'bank_first_confirm': {
-        const banks = customer.bankAccounts || [];
-        const fBank = banks.find((b: any) => b.purpose === 'FIRST_REFUND' || b.purpose === 'BOTH') || banks[0];
-        if (!fBank || !fBank.bankPassbookUrls || fBank.bankPassbookUrls.length <= 1) return [];
-        return fBank.bankPassbookUrls.slice(1).map((url: string) => [url]);
+        if (customer.bankPassbookUrl) return [[customer.bankPassbookUrl]];
+        return [];
       }
       case 'bank_second': {
         const banks = customer.bankAccounts || [];
         const sBank = banks.find((b: any) => b.purpose === 'SECOND_REFUND' || b.purpose === 'BOTH') || banks[0];
-        if (!sBank || !sBank.bankPassbookUrls || sBank.bankPassbookUrls.length === 0) {
-          return customer.bankPassbookUrl ? [[customer.bankPassbookUrl]] : [];
+        if (sBank && sBank.bankPassbookUrls && sBank.bankPassbookUrls.length > 0) {
+          return sBank.bankPassbookUrls.filter(Boolean).map((url: string) => [url]);
         }
-        return [[sBank.bankPassbookUrls[0]]];
-      }
-      case 'bank_second_confirm': {
-        const banks = customer.bankAccounts || [];
-        const sBank = banks.find((b: any) => b.purpose === 'SECOND_REFUND' || b.purpose === 'BOTH') || banks[0];
-        if (!sBank || !sBank.bankPassbookUrls || sBank.bankPassbookUrls.length <= 1) return [];
-        return sBank.bankPassbookUrls.slice(1).map((url: string) => [url]);
+        if (customer.bankPassbookUrl) return [[customer.bankPassbookUrl]];
+        return [];
       }
       default:
         return [];

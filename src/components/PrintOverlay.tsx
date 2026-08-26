@@ -116,19 +116,26 @@ interface ImagePrintContainerProps {
  */
 export const ImagePrintContainer = ({ images, isLandscape = false }: ImagePrintContainerProps) => {
   if (!images || images.length === 0) return null;
+  const validImages = images.filter(Boolean);
+  if (validImages.length === 0) return null;
+  const isSingle = validImages.length === 1;
 
   return (
     <div
-      className={`relative w-full mx-auto bg-white shadow-xl print:shadow-none print:m-0 break-inside-avoid flex flex-col items-center justify-center p-[20mm] ${isLandscape ? 'max-w-[1414px]' : 'max-w-[1000px]'}`}
+      className={`relative w-full mx-auto bg-white shadow-xl print:shadow-none print:m-0 break-inside-avoid flex flex-col items-center justify-center ${
+        isLandscape ? 'max-w-[1414px]' : 'max-w-[1000px]'
+      }`}
       style={{ aspectRatio: isLandscape ? '297/210' : '210/297', containerType: 'inline-size' }}
     >
-      <div className="w-full h-full flex flex-col items-center justify-center gap-8">
-        {images.filter(Boolean).map((src, idx) => (
+      <div className={`w-full h-full flex ${isSingle ? 'items-center justify-center p-4 sm:p-6 print:p-2' : 'flex-col items-center justify-center gap-4 sm:gap-6 p-4 sm:p-6 print:p-2'}`}>
+        {validImages.map((src, idx) => (
           <img
             key={idx}
             src={src}
             alt={`Print Image ${idx}`}
-            className="max-w-full max-h-[45%] object-contain rounded-md"
+            className={`max-w-full object-contain rounded-xs print:rounded-none ${
+              isSingle ? 'max-h-full w-auto h-auto' : 'max-h-[47%] w-auto'
+            }`}
             style={{ pageBreakInside: 'avoid' }}
           />
         ))}
