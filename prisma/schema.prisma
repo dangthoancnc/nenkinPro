@@ -224,7 +224,7 @@ model NenkinApplication {
   id         String @id @default(uuid())
   status ApplicationStatus @default(DRAFT)
   revisionNote String? // Ghi chú yêu cầu sửa chữa từ nhân viên
-
+  isReturnedToJapan Boolean @default(false) // Cờ đánh dấu khách hàng đã quay lại Nhật (Tự khai thuế, không cần đại diện)
 
   applyDate       DateTime?
   sent1stDate     DateTime?

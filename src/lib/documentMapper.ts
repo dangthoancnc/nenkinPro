@@ -581,10 +581,30 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     bank2nd_address: bank2nd.bankBranchAddress ?? '',
   };
 
+  const isReturned = (application as any).isReturnedToJapan || false;
+  const rep = input.taxRepresentative;
+  const applicantAddress = isReturned ? (rep?.address || customer.overseasAddress || '') : (customer.zairyuAddress || '');
+  const applicantPostalCode = isReturned ? (rep?.postalCode || customer.overseasPostalCode || '') : (customer.postalCode || '');
+  const applicantPostClean = applicantPostalCode.replace(/\D/g, '');
+  const applicantPostalCode_part1 = applicantPostClean.length >= 3 ? applicantPostClean.slice(0, 3) : applicantPostClean;
+  const applicantPostalCode_part2 = applicantPostClean.length > 3 ? applicantPostClean.slice(3, 7) : '';
+
   return {
     ...mapCustomerBase(customer),
     ...bankTags,
     ...workTags,
+
+    // Ghi đè địa chỉ người nộp Lần 1 nếu đã quay lại Nhật (tránh dùng địa chỉ mới ở Nhật)
+    address_jp: applicantAddress,
+    address: applicantAddress,
+    postalCodeFormat: applicantPostalCode,
+    postalCode: applicantPostalCode,
+    postalCode_part1: applicantPostalCode_part1,
+    postalCode_part2: applicantPostalCode_part2,
+    post_part1: applicantPostalCode_part1,
+    post_part2: applicantPostalCode_part2,
+    ...splitChars(applicantPostalCode, 'post', 7, true),
+
     work_last_company: (lastJob as Record<string, unknown>)?.companyName as string ?? '',
     work_last_end_y:   lastEndDate.y,
     work_last_end_m:   lastEndDate.m,
@@ -738,6 +758,16 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
   const rep = taxRepresentative;
   const repAccountNum = rep?.accountNumber ?? '';
 
+  // Lấy tài khoản ngân hàng Lần 2 của khách (fallback nếu không có Người đại diện)
+  const bankAccounts = (customer as any).bankAccounts || [];
+  const bank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || bankAccounts[1] || bankAccounts[0] || {};
+  const refundBankName = rep?.bankName || bank2nd.bankName || '';
+  const refundBranchName = rep?.branchName || bank2nd.branchName || '';
+  const refundAccountNum = repAccountNum || bank2nd.accountNumber || '';
+  const refundAccountName = rep?.accountName || bank2nd.accountName || '';
+  const refundAccountTypeCurrent = rep ? (rep as any).bankAccountType === 'CURRENT' : (bank2nd.bankAccountType === 'CURRENT' || bank2nd.bankAccountType === '2');
+  const isYucho = rep ? (rep as any).isYucho : bank2nd.isYucho;
+
   return {
     ...mapCustomerBase(customer),
     ...mapRepresentative(taxRepresentative),
@@ -798,15 +828,16 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
     paymentsMultiplier: appExt.paymentsMultiplier ? String(appExt.paymentsMultiplier) : '',
 
     // Tax representative bank details for refund section (還付金受取場所)
-    taxRep_bankName: rep?.bankName || ((customer as any).bankAccounts?.[0]?.bankName ?? ''),
-    taxRep_branchName: rep?.branchName || ((customer as any).bankAccounts?.[0]?.branchName ?? ''),
-    taxRep_accountNumber: repAccountNum || ((customer as any).bankAccounts?.[0]?.accountNumber ?? ''),
-    ...splitChars(repAccountNum || ((customer as any).bankAccounts?.[0]?.accountNumber ?? ''), 'taxRep_account', 7, true),
-    taxRep_accountName: rep?.accountName || ((customer as any).bankAccounts?.[0]?.accountName ?? ''),
-    taxRep_accountType_1_mark: '○',
-    account_type_futsu_mark: '○',
-    bank_type_bank_mark: '○',
-    bank_type_shiten_mark: '○',
+    taxRep_bankName: refundBankName,
+    taxRep_branchName: refundBranchName,
+    taxRep_accountNumber: refundAccountNum,
+    ...splitChars(refundAccountNum, 'taxRep_account', 7, true),
+    taxRep_accountName: refundAccountName,
+    taxRep_accountType_1_mark: !refundAccountTypeCurrent && !isYucho ? '○' : '',
+    taxRep_accountType_2_mark: refundAccountTypeCurrent && !isYucho ? '○' : '',
+    account_type_futsu_mark: !refundAccountTypeCurrent && !isYucho ? '○' : '',
+    bank_type_bank_mark: !isYucho ? '○' : '',
+    bank_type_shiten_mark: !isYucho ? '○' : '',
     // 第二表 — Income source details
     incomeSourceName: '日本年金機構',
     
