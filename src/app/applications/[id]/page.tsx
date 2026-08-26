@@ -175,6 +175,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             averageStandardRemuneration: data.averageStandardRemuneration || '',
             lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
             revisionNote:                data.revisionNote                || '',
+            isReturnedToJapan:           data.isReturnedToJapan           || false,
           };
           
           const totalExpectedJpy = data.totalExpectedJpy ? Number(data.totalExpectedJpy) : 0;
@@ -902,7 +903,26 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thông tin chi tiết nhập liệu</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 min-h-0">
+      <div className="flex-1 overflow-y-auto p-3 min-h-0 space-y-3">
+        {/* Tùy chọn trạng thái Khách hàng quay lại Nhật */}
+        <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-2.5 flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            id="isReturnedToJapan"
+            {...register('isReturnedToJapan')}
+            disabled={!isEditing}
+            className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50"
+          />
+          <div>
+            <label htmlFor="isReturnedToJapan" className="text-xs font-bold text-slate-800 cursor-pointer">
+              Khách hàng đã quay lại Nhật (Cư trú)
+            </label>
+            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+              Đánh dấu nếu khách đã có địa chỉ Nhật mới. Tự động chuyển thẻ Ngân hàng nhận Lần 2 sang thẻ Nhật và bỏ qua T3.
+            </p>
+          </div>
+        </div>
+
         {(() => {
           switch (activeDoc) {
             case 'zairyuFront':

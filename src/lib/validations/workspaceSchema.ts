@@ -24,6 +24,7 @@ export const applicationSchema = z.object({
   averageStandardRemuneration: z.union([z.string(), z.number()]).nullable().optional(),
   lumpSumWithdrawalNumber: z.string().nullable().optional(),
   revisionNote: z.string().nullable().optional(),
+  isReturnedToJapan: z.coerce.boolean().nullable().optional(),
   
   // --- Bảng 3 Overrides ---
   tokureiTekio: z.string().nullable().optional(),
