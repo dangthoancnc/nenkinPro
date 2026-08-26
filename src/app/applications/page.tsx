@@ -5,7 +5,7 @@ import {
   FileText, Plus, Filter, ArrowRight,
   Clock, CheckCircle, AlertCircle, Send, Wallet,
   ChevronUp, ChevronDown, LayoutGrid, List, LayoutTemplate,
-  ChevronLeft, ChevronRight, Eye, ArrowRightLeft, UserCheck, UserX
+  ChevronLeft, ChevronRight, Eye, ArrowRightLeft, UserCheck, UserX, Stamp
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -193,6 +193,14 @@ function ApplicationsPageInner() {
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
+          <Link
+            href="/address-labels"
+            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 rounded-lg shadow-xs"
+            title="In tem địa chỉ Cục thuế & Người đại diện dán phong bì"
+          >
+            <Stamp className="w-3.5 h-3.5 text-teal-600" />
+            <span className="hidden sm:inline">In Tem Bì Thư</span>
+          </Link>
           <button 
             onClick={() => setShowFilter(!showFilter)} 
             className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors border rounded-lg shadow-xs ${showFilter ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}

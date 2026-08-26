@@ -33,29 +33,13 @@ export default function PortalPage() {
   }, []);
 
   const fetchPortalData = (userId: string) => {
-    // Fetch user customers & apps for stats
-    fetch('/api/customers')
+    fetch('/api/portal/stats')
       .then(r => r.json())
       .then(d => {
-        const list = Array.isArray(d) ? d : d.data || [];
-        const myCustomers = list.filter((c: any) => c.createdById === userId || c.referredByCode === user?.staffCode);
-        const totalCommission = myCustomers.length * 2000;
-        setStats({
-          totalCustomers: myCustomers.length,
-          totalApplications: myCustomers.reduce((acc: number, c: any) => acc + (c.applications?.length || 0), 0),
-          totalCommissionJpy: totalCommission,
-          pendingCommissionJpy: totalCommission * 0.5,
-        });
-
-        // Mock Activity Feed items combined with real customer updates
-        const feedItems = myCustomers.slice(0, 10).map((c: any) => ({
-          id: c.id,
-          actorName: c.fullName,
-          action: 'HỒ SƠ MỚI',
-          content: `Đã khởi tạo hồ sơ Nenkin mới #${c.code || c.id.slice(0, 6)}`,
-          createdAt: c.createdAt,
-        }));
-        setFeedList(feedItems);
+        if (d.success && d.data) {
+          setStats(d.data.stats);
+          setFeedList(d.data.feeds || []);
+        }
       })
       .catch(console.error);
   };

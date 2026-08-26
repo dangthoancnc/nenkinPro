@@ -12,7 +12,7 @@ export async function GET() {
 
     return NextResponse.json({ 
       success: true, 
-      user: { id: user.id, name: user.name, role: user.role, email: user.email }
+      user: { id: user.id, name: user.name, role: user.role, email: user.email, staffCode: user.staffCode }
     });
 
   } catch (error: unknown) {
