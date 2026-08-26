@@ -52,11 +52,10 @@ export async function GET(
       templatesToProcess = [
         { template: 'don_xin_lan_1', file: 'don_xin_lan_1.pdf' },
         { template: 'ininjyo_yoshiki_lan_1', file: 'ininjyo_yoshiki_lan_1.pdf' },
-        { template: 'nouzeikanrinin', file: 'nouzeikanrinin.pdf' },
       ];
     } else if (stage === '2') {
       templatesToProcess = [
-        { template: 'giay_uy_thac_lan_2', file: 'giay_uy_thac_lan_2.pdf' },
+        { template: 'nouzeikanrinin', file: 'nouzeikanrinin.pdf' },
         { template: 'bang_1_2', file: 'bang_1_2.pdf' },
         { template: 'bang_3', file: 'bang_3.pdf' },
       ];
@@ -65,7 +64,6 @@ export async function GET(
         { template: 'don_xin_lan_1', file: 'don_xin_lan_1.pdf' },
         { template: 'ininjyo_yoshiki_lan_1', file: 'ininjyo_yoshiki_lan_1.pdf' },
         { template: 'nouzeikanrinin', file: 'nouzeikanrinin.pdf' },
-        { template: 'giay_uy_thac_lan_2', file: 'giay_uy_thac_lan_2.pdf' },
         { template: 'bang_1_2', file: 'bang_1_2.pdf' },
         { template: 'bang_3', file: 'bang_3.pdf' },
       ];

@@ -49,13 +49,12 @@
   },
   "taxRep_appoint_mark": {
     "page": 0,
-    "x": 322.22,
-    "y": 487.56,
-    "size": 24,
-    "type": "text",
-    "align": "left",
-    "width": 31,
-    "height": 29
+    "x": 333.78,
+    "y": 492,
+    "type": "circle",
+    "width": 38,
+    "height": 14,
+    "thickness": 1
   },
   "taxRep_appoint_reason": {
     "page": 0,
@@ -296,7 +295,7 @@
     "width": 14,
     "height": 12
   },
-  "overseasAddress": {
+  "address_jp": {
     "page": 0,
     "x": 278.61,
     "y": 692,
@@ -305,6 +304,16 @@
     "align": "left",
     "width": 251,
     "height": 22
+  },
+  "overseasAddress": {
+    "page": 0,
+    "x": 97.22,
+    "y": 311.67,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 427,
+    "height": 10
   },
   "phone_group_1": {
     "page": 0,
@@ -404,5 +413,14 @@
     "align": "left",
     "width": 20,
     "height": 12
+  },
+  "income_salary_mark": {
+    "page": 0,
+    "x": 235,
+    "y": 172,
+    "type": "circle",
+    "width": 50,
+    "height": 16,
+    "thickness": 1
   }
 }

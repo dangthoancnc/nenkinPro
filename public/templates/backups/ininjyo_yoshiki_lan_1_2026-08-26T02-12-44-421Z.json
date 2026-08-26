@@ -1,0 +1,239 @@
+{
+  "today_era_yr": {
+    "page": 0,
+    "x": 172,
+    "y": 759,
+    "size": 10,
+    "width": 36,
+    "height": 16
+  },
+  "today_m": {
+    "page": 0,
+    "x": 210,
+    "y": 759,
+    "size": 10,
+    "width": 36,
+    "height": 14
+  },
+  "today_d": {
+    "page": 0,
+    "x": 241,
+    "y": 759,
+    "size": 10,
+    "width": 36,
+    "height": 15
+  },
+  "taxRep_fullNameKana": {
+    "page": 0,
+    "x": 147.56,
+    "y": 725.27,
+    "size": 9,
+    "type": "text",
+    "width": 184,
+    "height": 11,
+    "align": "center"
+  },
+  "taxRep_fullName": {
+    "page": 0,
+    "x": 147.78,
+    "y": 701.34,
+    "size": 10,
+    "type": "text",
+    "width": 181,
+    "height": 19,
+    "align": "center"
+  },
+  "taxRep_relationship": {
+    "page": 0,
+    "x": 462.78,
+    "y": 697,
+    "size": 9,
+    "type": "text",
+    "width": 120,
+    "height": 14,
+    "align": "center"
+  },
+  "taxRep_address": {
+    "page": 0,
+    "x": 148.33,
+    "y": 653.56,
+    "size": 10,
+    "type": "text",
+    "width": 417,
+    "height": 24
+  },
+  "taxRep_phone": {
+    "page": 0,
+    "x": 161.67,
+    "y": 621.56,
+    "size": 9,
+    "type": "text",
+    "width": 200,
+    "height": 14
+  },
+  "nenkin_1": {
+    "page": 0,
+    "x": 149.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_2": {
+    "page": 0,
+    "x": 161.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_3": {
+    "page": 0,
+    "x": 173.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_4": {
+    "page": 0,
+    "x": 185.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_5": {
+    "page": 0,
+    "x": 201.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_6": {
+    "page": 0,
+    "x": 213.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_7": {
+    "page": 0,
+    "x": 225.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_8": {
+    "page": 0,
+    "x": 237.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_9": {
+    "page": 0,
+    "x": 249.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "nenkin_10": {
+    "page": 0,
+    "x": 261.11,
+    "y": 566.22,
+    "size": 10,
+    "width": 14,
+    "align": "center"
+  },
+  "fullName_kata": {
+    "page": 0,
+    "x": 147.22,
+    "y": 537.67,
+    "size": 9,
+    "type": "text",
+    "width": 241,
+    "height": 10,
+    "align": "center"
+  },
+  "fullName": {
+    "page": 0,
+    "x": 150.56,
+    "y": 514.44,
+    "size": 10,
+    "type": "text",
+    "width": 234,
+    "height": 16,
+    "align": "center"
+  },
+  "dob_era_jp": {
+    "page": 0,
+    "x": 515.56,
+    "y": 524.22,
+    "size": 9,
+    "type": "text",
+    "width": 25,
+    "height": 12
+  },
+  "dob_era_yr": {
+    "page": 0,
+    "x": 462,
+    "y": 510.33,
+    "size": 10,
+    "type": "text",
+    "width": 20,
+    "height": 12
+  },
+  "dob_m": {
+    "page": 0,
+    "x": 498.89,
+    "y": 510.33,
+    "size": 10,
+    "type": "text",
+    "width": 20,
+    "height": 12
+  },
+  "dob_d": {
+    "page": 0,
+    "x": 536.44,
+    "y": 510.33,
+    "size": 10,
+    "type": "text",
+    "width": 20,
+    "height": 12
+  },
+  "address_jp": {
+    "page": 0,
+    "x": 148.89,
+    "y": 455.56,
+    "size": 9,
+    "type": "text",
+    "width": 417,
+    "height": 24
+  },
+  "sex_M_mark": {
+    "page": 0,
+    "x": 471.95,
+    "y": 487.91,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 28,
+    "height": 10
+  },
+  "sex_F_mark": {
+    "page": 0,
+    "x": 515.84,
+    "y": 487.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 45,
+    "height": 10
+  }
+}

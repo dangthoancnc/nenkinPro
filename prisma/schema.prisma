@@ -269,6 +269,14 @@ model NenkinApplication {
   taxableRetirementIncome    Decimal? // Thu nhập chịu thuế (mục 76)
   retirementDeductionAmount  Decimal? // Mức miễn giảm thu nhập (退職所得控除額)
 
+  // --- Nội dung ủy quyền Lần 1 (委任内容) ---
+  delegateClaim    Boolean @default(true)  // Mục 3: Xin nhận tiền Nenkin (年金の請求)
+  delegatePeriod   Boolean @default(false) // Mục 1: Tra cứu thời gian tham gia BH (年金の加入期間)
+  delegateEstimate Boolean @default(false) // Mục 2: Ước tính số tiền Nenkin (年金の見込額)
+  delegateReissue  Boolean @default(false) // Mục 4: Xin cấp lại sổ/giấy chứng nhận Nenkin (年金手帳等の再交付)
+  delegateOther    Boolean @default(false) // Mục 5: Khác (その他)
+  delegateOtherText String?                // Chi tiết nội dung khác
+
   customerId          String
   customer            Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   

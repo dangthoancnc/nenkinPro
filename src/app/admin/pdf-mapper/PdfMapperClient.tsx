@@ -13,10 +13,9 @@ import { A4_W, A4_H, PDF_LINE_HEIGHT, PDF_BASELINE_OFFSET_EM } from '@/lib/pdfCo
 const TEMPLATE_NAMES: Record<string, string> = {
   don_xin_lan_1: 'Đơn Xin Lần 1 (脱退一時金請求書)',
   ininjyo_yoshiki_lan_1: 'Giấy Ủy Quyền Lần 1 (委任状)',
-  nouzeikanrinin: 'Đại Diện Thuế Lần 1 (納税管理人届出書)',
   bang_1_2: 'Bảng 1 & 2 Lần 2 (確定申告書 第一表・二表)',
   bang_3: 'Bảng Số 3 Lần 2 (確定申告書 第三表)',
-  giay_uy_thac_lan_2: 'Giấy Ủy Thác Lần 2 (委任状)',
+  nouzeikanrinin: 'Đại Diện Thuế Lần 2 (納税管理人届出書)',
 };
 
 import { getTagsForTemplate, getRequiredTags, FieldGroup } from '@/features/templates/template-field-catalog';
@@ -1773,7 +1772,7 @@ export default function PdfMapperClient({
         {/* WORD-STYLE HORIZONTAL PROPERTY RIBBON TOOLBAR (SINGLE TAG) */}
         {selectedTag && config[selectedTag] && selectedTags.length <= 1 && (
           <div className="bg-slate-900 border-b border-slate-700 text-slate-200 px-3 py-1.5 flex items-center justify-between gap-2 text-xs flex-wrap shadow-md z-30 select-none">
-            {/* Nhóm 1: Thẻ & Nguồn dữ liệu */}
+            {/* Nhóm 1: Thẻ & Nguồn dữ liệu & Kiểu hiển thị */}
             <div className="flex items-center gap-1.5 shrink-0">
               <div
                 className="flex items-center gap-1 bg-blue-950/80 border border-blue-600/60 px-2 py-0.5 rounded text-blue-200 font-bold max-w-[210px] truncate"
@@ -1786,14 +1785,14 @@ export default function PdfMapperClient({
               <select
                 value={selectedTag.split('#')[0]}
                 onChange={(e) => handleRemapTagSource(selectedTag, e.target.value)}
-                className="h-6 text-[11px] bg-slate-800 border border-slate-600 rounded px-1.5 text-slate-200 focus:ring-1 focus:ring-blue-400 outline-none max-w-[150px]"
+                className="h-6 text-[11px] bg-slate-800 border border-slate-600 rounded px-1.5 text-slate-200 focus:ring-1 focus:ring-blue-400 outline-none max-w-[140px]"
                 title="Đổi nguồn dữ liệu cho thẻ"
               >
                 <optgroup label="── Loại Thẻ Tùy Chỉnh ──">
                   <option value="custom">Thẻ tự do</option>
                   <option value="static">Chữ tĩnh</option>
                   <option value="line">Đường kẻ</option>
-                  <option value="circle">Khoanh tròn</option>
+                  <option value="circle">Khoanh tròn / Elip</option>
                 </optgroup>
                 {getTagsForTemplate(selectedTemplate || '*').map(group => (
                   <optgroup key={group.name} label={`── ${group.name} ──`}>
@@ -1805,203 +1804,309 @@ export default function PdfMapperClient({
                   </optgroup>
                 ))}
               </select>
+
+              {/* Kiểu hiển thị (Text / Elip / Line) */}
+              <select
+                value={config[selectedTag].type || 'text'}
+                onChange={(e) => {
+                  const newType = e.target.value as 'text' | 'line' | 'circle';
+                  setConfig(prev => {
+                    if (!prev[selectedTag]) return prev;
+                    const isCircle = newType === 'circle';
+                    const isLine = newType === 'line';
+                    return {
+                      ...prev,
+                      [selectedTag]: {
+                        ...prev[selectedTag],
+                        type: newType,
+                        width: isCircle ? (prev[selectedTag].width || 46) : isLine ? (prev[selectedTag].width || 100) : prev[selectedTag].width,
+                        height: isCircle ? (prev[selectedTag].height || 18) : prev[selectedTag].height,
+                        thickness: (isCircle || isLine) ? (prev[selectedTag].thickness || 1) : undefined,
+                      }
+                    };
+                  });
+                }}
+                className="h-6 text-[11px] bg-indigo-950/80 border border-indigo-500/80 rounded px-1.5 text-indigo-200 font-semibold focus:ring-1 focus:ring-indigo-400 outline-none"
+                title="Kiểu hiển thị: Văn bản / Khoanh tròn Elip / Đường kẻ"
+              >
+                <option value="text">🔤 Chữ / Số</option>
+                <option value="circle">⭕ Khoanh tròn / Elip</option>
+                <option value="line">➖ Đường kẻ</option>
+              </select>
             </div>
 
-            {/* Nhóm 2: Định dạng chữ & Căn chỉnh (Word Style) */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Cỡ chữ */}
-              <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-700 p-0.5 rounded">
-                <span className="text-[10px] text-slate-400 px-1 font-semibold">Cỡ:</span>
-                <button
-                  type="button"
-                  onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.max(4, (prev[selectedTag].size ?? 9) - 1) } }))}
-                  className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
-                  title="Giảm cỡ chữ (1pt)"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="4"
-                  max="72"
-                  value={config[selectedTag].size ?? 9}
-                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Number(e.target.value) || 9 } }))}
-                  className="w-8 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white text-xs font-bold focus:ring-1 focus:ring-blue-400 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.min(72, (prev[selectedTag].size ?? 9) + 1) } }))}
-                  className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
-                  title="Tăng cỡ chữ (1pt)"
-                >
-                  +
-                </button>
+            {/* Nhóm 2: Định dạng chữ hoặc Tùy biến Elip */}
+            {config[selectedTag].type === 'circle' ? (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] text-amber-300 font-semibold bg-amber-950/60 border border-amber-600/40 px-1.5 py-0.5 rounded flex items-center gap-1">
+                  <span>⭕</span> <span>Elip</span>
+                </span>
+                <div className="flex items-center bg-slate-800 border border-slate-700 p-0.5 rounded gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: 22, height: 22 } }))}
+                    className="h-5 px-1.5 rounded text-[10px] font-bold text-slate-300 hover:text-white hover:bg-slate-700"
+                    title="Tròn 22x22 (Ký hiệu 1 chữ)"
+                  >
+                    22x22
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: 36, height: 18 } }))}
+                    className="h-5 px-1.5 rounded text-[10px] font-bold text-slate-300 hover:text-white hover:bg-slate-700"
+                    title="Elip 36x18 (2 chữ - VD: 選任)"
+                  >
+                    36x18
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: 50, height: 18 } }))}
+                    className="h-5 px-1.5 rounded text-[10px] font-bold text-slate-300 hover:text-white hover:bg-slate-700"
+                    title="Elip 50x18 (4 chữ - VD: 給与所得, 厚生年金)"
+                  >
+                    50x18
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: 70, height: 20 } }))}
+                    className="h-5 px-1.5 rounded text-[10px] font-bold text-slate-300 hover:text-white hover:bg-slate-700"
+                    title="Elip 70x20 (Nội dung dài)"
+                  >
+                    70x20
+                  </button>
+                </div>
+                {/* Vị trí & Kích thước X, Y, W, H, Dày */}
+                <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
+                  <span className="text-slate-400 font-mono font-semibold">X:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config[selectedTag].x}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], x: Number(e.target.value) } }))}
+                    className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Tọa độ X (Tâm elip)"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">Y:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config[selectedTag].y}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], y: Number(e.target.value) } }))}
+                    className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Tọa độ Y (Tâm elip)"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">W:</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={config[selectedTag].width || 46}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: Number(e.target.value) || 20 } }))}
+                    className="w-11 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Chiều rộng Elip (Width)"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">H:</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={config[selectedTag].height || 18}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], height: Number(e.target.value) || 15 } }))}
+                    className="w-10 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Chiều cao Elip (Height)"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">Dày:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config[selectedTag].thickness || 1}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], thickness: Number(e.target.value) || 1 } }))}
+                    className="w-9 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Độ dày viền Elip"
+                  />
+                </div>
               </div>
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Cỡ chữ */}
+                <div className="flex items-center gap-0.5 bg-slate-800 border border-slate-700 p-0.5 rounded">
+                  <span className="text-[10px] text-slate-400 px-1 font-semibold">Cỡ:</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.max(4, (prev[selectedTag].size ?? 9) - 1) } }))}
+                    className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
+                    title="Giảm cỡ chữ (1pt)"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="4"
+                    max="72"
+                    value={config[selectedTag].size ?? 9}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Number(e.target.value) || 9 } }))}
+                    className="w-8 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white text-xs font-bold focus:ring-1 focus:ring-blue-400 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], size: Math.min(72, (prev[selectedTag].size ?? 9) + 1) } }))}
+                    className="w-5 h-5 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold flex items-center justify-center text-xs"
+                    title="Tăng cỡ chữ (1pt)"
+                  >
+                    +
+                  </button>
+                </div>
 
-              {/* In đậm B */}
-              <button
-                type="button"
-                onClick={() => {
-                  const nextWeight = config[selectedTag].fontWeight === 'bold' ? 'normal' : 'bold';
-                  setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], fontWeight: nextWeight } }));
-                }}
-                className={`h-6 px-2 rounded text-xs font-bold border transition-all flex items-center gap-1 ${
-                  config[selectedTag].fontWeight === 'bold'
-                    ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                }`}
-                title={config[selectedTag].fontWeight === 'bold' ? 'Đang In Đậm (Click để hủy)' : 'In Đậm (Bold)'}
-              >
-                <span className="font-extrabold text-xs">B</span>
-              </button>
-
-              {/* Căn lề Trái / Giữa / Phải */}
-              <div className="flex items-center bg-slate-800 border border-slate-700 p-0.5 rounded gap-0.5">
+                {/* In đậm B */}
                 <button
                   type="button"
                   onClick={() => {
-                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                    setConfig(prev => ({
-                      ...prev,
-                      [selectedTag]: {
-                        ...prev[selectedTag],
-                        align: 'left',
-                        width: prev[selectedTag].width || autoDims.width,
-                        height: prev[selectedTag].height || autoDims.height,
-                      }
-                    }));
+                    const nextWeight = config[selectedTag].fontWeight === 'bold' ? 'normal' : 'bold';
+                    setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], fontWeight: nextWeight } }));
                   }}
-                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
-                    (!config[selectedTag].align || config[selectedTag].align === 'left')
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  className={`h-6 px-2 rounded text-xs font-bold border transition-all flex items-center gap-1 ${
+                    config[selectedTag].fontWeight === 'bold'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                   }`}
-                  title="Căn lề Trái"
+                  title={config[selectedTag].fontWeight === 'bold' ? 'Đang In Đậm (Click để hủy)' : 'In Đậm (Bold)'}
                 >
-                  Trái
+                  <span className="font-extrabold text-xs">B</span>
                 </button>
+
+                {/* Căn lề Trái / Giữa / Phải */}
+                <div className="flex items-center bg-slate-800 border border-slate-700 p-0.5 rounded gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'left',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                      (!config[selectedTag].align || config[selectedTag].align === 'left')
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                    title="Căn lề Trái"
+                  >
+                    Trái
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'center',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                      config[selectedTag].align === 'center'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                    title="Căn Giữa"
+                  >
+                    Giữa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                      setConfig(prev => ({
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          align: 'right',
+                          width: prev[selectedTag].width || autoDims.width,
+                          height: prev[selectedTag].height || autoDims.height,
+                        }
+                      }));
+                    }}
+                    className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
+                      config[selectedTag].align === 'right'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                    title="Căn lề Phải"
+                  >
+                    Phải
+                  </button>
+                </div>
+
+                {/* Vị trí & Kích thước X, Y, W */}
+                <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
+                  <span className="text-slate-400 font-mono font-semibold">X:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config[selectedTag].x}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], x: Number(e.target.value) } }))}
+                    className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Tọa độ X"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">Y:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={config[selectedTag].y}
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], y: Number(e.target.value) } }))}
+                    className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Tọa độ Y"
+                  />
+                  <span className="text-slate-400 font-mono font-semibold ml-1">W:</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={config[selectedTag].width || ''}
+                    placeholder="auto"
+                    onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: Number(e.target.value) || undefined } }))}
+                    className="w-11 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                    title="Độ rộng khung chứa (Width)"
+                  />
+                  {config[selectedTag].type === 'line' && (
+                    <>
+                      <span className="text-slate-400 font-mono font-semibold ml-1">Dày:</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={config[selectedTag].thickness || 1}
+                        onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], thickness: Number(e.target.value) } }))}
+                        className="w-9 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                        title="Độ dày đường kẻ"
+                      />
+                    </>
+                  )}
+                </div>
+
+                {/* Auto-fit Button */}
                 <button
                   type="button"
                   onClick={() => {
-                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
+                    const dims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
                     setConfig(prev => ({
                       ...prev,
-                      [selectedTag]: {
-                        ...prev[selectedTag],
-                        align: 'center',
-                        width: prev[selectedTag].width || autoDims.width,
-                        height: prev[selectedTag].height || autoDims.height,
-                      }
+                      [selectedTag]: { ...prev[selectedTag], width: dims.width, height: dims.height }
                     }));
                   }}
-                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
-                    config[selectedTag].align === 'center'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                  }`}
-                  title="Căn Giữa"
+                  className="h-6 px-2 bg-teal-700/80 hover:bg-teal-600 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1 shadow-xs"
+                  title="Tự động co dãn chiều rộng vừa khít chữ"
                 >
-                  Giữa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const autoDims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                    setConfig(prev => ({
-                      ...prev,
-                      [selectedTag]: {
-                        ...prev[selectedTag],
-                        align: 'right',
-                        width: prev[selectedTag].width || autoDims.width,
-                        height: prev[selectedTag].height || autoDims.height,
-                      }
-                    }));
-                  }}
-                  className={`h-5 px-1.5 rounded text-[11px] font-bold transition-all ${
-                    config[selectedTag].align === 'right'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                  }`}
-                  title="Căn lề Phải"
-                >
-                  Phải
+                  ✨ Auto-fit
                 </button>
               </div>
-
-              {/* Vị trí & Kích thước X, Y, W */}
-              <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
-                <span className="text-slate-400 font-mono font-semibold">X:</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={config[selectedTag].x}
-                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], x: Number(e.target.value) } }))}
-                  className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                  title="Tọa độ X"
-                />
-                <span className="text-slate-400 font-mono font-semibold ml-1">Y:</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={config[selectedTag].y}
-                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], y: Number(e.target.value) } }))}
-                  className="w-12 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                  title="Tọa độ Y"
-                />
-                <span className="text-slate-400 font-mono font-semibold ml-1">W:</span>
-                <input
-                  type="number"
-                  step="1"
-                  value={config[selectedTag].width || ''}
-                  placeholder="auto"
-                  onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], width: Number(e.target.value) || undefined } }))}
-                  className="w-11 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                  title="Độ rộng khung chứa (Width)"
-                />
-                {config[selectedTag].type === 'circle' && (
-                  <>
-                    <span className="text-slate-400 font-mono font-semibold ml-1">H:</span>
-                    <input
-                      type="number"
-                      step="1"
-                      value={config[selectedTag].height || 20}
-                      onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], height: Number(e.target.value) } }))}
-                      className="w-10 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                      title="Độ cao (Height)"
-                    />
-                  </>
-                )}
-                {(config[selectedTag].type === 'line' || config[selectedTag].type === 'circle') && (
-                  <>
-                    <span className="text-slate-400 font-mono font-semibold ml-1">Dày:</span>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={config[selectedTag].thickness || 1}
-                      onChange={(e) => setConfig(prev => ({ ...prev, [selectedTag]: { ...prev[selectedTag], thickness: Number(e.target.value) } }))}
-                      className="w-10 h-5 text-center bg-slate-950 border border-slate-600 rounded text-white font-mono text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                      title="Độ dày nét vẽ"
-                    />
-                  </>
-                )}
-              </div>
-
-              {/* Auto-fit Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  const dims = calcAutoFitDimensions(selectedTag, config[selectedTag]?.size || 9, config[selectedTag]?.value, config, liveMappedData);
-                  setConfig(prev => ({
-                    ...prev,
-                    [selectedTag]: { ...prev[selectedTag], width: dims.width, height: dims.height }
-                  }));
-                }}
-                className="h-6 px-2 bg-teal-700/80 hover:bg-teal-600 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1 shadow-xs"
-                title="Tự động co dãn chiều rộng vừa khít chữ"
-              >
-                ✨ Auto-fit
-              </button>
-            </div>
+            )}
 
             {/* Nhóm 3: Nội dung / Snap / Xóa / Đóng */}
             <div className="flex items-center gap-1.5 shrink-0">

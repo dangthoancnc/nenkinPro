@@ -140,12 +140,29 @@ function docDateTags(applyDate: Date | null | undefined): Record<string, string>
     doc_date_d: d,
     doc_date_era_jp: era.eraJp,
     doc_date_era_yr: era.eraYearStr,
+    ...splitChars(era.eraYearStr, 'doc_date_era_yr', 2, true),
+    ...splitChars(m, 'doc_date_m', 2, true),
+    ...splitChars(d, 'doc_date_d', 2, true),
     // Aliases for don_xin_lan_1 template
     applyDate_y: y,
     applyDate_m: m,
     applyDate_d: d,
     applyDate_era_jp: era.eraJp,
     applyDate_era_yr: era.eraYearStr,
+    ...splitChars(era.eraYearStr, 'applyDate_era_yr', 2, true),
+    ...splitChars(m, 'applyDate_m', 2, true),
+    ...splitChars(d, 'applyDate_d', 2, true),
+    // Today aliases fallback to applyDate so all forms are strictly synchronized
+    today_y: y,
+    today_m: m,
+    today_d: d,
+    today_era_jp: era.eraJp,
+    today_era_yr: era.eraYearStr,
+    today_era_m: m,
+    today_era_d: d,
+    ...splitChars(era.eraYearStr, 'today_era_yr', 2, true),
+    ...splitChars(m, 'today_m', 2, true),
+    ...splitChars(d, 'today_d', 2, true),
   };
 }
 
@@ -196,10 +213,12 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
   const yuchoBango = primaryBank.yuchoBango ?? (accNumClean.length >= 12 ? accNumClean.slice(5, 12) : (accNumClean.length > 5 ? accNumClean.slice(5) : ''));
   const permResDate = formatDate(customer.permanentResidenceDate ? new Date(customer.permanentResidenceDate) : null);
 
-  const isMale = customer.sex === 'MALE' || customer.sex === 'M' || customer.sex?.includes('男') || customer.sex?.toLowerCase().includes('male');
-  const isFemale = customer.sex === 'FEMALE' || customer.sex === 'F' || customer.sex?.includes('女') || customer.sex?.toLowerCase().includes('female');
+  const sexNorm = (customer.sex || '').trim().toLowerCase();
+  const isMale = sexNorm === 'male' || sexNorm === 'm' || sexNorm === 'nam' || sexNorm.includes('男');
+  const isFemale = sexNorm === 'female' || sexNorm === 'f' || sexNorm === 'nữ' || sexNorm === 'nu' || sexNorm.includes('女');
 
   const kataName = (customer as any).nenkinKatakanaName || (customer as any).fullNameFurigana || '';
+  const isJpBank = primaryBank.bankCountry === 'JAPAN' || primaryBank.bankCountry === 'JP' || primaryBank.bankCountry === 'Nhật Bản' || Boolean(primaryBank.isYucho);
 
   return {
     fullName:        customer.fullName ?? '',
@@ -243,11 +262,12 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     pensionSystemRegistrationNumber: customer.pensionSystemRegistrationNumber ?? '',
     occupation:      customer.occupation ?? '',
     
-    overseasStreet:  customer.overseasStreet ?? '',
+    overseasStreet:  customer.overseasStreet || customer.overseasAddress || '',
     overseasCity:    customer.overseasCity ?? '',
     overseasProvince: customer.overseasProvince ?? '',
-    overseasPostalCode: customer.overseasPostalCode ?? '',
-    overseasCountry: customer.overseasCountry ?? '',
+    overseasPostalCode: customer.overseasPostalCode || (customer.overseasAddress ? '100000' : ''),
+    overseasCountry: customer.overseasCountry || (customer.overseasAddress ? 'VIETNAM' : ''),
+    overseasAddress: customer.overseasAddress ?? '',
 
     hasPermanentResidence: customer.hasPermanentResidence ? '✓' : '',
     permRes_YES_mark: customer.hasPermanentResidence ? '✓' : '',
@@ -268,27 +288,23 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     dob_era_jp:    era?.eraJp      ?? '',
     dob_era_code,
     dob_era_yr:    era?.eraYearStr ?? '',
-
-    // Today date tags
-    today_y: dob.y ? String(new Date().getFullYear()) : '2026',
-    today_m: String(new Date().getMonth() + 1).padStart(2, '0'),
-    today_d: String(new Date().getDate()).padStart(2, '0'),
-    today_era_jp: '令和',
-    today_era_yr: '08',
-
-    // Document creation date tags
-    doc_date_y: String(new Date().getFullYear()),
-    doc_date_era_jp: '令和',
-    doc_date_era_yr: '08',
-    doc_date_m: '02',
-    doc_date_d: '15',
+    dob_era_meiji_mark: era?.eraJp === '明治' ? '○' : '',
+    dob_era_taisho_mark: era?.eraJp === '大正' ? '○' : '',
+    dob_era_showa_mark: era?.eraJp === '昭和' ? '○' : '',
+    dob_era_heisei_mark: era?.eraJp === '平成' ? '○' : '',
+    dob_era_reiwa_mark: era?.eraJp === '令和' ? '○' : '',
+    era_meiji_mark: era?.eraJp === '明治' ? '○' : '',
+    era_taisho_mark: era?.eraJp === '大正' ? '○' : '',
+    era_showa_mark: era?.eraJp === '昭和' ? '○' : '',
+    era_heisei_mark: era?.eraJp === '平成' ? '○' : '',
+    era_reiwa_mark: era?.eraJp === '令和' ? '○' : '',
 
     // Bank details
     bankName: bankNameVal,
     branchName: branchNameVal,
     accountNumber: bankAccNum,
-    accountName: primaryBank.accountName ?? '',
-    accountNameKatakana: primaryBank.accountNameKatakana ?? '',
+    accountName: primaryBank.accountName || customer.fullName || '',
+    accountNameKatakana: isJpBank ? (primaryBank.accountNameKatakana || kataName || '') : '',
     bankBranchAddress: primaryBank.bankBranchAddress ?? '',
     bankCountry: primaryBank.bankCountry ?? '',
     swiftCode: primaryBank.swiftCode ?? '',
@@ -320,6 +336,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     ...splitChars(customer.myNumber ?? '', 'my_num', 12, true),
     ...splitChars(customer.phone ?? '', 'phone', 11, true),
     ...splitChars(kataName, 'fullName_kata', 14),
+    ...splitChars(primaryBank.swiftCode ?? '', 'swift', 11, false, false),
     ...splitChars(bankAccNum, 'accountNumber', 7, true),
     ...splitChars(bankAccNum, 'account_dig', 13, true),
     ...splitChars(yuchoKigo, 'yucho_kigo', 5, true),
@@ -364,14 +381,27 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
   const accNum = rep.accountNumber || '';
 
   const repPhoneClean = (rep.phone || '').trim();
+  const repPhoneDigits = (rep.phone || '').replace(/\D/g, '');
+  let repPhone_part1 = '';
+  let repPhone_part2 = '';
+  let repPhone_part3 = '';
+  if (repPhoneDigits.length === 11) {
+    repPhone_part1 = repPhoneDigits.slice(0, 3);
+    repPhone_part2 = repPhoneDigits.slice(3, 7);
+    repPhone_part3 = repPhoneDigits.slice(7, 11);
+  } else if (repPhoneDigits.length === 10) {
+    repPhone_part1 = repPhoneDigits.slice(0, 3);
+    repPhone_part2 = repPhoneDigits.slice(3, 6);
+    repPhone_part3 = repPhoneDigits.slice(6, 10);
+  } else if (repPhoneDigits.length > 0) {
+    repPhone_part1 = repPhoneDigits.slice(0, 3);
+    repPhone_part2 = repPhoneDigits.slice(3, 7);
+    repPhone_part3 = repPhoneDigits.slice(7);
+  }
+
   let taxRep_phone = repPhoneClean;
-  if (!taxRep_phone.includes('-')) {
-    const d = taxRep_phone.replace(/\D/g, '');
-    if (d.length === 11) {
-      taxRep_phone = `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-    } else if (d.length === 10) {
-      taxRep_phone = `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
-    }
+  if (!taxRep_phone.includes('-') && repPhone_part1) {
+    taxRep_phone = `${repPhone_part1}-${repPhone_part2}-${repPhone_part3}`;
   }
 
   const repPostClean = (rep.postalCode || '').replace(/\D/g, '');
@@ -388,6 +418,18 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_name_kata:     rep.fullNameKana ?? '',
     taxRep_address:       rep.address ?? '',
     taxRep_phone:         taxRep_phone,
+    taxRep_phone_part1:   repPhone_part1,
+    taxRep_phone_part2:   repPhone_part2,
+    taxRep_phone_part3:   repPhone_part3,
+    taxRep_phone_1:       repPhone_part1,
+    taxRep_phone_2:       repPhone_part2,
+    taxRep_phone_3:       repPhone_part3,
+    rep_phone_part1:      repPhone_part1,
+    rep_phone_part2:      repPhone_part2,
+    rep_phone_part3:      repPhone_part3,
+    rep_phone_1:          repPhone_part1,
+    rep_phone_2:          repPhone_part2,
+    rep_phone_3:          repPhone_part3,
     taxRep_relationship:  rep.relationship ?? '納税管理人',
     taxRep_postalCodeFormat: rep.postalCode ?? '',
     taxRep_postalCode_part1,
@@ -515,8 +557,10 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     bankCountry:       defaultBank.bankCountry ?? '',
     accountNameKatakana: defaultBank.bankCountry === 'JAPAN' ? (defaultBank.accountNameKatakana ?? '') : '',
     accountNumber:     defaultBank.accountNumber ?? '',
+    swiftCode:         defaultBank.swiftCode ?? '',
+    swift:             defaultBank.swiftCode ?? '',
     ...splitChars(defaultBank.accountNumber ?? '', 'bank', 7, true),
-    ...splitChars(defaultBank.swiftCode ?? '', 'swift', 11, true),
+    ...splitChars(defaultBank.swiftCode ?? '', 'swift', 11, false, false),
     ...splitChars(defaultBank.bankCountry === 'JAPAN' ? (defaultBank.bankInstitutionCode ?? '') : '', 'bankInstitutionCode', 4, true),
     ...splitChars(defaultBank.bankCountry === 'JAPAN' ? (defaultBank.branchCode ?? '') : '', 'branchCode', 3, true),
 
@@ -560,24 +604,31 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
 
 export function mapTemplate2(input: DocumentMapperInput): Record<string, string> {
   const { application, customer, taxOffice, taxRepresentative } = input;
+  const appAny = application as any;
 
-  const docDate = formatDate(new Date(application.createdAt));
-  const docEra  = toJapaneseEra(new Date(application.createdAt));
+  const delegateClaim = appAny?.delegateClaim ?? true;
+  const delegatePeriod = Boolean(appAny?.delegatePeriod);
+  const delegateEstimate = Boolean(appAny?.delegateEstimate);
+  const delegateReissue = Boolean(appAny?.delegateReissue);
+  const delegateOther = Boolean(appAny?.delegateOther);
+  const delegateOtherText = appAny?.delegateOtherText || '';
 
   return {
     ...mapCustomerBase(customer),
     ...mapRepresentative(taxRepresentative),
     ...mapTaxOffice(taxOffice),
-    doc_date_era_jp: docEra.eraJp,
-    doc_date_era_yr: docEra.eraYearStr,
-    doc_date_m:      docDate.m,
-    doc_date_d:      docDate.d,
+    ...docDateTags(application.applyDate),
     app_id: application.id.slice(0, 8),
-    ...todayTags(),
     agentName: process.env.AGENT_NAME || 'ANTI GRAVITY CORPORATION',
     agentAddress: process.env.AGENT_ADDRESS || 'Tōkyō-to, Shinjuku-ku',
     agentPhone: process.env.AGENT_PHONE || '03-0000-0000',
     delegationPurpose: process.env.DELEGATION_PURPOSE || '脱退一時金請求およびそれに伴う一切の権限',
+    delegation_nenkin_period_mark: delegatePeriod ? '○' : '',
+    delegation_nenkin_estimate_mark: delegateEstimate ? '○' : '',
+    delegation_nenkin_claim_mark: delegateClaim ? '○' : '',
+    delegation_nenkin_reissue_mark: delegateReissue ? '○' : '',
+    delegation_other_mark: delegateOther ? '○' : '',
+    delegation_other_text: delegateOtherText,
     principalSignature: ' ', // Empty space for physical signature
   };
 }
@@ -589,9 +640,6 @@ export function mapTemplate2(input: DocumentMapperInput): Record<string, string>
 export function mapTemplate3(input: DocumentMapperInput): Record<string, string> {
   const { application, customer, taxOffice, taxRepresentative } = input;
 
-  const docDate = formatDate(new Date(application.createdAt));
-  const docEra  = toJapaneseEra(new Date(application.createdAt));
-
   // Departure date (ngày rời Nhật) - check both customer and application
   const depField = (customer as any)?.departureDate || (application as any)?.departureDate;
   const dep = formatDate(depField ? new Date(depField as string) : null);
@@ -602,6 +650,7 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     ...mapCustomerBase(customer),
     ...mapRepresentative(taxRepresentative),
     ...mapTaxOffice(taxOffice),
+    ...docDateTags(application.applyDate),
 
     overseasAddress: overseasAddr,
     overseasStreet: customer.overseasStreet || overseasAddr,
@@ -620,17 +669,7 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
     ...splitChars(dep.m, 'departureDate_m', 2, true),
     ...splitChars(dep.d, 'departureDate_d', 2, true),
 
-    doc_date_y:      docDate.y,
-    doc_date_era_jp: docEra.eraJp,
-    doc_date_era_yr: docEra.eraYearStr,
-    doc_date_m:      docDate.m,
-    doc_date_d:      docDate.d,
-    ...splitChars(docEra.eraYearStr, 'doc_date_era_yr', 2, true),
-    ...splitChars(docDate.m, 'doc_date_m', 2, true),
-    ...splitChars(docDate.d, 'doc_date_d', 2, true),
-
     app_id: application.id.slice(0, 8),
-    ...todayTags(),
     taxRep_appoint_mark: '○',
     taxRep_dismiss_mark: '',
     taxRep_appoint_reason: '出国のため',

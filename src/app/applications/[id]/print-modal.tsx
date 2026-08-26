@@ -20,8 +20,7 @@ const TEMPLATE_TO_TAB: Record<string, string> = {
   ininjyo_yoshiki_lan_1: 'lan1_uyquyen',
   bang_1_2: 'lan2_donxin_12',
   bang_3: 'lan2_donxin_3',
-  giay_uy_thac_lan_2: 'lan2_uyquyen',
-  nouzeikanrinin: 'lan2_tonghop',
+  nouzeikanrinin: 'lan2_nouzeikanrinin',
 };
 
 const DOCUMENT_TYPES = [
@@ -105,7 +104,7 @@ const DOCUMENT_TYPES = [
     name: 'TỔNG HỢP (LẦN 2)',
     category: 'LẦN 2',
     pages: [
-      { templateName: 'giay_uy_thac_lan_2', pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fallbackType: 'lan2_uyquyen' },
+      { templateName: 'nouzeikanrinin', pdfFile: '/forms/nouzeikanrinin.pdf', pageNumber: 0, fallbackType: 'lan2_nouzeikanrinin' },
       { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 0, fallbackType: 'lan2_donxin1' },
       { templateName: 'bang_1_2', pdfFile: '/forms/bang_1_2.pdf', pageNumber: 1, fallbackType: 'lan2_donxin2' },
       { templateName: 'bang_3', pdfFile: '/forms/bang_3.pdf', pageNumber: 0, fallbackType: 'lan2_donxin3' },
@@ -133,11 +132,11 @@ const DOCUMENT_TYPES = [
     ]
   },
   {
-    id: 'lan2_uyquyen',
-    name: '3. Giấy ủy thác (Lần 2)',
+    id: 'lan2_nouzeikanrinin',
+    name: '3. Đại diện thuế (Lần 2)',
     category: 'LẦN 2',
     pages: [
-      { templateName: 'giay_uy_thac_lan_2', pdfFile: '/forms/giay_uy_thac_lan_2.pdf', pageNumber: 0, fallbackType: 'lan2_uyquyen' }
+      { templateName: 'nouzeikanrinin', pdfFile: '/forms/nouzeikanrinin.pdf', pageNumber: 0, fallbackType: 'lan2_nouzeikanrinin' }
     ]
   },
   {
@@ -339,6 +338,8 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
       bank_name: ['bankName', 'bank_first_name', 'taxRep_bankName'],
       bank_branch: ['branchName', 'bank_first_branch', 'taxRep_branchName'],
       bank_account_type: ['bankAccountType'],
+      swift: ['swiftCode', 'bank1st_swiftCode'],
+      swiftCode: ['swift', 'bank1st_swiftCode'],
       bankName: ['bank_name', 'taxRep_bankName'],
       branchName: ['bank_branch', 'taxRep_branchName'],
       accountNumber: ['taxRep_accountNumber'],

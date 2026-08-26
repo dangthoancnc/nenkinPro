@@ -208,6 +208,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           formValues.calculatedTax             = data.calculatedTax             ?? (taxResult.calculatedTax ?? '');
           formValues.calculatedTax93           = data.calculatedTax93           ?? (taxResult.calculatedTax ?? '');
           formValues.totalGeneralTax           = data.totalGeneralTax           ?? '0';
+          formValues.delegateClaim             = data.delegateClaim ?? true;
+          formValues.delegatePeriod            = Boolean(data.delegatePeriod);
+          formValues.delegateEstimate          = Boolean(data.delegateEstimate);
+          formValues.delegateReissue           = Boolean(data.delegateReissue);
+          formValues.delegateOther             = Boolean(data.delegateOther);
+          formValues.delegateOtherText         = data.delegateOtherText || '';
           formValues.taxableRetirementIncome   = data.taxableRetirementIncome   ?? (taxResult.taxableRetirementIncome ?? '');
           formValues.retirementDeductionAmount = data.retirementDeductionAmount ?? (taxResult.retirementDeductionAmount ?? '');
 
@@ -350,6 +356,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         status: manualConfirmed ? 'VERIFIED' : 'PENDING',
         sex: data.sex, phone: data.phone,
         overseasAddress: data.overseasAddress,
+        overseasStreet: data.overseasStreet,
+        overseasCity: data.overseasCity,
+        overseasProvince: data.overseasProvince,
+        overseasPostalCode: data.overseasPostalCode,
+        overseasCountry: data.overseasCountry || 'VIETNAM',
         zaloContact: data.zaloContact, facebookContact: data.facebookContact,
         contactImageUrls: data.contactImageUrls || [],
         passportIssueDate:  data.passportIssueDate  ? new Date(data.passportIssueDate).toISOString()  : null,
@@ -386,6 +397,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         totalGeneralTax: data.totalGeneralTax ? parseFloat(String(data.totalGeneralTax)) : null,
         taxableRetirementIncome: data.taxableRetirementIncome ? parseFloat(String(data.taxableRetirementIncome)) : null,
         retirementDeductionAmount: data.retirementDeductionAmount ? parseFloat(String(data.retirementDeductionAmount)) : null,
+        delegateClaim: data.delegateClaim ?? true,
+        delegatePeriod: Boolean(data.delegatePeriod),
+        delegateEstimate: Boolean(data.delegateEstimate),
+        delegateReissue: Boolean(data.delegateReissue),
+        delegateOther: Boolean(data.delegateOther),
+        delegateOtherText: data.delegateOtherText || null,
       };
       if (isNew) {
         const cRes = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customerPayload) });
@@ -1068,9 +1085,28 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <div className="text-xs font-bold text-teal-700 border-b border-teal-100 pb-1 flex items-center justify-between">
                     <span>🇻🇳 LIÊN LẠC VIỆT NAM & GHI CHÚ</span>
                   </div>
-                  <FormField label="Địa chỉ tại Việt Nam">
+                  <FormField label="Địa chỉ đầy đủ tại Việt Nam">
                     <Input {...register('overseasAddress')} disabled={!isEditing} size="md" placeholder="VD: 123 Nguyễn Trãi, Thanh Xuân, Hà Nội" />
                   </FormField>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 space-y-2">
+                    <div className="text-[11px] font-bold text-slate-700">Chi tiết theo ô biểu mẫu Đơn Lần 1:</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="Số nhà, đường, số phòng">
+                        <Input {...register('overseasStreet')} disabled={!isEditing} size="md" placeholder="VD: 123 Đường Nguyễn Trãi" />
+                      </FormField>
+                      <FormField label="Thành phố / Quận / Huyện">
+                        <Input {...register('overseasCity')} disabled={!isEditing} size="md" placeholder="VD: Quận Thanh Xuân" />
+                      </FormField>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="Bang / Tỉnh / Thành phố trực thuộc">
+                        <Input {...register('overseasProvince')} disabled={!isEditing} size="md" placeholder="VD: Hà Nội" />
+                      </FormField>
+                      <FormField label="Mã bưu điện VN (6 số)">
+                        <Input {...register('overseasPostalCode')} disabled={!isEditing} size="md" placeholder="VD: 100000" />
+                      </FormField>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Điện thoại (VN/Nhật)">
                       <Input {...register('phone')} disabled={!isEditing} size="md" />
@@ -1522,6 +1558,66 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     </button>
                   </div>
                 )}
+
+                {/* ── NỘI DUNG ỦY QUYỀN LẦN 1 (委任内容) ── */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2 space-y-1.5 text-xs">
+                  <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between border-b border-slate-200 pb-1">
+                    <span className="flex items-center gap-1">📜 Nội dung ủy quyền L1 (委任状)</span>
+                    <span className="text-[9px] text-slate-400 font-normal">Tự động in vòng khoanh ○</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 pt-0.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 font-semibold hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        checked={watch('delegateClaim') ?? true}
+                        onChange={e => setValue('delegateClaim', e.target.checked, { shouldDirty: true })}
+                        disabled={!isEditing}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      />
+                      <span>Mục 3: Xin nhận tiền thoái thác Nenkin (③ 年金の請求)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        checked={watch('delegateReissue') || false}
+                        onChange={e => setValue('delegateReissue', e.target.checked, { shouldDirty: true })}
+                        disabled={!isEditing}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      />
+                      <span>Mục 4: Xin cấp lại sổ/chứng nhận Nenkin (④ 年金手帳等の再交付)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        checked={watch('delegatePeriod') || false}
+                        onChange={e => setValue('delegatePeriod', e.target.checked, { shouldDirty: true })}
+                        disabled={!isEditing}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      />
+                      <span>Mục 1: Tra cứu thời gian đóng bảo hiểm (① 年金の加入期間)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        checked={watch('delegateEstimate') || false}
+                        onChange={e => setValue('delegateEstimate', e.target.checked, { shouldDirty: true })}
+                        disabled={!isEditing}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      />
+                      <span>Mục 2: Ước tính số tiền trợ cấp (② 年金の見込額)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 hover:text-indigo-600">
+                      <input
+                        type="checkbox"
+                        checked={watch('delegateOther') || false}
+                        onChange={e => setValue('delegateOther', e.target.checked, { shouldDirty: true })}
+                        disabled={!isEditing}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      />
+                      <span>Mục 5: Nội dung khác (⑤ その他)</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             ) : (
               // ── STAGE 2 DATES & PROGRESS ──

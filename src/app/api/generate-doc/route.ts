@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     } else if (templateType === 'ininjyo_yoshiki_lan_1') {
       pdfTemplateName = 'ininjyo_yoshiki_lan_1.pdf';
       outputFilename = `UyQuyen_${application.customer.code}.pdf`;
-    } else if (templateType === 'nouzeikanrinin') {
+    } else if (templateType === 'nouzeikanrinin' || (templateType as string) === 'giay_uy_thac_lan_2') {
       pdfTemplateName = 'nouzeikanrinin.pdf'; // 納税管理人届出書
       outputFilename = `NguoiDaiDienThue_${application.customer.code}.pdf`;
     } else if (templateType === 'bang_1_2') {
@@ -71,9 +71,6 @@ export async function POST(req: NextRequest) {
     } else if (templateType === 'bang_3') {
       pdfTemplateName = 'bang_3.pdf';
       outputFilename = `Bang_3_${application.customer.code}.pdf`;
-    } else if (templateType === 'giay_uy_thac_lan_2') {
-      pdfTemplateName = 'giay_uy_thac_lan_2.pdf';
-      outputFilename = `GiayUyThacLan2_${application.customer.code}.pdf`;
     } else {
       return NextResponse.json({ error: 'Invalid templateType' }, { status: 400 });
     }

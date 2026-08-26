@@ -1,16 +1,8 @@
 {
-  "accountNameKatakana": {
+  "fullName_kata": {
     "page": 1,
     "x": 334.56,
     "y": 395.78,
-    "size": 10,
-    "width": 210,
-    "height": 16
-  },
-  "accountName": {
-    "page": 1,
-    "x": 334.56,
-    "y": 432,
     "size": 10,
     "width": 210,
     "height": 16
@@ -217,8 +209,8 @@
     "y": 114.91,
     "size": 12,
     "type": "text",
-    "width": 219,
-    "height": 22
+    "width": 71,
+    "height": 14
   },
   "overseasCity": {
     "page": 0,
@@ -244,8 +236,8 @@
     "y": 141.95,
     "size": 12,
     "type": "text",
-    "width": 264,
-    "height": 23
+    "width": 55,
+    "height": 14
   },
   "overseasStreet": {
     "page": 0,
@@ -413,7 +405,7 @@
   },
   "swift_7": {
     "page": 1,
-    "x": 282.94,
+    "x": 276.94,
     "y": 686.92,
     "size": 12,
     "type": "text",
@@ -422,7 +414,7 @@
   },
   "swift_8": {
     "page": 1,
-    "x": 304.72,
+    "x": 299.72,
     "y": 686.92,
     "size": 12,
     "type": "text",
@@ -431,7 +423,7 @@
   },
   "swift_9": {
     "page": 1,
-    "x": 328.83,
+    "x": 320.83,
     "y": 686.92,
     "size": 12,
     "type": "text",
@@ -440,7 +432,7 @@
   },
   "swift_10": {
     "page": 1,
-    "x": 350.72,
+    "x": 344.72,
     "y": 686.92,
     "size": 12,
     "type": "text",
@@ -449,7 +441,7 @@
   },
   "swift_11": {
     "page": 1,
-    "x": 374.17,
+    "x": 369.17,
     "y": 686.92,
     "size": 9,
     "type": "text",

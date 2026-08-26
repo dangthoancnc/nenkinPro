@@ -49,12 +49,13 @@
   },
   "taxRep_appoint_mark": {
     "page": 0,
-    "x": 333.78,
-    "y": 492,
-    "type": "circle",
-    "width": 38,
-    "height": 14,
-    "thickness": 1
+    "x": 322.22,
+    "y": 487.56,
+    "size": 24,
+    "type": "text",
+    "align": "left",
+    "width": 31,
+    "height": 29
   },
   "taxRep_appoint_reason": {
     "page": 0,
@@ -413,14 +414,5 @@
     "align": "left",
     "width": 20,
     "height": 12
-  },
-  "income_salary_mark": {
-    "page": 0,
-    "x": 235,
-    "y": 172,
-    "type": "circle",
-    "width": 50,
-    "height": 16,
-    "thickness": 1
   }
 }
