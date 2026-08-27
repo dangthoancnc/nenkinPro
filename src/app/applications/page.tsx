@@ -550,7 +550,7 @@ function ApplicationsPageInner() {
                       </div>
                       <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
                         <span className="text-slate-500">Ngân hàng</span>
-                        <span className="font-medium text-slate-700 text-right truncate max-w-[120px]" title={app.customer?.bankName}>{app.customer?.bankName || '---'}</span>
+                        <span className="font-medium text-slate-700 text-right truncate max-w-[120px]" title={app.customer?.bankName || undefined}>{app.customer?.bankName || '---'}</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-slate-50 pb-1.5">
                         <span className="text-slate-500">Ngày nộp</span>
