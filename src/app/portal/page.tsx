@@ -143,6 +143,31 @@ export default function PortalPage() {
         </div>
       </div>
 
+      {/* ── BÀN LÀM VIỆC CỦA NHÂN VIÊN/ADMIN ── */}
+      {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 shadow-xs">
+          <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <UserCircle className="w-4 h-4" /> Bàn làm việc của Quản lý / Nhân viên xử lý
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => router.push('/applications')}>
+              <div>
+                <h4 className="font-bold text-xs text-slate-800">Hồ sơ đang phụ trách</h4>
+                <p className="text-[10px] text-slate-500">Xem danh sách các hồ sơ được phân công cho bạn xử lý.</p>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => router.push('/tax-representatives')}>
+              <div>
+                <h4 className="font-bold text-xs text-slate-800">Thông tin Đại diện thuế của tôi</h4>
+                <p className="text-[10px] text-slate-500">Cập nhật tài khoản ngân hàng và thông tin cá nhân nộp lên Cục thuế.</p>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-slate-400" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 3. MAIN WORKSPACE GRID (BẢNG TIN FEED + DASHBOARD) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         

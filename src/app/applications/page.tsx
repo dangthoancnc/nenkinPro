@@ -5,7 +5,7 @@ import {
   FileText, Plus, Filter, ArrowRight,
   Clock, CheckCircle, AlertCircle, Send, Wallet,
   ChevronUp, ChevronDown, LayoutGrid, List, LayoutTemplate,
-  ChevronLeft, ChevronRight, Eye, ArrowRightLeft, UserCheck, UserX, Stamp
+  ChevronLeft, ChevronRight, Eye, ArrowRightLeft, UserCheck, UserX, Stamp, User, Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -25,13 +25,20 @@ interface Application {
     email?: string;
     role?: string;
   } | null;
-  customer: {
+  taxRepresentative?: {
+    fullName: string;
+  } | null;
+  customer?: {
+    id: string;
     fullName: string;
     code: string;
-    bankName?: string;
-    dob?: string;
-    taxOfficeId?: string;
-    zairyuFrontUrl?: string;
+    taxOfficeId: string | null;
+    bankName?: string | null;
+    zairyuFrontUrl?: string | null;
+    createdBy?: {
+      name: string;
+      staffCode?: string | null;
+    } | null;
   };
   createdAt: string;
 }
@@ -371,8 +378,8 @@ function ApplicationsPageInner() {
                 <th className="px-4 py-2.5 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
                   <div className="flex items-center gap-1">Trạng thái <SortIcon col="status" /></div>
                 </th>
-                <th className="px-4 py-2.5 font-semibold">Cục thuế</th>
-                <th className="px-4 py-2.5 font-semibold">Ngân hàng</th>
+                <th className="px-4 py-2.5 font-semibold">Nguồn (CTV)</th>
+                <th className="px-4 py-2.5 font-semibold">Đại diện thuế</th>
                 <th className="px-4 py-2.5 font-semibold">Phụ trách</th>
                 <th className="px-4 py-2.5 font-semibold cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => handleSort('applyDate')}>
                   <div className="flex items-center gap-1">Ngày nộp <SortIcon col="applyDate" /></div>
@@ -434,13 +441,17 @@ function ApplicationsPageInner() {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600">
-                        <div className="max-w-[130px] truncate text-xs" title={taxOffice?.name}>
-                          {taxOffice?.name || '---'}
+                        <div className="max-w-[130px] truncate text-xs font-medium" title={app.customer?.createdBy?.name}>
+                          {app.customer?.createdBy?.name ? (
+                             <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-400" /> {app.customer.createdBy.name}</span>
+                          ) : '---'}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600">
-                        <div className="max-w-[110px] truncate text-xs" title={app.customer?.bankName}>
-                          {app.customer?.bankName || '---'}
+                        <div className="max-w-[110px] truncate text-xs" title={app.taxRepresentative?.fullName}>
+                          {app.taxRepresentative?.fullName ? (
+                             <span className="flex items-center gap-1"><Building2 className="w-3 h-3 text-slate-400" /> {app.taxRepresentative.fullName}</span>
+                          ) : '---'}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-xs" onClick={(e) => e.stopPropagation()}>

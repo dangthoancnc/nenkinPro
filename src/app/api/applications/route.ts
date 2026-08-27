@@ -98,12 +98,17 @@ export async function GET(request: Request) {
               fullName: true,
               code: true,
               taxOfficeId: true,
+              createdBy: { select: { name: true, staffCode: true } }
             }
           },
           assignedUser: { select: { id: true, name: true, email: true, role: true } },
+          taxRepresentative: { select: { fullName: true } }
         } : {
-          customer: true,
+          customer: {
+            include: { createdBy: { select: { name: true, staffCode: true } } }
+          },
           assignedUser: { select: { id: true, name: true, email: true, role: true } },
+          taxRepresentative: { select: { fullName: true } }
         },
         orderBy: orderByClause,
         skip,
