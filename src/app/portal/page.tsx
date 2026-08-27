@@ -15,6 +15,7 @@ export default function PortalPage() {
     pendingCommissionJpy: 0,
   });
   const [feedList, setFeedList] = useState<any[]>([]);
+  const [assignedApps, setAssignedApps] = useState<any[]>([]);
   const [postContent, setPostContent] = useState('');
   const [posting, setPosting] = useState(false);
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function PortalPage() {
         if (d.success && d.data) {
           setStats(d.data.stats);
           setFeedList(d.data.feeds || []);
+          setAssignedApps(d.data.assignedApplications || []);
         }
       })
       .catch(console.error);
@@ -146,24 +148,41 @@ export default function PortalPage() {
       {/* ── BÀN LÀM VIỆC CỦA NHÂN VIÊN/ADMIN ── */}
       {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 shadow-xs">
-          <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <UserCircle className="w-4 h-4" /> Bàn làm việc của Quản lý / Nhân viên xử lý
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => router.push('/applications')}>
-              <div>
-                <h4 className="font-bold text-xs text-slate-800">Hồ sơ đang phụ trách</h4>
-                <p className="text-[10px] text-slate-500">Xem danh sách các hồ sơ được phân công cho bạn xử lý.</p>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+              <UserCircle className="w-4 h-4" /> Bàn làm việc của Quản lý / Nhân viên xử lý
+            </h3>
+            <button onClick={() => router.push('/tax-representatives')} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+              Thông tin Đại diện thuế <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h4 className="font-bold text-xs text-slate-800">Hồ sơ đang chờ xử lý</h4>
+              <button onClick={() => router.push('/applications?filter=my_assigned')} className="text-[10px] text-slate-500 hover:text-indigo-600">Xem tất cả</button>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => router.push('/tax-representatives')}>
-              <div>
-                <h4 className="font-bold text-xs text-slate-800">Thông tin Đại diện thuế của tôi</h4>
-                <p className="text-[10px] text-slate-500">Cập nhật tài khoản ngân hàng và thông tin cá nhân nộp lên Cục thuế.</p>
+            {assignedApps.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-500">
+                Tuyệt vời! Bạn không có hồ sơ nào đang chờ xử lý.
               </div>
-              <ArrowUpRight className="w-4 h-4 text-slate-400" />
-            </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {assignedApps.map(app => (
+                  <div key={app.id} onClick={() => router.push(`/applications/${app.id}`)} className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-800">{app.customer?.fullName || 'Chưa rõ'}</div>
+                      <div className="text-[10px] text-slate-500">{app.customer?.code || app.id.slice(0,6)}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        {app.status}
+                      </span>
+                      <ArrowUpRight className="w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

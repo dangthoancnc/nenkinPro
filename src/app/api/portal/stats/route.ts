@@ -86,6 +86,18 @@ export async function GET(req: Request) {
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ).slice(0, 20);
 
+    let assignedApplications: any[] = [];
+    if (user.role === 'ADMIN' || user.role === 'MANAGER') {
+      assignedApplications = await prisma.nenkinApplication.findMany({
+        where: { assignedUserId: user.id },
+        include: {
+          customer: { select: { fullName: true, code: true } }
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 5
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -95,7 +107,8 @@ export async function GET(req: Request) {
           totalCommissionJpy,
           pendingCommissionJpy,
         },
-        feeds: allFeeds
+        feeds: allFeeds,
+        assignedApplications
       }
     });
   } catch (err: any) {
