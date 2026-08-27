@@ -57,6 +57,8 @@ export default function ApplicationsPage() {
 
 function ApplicationsPageInner() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [totalApps, setTotalApps] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   
   const searchParams = useSearchParams();
@@ -81,15 +83,35 @@ function ApplicationsPageInner() {
   const fetchApplicationsData = async () => {
     try {
       setLoading(true);
-      const url = assignedFilter === 'all' ? '/api/applications' : `/api/applications?filter=${assignedFilter}`;
+      const params = new URLSearchParams();
+      if (assignedFilter !== 'all') params.append('filter', assignedFilter);
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
+      if (q) params.append('q', q);
+      if (filterStatuses.length > 0) params.append('statuses', filterStatuses.join(','));
+      if (filterBank) params.append('bank', filterBank);
+      if (filterDobFrom) params.append('dobFrom', filterDobFrom);
+      if (filterDobTo) params.append('dobTo', filterDobTo);
+      params.append('sortCol', sortCol);
+      params.append('sortDir', sortDir);
+
+      const url = `/api/applications?${params.toString()}`;
       const [appRes, taxRes] = await Promise.all([
         fetch(url),
         fetch('/api/tax-offices')
       ]);
       
       if (appRes.ok) {
-        const data = await appRes.json();
-        setApplications(data);
+        const json = await appRes.json();
+        if (json.data) {
+          setApplications(json.data);
+          setTotalApps(json.total);
+          setServerTotalPages(json.totalPages);
+        } else {
+          setApplications(Array.isArray(json) ? json : []);
+          setTotalApps(Array.isArray(json) ? json.length : 0);
+          setServerTotalPages(Math.ceil((Array.isArray(json) ? json.length : 0) / itemsPerPage));
+        }
       }
       if (taxRes.ok) {
         const data = await taxRes.json();
@@ -106,7 +128,7 @@ function ApplicationsPageInner() {
 
   useEffect(() => {
     fetchApplicationsData();
-  }, [assignedFilter]);
+  }, [assignedFilter, currentPage, q, filterStatuses, filterBank, filterDobFrom, filterDobTo, sortCol, sortDir]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -121,52 +143,6 @@ function ApplicationsPageInner() {
     if (sortCol !== col) return <ChevronDown className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100" />;
     return sortDir === 'asc' ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />;
   };
-
-  let filteredApplications = applications.filter(app => {
-    if (q) {
-      const searchLower = q.toLowerCase();
-      const matchName = app.customer?.fullName?.toLowerCase().includes(searchLower);
-      const matchCode = app.customer?.code?.toLowerCase().includes(searchLower);
-      if (!matchName && !matchCode) return false;
-    }
-    if (filterStatuses.length > 0) {
-      if (!filterStatuses.includes(app.status)) return false;
-    }
-    if (filterBank) {
-      // @ts-ignore - customer has bankName but TS interface is missing it
-      if (!app.customer?.bankName?.toLowerCase().includes(filterBank.toLowerCase())) return false;
-    }
-    if (filterDobFrom) {
-      // @ts-ignore
-      if (app.customer?.dob && new Date(app.customer.dob) < new Date(filterDobFrom)) return false;
-    }
-    if (filterDobTo) {
-      // @ts-ignore
-      if (app.customer?.dob && new Date(app.customer.dob) > new Date(filterDobTo)) return false;
-    }
-    return true;
-  });
-
-  filteredApplications = filteredApplications.sort((a, b) => {
-    let cmp = 0;
-    if (sortCol === 'name') {
-      cmp = (a.customer?.fullName || '').localeCompare(b.customer?.fullName || '');
-    } else if (sortCol === 'status') {
-      cmp = a.status.localeCompare(b.status);
-    } else if (sortCol === 'applyDate') {
-      const da = a.applyDate ? new Date(a.applyDate).getTime() : 0;
-      const db = b.applyDate ? new Date(b.applyDate).getTime() : 0;
-      cmp = da - db;
-    } else if (sortCol === 'jpy') {
-      const va = a.totalExpectedJpy || 0;
-      const vb = b.totalExpectedJpy || 0;
-      cmp = va - vb;
-    }
-    return sortDir === 'asc' ? cmp : -cmp;
-  });
-
-  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
-  const paginatedApps = filteredApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-3 sm:space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
@@ -243,19 +219,19 @@ function ApplicationsPageInner() {
 
         <button type="button" onClick={() => setFilterStatuses([])}
           className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.length === 0 ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-          Tổng ({applications.length})
+          Tổng ({totalApps})
         </button>
         <button type="button" onClick={() => setFilterStatuses(['PENDING'])}
           className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.includes('PENDING') ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>
-          Cần duyệt ({applications.filter(a => a.status === 'PENDING').length})
+          Cần duyệt
         </button>
         <button type="button" onClick={() => setFilterStatuses(['DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND'])}
           className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.some(s => ['DRAFT', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND'].includes(s)) ? 'bg-amber-600 text-white border-amber-600' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-          Đang xử lý ({applications.filter(a => !['COMPLETED', 'CANCELLED', 'PENDING'].includes(a.status)).length})
+          Đang xử lý
         </button>
         <button type="button" onClick={() => setFilterStatuses(['COMPLETED'])}
           className={`px-2.5 py-1 rounded-lg text-xs font-bold border shrink-0 transition-all ${filterStatuses.includes('COMPLETED') ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-          Hoàn thành ({applications.filter(a => a.status === 'COMPLETED').length})
+          Hoàn thành
         </button>
       </div>
 
@@ -327,10 +303,10 @@ function ApplicationsPageInner() {
       <div className="md:hidden flex flex-col gap-2">
         {loading ? (
           <div className="text-center py-8 text-xs text-slate-400">Đang tải dữ liệu...</div>
-        ) : filteredApplications.length === 0 ? (
+        ) : totalApps === 0 ? (
           <div className="text-center py-8 text-xs text-slate-400">Không tìm thấy hồ sơ phù hợp</div>
         ) : (
-          paginatedApps.map((app) => {
+          applications.map((app) => {
             const status = statusConfig[app.status];
             const StatusIcon = status.icon;
             const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
@@ -416,7 +392,7 @@ function ApplicationsPageInner() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredApplications.length === 0 ? (
+              ) : totalApps === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-3">
@@ -428,7 +404,7 @@ function ApplicationsPageInner() {
                   </td>
                 </tr>
               ) : (
-                paginatedApps.map((app) => {
+                applications.map((app) => {
                   const status = statusConfig[app.status];
                   const StatusIcon = status.icon;
                   const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
@@ -517,7 +493,7 @@ function ApplicationsPageInner() {
                 <p>Đang tải dữ liệu...</p>
               </div>
             </div>
-          ) : filteredApplications.length === 0 ? (
+          ) : totalApps === 0 ? (
             <div className="py-12 text-center text-slate-500 flex flex-col items-center gap-3 col-span-full">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                 <FileText className="w-6 h-6 text-slate-400" />
@@ -525,7 +501,7 @@ function ApplicationsPageInner() {
               <p>{q || filterStatuses.length ? 'Không tìm thấy kết quả.' : 'Chưa có hồ sơ nào.'}</p>
             </div>
           ) : (
-            paginatedApps.map((app) => {
+            applications.map((app) => {
               const status = statusConfig[app.status];
               const StatusIcon = status.icon;
               const taxOffice = taxOffices.find((t: any) => t.id === app.customer?.taxOfficeId);
@@ -602,10 +578,10 @@ function ApplicationsPageInner() {
       )}
         
         {/* Pagination Controls */}
-        {totalPages > 1 && (
+        {serverTotalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50/50">
             <div className="text-sm text-slate-500">
-              Hiển thị <span className="font-medium text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> trong số <span className="font-medium text-slate-900">{filteredApplications.length}</span> kết quả
+              Hiển thị <span className="font-medium text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> đến <span className="font-medium text-slate-900">{Math.min(currentPage * itemsPerPage, totalApps)}</span> trong số <span className="font-medium text-slate-900">{totalApps}</span> kết quả
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -617,7 +593,7 @@ function ApplicationsPageInner() {
               </button>
               
               <div className="flex items-center gap-1 mx-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                {Array.from({ length: serverTotalPages }, (_, i) => i + 1).map(page => (
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
@@ -633,8 +609,8 @@ function ApplicationsPageInner() {
               </div>
 
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(serverTotalPages, p + 1))}
+                disabled={currentPage === serverTotalPages}
                 className="p-1 rounded-md text-slate-500 hover:bg-slate-200 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
               >
                 <ChevronRight className="w-5 h-5" />

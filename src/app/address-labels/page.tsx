@@ -69,7 +69,7 @@ export default function AddressLabelsPage() {
         const [repsRes, officesRes, appsRes] = await Promise.all([
           fetch('/api/tax-representatives'),
           fetch('/api/tax-offices'),
-          fetch('/api/applications'),
+          fetch('/api/applications?minimal=true&limit=1000'),
         ]);
 
         if (repsRes.ok) {

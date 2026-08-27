@@ -651,7 +651,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 : Array.isArray(val) ? val.length > 0 : !!val;
               return (
                 <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
-                  className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
+                  className={`px-2 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap sm:whitespace-normal truncate shrink-0 sm:shrink ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : 'bg-white/70 border border-slate-200/80 text-slate-700 hover:bg-slate-50'
@@ -698,7 +698,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 key={idx}
                 type="button"
                 onClick={() => setSelectedBankImageIndex(idx)}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all shrink-0 ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors shrink-0 ${
                   selectedBankImageIndex === idx
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
@@ -708,7 +708,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </button>
             ))}
             {isEditing && (
-              <label className="cursor-pointer px-2.5 py-1 text-[11px] font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all shrink-0">
+              <label className="cursor-pointer px-2.5 py-1 text-[11px] font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-colors shrink-0">
                 <span>＋ Thêm ảnh</span>
                 <input
                   type="file"
@@ -803,22 +803,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         }
                         runOcrExtract(currentDocUrl);
                       }}
-                      className="w-7 h-7 flex items-center justify-center text-indigo-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                      className="w-7 h-7 flex items-center justify-center text-indigo-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                       <Sparkles className="w-4 h-4" />
                     </button>
                     <button type="button" title="Cắt ảnh"
                       onClick={() => { if (currentDocUrl) { setCropDocKey(activeDoc); setCropUrlField(currentDocField); setCropImageSrc(currentDocUrl); } }}
-                      className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                      className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                       <Crop className="w-4 h-4" />
                     </button>
                     <label className="cursor-pointer" title="Thay thế ảnh">
-                      <span className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                      <span className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                         <UploadCloud className="w-4 h-4" />
                       </span>
                       <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
                     </label>
                     <button type="button" title="Xóa ảnh"
-                      className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-all"
+                      className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-colors"
                       onClick={() => toast(`Xóa ảnh ${currentDocTitle}?`, {
                         action: { label: 'Xóa', onClick: async () => {
                           if (isBankDoc) {
@@ -855,14 +855,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 )}
                 <button type="button" title="Phóng to"
                   onClick={() => setLightboxUrl(currentDocUrl || null)}
-                  className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                   <ZoomIn className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ) : isEditing ? (
             <label
-              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/40 transition-all text-slate-400 hover:text-indigo-600 bg-white/50 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 rounded-xl p-6"
+              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/40 transition-colors text-slate-400 hover:text-indigo-600 bg-white/50 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 rounded-xl p-6"
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField); }}
             >
@@ -972,8 +972,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
                       verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
                       state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
-                      rightIcon={watch('zairyuAddress') ? (
-                        <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(watch('zairyuAddress')||'')}`, '_blank')} className="text-indigo-600 hover:text-indigo-800">
+                      rightIcon={getValues('zairyuAddress') ? (
+                        <button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getValues('zairyuAddress')||'')}`, '_blank')} className="text-indigo-600 hover:text-indigo-800">
                           <MapPin className="w-3.5 h-3.5" />
                         </button>
                       ) : undefined} />
@@ -983,7 +983,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
                         state={verifiedFields['postalCode'] ? 'verified' : 'default'}
                         rightIcon={
-                          <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
+                          <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
                             <Search className="w-3.5 h-3.5" />
                           </button>
                         } />
@@ -1237,7 +1237,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             setSelectedBankIndex(bIdx);
                             setSelectedBankImageIndex(0);
                           }}
-                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shrink-0 flex items-center gap-1 ${
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0 flex items-center gap-1 ${
                             isSelected
                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                               : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -1256,7 +1256,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                           setSelectedBankIndex(nextIdx);
                           setSelectedBankImageIndex(0);
                         }}
-                        className="px-2 py-1 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-all shrink-0"
+                        className="px-2 py-1 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-colors shrink-0"
                       >
                         ＋ Thêm TK
                       </button>
@@ -1452,7 +1452,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <div className="mt-4 space-y-2">
               <div
                 onClick={handleBlockClick}
-                className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-all cursor-pointer select-none ${
+                className={`p-2.5 border rounded-lg flex items-center justify-between gap-2 transition-colors cursor-pointer select-none ${
                   isFullyVerified
                     ? 'bg-emerald-50 border-emerald-300 shadow-2xs'
                     : 'bg-amber-50/80 border-amber-200 hover:bg-amber-100/70'
@@ -1508,7 +1508,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                             e.stopPropagation();
                             scrollToField(item.key);
                           }}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-all ${
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-colors ${
                             isDone
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                               : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs hover:scale-105'
@@ -1540,7 +1540,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           {watch('zairyuFrontUrl') ? (
             <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
               <button type="button" onClick={() => setLightboxUrl(watch('zairyuFrontUrl') || null)}
-                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white">
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-colors flex items-center justify-center text-white">
                 <ZoomIn className="w-3 h-3" />
               </button></>
           ) : <span className="text-[8px] text-slate-400 text-center px-0.5 font-medium leading-tight">No Img</span>}
@@ -1599,7 +1599,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           <button
             type="button"
             onClick={() => setRefundStage('lan1')}
-            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
               refundStage === 'lan1'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -1611,7 +1611,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           <button
             type="button"
             onClick={() => setRefundStage('lan2')}
-            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
               refundStage === 'lan2'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -1627,7 +1627,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className="px-3 pt-1.5 border-b border-slate-100/80 bg-white/40 flex gap-1 shrink-0">
         {(['dates', 'finance', 'history'] as const).map(tab => (
           <button key={tab} type="button" onClick={() => setPanel3aTab(tab as any)}
-            className={`px-2 py-1 text-[11px] font-bold border-b-2 -mb-px transition-all ${
+            className={`px-2 py-1 text-[11px] font-bold border-b-2 -mb-px transition-colors ${
               panel3aTab === (tab as any)
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1886,7 +1886,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               type="button"
               variant="outline"
               size="xs"
-              className="w-full mt-1.5 bg-indigo-50/70 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-1.5"
+              className="w-full mt-1.5 bg-indigo-50/70 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1.5"
               onClick={() => setShowSettlementModal(true)}
             >
               💬 Mẫu thông báo Quyết toán (Dành cho NV)
@@ -1933,13 +1933,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   // TAX OFFICE & TAX REPRESENTATIVE LEGAL PANEL
   // ─────────────────────────────────────────────
   const taxPanelNode = (
-    <div id="tax-office-section" className={`${glassPanel} transition-all duration-300 overflow-hidden`}>
+    <div id="tax-office-section" className={`${glassPanel} transition-colors duration-300 overflow-hidden`}>
       {/* Top Legal Tab Switcher */}
       <div className="flex items-center gap-1 px-3 pt-1.5 bg-slate-100/70 border-b border-slate-200/80 shrink-0">
         <button
           type="button"
           onClick={() => setBottomLegalTab('office')}
-          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 border-t border-x ${
+          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-colors flex items-center gap-1.5 border-t border-x ${
             bottomLegalTab === 'office'
               ? 'bg-white text-indigo-700 border-slate-200/90 shadow-2xs'
               : 'bg-transparent text-slate-500 hover:text-slate-700 border-transparent'
@@ -1954,7 +1954,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         <button
           type="button"
           onClick={() => setBottomLegalTab('rep')}
-          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 border-t border-x ${
+          className={`px-3 py-1 text-xs font-bold rounded-t-lg transition-colors flex items-center gap-1.5 border-t border-x ${
             bottomLegalTab === 'rep'
               ? 'bg-white text-indigo-700 border-slate-200/90 shadow-2xs'
               : 'bg-transparent text-slate-500 hover:text-slate-700 border-transparent'
@@ -1981,7 +1981,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
                   }
                 }}
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-colors border cursor-pointer select-none shadow-2xs ${
                   verifiedFields['taxOffice']
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                     : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
@@ -2010,19 +2010,19 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap shrink-0">
-              <button type="button" onClick={() => handleNtaSearch(watch('postalCode'))}
-                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
+              <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))}
+                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-colors">
                 🔍 Tra cứu ZIP
               </button>
               {selectedTaxOffice?.websiteUrl && (
                 <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer"
-                  className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all">
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-colors">
                   🔍 NTA
                 </a>
               )}
               {(['card', 'form', 'diff'] as const).map(panel => (
                 <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-colors ${
                     taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
                   }`}>
                   {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
@@ -2059,7 +2059,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             {taxPanel === 'diff' && (
               <TaxOfficeDiffPanel
                 dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
-                postalCode={watch('postalCode') as string | undefined}
+                postalCode={getValues('postalCode') as string | undefined}
                 onSyncFields={handleTaxSyncFields}
                 onClose={() => setTaxPanel('card')}
                 className="border-0 rounded-none shadow-none p-0"
@@ -2081,7 +2081,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                     toast.info('Đã bỏ tích đối chiếu Người đại diện thuế');
                   }
                 }}
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-all border cursor-pointer select-none shadow-2xs ${
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-colors border cursor-pointer select-none shadow-2xs ${
                   verifiedFields['taxRepresentative']
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                     : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
@@ -2118,7 +2118,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 href="/tax-representatives"
                 target="_blank"
                 rel="noreferrer"
-                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-all"
+                className="px-2 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200/80 bg-white/70 hover:bg-slate-50 rounded-lg transition-colors"
                 title="Mở trang Quản lý Danh mục Người đại diện thuế"
               >
                 ⚙️ Danh mục ↗
@@ -2128,7 +2128,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   key={panel}
                   type="button"
                   onClick={() => setTaxRepPanel(panel)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                  className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-colors ${
                     taxRepPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100/80'
                   }`}
                 >
@@ -2259,7 +2259,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             key={tab.id}
             type="button"
             onClick={() => setMobileTab(tab.id)}
-            className={`w-full py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate ${
+            className={`w-full py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-colors text-center truncate ${
               mobileTab === tab.id
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
@@ -2298,7 +2298,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         setActiveDoc(doc.key);
                         if (docUrl) setLightboxUrl(docUrl);
                       }}
-                      className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
                         isActive
                           ? 'border-indigo-500 shadow-sm shadow-indigo-200'
                           : 'border-slate-200/80 hover:border-slate-300'
@@ -2393,7 +2393,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       {/* Lightbox */}
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
-          <button type="button" className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-all" onClick={() => setLightboxUrl(null)}>
+          <button type="button" className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-colors" onClick={() => setLightboxUrl(null)}>
             <X className="w-5 h-5" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}

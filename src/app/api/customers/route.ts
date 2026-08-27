@@ -160,28 +160,54 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const { user, error } = await requireStaff();
   if (error || !user) return error;
 
   try {
-    let whereClause = {};
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const q = searchParams.get('q') || '';
+    const skip = (page - 1) * limit;
+
+    let whereClause: any = {};
+    const andConditions: any[] = [];
+
     if (user.role === 'COLLABORATOR') {
-      whereClause = { createdById: user.id };
+      andConditions.push({ createdById: user.id });
     }
 
-    const customers = await prisma.customer.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: { 
-        taxOffice: true,
-        applications: {
-          select: { id: true },
-          take: 1
-        },
-        bankAccounts: true
-      }
-    });
+    if (q) {
+      andConditions.push({
+        OR: [
+          { fullName: { contains: q, mode: 'insensitive' } },
+          { code: { contains: q, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      whereClause = { AND: andConditions };
+    }
+
+    const [customers, total] = await Promise.all([
+      prisma.customer.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { 
+          taxOffice: true,
+          applications: {
+            select: { id: true },
+            take: 1
+          },
+          bankAccounts: true
+        }
+      }),
+      prisma.customer.count({ where: whereClause })
+    ]);
     
     const formattedCustomers = customers.map(c => {
       return {
@@ -192,7 +218,14 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, data: formattedCustomers });
+    return NextResponse.json({ 
+      success: true, 
+      data: formattedCustomers,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error: unknown) {
     console.error('Fetch Customers Error:', error);
     return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
