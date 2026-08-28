@@ -260,7 +260,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               bankBranchAddress: acc.bankBranchAddress || null,
               bankInstitutionCode: acc.bankInstitutionCode || null,
               branchCode: acc.branchCode || null,
-              bankAccountType: acc.bankAccountType || null
+              bankAccountType: acc.bankAccountType || null,
+              isYucho: acc.isYucho === true || acc.isYucho === 'true',
+              yuchoKigo: acc.yuchoKigo || null,
+              yuchoBango: acc.yuchoBango || null,
             }))
           });
         }

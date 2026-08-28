@@ -638,6 +638,10 @@ export function mapTemplate2(input: DocumentMapperInput): Record<string, string>
     ...mapRepresentative(taxRepresentative),
     ...mapTaxOffice(taxOffice),
     ...docDateTags(application.applyDate),
+    
+    // Giấy ủy quyền Lần 1 bắt buộc dùng địa chỉ Việt Nam (overseasAddress)
+    address: customer.overseasAddress || [customer.overseasStreet, customer.overseasCity, customer.overseasProvince, customer.overseasCountry].filter(Boolean).join(', ') || 'VIET NAM',
+    
     app_id: application.id.slice(0, 8),
     agentName: process.env.AGENT_NAME || 'ANTI GRAVITY CORPORATION',
     agentAddress: process.env.AGENT_ADDRESS || 'Tōkyō-to, Shinjuku-ku',

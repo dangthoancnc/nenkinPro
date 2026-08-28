@@ -117,7 +117,19 @@ export async function POST(req: Request) {
             bankBranchAddress: acc.bankBranchAddress || null,
             bankInstitutionCode: acc.bankInstitutionCode || null,
             branchCode: acc.branchCode || null,
-            bankAccountType: acc.bankAccountType || null
+            bankAccountType: acc.bankAccountType || null,
+            isYucho: acc.isYucho === true || acc.isYucho === 'true',
+            yuchoKigo: acc.yuchoKigo || null,
+            yuchoBango: acc.yuchoBango || null,
+          }))
+        },
+        workHistories: {
+          create: (body.workHistories || []).map((wh: any) => ({
+            companyName: wh.companyName || '',
+            companyAddress: wh.companyAddress || null,
+            startDate: wh.startDate ? new Date(wh.startDate) : null,
+            endDate: wh.endDate ? new Date(wh.endDate) : null,
+            pensionType: wh.pensionType || '厚生年金保険',
           }))
         }
       }

@@ -14,6 +14,7 @@ export const menuItems: MenuItem[] = [
   { name: 'Quản lý Hồ sơ', icon: FileText, href: '/applications' },
   { name: 'In Tem Bì Thư', icon: Stamp, href: '/address-labels' },
   { name: 'Cục Thuế', icon: Building2, href: '/tax-offices' },
+  { name: 'Đại diện thuế', icon: UserCircle, href: '/tax-representatives' },
   { name: 'Nhân sự', icon: Briefcase, href: '/hr' },
   { name: 'Tài chính & Hoa hồng', icon: Banknote, href: '/finance' },
   { name: 'Cài đặt', icon: Settings, href: '/settings' },

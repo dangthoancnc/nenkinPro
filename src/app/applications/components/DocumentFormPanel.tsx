@@ -163,6 +163,19 @@ const ZairyuForm: React.FC<
         <Input {...register('myNumber')} disabled={!isEditing} className="h-8 text-xs" />
       </FieldRow>
 
+      <FieldRow label="Vĩnh trú">
+        <label className="flex items-center gap-2 text-xs pt-1">
+          <input type="checkbox" {...register('hasPermanentResidence')} disabled={!isEditing} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4" />
+          <span className="font-medium text-slate-700">Khách hàng có Thẻ vĩnh trú</span>
+        </label>
+      </FieldRow>
+
+      {watch('hasPermanentResidence') && (
+        <FieldRow label="Ngày cấp vĩnh trú">
+          <Input type="date" {...register('permanentResidenceDate')} disabled={!isEditing} className="h-8 text-xs" />
+        </FieldRow>
+      )}
+
       <FieldRow
         label="Địa chỉ trên thẻ (Kanji)"
         actions={

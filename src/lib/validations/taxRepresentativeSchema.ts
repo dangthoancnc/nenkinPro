@@ -20,6 +20,7 @@ export const taxRepresentativeSchema = z.object({
   bankAccountType:     z.string().optional().nullable(),
   yuchoKigo:           z.string().optional().nullable(),
   yuchoBango:          z.string().optional().nullable(),
+  linkedUserId:        z.string().optional().nullable(),
 });
 
 export type TaxRepresentativeInput = z.infer<typeof taxRepresentativeSchema>;
@@ -49,5 +50,6 @@ export function buildTaxRepData(body: TaxRepresentativeInput) {
     bankAccountType:     nullify(body.bankAccountType) || 'ORDINARY',
     yuchoKigo:           nullify(body.yuchoKigo),
     yuchoBango:          nullify(body.yuchoBango),
+    linkedUserId:        nullify(body.linkedUserId),
   };
 }

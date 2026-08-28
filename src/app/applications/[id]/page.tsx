@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft,
+  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft, Plus
 } from 'lucide-react';
 import { TransferApplicationModal } from '@/components/applications/TransferApplicationModal';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -41,6 +41,7 @@ const BASE_DOCUMENTS = [
   { key: 'noticeOfEntitlement', title: 'Thông báo Lần 1',        urlField: 'noticeImageUrl'    },
   { key: 'departureStamp',      title: 'Dấu xuất cảnh',          urlField: 'departureStampUrl' },
   { key: 'vietnamContact',      title: 'Liên lạc VN & Ghi chú',  urlField: 'contactImageUrls'  },
+  { key: 'workHistories',       title: 'Lịch sử công việc',      urlField: 'workHistories'     },
 ];
 
 const statusConfig: Record<string, { label: string; color: string; badgeColor: string; icon: React.ElementType }> = {
@@ -75,6 +76,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [cropFile,          setCropFile]          = useState<File | null>(null);
   const [cropDocKey,        setCropDocKey]        = useState<string>('');
   const [cropUrlField,      setCropUrlField]      = useState<string>('');
+  const [cropArrayIndex,    setCropArrayIndex]    = useState<number | null>(null);
   const [cropImageSrc,      setCropImageSrc]      = useState<string | null>(null);
   const [panel3aTab,        setPanel3aTab]        = useState<'dates' | 'finance'>('dates');
   const [refundStage,       setRefundStage]       = useState<'lan1' | 'lan2'>('lan1');
@@ -128,6 +130,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({
     control,
     name: 'bankAccounts',
+  });
+  const { fields: workFields, append: appendWork, remove: removeWork } = useFieldArray({
+    control,
+    name: 'workHistories',
   });
 
   const [selectedBankIndex, setSelectedBankIndex] = useState<number>(0);
@@ -446,10 +452,11 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, docKey: string, urlField: string) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, docKey: string, urlField: string, arrayIdx?: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setCropFile(file); setCropDocKey(docKey); setCropUrlField(urlField);
+    setCropArrayIndex(arrayIdx ?? null);
     if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
     setCropImageSrc(URL.createObjectURL(file));
     e.target.value = '';
@@ -457,11 +464,24 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
   const handleCropComplete = async (croppedBlob: Blob) => {
     const file = new File([croppedBlob], cropFile?.name || 'cropped.jpg', { type: croppedBlob.type });
-    const docKey = cropDocKey; const urlField = cropUrlField;
+    const docKey = cropDocKey; const urlField = cropUrlField; const arrIdx = cropArrayIndex;
     if (cropImageSrc) { URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }
-    setCropFile(null); setCropDocKey(''); setCropUrlField('');
+    setCropFile(null); setCropDocKey(''); setCropUrlField(''); setCropArrayIndex(null);
     setOcrStatus(prev => ({ ...prev, [docKey]: 'processing' }));
-    setValue(urlField as any, URL.createObjectURL(file));
+    
+    const isArrayMode = docKey === 'bankAccounts' || docKey === 'vietnamContact' || arrIdx !== null;
+    const appendIdx = isArrayMode ? (arrIdx !== null ? arrIdx : (getValues(urlField as any) || []).length) : null;
+    const tempUrl = URL.createObjectURL(file);
+
+    if (isArrayMode) {
+      const currentArr = getValues(urlField as any) || [];
+      const newArr = [...currentArr];
+      if (appendIdx !== null) newArr[appendIdx] = tempUrl;
+      setValue(urlField as any, newArr, { shouldDirty: true });
+    } else {
+      setValue(urlField as any, tempUrl);
+    }
+    
     const form = new FormData();
     form.append('file', file); form.append('documentType', docKey); form.append('action', 'uploadAndExtract');
     if (customerId) form.append('customerId', customerId);
@@ -469,19 +489,40 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       const res = await fetch('/api/ocr', { method: 'POST', body: form });
       const data = await res.json();
       if (data.success) {
-        const prevUrl = getValues(urlField as any);
-        if (prevUrl && prevUrl !== data.publicUrl)
-          fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prevUrl }) }).catch(console.error);
-        setValue(urlField as any, data.publicUrl);
-        setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
-        if (data.extractedData && !data.extractedData.error) applyExtracted(docKey, data.extractedData);
-        if (!isNew) {
-          if (urlField === 'noticeImageUrl') {
-            await fetch(`/api/applications/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noticeImageUrl: data.publicUrl }) });
-          } else if (customerId) {
-            await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: data.publicUrl }) });
+        if (isArrayMode) {
+          const currentArr2 = getValues(urlField as any) || [];
+          const newArr2 = [...currentArr2];
+          const prevUrl = appendIdx !== null ? newArr2[appendIdx] : null;
+          if (prevUrl && prevUrl.startsWith('http') && prevUrl !== data.publicUrl) {
+            fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prevUrl }) }).catch(console.error);
+          }
+          if (appendIdx !== null) newArr2[appendIdx] = data.publicUrl;
+          setValue(urlField as any, newArr2, { shouldDirty: true });
+          
+          if (!isNew && customerId) {
+            if (docKey === 'bankAccounts') {
+              const allBanks = getValues('bankAccounts') || [];
+              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bankAccounts: allBanks }) });
+            } else {
+              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: newArr2 }) });
+            }
+          }
+        } else {
+          const prevUrl = getValues(urlField as any);
+          if (prevUrl && prevUrl.startsWith('http') && prevUrl !== data.publicUrl)
+            fetch('/api/storage/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: prevUrl }) }).catch(console.error);
+          setValue(urlField as any, data.publicUrl);
+          
+          if (!isNew) {
+            if (urlField === 'noticeImageUrl') {
+              await fetch(`/api/applications/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noticeImageUrl: data.publicUrl }) });
+            } else if (customerId) {
+              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: data.publicUrl }) });
+            }
           }
         }
+        setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
+        if (data.extractedData && !data.extractedData.error) applyExtracted(docKey, data.extractedData);
       } else {
         toast.error('Lỗi upload ảnh', { description: data.error || 'Không thể tải ảnh lên.' });
         setOcrStatus(prev => ({ ...prev, [docKey]: 'error' }));
@@ -715,8 +756,9 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   className="hidden"
                   accept="image/*"
                   onChange={(e) => {
-                    setSelectedBankImageIndex(currentBankUrls.length);
-                    handleFileSelect(e, activeDoc, currentDocField);
+                    const nextIdx = currentBankUrls.length;
+                    setSelectedBankImageIndex(nextIdx);
+                    handleFileSelect(e, activeDoc, currentDocField, nextIdx);
                   }}
                 />
               </label>
@@ -815,7 +857,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       <span className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                         <UploadCloud className="w-4 h-4" />
                       </span>
-                      <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField, isBankDoc ? selectedBankImageIndex : undefined)} />
                     </label>
                     <button type="button" title="Xóa ảnh"
                       className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-white/10 rounded-lg transition-colors"
@@ -864,7 +906,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             <label
               className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/40 transition-colors text-slate-400 hover:text-indigo-600 bg-white/50 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 rounded-xl p-6"
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField); }}
+              onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined); }}
             >
               <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
                 <UploadCloud className="w-5 h-5 text-indigo-500" />
@@ -873,7 +915,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 <span className="text-xs font-bold text-slate-600 block">Nhấp hoặc kéo thả ảnh</span>
                 <span className="text-[10px] text-slate-400">PNG, JPG, JPEG</span>
               </div>
-              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField)} />
+              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined)} />
             </label>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white/50 rounded-xl p-6">
@@ -1168,7 +1210,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         <Input {...register('overseasProvince')} disabled={!isEditing} size="md" placeholder="VD: Hà Nội" />
                       </FormField>
                       <FormField label="Mã bưu điện VN (6 số)">
-                        <Input {...register('overseasPostalCode')} disabled={!isEditing} size="md" placeholder="VD: 100000" />
+                        <Input {...register('overseasPostalCode')} disabled={!isEditing} size="md" />
                       </FormField>
                     </div>
                   </div>
@@ -1188,6 +1230,51 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       <textarea {...register('revisionNote')} disabled={!isEditing} className="w-full text-xs rounded-lg border border-slate-200/80 px-2.5 py-1.5 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 min-h-[100px] bg-white/80" placeholder="Lịch sử dặn dò, trao đổi..." />
                     </FormField>
                   </div>
+                </div>
+              );
+
+            case 'workHistories':
+              return (
+                <div className="space-y-4">
+                  <div className="text-xs font-bold text-teal-700 border-b border-teal-100 pb-1 flex items-center justify-between">
+                    <span>🏢 LỊCH SỬ CÔNG VIỆC</span>
+                  </div>
+                  {workFields.map((field, index) => (
+                    <div key={field.id} className="relative bg-slate-50 p-3 rounded-lg border border-slate-200/80 mb-3 space-y-3 shadow-2xs">
+                      {isEditing && (
+                        <button type="button" onClick={() => removeWork(index)} className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-md transition-colors shadow-2xs">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <div className="grid grid-cols-2 gap-3 pr-10">
+                        <FormField label="Tên Công Ty">
+                          <Input {...register(`workHistories.${index}.companyName` as const)} disabled={!isEditing} size="md" placeholder="VD: Công ty TNHH ABC" />
+                        </FormField>
+                        <FormField label="Loại Bảo Hiểm">
+                          <select {...register(`workHistories.${index}.pensionType` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full focus:ring-1 focus:ring-indigo-400">
+                            <option value="厚生年金保険">厚生年金保険 (Kousei Nenkin)</option>
+                            <option value="国民年金">国民年金 (Kokumin Nenkin)</option>
+                          </select>
+                        </FormField>
+                      </div>
+                      <FormField label="Địa chỉ Công Ty">
+                        <Input {...register(`workHistories.${index}.companyAddress` as const)} disabled={!isEditing} size="md" placeholder="VD: Tokyo-to..." />
+                      </FormField>
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField label="Ngày Bắt Đầu">
+                          <Input type="date" {...register(`workHistories.${index}.startDate` as const)} disabled={!isEditing} size="md" />
+                        </FormField>
+                        <FormField label="Ngày Kết Thúc">
+                          <Input type="date" {...register(`workHistories.${index}.endDate` as const)} disabled={!isEditing} size="md" />
+                        </FormField>
+                      </div>
+                    </div>
+                  ))}
+                  {isEditing && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendWork({ companyName: '', pensionType: '厚生年金保険' })} className="w-full border-dashed">
+                      <Plus className="w-4 h-4 mr-1" /> Thêm Công Ty
+                    </Button>
+                  )}
                 </div>
               );
 

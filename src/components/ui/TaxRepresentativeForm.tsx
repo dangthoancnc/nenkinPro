@@ -33,6 +33,13 @@ export function TaxRepresentativeForm({
 }: TaxRepresentativeFormProps) {
   const isEdit = !!initialData
   const [zipSearching, setZipSearching] = useState(false)
+  const [staffs, setStaffs] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/hr/staffs').then(res => res.json()).then(data => {
+      if (data.success) setStaffs(data.data)
+    }).catch(console.error)
+  }, [])
 
   const {
     register,
@@ -61,6 +68,7 @@ export function TaxRepresentativeForm({
       bankAccountType:     'ORDINARY',
       yuchoKigo:           '',
       yuchoBango:          '',
+      linkedUserId:        '',
     },
   })
 
@@ -84,6 +92,7 @@ export function TaxRepresentativeForm({
         bankAccountType:     initialData.bankAccountType || 'ORDINARY',
         yuchoKigo:           initialData.yuchoKigo || '',
         yuchoBango:          initialData.yuchoBango || '',
+        linkedUserId:        (initialData as any).linkedUserId || '',
       })
     }
   }, [initialData, reset])
