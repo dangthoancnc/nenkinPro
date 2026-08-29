@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     const nenkinBookUrl = body.nenkinBookUrl ? await moveStorageFile(body.nenkinBookUrl, customerId, 'nenkinBook') : '';
 
     const bankAccounts = body.bankAccounts ? await Promise.all(body.bankAccounts.map(async (acc: any, index: number) => {
-      const urls = acc.bankPassbookUrls || [];
+      const urls = (acc.bankPassbookUrls || []).filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:'));
       const newUrls = await Promise.all(urls.map((url: string) => moveStorageFile(url, customerId, `bankPassbook_${index}`)));
       return { ...acc, bankPassbookUrls: newUrls };
     })) : [];

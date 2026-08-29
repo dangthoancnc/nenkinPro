@@ -82,7 +82,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       for (let i = 0; i < bankAccounts.length; i++) {
         const acc = bankAccounts[i];
         if (acc.bankPassbookUrls && Array.isArray(acc.bankPassbookUrls)) {
-          const processedUrls = await Promise.all(acc.bankPassbookUrls.map(async (url: string) => {
+          const cleanUrls = acc.bankPassbookUrls.filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:'));
+          const processedUrls = await Promise.all(cleanUrls.map(async (url: string) => {
             if (url) {
               return await moveStorageFile(url, id, `bankPassbook_${i}`);
             }
@@ -250,7 +251,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               customerId: id,
               purpose: acc.purpose || 'BOTH',
               bankCountry: acc.bankCountry || 'JAPAN',
-              bankPassbookUrls: acc.bankPassbookUrls || [],
+              bankPassbookUrls: (acc.bankPassbookUrls || []).filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:')),
               bankName: acc.bankName || null,
               branchName: acc.branchName || null,
               accountNumber: acc.accountNumber || null,

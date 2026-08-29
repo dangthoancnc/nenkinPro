@@ -350,10 +350,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         zairyuAddress: data.zairyuAddress, cardNumber: data.cardNumber,
         nenkinNumber: data.nenkinNumber, nenkinKatakanaName: data.nenkinKatakanaName,
         postalCode: data.postalCode, taxOfficeId: data.taxOfficeId,
-        bankAccounts: data.bankAccounts,
-        zairyuFrontUrl: data.zairyuFrontUrl, zairyuBackUrl: data.zairyuBackUrl,
-        passportUrl: data.passportUrl, nenkinBookUrl: data.nenkinBookUrl,
-        departureStampUrl: data.departureStampUrl,
+        bankAccounts: (data.bankAccounts || []).map((acc: any) => ({
+          ...acc,
+          bankPassbookUrls: (acc.bankPassbookUrls || []).filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:'))
+        })),
+        zairyuFrontUrl: data.zairyuFrontUrl?.startsWith('blob:') ? null : (data.zairyuFrontUrl || null),
+        zairyuBackUrl: data.zairyuBackUrl?.startsWith('blob:') ? null : (data.zairyuBackUrl || null),
+        passportUrl: data.passportUrl?.startsWith('blob:') ? null : (data.passportUrl || null),
+        nenkinBookUrl: data.nenkinBookUrl?.startsWith('blob:') ? null : (data.nenkinBookUrl || null),
+        departureStampUrl: data.departureStampUrl?.startsWith('blob:') ? null : (data.departureStampUrl || null),
         status: manualConfirmed ? 'VERIFIED' : 'PENDING',
         sex: data.sex, phone: data.phone,
         overseasAddress: data.overseasAddress,
@@ -512,9 +517,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           if (!isNew && customerId) {
             if (docKey === 'bankAccounts') {
               const allBanks = getValues('bankAccounts') || [];
-              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bankAccounts: allBanks }) });
+              const targetBankIdx = urlField.startsWith('bankAccounts.') ? parseInt(urlField.split('.')[1], 10) : 0;
+              const updatedBanks = allBanks.map((b: any, bIdx: number) => {
+                if (bIdx === targetBankIdx) {
+                  return {
+                    ...b,
+                    bankPassbookUrls: newArr2.filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:'))
+                  };
+                }
+                return {
+                  ...b,
+                  bankPassbookUrls: (b.bankPassbookUrls || []).filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:'))
+                };
+              });
+              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bankAccounts: updatedBanks }) });
             } else {
-              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: newArr2 }) });
+              await fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [urlField]: newArr2.filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:')) }) });
             }
           }
         } else {
