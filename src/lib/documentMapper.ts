@@ -541,7 +541,23 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   // Bank info
   const bankAccounts = (customer as any).bankAccounts || [];
   const bank1st = bankAccounts.find((a: any) => a.purpose === 'NENKIN_1ST' || a.purpose === 'FIRST_REFUND' || a.purpose === 'BOTH') || bankAccounts[0] || {};
-  const bank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || bankAccounts[1] || bankAccounts[0] || {};
+  const customBank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND');
+  const isBank1stShared = (bank1st.purpose === 'BOTH' && (bank1st.bankCountry === 'JAPAN' || bank1st.bankCountry === 'JP'));
+  const rep = input.taxRepresentative;
+
+  const bank2nd = customBank2nd || (isBank1stShared ? bank1st : (rep ? {
+    bankName: rep.bankName ?? '',
+    branchName: rep.branchName ?? '',
+    accountNumber: rep.accountNumber ?? '',
+    accountName: rep.fullName ?? '',
+    accountNameKatakana: (rep as any).furigana || '',
+    bankAccountType: (rep as any).bankAccountType || 'ORDINARY',
+    isYucho: (rep as any).isYucho,
+    yuchoKigo: (rep as any).yuchoKigo,
+    yuchoBango: (rep as any).yuchoBango,
+    swiftCode: '',
+    bankBranchAddress: (rep as any).address || '',
+  } : {}));
   
   // Mặc định cho template cũ dùng bank chung (nếu có)
   const defaultBank = bank1st;
@@ -582,7 +598,6 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   };
 
   const isReturned = (application as any).isReturnedToJapan || false;
-  const rep = input.taxRepresentative;
   const applicantAddress = isReturned ? (rep?.address || customer.overseasAddress || '') : (customer.zairyuAddress || '');
   const applicantPostalCode = isReturned ? (rep?.postalCode || customer.overseasPostalCode || '') : (customer.postalCode || '');
   const applicantPostClean = applicantPostalCode.replace(/\D/g, '');

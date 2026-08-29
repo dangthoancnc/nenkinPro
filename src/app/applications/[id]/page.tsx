@@ -100,7 +100,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     useForm<WorkspaceFormValues>({
       mode: 'onBlur',
       resolver: zodResolver(workspaceSchema) as any,
-      defaultValues: { status: 'DRAFT' },
+      defaultValues: {
+        status: 'DRAFT',
+        bankAccounts: [
+          { purpose: 'FIRST_REFUND', bankCountry: 'VIETNAM', bankPassbookUrls: [] }
+        ]
+      },
     });
 
   // Tự động hủy tích xanh (unverify) ngay khi người dùng chỉnh sửa bất kỳ trường nào đã đối chiếu
@@ -136,6 +141,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     name: 'workHistories',
   });
 
+  const [bankTab, setBankTab] = useState<'lan1' | 'lan2'>('lan1');
   const [selectedBankIndex, setSelectedBankIndex] = useState<number>(0);
   const [selectedBankImageIndex, setSelectedBankImageIndex] = useState<number>(0);
   const dynamicDocuments = BASE_DOCUMENTS;
@@ -207,6 +213,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           formValues.delegateOtherText         = data.delegateOtherText || '';
           formValues.taxableRetirementIncome   = data.taxableRetirementIncome   ?? (taxResult.taxableRetirementIncome ?? '');
           formValues.retirementDeductionAmount = data.retirementDeductionAmount ?? (taxResult.retirementDeductionAmount ?? '');
+
+          if (!formValues.bankAccounts || formValues.bankAccounts.length === 0) {
+            formValues.bankAccounts = [{ purpose: 'FIRST_REFUND', bankCountry: 'VIETNAM', bankPassbookUrls: [] }];
+          }
 
           Object.keys(formValues).forEach(key => {
             if (formValues[key] === null)
@@ -650,10 +660,19 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
   const isBankDoc = activeDoc === 'bankAccounts';
   const currentDoc = dynamicDocuments.find(d => d.key === activeDoc);
-  const currentBank = isBankDoc ? (watch(`bankAccounts.${selectedBankIndex}` as any) || {}) : null;
+  const allBanks = watch('bankAccounts') || [];
+  const bank1 = allBanks[0] || {};
+  const isBank1JP = bank1.bankCountry === 'JAPAN';
+  const isBank1Shared = isBank1JP && bank1.purpose === 'BOTH';
+  const bank2 = allBanks.find((b: any, i: number) => i > 0 && b.purpose === 'SECOND_REFUND') || (allBanks.length > 1 ? allBanks[1] : null);
+  const hasSeparateBank2 = !isBank1Shared && !!bank2;
+
+  // Determine active bank index for photo viewing and editing
+  const activeBankIdx = (isBankDoc && bankTab === 'lan2' && hasSeparateBank2) ? 1 : 0;
+  const currentBank = isBankDoc ? (allBanks[activeBankIdx] || {}) : null;
   const currentBankUrls: string[] = isBankDoc ? (currentBank?.bankPassbookUrls || []) : [];
   const currentDocField = isBankDoc
-    ? `bankAccounts.${selectedBankIndex}.bankPassbookUrls`
+    ? `bankAccounts.${activeBankIdx}.bankPassbookUrls`
     : (currentDoc?.urlField || 'zairyuFrontUrl');
   const currentDocValue = watch(currentDocField as any);
   const isMultiUrl = activeDoc === 'vietnamContact';
@@ -662,7 +681,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     : isMultiUrl ? undefined : (currentDocValue as string | undefined);
   const currentMultiUrls = isMultiUrl ? (currentDocValue as string[] || []) : [];
   const currentDocTitle = isBankDoc
-    ? `Sổ Ngân hàng (TK ${selectedBankIndex + 1}: ${currentBank?.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam'})`
+    ? `Sổ Ngân hàng (${activeBankIdx === 0 ? 'Lần 1' : 'Lần 2'}: ${currentBank?.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam'})`
     : (currentDoc?.title || '');
   const appStatus  = watch('status') as string || 'DRAFT';
   const statusCfg  = statusConfig[appStatus] ?? statusConfig['DRAFT'];
@@ -732,36 +751,76 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Sub-bar for multiple bank photos */}
-        {isBankDoc && currentBankUrls.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 shrink-0 border-b border-slate-200/60 mb-2 w-full">
-            {currentBankUrls.map((_: string, idx: number) => (
+        {isBankDoc && (
+          <div className="flex flex-col gap-1.5 pb-1.5 border-b border-slate-200/60 mb-2 w-full shrink-0">
+            <div className="flex items-center gap-1">
               <button
-                key={idx}
                 type="button"
-                onClick={() => setSelectedBankImageIndex(idx)}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors shrink-0 ${
-                  selectedBankImageIndex === idx
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                onClick={() => {
+                  setBankTab('lan1');
+                  setSelectedBankIndex(0);
+                  setSelectedBankImageIndex(0);
+                }}
+                className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-colors ${
+                  activeBankIdx === 0
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Ảnh {idx + 1}
+                Ảnh Sổ Lần 1 ({allBanks[0]?.bankPassbookUrls?.length || 0})
               </button>
-            ))}
-            {isEditing && (
-              <label className="cursor-pointer px-2.5 py-1 text-[11px] font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-colors shrink-0">
-                <span>＋ Thêm ảnh</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const nextIdx = currentBankUrls.length;
-                    setSelectedBankImageIndex(nextIdx);
-                    handleFileSelect(e, activeDoc, currentDocField, nextIdx);
+
+              {hasSeparateBank2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBankTab('lan2');
+                    setSelectedBankIndex(1);
+                    setSelectedBankImageIndex(0);
                   }}
-                />
-              </label>
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-colors ${
+                    activeBankIdx === 1
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Ảnh Sổ Lần 2 ({allBanks[1]?.bankPassbookUrls?.length || 0})
+                </button>
+              )}
+            </div>
+
+            {currentBankUrls.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pt-0.5">
+                {currentBankUrls.map((_: string, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedBankImageIndex(idx)}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors shrink-0 ${
+                      selectedBankImageIndex === idx
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Ảnh {idx + 1}
+                  </button>
+                ))}
+                {isEditing && (
+                  <label className="cursor-pointer px-2.5 py-1 text-[11px] font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-colors shrink-0">
+                    <span>＋ Thêm ảnh</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const nextIdx = currentBankUrls.length;
+                        setSelectedBankImageIndex(nextIdx);
+                        handleFileSelect(e, activeDoc, currentDocField, nextIdx);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -1279,7 +1338,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               );
 
             case 'bankAccounts': {
-              const idx = selectedBankIndex;
+              const allBanks = watch('bankAccounts') || [];
               if (bankFields.length === 0) {
                 return (
                   <div className="text-center py-6">
@@ -1290,183 +1349,513 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         variant="primary"
                         size="sm"
                         onClick={() => {
-                          appendBank({ purpose: 'BOTH', bankCountry: 'VIETNAM', bankPassbookUrls: [] });
+                          appendBank({ purpose: 'FIRST_REFUND', bankCountry: 'VIETNAM', bankPassbookUrls: [] });
+                          setBankTab('lan1');
                           setSelectedBankIndex(0);
                           setSelectedBankImageIndex(0);
                         }}
                       >
-                        ＋ Thêm tài khoản ngân hàng
+                        ＋ Khởi tạo Tài khoản Lần 1
                       </Button>
                     )}
                   </div>
                 );
               }
 
-              const currentAcc = (watch(`bankAccounts.${idx}` as any) as any) || {};
-              const purposeLabel = currentAcc.purpose === 'FIRST_REFUND' ? 'Lần 1'
-                : currentAcc.purpose === 'SECOND_REFUND' ? 'Lần 2' : 'Chung';
-              const countryLabel = currentAcc.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam';
+              const bank1 = allBanks[0] || {};
+              const isBank1JP = bank1.bankCountry === 'JAPAN';
+              const isBank1Shared = isBank1JP && bank1.purpose === 'BOTH';
+              const bank2 = allBanks.find((b: any, i: number) => i > 0 && b.purpose === 'SECOND_REFUND') || (allBanks.length > 1 ? allBanks[1] : null);
+              const hasSeparateBank2 = !isBank1Shared && !!bank2;
 
               return (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-indigo-100">
-                    {bankFields.map((field, bIdx) => {
-                      const acc = (watch(`bankAccounts.${bIdx}` as any) as any) || {};
-                      const isSelected = selectedBankIndex === bIdx;
-                      const cLabel = acc.bankCountry === 'JAPAN' ? 'Nhật' : 'VN';
-                      const pLabel = acc.purpose === 'FIRST_REFUND' ? 'L1'
-                        : acc.purpose === 'SECOND_REFUND' ? 'L2' : 'Chung';
-                      return (
-                        <button
-                          key={field.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedBankIndex(bIdx);
-                            setSelectedBankImageIndex(0);
-                          }}
-                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0 flex items-center gap-1 ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span>TK {bIdx + 1}: {cLabel} ({pLabel})</span>
-                        </button>
-                      );
-                    })}
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextIdx = bankFields.length;
-                          appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
-                          setSelectedBankIndex(nextIdx);
-                          setSelectedBankImageIndex(0);
-                        }}
-                        className="px-2 py-1 text-xs font-bold border border-dashed border-indigo-300 rounded-lg text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 transition-colors shrink-0"
-                      >
-                        ＋ Thêm TK
-                      </button>
-                    )}
+                <div className="space-y-3">
+                  {/* ── Tabs Chuyển đổi Lần 1 & Lần 2 ── */}
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBankTab('lan1');
+                        setSelectedBankIndex(0);
+                        setSelectedBankImageIndex(0);
+                      }}
+                      className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        bankTab === 'lan1'
+                          ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>1. Tài khoản Lần 1 (Nenkin 80%)</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        isBank1JP
+                          ? (isBank1Shared ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200')
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {isBank1JP ? (isBank1Shared ? 'Nhật (L1+L2)' : 'Nhật (L1)') : 'VN (L1)'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBankTab('lan2');
+                        if (hasSeparateBank2) {
+                          setSelectedBankIndex(1);
+                        } else {
+                          setSelectedBankIndex(0);
+                        }
+                        setSelectedBankImageIndex(0);
+                      }}
+                      className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        bankTab === 'lan2'
+                          ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>2. Tài khoản Lần 2 (Hoàn thuế 20.42%)</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {isBank1Shared ? 'Dùng chung L1' : (hasSeparateBank2 ? 'TK Nhật của khách' : 'Người đại diện thuế')}
+                      </span>
+                    </button>
                   </div>
 
-                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">
-                    THÔNG TIN TÀI KHOẢN {idx + 1}: {countryLabel.toUpperCase()} ({purposeLabel.toUpperCase()})
-                  </div>
+                  {/* ── NỘI DUNG TAB 1: TÀI KHOẢN LẦN 1 ── */}
+                  {bankTab === 'lan1' && (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-indigo-100 pb-1">
+                        <span className="text-xs font-bold text-indigo-700 uppercase tracking-tight">
+                          🇯🇵/🇻🇳 THÔNG TIN TÀI KHOẢN LẦN 1 (NENKIN 80%)
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {isBank1JP ? 'Nhận tiền qua tài khoản Nhật Bản' : 'Nhận tiền qua tài khoản Việt Nam'}
+                        </span>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <FormField label="Quốc gia">
-                      <select {...register(`bankAccounts.${idx}.bankCountry` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
-                        <option value="VIETNAM">Việt Nam</option>
-                        <option value="JAPAN">Nhật Bản</option>
-                      </select>
-                    </FormField>
-                    <FormField label="Mục đích">
-                      <select {...register(`bankAccounts.${idx}.purpose` as const)} disabled={!isEditing} className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full">
-                        <option value="BOTH">Chung cả 2 lần</option>
-                        <option value="FIRST_REFUND">Lần 1 (Tiền Nhật/Việt nhận L1)</option>
-                        <option value="SECOND_REFUND">Lần 2 (Nhận hoàn thuế L2)</option>
-                      </select>
-                    </FormField>
-                  </div>
-
-                  {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
-                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
-                      <FormField label="Hình thức tổ chức">
-                        <select
-                          {...register(`bankAccounts.${idx}.isYucho` as const, {
-                            setValueAs: v => v === true || v === 'true'
-                          })}
-                          disabled={!isEditing}
-                          className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
-                        >
-                          <option value="false">🏦 Ngân hàng thường (銀行)</option>
-                          <option value="true">📮 Bưu điện (ゆうちょ銀行 / 郵便局)</option>
-                        </select>
-                      </FormField>
-                      {String(watch(`bankAccounts.${idx}.isYucho`)) !== 'true' ? (
-                        <FormField label="Loại tài khoản (預金種目)">
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Quốc gia nhận L1">
                           <select
-                            {...register(`bankAccounts.${idx}.bankAccountType` as const)}
+                            {...register('bankAccounts.0.bankCountry' as const)}
                             disabled={!isEditing}
-                            className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setValue('bankAccounts.0.bankCountry' as const, val, { shouldDirty: true });
+                              if (val === 'VIETNAM') {
+                                setValue('bankAccounts.0.purpose' as const, 'FIRST_REFUND', { shouldDirty: true });
+                              }
+                            }}
+                            className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full font-medium"
                           >
-                            <option value="ORDINARY">普通 (Thường - 1)</option>
-                            <option value="CURRENT">当座 (Tiết kiệm/Vãng lai - 2)</option>
+                            <option value="VIETNAM">🇻🇳 Việt Nam (Mặc định)</option>
+                            <option value="JAPAN">🇯🇵 Nhật Bản</option>
                           </select>
                         </FormField>
-                      ) : (
-                        <div className="text-[11px] text-amber-700 flex items-center font-medium">
-                          Tờ khai nhận: 郵便局名など
+
+                        <FormField label="Mục đích nhận tiền">
+                          {!isBank1JP ? (
+                            <div className="h-8 rounded-lg border border-slate-200 bg-slate-50 px-2 flex items-center text-xs text-slate-600 font-medium select-none">
+                              Lần 1 (Nenkin 80%) — Cố định
+                            </div>
+                          ) : (
+                            <select
+                              {...register('bankAccounts.0.purpose' as const)}
+                              disabled={!isEditing}
+                              className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white/80 w-full font-medium"
+                            >
+                              <option value="FIRST_REFUND">Chỉ nhận Lần 1 (Nenkin 80%)</option>
+                              <option value="BOTH">Dùng chung cả 2 lần (L1 + L2)</option>
+                            </select>
+                          )}
+                        </FormField>
+                      </div>
+
+                      {/* Giải thích logic Việt Nam */}
+                      {!isBank1JP && (
+                        <div className="text-[11px] text-slate-500 bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-lg flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>Tài khoản ngân hàng tại Việt Nam dùng để nhận tiền thoái thác Nenkin Lần 1. Khoản hoàn thuế Lần 2 sẽ được thiết lập riêng tại <b>Tab 2</b>.</span>
                         </div>
                       )}
+
+                      {/* Giải thích logic Dùng chung Nhật Bản */}
+                      {isBank1Shared && (
+                        <div className="text-[11px] text-indigo-700 bg-indigo-50/80 border border-indigo-200 p-2 rounded-lg flex items-center gap-1.5">
+                          <span>ℹ️</span>
+                          <span>Đã chọn <b>Dùng chung cả 2 lần</b>. Tài khoản Nhật này sẽ tự động được sử dụng để nhận tiền hoàn thuế Lần 2.</span>
+                        </div>
+                      )}
+
+                      {/* Trường thông tin Nhật Bản */}
+                      {isBank1JP && (
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
+                          <FormField label="Hình thức tổ chức">
+                            <select
+                              {...register('bankAccounts.0.isYucho' as const, {
+                                setValueAs: v => v === true || v === 'true'
+                              })}
+                              disabled={!isEditing}
+                              className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
+                            >
+                              <option value="false">🏦 Ngân hàng thường (銀行)</option>
+                              <option value="true">📮 Bưu điện (ゆうちょ銀行 / 郵便局)</option>
+                            </select>
+                          </FormField>
+                          {String(watch('bankAccounts.0.isYucho')) !== 'true' ? (
+                            <FormField label="Loại tài khoản (預金種目)">
+                              <select
+                                {...register('bankAccounts.0.bankAccountType' as const)}
+                                disabled={!isEditing}
+                                className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
+                              >
+                                <option value="ORDINARY">普通 (Thường - 1)</option>
+                                <option value="CURRENT">当座 (Tiết kiệm/Vãng lai - 2)</option>
+                              </select>
+                            </FormField>
+                          ) : (
+                            <div className="text-[11px] text-amber-700 flex items-center font-medium">
+                              Tờ khai nhận: 郵便局名など
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <FormField label={String(watch('bankAccounts.0.isYucho')) === 'true' ? "Tên tổ chức (VD: ゆうちょ銀行)" : "Tên ngân hàng"}>
+                        <BankAutocomplete index={0} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
+                      </FormField>
+
+                      {String(watch('bankAccounts.0.isYucho')) === 'true' ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          <FormField label="郵便局名など (Chi nhánh/Tiệm)">
+                            <Input {...register('bankAccounts.0.branchName' as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店"
+                              verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
+                          </FormField>
+                          <FormField label="記号 (Ký hiệu 5 số)">
+                            <Input {...register('bankAccounts.0.yuchoKigo' as const)} disabled={!isEditing} size="md" placeholder="VD: 10120"
+                              verified={verifiedFields['yuchoKigo']} showVerify onVerify={() => toggleVerify('yuchoKigo')} />
+                          </FormField>
+                          <FormField label="番号 (Số hiệu 7-8 số)">
+                            <Input {...register('bankAccounts.0.yuchoBango' as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567"
+                              verified={verifiedFields['yuchoBango']} showVerify onVerify={() => toggleVerify('yuchoBango')} />
+                          </FormField>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField label="Chi nhánh">
+                            <Input {...register('bankAccounts.0.branchName' as const)} disabled={!isEditing} size="md"
+                              verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
+                          </FormField>
+                          <FormField label="Số tài khoản (7 số)">
+                            <Input {...register('bankAccounts.0.accountNumber' as const)} disabled={!isEditing} size="md"
+                              verified={verifiedFields['accountNumber']} showVerify onVerify={() => toggleVerify('accountNumber')} />
+                          </FormField>
+                        </div>
+                      )}
+
+                      <FormField label="Địa chỉ chi nhánh (Eng)">
+                        <Input {...register('bankAccounts.0.bankBranchAddress' as const)} disabled={!isEditing} size="md"
+                          verified={verifiedFields['bankBranchAddress']} showVerify onVerify={() => toggleVerify('bankBranchAddress')} />
+                      </FormField>
+                      <FormField label="Chủ tài khoản (Romaji)">
+                        <Input {...register('bankAccounts.0.accountName' as const)} disabled={!isEditing} size="md" className="uppercase"
+                          verified={verifiedFields['accountName']} showVerify onVerify={() => toggleVerify('accountName')} />
+                      </FormField>
+                      {isBank1JP && (
+                        <FormField label="Chủ TK (Katakana)">
+                          <Input {...register('bankAccounts.0.accountNameKatakana' as const)} disabled={!isEditing} size="md"
+                            verified={verifiedFields['accountNameKatakana']} showVerify onVerify={() => toggleVerify('accountNameKatakana')} />
+                        </FormField>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <FormField label="Swift Code">
+                          <Input {...register('bankAccounts.0.swiftCode' as const)} disabled={!isEditing} size="md" className="uppercase font-mono font-bold"
+                            verified={verifiedFields['swiftCode']} showVerify onVerify={() => toggleVerify('swiftCode')} placeholder="VD: BFTVVNVX" />
+                        </FormField>
+                      </div>
                     </div>
                   )}
 
-                  <FormField label={String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? "Tên tổ chức (VD: ゆうちょ銀行)" : "Tên ngân hàng"}>
-                    <BankAutocomplete index={idx} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
-                  </FormField>
+                  {/* ── NỘI DUNG TAB 2: TÀI KHOẢN LẦN 2 ── */}
+                  {bankTab === 'lan2' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-indigo-100 pb-1">
+                        <span className="text-xs font-bold text-indigo-700 uppercase tracking-tight">
+                          🇯🇵 THÔNG TIN TÀI KHOẢN LẦN 2 (HOÀN THUẾ 20.42%)
+                        </span>
+                        <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          Bắt buộc tài khoản tại Nhật Bản
+                        </span>
+                      </div>
 
-                  {String(watch(`bankAccounts.${idx}.isYucho`)) === 'true' ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      <FormField label="郵便局名など (Chi nhánh/Tiệm)">
-                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店"
-                          verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
-                      </FormField>
-                      <FormField label="記号 (Ký hiệu 5 số)">
-                        <Input {...register(`bankAccounts.${idx}.yuchoKigo` as const)} disabled={!isEditing} size="md" placeholder="VD: 10120"
-                          verified={verifiedFields['yuchoKigo']} showVerify onVerify={() => toggleVerify('yuchoKigo')} />
-                      </FormField>
-                      <FormField label="番号 (Số hiệu 7-8 số)">
-                        <Input {...register(`bankAccounts.${idx}.yuchoBango` as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567"
-                          verified={verifiedFields['yuchoBango']} showVerify onVerify={() => toggleVerify('yuchoBango')} />
-                      </FormField>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <FormField label="Chi nhánh">
-                        <Input {...register(`bankAccounts.${idx}.branchName` as const)} disabled={!isEditing} size="md"
-                          verified={verifiedFields['branchName']} showVerify onVerify={() => toggleVerify('branchName')} />
-                      </FormField>
-                      <FormField label="Số tài khoản (7 số)">
-                        <Input {...register(`bankAccounts.${idx}.accountNumber` as const)} disabled={!isEditing} size="md"
-                          verified={verifiedFields['accountNumber']} showVerify onVerify={() => toggleVerify('accountNumber')} />
-                      </FormField>
-                    </div>
-                  )}
+                      {/* TRƯỜNG HỢP 1: ĐÃ DÙNG CHUNG VỚI LẦN 1 */}
+                      {isBank1Shared ? (
+                        <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-3">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                              ✓
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-xs font-bold text-indigo-900">
+                                Đang Dùng Chung Tài Khoản Nhật Bản Ở Lần 1
+                              </h4>
+                              <p className="text-[11px] text-indigo-700 mt-0.5">
+                                Khách hàng nhận cả tiền Nenkin (L1) và Hoàn thuế (L2) về cùng một tài khoản ngân hàng Nhật Bản.
+                              </p>
+                            </div>
+                          </div>
 
-                  <FormField label="Địa chỉ chi nhánh (Eng)">
-                    <Input {...register(`bankAccounts.${idx}.bankBranchAddress` as const)} disabled={!isEditing} size="md"
-                      verified={verifiedFields['bankBranchAddress']} showVerify onVerify={() => toggleVerify('bankBranchAddress')} />
-                  </FormField>
-                  <FormField label="Chủ tài khoản (Romaji)">
-                    <Input {...register(`bankAccounts.${idx}.accountName` as const)} disabled={!isEditing} size="md" className="uppercase"
-                      verified={verifiedFields['accountName']} showVerify onVerify={() => toggleVerify('accountName')} />
-                  </FormField>
-                  {watch(`bankAccounts.${idx}.bankCountry`) === 'JAPAN' && (
-                    <FormField label="Chủ TK (Katakana)">
-                      <Input {...register(`bankAccounts.${idx}.accountNameKatakana` as const)} disabled={!isEditing} size="md"
-                        verified={verifiedFields['accountNameKatakana']} showVerify onVerify={() => toggleVerify('accountNameKatakana')} />
-                    </FormField>
-                  )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <FormField label="Swift Code">
-                      <Input {...register(`bankAccounts.${idx}.swiftCode` as const)} disabled={!isEditing} size="md" className="uppercase font-mono font-bold"
-                        verified={verifiedFields['swiftCode']} showVerify onVerify={() => toggleVerify('swiftCode')} placeholder="VD: BFTVVNVX" />
-                    </FormField>
-                  </div>
-                  {isEditing && bankFields.length > 1 && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <Button type="button" variant="danger" size="xs" iconLeft={<Trash2 className="w-3 h-3" />}
-                        onClick={() => toast('Xóa tài khoản ngân hàng này?', {
-                          action: { label: 'Xóa', onClick: () => {
-                            removeBank(idx);
-                            setSelectedBankIndex(Math.max(0, idx - 1));
-                            setSelectedBankImageIndex(0);
-                            toast.success('Đã xóa tài khoản');
-                          } },
-                          cancel: { label: 'Hủy', onClick: () => {} }, duration: 6000,
-                        })}>Xóa tài khoản này</Button>
+                          <div className="bg-white p-3 rounded-lg border border-indigo-100 text-xs space-y-1.5 shadow-2xs">
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Tên ngân hàng:</span>
+                              <span className="font-semibold text-slate-800">{bank1.bankName || 'Chưa nhập'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Chi nhánh:</span>
+                              <span className="font-semibold text-slate-800">{bank1.branchName || 'Chưa nhập'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">{String(bank1.isYucho) === 'true' ? 'Ký hiệu - Số hiệu:' : 'Số tài khoản:'}</span>
+                              <span className="font-mono font-bold text-indigo-700">
+                                {String(bank1.isYucho) === 'true' ? `${bank1.yuchoKigo || ''} - ${bank1.yuchoBango || ''}` : (bank1.accountNumber || 'Chưa nhập')}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Chủ tài khoản:</span>
+                              <span className="font-semibold text-slate-800">{bank1.accountNameKatakana || bank1.accountName || 'Chưa nhập'}</span>
+                            </div>
+                          </div>
+
+                          {isEditing && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setValue('bankAccounts.0.purpose' as const, 'FIRST_REFUND', { shouldDirty: true });
+                                toast.info('Đã chuyển Lần 1 sang chỉ nhận L1. Bạn có thể thiết lập Người đại diện thuế hoặc Tài khoản Nhật riêng cho Lần 2.');
+                              }}
+                              className="w-full text-indigo-700 border-indigo-300 hover:bg-indigo-100/50"
+                            >
+                              ⚙️ Tách riêng / Không dùng chung tài khoản cho Lần 2
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* TRƯỜNG HỢP 2: LẦN 1 LÀ VN HOẶC NHẬT CHỈ NHẬN L1 */
+                        <div className="space-y-3">
+                          {/* Bộ chọn chế độ nhận L2 */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (hasSeparateBank2) {
+                                  // Remove 2nd bank record
+                                  removeBank(1);
+                                  setSelectedBankIndex(0);
+                                  setSelectedBankImageIndex(0);
+                                }
+                              }}
+                              disabled={!isEditing}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                !hasSeparateBank2
+                                  ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-400/20'
+                                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-slate-800">👤 Người đại diện thuế</span>
+                                {!hasSeparateBank2 && <span className="w-2 h-2 rounded-full bg-indigo-600" />}
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-2">
+                                Nhận hoàn thuế qua tài khoản Người đại diện (Mặc định)
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasSeparateBank2) {
+                                  appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                                  setSelectedBankIndex(1);
+                                  setSelectedBankImageIndex(0);
+                                }
+                              }}
+                              disabled={!isEditing}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                hasSeparateBank2
+                                  ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-400/20'
+                                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-slate-800">🏦 TK Nhật của khách</span>
+                                {hasSeparateBank2 && <span className="w-2 h-2 rounded-full bg-indigo-600" />}
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-2">
+                                Khách có tài khoản ngân hàng Nhật Bản riêng cho L2
+                              </p>
+                            </button>
+                          </div>
+
+                          {/* OPTION 1: SỬ DỤNG NGƯỜI ĐẠI DIỆN THUẾ */}
+                          {!hasSeparateBank2 && (
+                            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                  <span>👤</span> Người đại diện thuế được chỉ định
+                                </span>
+                                {selectedTaxRepresentative && (
+                                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                                    {selectedTaxRepresentative.fullName}
+                                  </span>
+                                )}
+                              </div>
+
+                              {selectedTaxRepresentative ? (
+                                <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 shadow-2xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Ngân hàng:</span>
+                                    <span className="font-semibold text-slate-800">{selectedTaxRepresentative.bankName || 'Chưa có'}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Chi nhánh:</span>
+                                    <span className="font-semibold text-slate-800">{selectedTaxRepresentative.branchName || 'Chưa có'}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Số tài khoản:</span>
+                                    <span className="font-mono font-bold text-indigo-700">{selectedTaxRepresentative.accountNumber || 'Chưa có'}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Loại tài khoản:</span>
+                                    <span className="font-medium text-slate-700">
+                                      {selectedTaxRepresentative.bankAccountType === 'CURRENT' ? '当座 (Tiết kiệm)' : '普通 (Thường)'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+                                  ⚠️ Chưa chọn Người đại diện thuế. Vui lòng chọn bên dưới.
+                                </div>
+                              )}
+
+                              {isEditing && (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <select
+                                    value={selectedTaxRepresentativeId || selectedTaxRepresentative?.id || ''}
+                                    onChange={e => setValue('taxRepresentativeId', e.target.value, { shouldDirty: true })}
+                                    className="flex-1 h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-medium"
+                                  >
+                                    <option value="">-- Chọn Người đại diện thuế --</option>
+                                    {taxRepresentatives.map(r => (
+                                      <option key={r.id} value={r.id}>
+                                        {r.fullName} ({r.bankName || 'Chưa có NH'})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <a
+                                    href="/tax-representatives"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shrink-0 transition-colors"
+                                  >
+                                    ⚙️ Danh mục
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* OPTION 2: TÀI KHOẢN NHẬT RIÊNG CỦA KHÁCH */}
+                          {hasSeparateBank2 && (
+                            <div className="space-y-2.5 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
+                              <div className="flex items-center justify-between border-b border-slate-200 pb-1">
+                                <span className="text-xs font-bold text-indigo-700">
+                                  🏦 KHAI BÁO TÀI KHOẢN NHẬT BẢN CỦA KHÁCH (LẦN 2)
+                                </span>
+                                {isEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      removeBank(1);
+                                      setSelectedBankIndex(0);
+                                      setSelectedBankImageIndex(0);
+                                    }}
+                                    className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                                  >
+                                    Hủy (Dùng Người đại diện)
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 bg-white p-2 rounded-lg border border-slate-200/80">
+                                <FormField label="Hình thức tổ chức">
+                                  <select
+                                    {...register('bankAccounts.1.isYucho' as const, {
+                                      setValueAs: v => v === true || v === 'true'
+                                    })}
+                                    disabled={!isEditing}
+                                    className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
+                                  >
+                                    <option value="false">🏦 Ngân hàng thường (銀行)</option>
+                                    <option value="true">📮 Bưu điện (ゆうちょ銀行 / 郵便局)</option>
+                                  </select>
+                                </FormField>
+                                {String(watch('bankAccounts.1.isYucho')) !== 'true' ? (
+                                  <FormField label="Loại tài khoản (預金種目)">
+                                    <select
+                                      {...register('bankAccounts.1.bankAccountType' as const)}
+                                      disabled={!isEditing}
+                                      className="h-8 rounded-lg border border-slate-200/80 px-2 text-xs bg-white w-full font-medium"
+                                    >
+                                      <option value="ORDINARY">普通 (Thường - 1)</option>
+                                      <option value="CURRENT">当座 (Tiết kiệm/Vãng lai - 2)</option>
+                                    </select>
+                                  </FormField>
+                                ) : (
+                                  <div className="text-[11px] text-amber-700 flex items-center font-medium">
+                                    Tờ khai nhận: 郵便局名など
+                                  </div>
+                                )}
+                              </div>
+
+                              <FormField label={String(watch('bankAccounts.1.isYucho')) === 'true' ? "Tên tổ chức (VD: ゆうちょ銀行)" : "Tên ngân hàng"}>
+                                <BankAutocomplete index={1} disabled={!isEditing} register={register} setValue={setValue} watch={watch} />
+                              </FormField>
+
+                              {String(watch('bankAccounts.1.isYucho')) === 'true' ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                  <FormField label="郵便局名など (Chi nhánh/Tiệm)">
+                                    <Input {...register('bankAccounts.1.branchName' as const)} disabled={!isEditing} size="md" placeholder="VD: 〇一八店" />
+                                  </FormField>
+                                  <FormField label="記号 (Ký hiệu 5 số)">
+                                    <Input {...register('bankAccounts.1.yuchoKigo' as const)} disabled={!isEditing} size="md" placeholder="VD: 10120" />
+                                  </FormField>
+                                  <FormField label="番号 (Số hiệu 7-8 số)">
+                                    <Input {...register('bankAccounts.1.yuchoBango' as const)} disabled={!isEditing} size="md" placeholder="VD: 1234567" />
+                                  </FormField>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <FormField label="Chi nhánh">
+                                    <Input {...register('bankAccounts.1.branchName' as const)} disabled={!isEditing} size="md" />
+                                  </FormField>
+                                  <FormField label="Số tài khoản (7 số)">
+                                    <Input {...register('bankAccounts.1.accountNumber' as const)} disabled={!isEditing} size="md" />
+                                  </FormField>
+                                </div>
+                              )}
+
+                              <FormField label="Địa chỉ chi nhánh (Eng)">
+                                <Input {...register('bankAccounts.1.bankBranchAddress' as const)} disabled={!isEditing} size="md" />
+                              </FormField>
+                              <FormField label="Chủ tài khoản (Romaji)">
+                                <Input {...register('bankAccounts.1.accountName' as const)} disabled={!isEditing} size="md" className="uppercase" />
+                              </FormField>
+                              <FormField label="Chủ TK (Katakana)">
+                                <Input {...register('bankAccounts.1.accountNameKatakana' as const)} disabled={!isEditing} size="md" />
+                              </FormField>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
