@@ -353,20 +353,27 @@ function MiniChatWindow({
   // Pin currently viewed dossier if on /applications/[id]
   const handlePinCurrentPageDossier = async () => {
     if (!currentDossierId) return;
+    const toastId = toast.loading('Đang lấy thông tin hồ sơ...');
     try {
       const res = await fetch(`/api/applications/${currentDossierId}`);
+      if (!res.ok) {
+        throw new Error(`Mã phản hồi ${res.status}`);
+      }
       const data = await res.json();
-      if (data.success && data.data) {
-        const app = data.data;
-        handleSendDossierCard({
+      const app = data.data || data; // Hỗ trợ cả 2 dạng: { success, data } hoặc application object trực tiếp
+      if (app && app.id) {
+        toast.dismiss(toastId);
+        await handleSendDossierCard({
           id: app.id,
-          name: app.customer?.fullName || 'Hồ sơ hiện tại',
+          name: app.customer?.fullName || app.name || 'Hồ sơ khách hàng',
           code: app.customer?.code || '',
-          status: app.status,
+          status: app.status || 'Bản nháp',
         });
+      } else {
+        throw new Error('Dữ liệu hồ sơ không hợp lệ');
       }
     } catch (e: any) {
-      toast.error('Lỗi lấy thông tin hồ sơ: ' + e.message);
+      toast.error('Lỗi gắn hồ sơ: ' + (e.message || 'Không thể lấy thông tin'), { id: toastId });
     }
   };
 
