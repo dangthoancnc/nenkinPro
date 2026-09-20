@@ -451,12 +451,11 @@ export default function PdfMapperClient({
         }
       });
 
-    fetch('/api/applications')
+    fetch('/api/applications?limit=100&minimal=true')
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setAppList(data);
-        }
+      .then(resData => {
+        const list = Array.isArray(resData) ? resData : (Array.isArray(resData?.data) ? resData.data : []);
+        setAppList(list);
       })
       .catch(err => console.error('Failed to fetch applications list:', err));
   }, [initTemplate]);
@@ -2512,7 +2511,7 @@ export default function PdfMapperClient({
                             const mockVal = (showMockData && !tag.startsWith('static_')) ? MOCK_DATA[baseKey] : undefined;
                             const liveVal = (liveMappedData && !tag.startsWith('static_')) ? liveMappedData[baseKey] : undefined;
                             const finalMockVal = (liveVal !== undefined && liveVal !== '' && liveVal !== null) ? liveVal : mockVal;
-                            let valToRender = coord.value !== undefined ? coord.value : (finalMockVal !== undefined ? finalMockVal : '');
+                            let valToRender = (coord.value !== undefined && coord.value !== '') ? coord.value : (finalMockVal !== undefined ? finalMockVal : '');
 
                             const monetaryKeys = [
                               'totalExpectedJpy', 'received1stJpy', 'received2ndJpy', 'withheldTax',

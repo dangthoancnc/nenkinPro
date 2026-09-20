@@ -268,6 +268,19 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     overseasPostalCode: customer.overseasPostalCode || (customer.overseasAddress ? '100000' : ''),
     overseasCountry: customer.overseasCountry || (customer.overseasAddress ? 'VIETNAM' : ''),
     overseasAddress: customer.overseasAddress ?? '',
+    vietnamAddress:  customer.overseasAddress ?? '',
+    vietnamPostalCode: customer.overseasPostalCode || (customer.overseasAddress ? '100000' : ''),
+    vietnamCountry:  customer.overseasCountry || (customer.overseasAddress ? 'VIETNAM' : ''),
+    vietnamProvince: customer.overseasProvince ?? '',
+    vietnamDistrict: customer.overseasCity ?? '',
+    vietnamStreet:   customer.overseasStreet || customer.overseasAddress || '',
+    vietnamPhone:    (customer as any).vietnamPhone || customer.phone || '',
+    phone_vn:        (customer as any).vietnamPhone || customer.phone || '',
+    email:           (customer as any).email ?? '',
+    facebookUrl:     (customer as any).facebookUrl ?? '',
+    zaloPhone:       (customer as any).zaloPhone || (customer as any).vietnamPhone || '',
+    ...splitChars(customer.overseasPostalCode || (customer.overseasAddress ? '100000' : ''), 'overseasPostalCode', 6, true),
+    ...splitChars(customer.overseasPostalCode || (customer.overseasAddress ? '100000' : ''), 'vietnamPostalCode', 6, true),
 
     hasPermanentResidence: customer.hasPermanentResidence ? '✓' : '',
     permRes_YES_mark: customer.hasPermanentResidence ? '✓' : '',
@@ -746,7 +759,7 @@ export function formatJpy(val: any): string {
   const strVal = typeof val === 'object' && val !== null && 'toString' in val ? val.toString() : String(val);
   const num = Number(strVal.replace(/\D/g, ''));
   if (isNaN(num)) return strVal;
-  return num.toLocaleString('en-US');
+  return String(num);
 }
 
 export function mapTemplateBang12(input: DocumentMapperInput): Record<string, string> {
@@ -901,15 +914,26 @@ export function mapTemplateBang3(input: DocumentMapperInput): Record<string, str
   const noticeD = formatDate(application.noticeDate ? new Date(application.noticeDate) : null);
   const noticeEra = application.noticeDate ? toJapaneseEra(new Date(application.noticeDate)) : null;
 
-  const totalExpectedJpyNum = totalExpectedJpy ?? 0;
-  const withheldTaxNum = application.withheldTax != null ? Number(application.withheldTax) : (taxResult.withheldTax ?? Math.floor(totalExpectedJpyNum * 0.2042));
-  const retirementDeductionAmountNum = appExt.retirementDeductionAmount != null ? Number(appExt.retirementDeductionAmount) : (taxResult.retirementDeductionAmount ?? 0);
-  const taxableRetirementIncomeNum = appExt.taxableRetirementIncome != null ? Number(appExt.taxableRetirementIncome) : (taxResult.taxableRetirementIncome ?? 0);
-  const calculatedTaxNum = appExt.calculatedTax != null ? Number(appExt.calculatedTax) : (taxResult.calculatedTax ?? 0);
-  const refundAmountNum = withheldTaxNum - calculatedTaxNum;
+  const hasTotal = totalExpectedJpy != null && !isNaN(Number(totalExpectedJpy));
+  const totalExpectedJpyNum = hasTotal ? Number(totalExpectedJpy) : null;
+  const withheldTaxNum = application.withheldTax != null
+    ? Number(application.withheldTax)
+    : (taxResult.withheldTax ?? (hasTotal ? Math.floor(Number(totalExpectedJpy) * 0.2042) : null));
+  const retirementDeductionAmountNum = appExt.retirementDeductionAmount != null
+    ? Number(appExt.retirementDeductionAmount)
+    : (taxResult.retirementDeductionAmount ?? null);
+  const taxableRetirementIncomeNum = appExt.taxableRetirementIncome != null
+    ? Number(appExt.taxableRetirementIncome)
+    : (taxResult.taxableRetirementIncome ?? null);
+  const calculatedTaxNum = appExt.calculatedTax != null
+    ? Number(appExt.calculatedTax)
+    : (taxResult.calculatedTax ?? null);
+  const refundAmountNum = (withheldTaxNum != null && calculatedTaxNum != null)
+    ? (withheldTaxNum - calculatedTaxNum)
+    : (taxResult.refundAmount ?? null);
   
   const calculatedTax93Num = appExt.calculatedTax93 != null ? Number(appExt.calculatedTax93) : calculatedTaxNum;
-  const totalGeneralTaxNum = appExt.totalGeneralTax != null ? Number(appExt.totalGeneralTax) : 0;
+  const totalGeneralTaxNum = appExt.totalGeneralTax != null ? Number(appExt.totalGeneralTax) : null;
   const tokureiTekioStr = appExt.tokureiTekio || '';
 
   return {

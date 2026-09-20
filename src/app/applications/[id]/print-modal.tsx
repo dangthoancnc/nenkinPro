@@ -195,6 +195,14 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
   const [isLayoutMode, setIsLayoutMode] = useState(false);
 
   useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    } else if (initialTemplate && TEMPLATE_TO_TAB[initialTemplate]) {
+      setActiveTab(TEMPLATE_TO_TAB[initialTemplate]);
+    }
+  }, [initialTab, initialTemplate, isOpen]);
+
+  useEffect(() => {
     if (!isOpen || !id) return;
     setLoading(true);
 
@@ -511,10 +519,10 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col h-screen print:p-0 print:bg-white print:h-auto print:static overflow-hidden">
+    <div id="print-modal-root" className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col h-screen print:p-0 print:bg-white print:h-auto print:static overflow-hidden">
       
       {/* ── TOP CONTROLLER BAR ── */}
-      <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between shrink-0 print:hidden border-b border-slate-800 shadow-md">
+      <div id="print-modal-header" className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between shrink-0 print:hidden border-b border-slate-800 shadow-md">
         <div className="flex items-center gap-3">
           <button 
             type="button" 
@@ -597,10 +605,10 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
       </div>
 
       {/* ── TWO-PANE MAIN CONTAINER ── */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div id="print-modal-body" className="flex-1 flex min-h-0 overflow-hidden print:block print:h-auto print:overflow-visible">
         
         {/* ── LEFT SIDEBAR: DOCUMENT CATEGORY LIST ── */}
-        <div className="w-72 bg-slate-900/90 border-r border-slate-800 p-3 overflow-y-auto shrink-0 print:hidden flex flex-col gap-3">
+        <div id="print-modal-sidebar" className="w-72 bg-slate-900/90 border-r border-slate-800 p-3 overflow-y-auto shrink-0 print:hidden flex flex-col gap-3">
           
           {/* Category Group 1: HỒ SƠ LẦN 1 */}
           <div className="bg-slate-800/80 rounded-xl border border-slate-700/70 p-2.5">
@@ -668,13 +676,13 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
                   );
                 }
                 return imageSets.map((imgArr, imgIdx) => (
-                  <div key={`${activeDoc.id}-${idx}-img-${imgIdx}`} className="print:break-after-page mb-8 print:mb-0">
+                  <div key={`${activeDoc.id}-${idx}-img-${imgIdx}`} className="print-a4-page mb-8 print:mb-0">
                     <ImagePrintContainer images={imgArr} />
                   </div>
                 ));
               }
               return (
-                <div key={`${activeDoc.id}-${idx}`} className="print:break-after-page mb-8 print:mb-0">
+                <div key={`${activeDoc.id}-${idx}`} className="print-a4-page mb-8 print:mb-0">
                   <PrintContainer pdfFile={page.pdfFile} pageNumber={page.pageNumber}>
                     {(dims) => renderPageFields(page.templateName, page.pageNumber, page.fallbackType, dims.width, dims.height)}
                   </PrintContainer>
@@ -689,25 +697,72 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
       {/* Global CSS style for print overlay paging */}
       <style jsx global>{`
         @media print {
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
+            background: white !important;
+          }
+
           body * {
             visibility: hidden;
           }
-          #print-modal-content, #print-modal-content * {
-            visibility: visible;
+
+          #print-modal-root,
+          #print-modal-root * {
+            visibility: visible !important;
           }
-          #print-modal-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 210mm !important;
-            transform: none !important;
-            box-shadow: none !important;
+
+          #print-modal-root {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
             background: white !important;
+            display: block !important;
+            z-index: 999999 !important;
           }
-          .break-after-page {
-            page-break-after: always;
-            break-after: page;
+
+          #print-modal-root > div,
+          #print-modal-body,
+          #print-modal-content {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
+
+          #print-modal-header,
+          #print-modal-sidebar,
+          .print\\:hidden {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          .print-a4-page {
+            width: 100% !important;
+            max-width: 210mm !important;
+            margin: 0 auto !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: block !important;
+          }
+
           @page {
             size: A4 portrait;
             margin: 0mm;

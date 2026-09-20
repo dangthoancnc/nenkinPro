@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   MessageSquare, X, Send, Bot, User, Sparkles, Headset, ArrowRight,
   CheckCircle2, HelpCircle, FileText, Clock, Wallet, ChevronRight,
@@ -18,6 +19,9 @@ interface ChatMessage {
 }
 
 export function FloatingAiChat() {
+  const pathname = usePathname();
+  const isWorkspace = pathname?.startsWith('/applications/') && pathname !== '/applications';
+
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<'ai' | 'handover'>('ai'); // 'ai' or 'handover'
   const [inputMsg, setInputMsg] = useState('');
@@ -515,6 +519,10 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
       },
     ]);
   };
+
+  if (isWorkspace) {
+    return null;
+  }
 
   return (
     <>

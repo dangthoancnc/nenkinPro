@@ -5,17 +5,29 @@ import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
   Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
-  ChevronLeft, Info,
+  ChevronLeft, Info, Download, FolderPlus, Maximize2, Sparkles, UploadCloud,
+  UserPlus, Edit3, BookUser,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
+import AssignToDossierModal, { AssignAttachmentTarget } from '@/components/messenger/AssignToDossierModal';
+import AddMembersModal from '@/components/messenger/AddMembersModal';
+import QuickNewChatModal from '@/components/messenger/QuickNewChatModal';
+
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  size?: number;
+  type?: string;
+}
 
 interface ChatMessage {
   id: string;
   senderName: string;
   isMe: boolean;
   content: string;
+  attachments?: ChatAttachment[];
   time: string;
   createdAt?: string;
   type?: string;
@@ -23,8 +35,9 @@ interface ChatMessage {
 
 interface ChatConversation {
   id: string;
+  customerId?: string | null;
   name: string;
-  type: 'CUSTOMER' | 'CUSTOMER_SUPPORT' | 'CTV' | 'GROUP';
+  type: 'CUSTOMER' | 'CUSTOMER_SUPPORT' | 'CTV' | 'GROUP' | 'DIRECT';
   code?: string;
   phone?: string;
   email?: string;
@@ -48,7 +61,27 @@ interface MemberItem {
   code?: string;
   phone?: string;
   type: 'STAFF' | 'CUSTOMER';
+  isOnline?: boolean;
+  lastActiveText?: string;
 }
+
+const getAvatarColor = (name: string) => {
+  const colors = [
+    'bg-blue-100 text-blue-700 border-blue-200',
+    'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'bg-violet-100 text-violet-700 border-violet-200',
+    'bg-indigo-100 text-indigo-700 border-indigo-200',
+    'bg-rose-100 text-rose-700 border-rose-200',
+    'bg-sky-100 text-sky-700 border-sky-200',
+    'bg-teal-100 text-teal-700 border-teal-200',
+    'bg-amber-100 text-amber-800 border-amber-200',
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 export default function MessengerPage() {
   const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP' | 'ARCHIVED'>('CUSTOMER');
@@ -77,6 +110,24 @@ export default function MessengerPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // New Navigation & 1-1 Chat Modals State
+  const [sidebarView, setSidebarView] = useState<'INBOX' | 'CONTACTS'>('INBOX');
+  const [directoryCategoryTab, setDirectoryCategoryTab] = useState<'STAFF' | 'CUSTOMER'>('STAFF');
+  const [directorySearchQuery, setDirectorySearchQuery] = useState('');
+  const [showQuickNewChatModal, setShowQuickNewChatModal] = useState(false);
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+
+  // File attachments, drag-drop, clipboard paste, and dossier modal state
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<Array<{ file: File; url: string; isImage: boolean; name: string; size: number }>>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [selectedAttachmentForDossier, setSelectedAttachmentForDossier] = useState<AssignAttachmentTarget | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -146,10 +197,11 @@ export default function MessengerPage() {
     loadConversations(false, false);
     loadMembersForModal();
 
-    // Auto refresh conversation list every 5 seconds silently without screen flicker
+    // Auto refresh conversation list & members presence every 8 seconds silently without screen flicker
     const interval = setInterval(() => {
       loadConversations(true, true);
-    }, 5000);
+      loadMembersForModal();
+    }, 8000);
     return () => clearInterval(interval);
   }, []);
 
@@ -177,7 +229,12 @@ export default function MessengerPage() {
             // Compare message IDs and content strictly to avoid re-rendering React DOM when data is identical
             if (
               prev.length === data.data.length &&
-              prev.every((m, idx) => m.id === data.data[idx]?.id && m.content === data.data[idx]?.content)
+              prev.every(
+                (m, idx) =>
+                  m.id === data.data[idx]?.id &&
+                  m.content === data.data[idx]?.content &&
+                  (m.attachments?.length || 0) === (data.data[idx]?.attachments?.length || 0)
+              )
             ) {
               return prev;
             }
@@ -296,13 +353,106 @@ export default function MessengerPage() {
     }
   };
 
-  // 4. Send real message
-  const handleSendMessage = async (e: React.FormEvent) => {
+  // File handlers: Add, remove, clipboard paste, drag-and-drop
+  const handleAddFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    const newPreviews = fileArray.map(file => ({
+      file,
+      url: URL.createObjectURL(file),
+      isImage: file.type.startsWith('image/'),
+      name: file.name,
+      size: file.size,
+    }));
+
+    setPendingFiles(prev => [...prev, ...fileArray]);
+    setPendingPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingPreviews(prev => {
+      if (prev[index]) URL.revokeObjectURL(prev[index].url);
+      const copy = [...prev];
+      copy.splice(index, 1);
+      return copy;
+    });
+    setPendingFiles(prev => {
+      const copy = [...prev];
+      copy.splice(index, 1);
+      return copy;
+    });
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      handleAddFiles(e.clipboardData.files);
+      toast.info(`📋 Đã nhận ${e.clipboardData.files.length} ảnh/tệp từ Clipboard!`);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !activeChat) return;
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleAddFiles(e.dataTransfer.files);
+      toast.info(`📂 Đã nhận ${e.dataTransfer.files.length} tệp kéo thả!`);
+    }
+  };
+
+  // 4. Send real message with optional uncompressed attachments
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if ((!inputText.trim() && pendingFiles.length === 0) || !activeChat) return;
 
     const textToSend = inputText.trim();
+    const filesToUpload = [...pendingFiles];
+
     setInputText('');
+    setPendingFiles([]);
+    setPendingPreviews([]);
+
+    let uploadedAttachments: ChatAttachment[] = [];
+
+    if (filesToUpload.length > 0) {
+      setUploadingFiles(true);
+      const loadingToast = toast.loading(`Đang tải lên ${filesToUpload.length} tệp nguyên bản không nén...`);
+      try {
+        const fd = new FormData();
+        filesToUpload.forEach(f => fd.append('files', f));
+
+        const upRes = await fetch('/api/messenger/upload', {
+          method: 'POST',
+          body: fd,
+        });
+        const upData = await upRes.json();
+        if (upData.success && Array.isArray(upData.data)) {
+          uploadedAttachments = upData.data;
+          toast.success(`Đã tải lên ${upData.data.length} tệp thành công!`, { id: loadingToast });
+        } else {
+          toast.error('Lỗi tải tệp: ' + (upData.error || 'Thất bại'), { id: loadingToast });
+          setUploadingFiles(false);
+          return;
+        }
+      } catch (err: any) {
+        toast.error('Lỗi tải tệp: ' + err.message, { id: loadingToast });
+        setUploadingFiles(false);
+        return;
+      } finally {
+        setUploadingFiles(false);
+      }
+    }
 
     try {
       const res = await fetch('/api/messenger/messages', {
@@ -311,15 +461,17 @@ export default function MessengerPage() {
         body: JSON.stringify({
           conversationId: activeChat.id,
           content: textToSend,
+          attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
         }),
       });
 
       const data = await res.json();
       if (data.success && data.data) {
         setMessages(prev => [...prev, data.data]);
+        const displayLast = textToSend || (uploadedAttachments.length > 0 ? `[Đã gửi ${uploadedAttachments.length} tệp đính kèm]` : '');
         // Update last message on left panel
         setConversations(prev =>
-          prev.map(c => (c.id === activeChat.id ? { ...c, lastMessage: textToSend } : c))
+          prev.map(c => (c.id === activeChat.id ? { ...c, lastMessage: displayLast } : c))
         );
       } else {
         toast.error('Không thể gửi tin nhắn: ' + (data.error || 'Lỗi hệ thống'));
@@ -373,17 +525,69 @@ export default function MessengerPage() {
     }
   };
 
+  // Handler: Open conversation by ID (used by QuickNewChatModal)
+  const handleOpenConversationById = (conversationId: string) => {
+    loadConversations(true, false);
+    setActiveChatId(conversationId);
+    loadRealMessages(conversationId);
+    setMobileView('chat');
+  };
+
+  // Handler: Open or create instant 1-on-1 Direct Chat with staff or customer
+  const handleOpenDirectChat = async (target: MemberItem) => {
+    try {
+      const res = await fetch('/api/messenger/conversations/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          target.type === 'STAFF'
+            ? { targetUserId: target.id }
+            : { targetCustomerId: target.id }
+        ),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const directConv: ChatConversation = data.data;
+        setConversations(prev => {
+          const exists = prev.find(c => c.id === directConv.id);
+          if (exists) {
+            return prev.map(c => c.id === directConv.id ? { ...c, ...directConv } : c);
+          }
+          return [directConv, ...prev];
+        });
+        setActiveChatId(data.data.id);
+        loadRealMessages(data.data.id);
+        loadConversations(true, true);
+        setMobileView('chat');
+        setShowQuickNewChatModal(false);
+        toast.success(`Đã mở cuộc trò chuyện 1-1 với ${target.name}`);
+      } else {
+        toast.error(data.error || 'Không thể mở cuộc trò chuyện');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message);
+    }
+  };
+
   const filteredChats = conversations
     .filter(c => {
       if (chatCategory === 'ARCHIVED') return c.isArchived === true;
       if (c.isArchived === true) return false;
-      if (chatCategory === 'CUSTOMER') return c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT';
+      if (chatCategory === 'CUSTOMER') return c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId));
+      if (chatCategory === 'CTV') return c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId);
       return c.type === chatCategory;
     })
     .filter(c =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+  // Filter members in directory tab
+  const filteredDirectoryMembers = (directoryCategoryTab === 'STAFF' ? availableStaffs : availableCustomers).filter(m =>
+    m.name.toLowerCase().includes(directorySearchQuery.toLowerCase()) ||
+    m.code?.toLowerCase().includes(directorySearchQuery.toLowerCase()) ||
+    (m.phone && m.phone.includes(directorySearchQuery))
+  );
 
   // Filter members in modal
   const filteredModalMembers = (memberCategoryTab === 'STAFF' ? availableStaffs : availableCustomers).filter(m =>
@@ -395,158 +599,301 @@ export default function MessengerPage() {
   return (
     <div className="h-[calc(100vh-85px)] md:h-[calc(100vh-80px)] max-w-full overflow-x-hidden pb-20 md:pb-0 bg-white border border-slate-200/90 rounded-2xl shadow-xl overflow-hidden flex min-h-0 relative">
       
-      {/* ── LEFT COL: CHAT CATEGORIES & LIST ── */}
+      {/* ── LEFT COL: CHAT CATEGORIES & LIST OR CONTACTS DIRECTORY ── */}
       <div className={`w-full md:w-80 lg:w-80 border-r border-slate-200/80 flex flex-col min-h-0 bg-white shrink-0 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         
         {/* Sidebar Header */}
-        <div className="p-3 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-tr from-indigo-600 to-indigo-700 rounded-xl text-white shadow-xs">
+        <div className="p-2.5 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 bg-gradient-to-tr from-indigo-600 to-indigo-700 rounded-xl text-white shadow-xs shrink-0">
               <MessageSquare className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="font-extrabold text-xs text-slate-800 tracking-tight">Nenkin Messenger</h2>
-              <span className="text-[10px] text-slate-400 block font-medium">VietNenkin Duyên Hub</span>
+            <div className="min-w-0">
+              <h2 className="font-extrabold text-xs text-slate-800 tracking-tight truncate">Nenkin Messenger</h2>
+              <span className="text-[10px] text-slate-400 block font-medium truncate">VietNenkin Duyên Hub</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCreateGroupModal(true)}
-            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-bold shadow-2xs border border-indigo-100"
-            title="Tạo nhóm chat mới"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Tạo Nhóm</span>
-          </button>
-        </div>
-
-        {/* 4 Segmented Category Tabs */}
-        <div className="p-1.5 bg-slate-100/70 border-b border-slate-200/80 grid grid-cols-4 gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setChatCategory('CUSTOMER');
-              const first = conversations.find(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT'));
-              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
-            }}
-            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-              chatCategory === 'CUSTOMER' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
-            }`}
-          >
-            👤 Khách ({conversations.filter(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT')).length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setChatCategory('CTV');
-              const first = conversations.find(c => !c.isArchived && c.type === 'CTV');
-              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
-            }}
-            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-              chatCategory === 'CTV' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
-            }`}
-          >
-            🤝 CTV ({conversations.filter(c => !c.isArchived && c.type === 'CTV').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setChatCategory('GROUP');
-              const first = conversations.find(c => !c.isArchived && c.type === 'GROUP');
-              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
-            }}
-            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-              chatCategory === 'GROUP' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
-            }`}
-          >
-            👥 Nhóm ({conversations.filter(c => !c.isArchived && c.type === 'GROUP').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setChatCategory('ARCHIVED');
-              const first = conversations.find(c => c.isArchived === true);
-              if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
-            }}
-            className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-              chatCategory === 'ARCHIVED' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
-            }`}
-          >
-            📁 Kho ({conversations.filter(c => c.isArchived === true).length})
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="p-2 bg-white border-b border-slate-100 shrink-0">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Tìm tin nhắn, tên CTV, khách..."
-              className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-xl h-8 focus:bg-white transition-all"
-            />
+          
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowQuickNewChatModal(true)}
+              className="px-2 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-bold shadow-2xs border border-indigo-100"
+              title="Soạn tin nhắn 1-1 nhanh"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Soạn tin</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateGroupModal(true)}
+              className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-bold shadow-2xs border border-purple-100"
+              title="Tạo nhóm chat mới"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Chat List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80 min-h-0">
-          {loadingChats ? (
-            <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mb-2" />
-              <span className="text-xs font-medium">Đang tải cuộc trò chuyện...</span>
-            </div>
-          ) : filteredChats.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400 italic">Chưa có cuộc trò chuyện nào</div>
-          ) : (
-            filteredChats.map((chat) => (
-              <div
-                key={chat.id}
+        {/* Master Navigation Tab: Inbox vs Contacts */}
+        <div className="grid grid-cols-2 p-1 bg-slate-100/80 border-b border-slate-200/80 gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarView('INBOX')}
+            className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              sidebarView === 'INBOX'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Hộp Thư</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSidebarView('CONTACTS')}
+            className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              sidebarView === 'CONTACTS'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <BookUser className="w-3.5 h-3.5" />
+            <span>Danh Bạ ({availableStaffs.length + availableCustomers.length})</span>
+          </button>
+        </div>
+
+        {sidebarView === 'INBOX' ? (
+          <>
+            {/* 4 Segmented Category Tabs */}
+            <div className="p-1.5 bg-slate-100/70 border-b border-slate-200/80 grid grid-cols-4 gap-1 shrink-0">
+              <button
+                type="button"
                 onClick={() => {
-                  setActiveChatId(chat.id);
-                  loadRealMessages(chat.id);
-                  setMobileView('chat');
+                  setChatCategory('CUSTOMER');
+                  const first = conversations.find(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId))));
+                  if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
                 }}
-                className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
-                  activeChatId === chat.id
-                    ? 'bg-indigo-50/90 border-l-4 border-indigo-600 shadow-2xs'
-                    : 'hover:bg-slate-50/80'
+                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'CUSTOMER' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
                 }`}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 relative ${
-                  chat.type === 'GROUP' ? 'bg-purple-100 text-purple-700' : chat.type === 'CTV' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'
-                }`}>
-                  {chat.type === 'GROUP' ? <Users className="w-4 h-4" /> : (chat.name?.[0] || 'K')}
-                  <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
-                    chat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
-                  }`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
-                      {chat.name}
-                      {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
-                    </h4>
-                    {chat.code && <span className="text-[9px] font-mono text-slate-400 shrink-0">#{chat.code}</span>}
-                  </div>
-                  <div className="flex items-center justify-between gap-1 mt-0.5">
-                    <p className="text-[11px] text-slate-500 truncate flex-1">{chat.lastMessage}</p>
-                    {chat.isArchived ? (
-                      <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded shrink-0">Đã lưu</span>
-                    ) : chat.supportStatus === 'UNASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[8px] font-bold rounded border border-amber-300 shrink-0">Chờ nhận</span>
-                    ) : chat.supportStatus === 'ASSIGNED' ? (
-                      <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[8px] font-bold rounded shrink-0">{chat.assignedUserName || 'Đã có NV'}</span>
-                    ) : chat.supportStatus === 'RESOLVED' ? (
-                      <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[8px] font-bold rounded shrink-0">Đã xong</span>
-                    ) : null}
-                  </div>
-                </div>
+                👤 Khách ({conversations.filter(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId)))).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatCategory('CTV');
+                  const first = conversations.find(c => !c.isArchived && (c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId)));
+                  if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
+                }}
+                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'CTV' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                }`}
+              >
+                🤝 CTV ({conversations.filter(c => !c.isArchived && (c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId))).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatCategory('GROUP');
+                  const first = conversations.find(c => !c.isArchived && c.type === 'GROUP');
+                  if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
+                }}
+                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'GROUP' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                }`}
+              >
+                👥 Nhóm ({conversations.filter(c => !c.isArchived && c.type === 'GROUP').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatCategory('ARCHIVED');
+                  const first = conversations.find(c => c.isArchived === true);
+                  if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
+                }}
+                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'ARCHIVED' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                }`}
+              >
+                📁 Kho ({conversations.filter(c => c.isArchived === true).length})
+              </button>
+            </div>
+
+            {/* Search Inbox */}
+            <div className="p-2 bg-white border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Tìm tin nhắn, tên CTV, khách..."
+                  className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-xl h-8 focus:bg-white transition-all"
+                />
               </div>
-            ))
-          )}
-        </div>
+            </div>
+
+            {/* Chat List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80 min-h-0">
+              {loadingChats ? (
+                <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mb-2" />
+                  <span className="text-xs font-medium">Đang tải cuộc trò chuyện...</span>
+                </div>
+              ) : filteredChats.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400 italic">Chưa có cuộc trò chuyện nào</div>
+              ) : (
+                filteredChats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    onClick={() => {
+                      setActiveChatId(chat.id);
+                      loadRealMessages(chat.id);
+                      setMobileView('chat');
+                    }}
+                    className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
+                      activeChatId === chat.id
+                        ? 'bg-blue-50/90 border-l-4 border-blue-600 shadow-2xs'
+                        : 'hover:bg-slate-50/80'
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border ${
+                        chat.type === 'GROUP' ? 'bg-violet-100 text-violet-700 border-violet-200' : getAvatarColor(chat.name)
+                      }`}>
+                        {chat.type === 'GROUP' ? <Users className="w-4 h-4" /> : (chat.name?.[0] || 'K')}
+                      </div>
+                      <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
+                        chat.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
+                          {chat.name}
+                          {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
+                        </h4>
+                        {chat.code && <span className="text-[9px] font-mono text-slate-400 shrink-0">#{chat.code}</span>}
+                      </div>
+                      <div className="flex items-center justify-between gap-1 mt-0.5">
+                        <p className="text-[11px] text-slate-500 truncate flex-1">{chat.lastMessage}</p>
+                        {chat.isArchived ? (
+                          <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded shrink-0">Đã lưu</span>
+                        ) : chat.supportStatus === 'UNASSIGNED' ? (
+                          <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[8px] font-bold rounded border border-amber-300 shrink-0">Chờ nhận</span>
+                        ) : chat.supportStatus === 'ASSIGNED' ? (
+                          <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[8px] font-bold rounded shrink-0">{chat.assignedUserName || 'Đã có NV'}</span>
+                        ) : chat.supportStatus === 'RESOLVED' ? (
+                          <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[8px] font-bold rounded shrink-0">Đã xong</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          /* CONTACTS TAB VIEW */
+          <div className="flex-1 flex flex-col min-h-0 bg-white">
+            {/* Category switch: STAFF vs CUSTOMER */}
+            <div className="p-1.5 bg-slate-100/90 border-b border-slate-200/80 grid grid-cols-2 gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDirectoryCategoryTab('STAFF')}
+                className={`py-1.5 text-[11px] font-bold rounded-lg transition-all text-center truncate ${
+                  directoryCategoryTab === 'STAFF' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/70' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                🤝 CTV & NV ({availableStaffs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirectoryCategoryTab('CUSTOMER')}
+                className={`py-1.5 text-[11px] font-bold rounded-lg transition-all text-center truncate ${
+                  directoryCategoryTab === 'CUSTOMER' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/70' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                👤 Khách Hàng ({availableCustomers.length})
+              </button>
+            </div>
+
+            {/* Search Directory */}
+            <div className="p-2 bg-white border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="text"
+                  value={directorySearchQuery}
+                  onChange={e => setDirectorySearchQuery(e.target.value)}
+                  placeholder={`Tìm ${directoryCategoryTab === 'STAFF' ? 'nhân viên, CTV' : 'khách hàng'} theo tên, mã, SĐT...`}
+                  className="pl-7 text-xs bg-slate-50 border-slate-200 rounded-xl h-8 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Directory Member List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80 min-h-0">
+              {filteredDirectoryMembers.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400 italic">Không tìm thấy danh bạ phù hợp</div>
+              ) : (
+                filteredDirectoryMembers.map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={() => handleOpenDirectChat(m)}
+                    className="p-2.5 sm:p-3 flex items-center justify-between gap-2.5 hover:bg-slate-50/90 active:bg-slate-100/80 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {/* Avatar with Online Status Dot */}
+                      <div className="relative shrink-0">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border ${getAvatarColor(m.name)}`}>
+                          {m.name?.[0] || 'U'}
+                        </div>
+                        <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
+                          m.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
+                        }`} />
+                      </div>
+
+                      {/* Info: Name, Role, Online Status */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 justify-between">
+                          <span className="font-bold text-xs text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                            {m.name}
+                          </span>
+                          {m.type === 'STAFF' && m.role && (
+                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium rounded shrink-0">
+                              {m.role}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <p className={`text-[10px] truncate flex items-center gap-1 ${
+                            m.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            <span>{m.isOnline ? 'Đang hoạt động' : (m.lastActiveText || 'Ngoại tuyến')}</span>
+                          </p>
+                          <span className="text-[9px] font-mono text-slate-400 shrink-0">
+                            {m.code ? `#${m.code}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtle Action on Hover (Message icon button) */}
+                    <div className="shrink-0 pl-1">
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center transition-colors shadow-2xs">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── MIDDLE COL: ACTIVE CHAT CONVERSATION WINDOW ── */}
@@ -568,8 +915,8 @@ export default function MessengerPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
 
-                <div className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
-                  activeChat.type === 'GROUP' ? 'bg-purple-600' : activeChat.type === 'CTV' ? 'bg-amber-600' : 'bg-indigo-600'
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs border ${
+                  activeChat.type === 'GROUP' ? 'bg-violet-100 text-violet-700 border-violet-200' : getAvatarColor(activeChat.name)
                 }`}>
                   {activeChat.type === 'GROUP' ? <Users className="w-4 h-4" /> : activeChat.name?.[0]}
                 </div>
@@ -585,12 +932,12 @@ export default function MessengerPage() {
                       </span>
                     )}
                     {activeChat.type === 'CTV' && (
-                      <span className="px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200">
+                      <span className="px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-700 text-[9px] font-bold border border-slate-200">
                         CTV
                       </span>
                     )}
                     {activeChat.type === 'GROUP' && (
-                      <span className="px-1.5 py-0.2 rounded-md bg-purple-50 text-purple-700 text-[9px] font-bold border border-purple-200">
+                      <span className="px-1.5 py-0.2 rounded-md bg-violet-50 text-violet-700 text-[9px] font-bold border border-violet-200">
                         Nhóm ({activeChat.membersCount || 2} TV)
                       </span>
                     )}
@@ -615,12 +962,20 @@ export default function MessengerPage() {
 
                   <p className="text-[10px] flex items-center gap-1 mt-0.5">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : activeChat.supportStatus === 'RESOLVED' ? 'bg-slate-400' : 'bg-amber-400'
+                      activeChat.isOnline
+                        ? 'bg-emerald-500 animate-pulse'
+                        : activeChat.type === 'CUSTOMER_SUPPORT' && activeChat.supportStatus !== 'RESOLVED'
+                        ? 'bg-amber-400'
+                        : 'bg-slate-300'
                     }`} />
                     <span className={
-                      activeChat.isOnline ? 'text-emerald-600 font-bold' : activeChat.supportStatus === 'RESOLVED' ? 'text-slate-400 font-semibold' : 'text-amber-600 font-medium'
+                      activeChat.isOnline
+                        ? 'text-emerald-600 font-bold'
+                        : activeChat.type === 'CUSTOMER_SUPPORT' && activeChat.supportStatus !== 'RESOLVED'
+                        ? 'text-amber-600 font-medium'
+                        : 'text-slate-400 font-normal'
                     }>
-                      {activeChat.lastActiveText || (activeChat.isOnline ? 'Trực tuyến' : 'Ngoại tuyến')}
+                      {activeChat.lastActiveText || (activeChat.isOnline ? 'Đang hoạt động' : 'Ngoại tuyến')}
                     </span>
                     {activeChat.code ? ` • Mã: #${activeChat.code}` : ''}
                   </p>
@@ -667,6 +1022,17 @@ export default function MessengerPage() {
                   ) : null
                 )}
 
+                {/* Add Member Button - invite anyone into this chat */}
+                <button
+                  type="button"
+                  onClick={() => setShowAddMembersModal(true)}
+                  className="h-8 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-indigo-200 transition-colors shadow-2xs"
+                  title="Mời thêm đồng nghiệp hoặc khách vào cuộc trò chuyện này"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Thêm Người</span>
+                </button>
+
                 {/* Archive Button */}
                 <button
                   type="button"
@@ -704,20 +1070,55 @@ export default function MessengerPage() {
             </div>
 
             {/* Messages Body (Zalo / FB Style Bubbles) */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 bg-slate-50/60">
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 bg-slate-50/60 relative"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {/* Drag & Drop Visual Overlay */}
+              {isDraggingOver && (
+                <div className="absolute inset-0 z-30 bg-indigo-600/90 backdrop-blur-xs flex flex-col items-center justify-center text-white p-6 border-4 border-dashed border-white/60 m-2 rounded-2xl animate-in fade-in zoom-in-95 pointer-events-none">
+                  <UploadCloud className="w-12 h-12 mb-2 animate-bounce" />
+                  <h3 className="text-base font-bold">Thả ảnh hoặc tệp vào đây</h3>
+                  <p className="text-xs text-indigo-100">Bảo toàn 100% tệp gốc không nén suy hao chi tiết</p>
+                </div>
+              )}
+
               {loadingMessages ? (
                 <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin text-indigo-600 mb-1" />
                   <span className="text-[11px] font-medium">Đang tải tin nhắn...</span>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400 italic">Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi tin nhắn đầu tiên!</div>
+                <div className="py-12 px-4 flex flex-col items-center justify-center text-center space-y-2.5">
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg border shadow-xs ${
+                    activeChat.type === 'GROUP' ? 'bg-violet-100 text-violet-700 border-violet-200' : getAvatarColor(activeChat.name)
+                  }`}>
+                    {activeChat.type === 'GROUP' ? <Users className="w-6 h-6" /> : activeChat.name?.[0]}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-800">{activeChat.name}</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">
+                      Bắt đầu cuộc trò chuyện. Nhập tin nhắn hoặc đính kèm tệp hồ sơ bên dưới để trao đổi trực tiếp.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 messages.map((msg) => {
-                  if (msg.type === 'SYSTEM' || msg.senderName === 'SYSTEM' || msg.content.startsWith('⚡') || msg.content.startsWith('🔓') || msg.content.startsWith('🔄') || msg.content.startsWith('✅')) {
+                  if (
+                    msg.type === 'SYSTEM' ||
+                    msg.senderName === 'SYSTEM' ||
+                    msg.content.startsWith('⚡') ||
+                    msg.content.startsWith('🔓') ||
+                    msg.content.startsWith('🔄') ||
+                    msg.content.startsWith('✅') ||
+                    msg.content.startsWith('Cuộc trò chuyện trực tiếp được khởi tạo') ||
+                    msg.content.startsWith('Đã tạo nhóm chat')
+                  ) {
                     return (
                       <div key={msg.id} className="flex justify-center my-2">
-                        <span className="px-3 py-1 bg-slate-200/80 text-slate-700 text-[10px] font-bold rounded-full border border-slate-300/80 shadow-2xs">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-medium rounded-full border border-slate-200 shadow-2xs">
                           {msg.content}
                         </span>
                       </div>
@@ -742,15 +1143,15 @@ export default function MessengerPage() {
                       )}
 
                       <div
-                        className={`max-w-[78%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-1 relative ${
+                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-xs space-y-2 relative ${
                           msg.isMe
-                            ? 'bg-indigo-600 text-white rounded-tr-xs'
-                            : 'bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs'
+                            ? 'bg-blue-600 text-white rounded-tr-xs shadow-2xs'
+                            : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs shadow-2xs'
                         }`}
                       >
                         {!msg.isMe && (
                           <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1 mb-1">
-                            <span className="text-[9px] font-bold text-indigo-600 block truncate">{msg.senderName}</span>
+                            <span className="text-[9px] font-bold text-blue-600 block truncate">{msg.senderName}</span>
                             <button
                               type="button"
                               onClick={() => handleDeleteMessage(msg.id)}
@@ -761,10 +1162,148 @@ export default function MessengerPage() {
                             </button>
                           </div>
                         )}
-                        <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                        {/* Text Content */}
+                        {msg.content && (
+                          <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        )}
+
+                        {/* Attachments Section */}
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="space-y-2 pt-1">
+                            {(() => {
+                              const imageAtts = msg.attachments.filter(att =>
+                                att.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(att.url)
+                              );
+                              const docAtts = msg.attachments.filter(att =>
+                                !att.type?.startsWith('image/') && !/\.(jpg|jpeg|png|webp|gif)$/i.test(att.url)
+                              );
+
+                              return (
+                                <>
+                                  {/* 1. Images Gallery */}
+                                  {imageAtts.length > 0 && (
+                                    <div className={`grid gap-2 ${imageAtts.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                      {imageAtts.map((att, attIdx) => (
+                                        <div
+                                          key={attIdx}
+                                          className="relative group/att rounded-xl overflow-hidden border border-black/10 bg-black/5 aspect-4/3 sm:aspect-video flex items-center justify-center"
+                                        >
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img
+                                            src={att.url}
+                                            alt={att.name}
+                                            className="w-full h-full object-cover cursor-pointer hover:scale-102 transition-transform duration-150"
+                                            onClick={() => setLightboxUrl(att.url)}
+                                          />
+
+                                          {/* Overlay Action Bar on Hover */}
+                                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-transparent p-2 flex items-center justify-between opacity-0 group-hover/att:opacity-100 transition-opacity">
+                                            <span className="text-[9px] text-white truncate max-w-[120px]" title={att.name}>
+                                              {att.name}
+                                            </span>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                              <button
+                                                type="button"
+                                                onClick={() => setLightboxUrl(att.url)}
+                                                className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
+                                                title="Xem phóng to"
+                                              >
+                                                <Maximize2 className="w-3 h-3" />
+                                              </button>
+                                              <a
+                                                href={att.url}
+                                                download={att.name}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
+                                                title="Tải ảnh gốc nguyên bản"
+                                              >
+                                                <Download className="w-3 h-3" />
+                                              </a>
+                                              <button
+                                                type="button"
+                                                onClick={() => setSelectedAttachmentForDossier({
+                                                  url: att.url,
+                                                  name: att.name,
+                                                  size: att.size,
+                                                  type: att.type,
+                                                })}
+                                                className="px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold flex items-center gap-0.5 shadow-xs"
+                                                title="Lưu vào hồ sơ khách hàng"
+                                              >
+                                                <FolderPlus className="w-3 h-3" /> Lưu HS
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* 2. Documents (PDF, zip, etc.) */}
+                                  {docAtts.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      {docAtts.map((att, attIdx) => (
+                                        <div
+                                          key={attIdx}
+                                          className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 ${
+                                            msg.isMe
+                                              ? 'bg-indigo-700/50 border-indigo-400/40 text-white'
+                                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center shrink-0">
+                                              <FileText className="w-3.5 h-3.5 text-current" />
+                                            </div>
+                                            <div className="min-w-0">
+                                              <p className="font-bold text-[11px] truncate max-w-[130px] sm:max-w-[180px]" title={att.name}>
+                                                {att.name}
+                                              </p>
+                                              <span className="text-[9px] opacity-75 font-mono">
+                                                {att.size ? `${(att.size / 1024 / 1024).toFixed(2)} MB` : 'Tài liệu gốc'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <a
+                                              href={att.url}
+                                              download={att.name}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="p-1 rounded-md bg-white/20 hover:bg-white/30 text-current"
+                                              title="Tải tệp gốc"
+                                            >
+                                              <Download className="w-3 h-3" />
+                                            </a>
+                                            <button
+                                              type="button"
+                                              onClick={() => setSelectedAttachmentForDossier({
+                                                url: att.url,
+                                                name: att.name,
+                                                size: att.size,
+                                                type: att.type,
+                                              })}
+                                              className="p-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white"
+                                              title="Lưu vào hồ sơ khách hàng"
+                                            >
+                                              <FolderPlus className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+
                         <span
                           className={`text-[8px] font-mono block text-right ${
-                            msg.isMe ? 'text-indigo-200 opacity-80' : 'text-slate-400'
+                            msg.isMe ? 'text-blue-100 opacity-90' : 'text-slate-400'
                           }`}
                         >
                           {msg.time}
@@ -788,17 +1327,104 @@ export default function MessengerPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Pending Attachments Strip */}
+            {pendingPreviews.length > 0 && (
+              <div className="px-3 py-2 bg-slate-100/90 border-t border-slate-200/80 flex items-center gap-2 overflow-x-auto shrink-0">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                  Đính kèm ({pendingPreviews.length}):
+                </span>
+                {pendingPreviews.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group rounded-lg overflow-hidden border border-slate-300 bg-white shrink-0 flex items-center gap-1.5 p-1 pr-2 max-w-[180px]"
+                  >
+                    {p.isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.url} alt={p.name} className="w-7 h-7 rounded object-cover shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                        <FileText className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    <span className="text-[10px] font-semibold text-slate-700 truncate min-w-0" title={p.name}>
+                      {p.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePendingFile(idx)}
+                      className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
+                      title="Bỏ tệp này"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Chat Input Bar */}
-            <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-200/90 flex items-center gap-2 shrink-0">
+            <form onSubmit={handleSendMessage} className="p-2.5 sm:p-3 bg-white border-t border-slate-200/90 flex items-center gap-2 shrink-0">
+              {/* Hidden File Inputs */}
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={e => e.target.files && handleAddFiles(e.target.files)}
+              />
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="*/*"
+                multiple
+                className="hidden"
+                onChange={e => e.target.files && handleAddFiles(e.target.files)}
+              />
+
+              {/* Attachment Buttons */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="h-9 w-9 text-indigo-600 hover:bg-indigo-50 rounded-xl flex items-center justify-center transition-colors border border-indigo-100"
+                  title="Gửi ảnh gốc không nén"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-9 w-9 text-slate-500 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-colors border border-slate-200"
+                  title="Đính kèm tệp tin tài liệu"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+              </div>
+
               <input
                 type="text"
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
-                placeholder={`Nhập tin nhắn gửi đến ${activeChat.name}...`}
+                onPaste={handlePaste}
+                placeholder={`Nhập tin nhắn gửi đến ${activeChat.name}... (Có thể dán Ctrl+V ảnh)`}
                 className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-2xs"
               />
-              <Button type="submit" size="xs" disabled={!inputText.trim()} className="bg-indigo-600 hover:bg-indigo-700 font-bold px-4 h-9 rounded-xl shadow-xs">
-                <Send className="w-3.5 h-3.5 mr-1" /> Gửi
+              <Button
+                type="submit"
+                size="xs"
+                disabled={(!inputText.trim() && pendingFiles.length === 0) || uploadingFiles}
+                className="bg-blue-600 hover:bg-blue-700 font-bold px-4 h-9 rounded-xl shadow-xs shrink-0 flex items-center gap-1"
+              >
+                {uploadingFiles ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" /> Gửi
+                  </>
+                )}
               </Button>
             </form>
           </>
@@ -820,15 +1446,28 @@ export default function MessengerPage() {
       {/* ── RIGHT COL: DETAILS & MEMBERS PANEL (Collapsible) ── */}
       {activeChat && (
         <div className={`w-64 border-l border-slate-200/80 bg-white p-4 hidden xl:flex flex-col gap-4 shrink-0 overflow-y-auto ${!showRightPanel ? '!hidden' : ''}`}>
-          <div className="text-center space-y-2 pb-4 border-b border-slate-100">
-            <div className={`w-14 h-14 rounded-full font-bold text-lg flex items-center justify-center mx-auto border-2 shadow-xs ${
-              activeChat.type === 'GROUP' ? 'bg-purple-100 text-purple-700 border-purple-300' : activeChat.type === 'CTV' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-indigo-100 text-indigo-700 border-indigo-200'
-            }`}>
-              {activeChat.type === 'GROUP' ? <Users className="w-6 h-6" /> : activeChat.name?.[0]}
+          <div className="text-center space-y-1.5 pb-4 border-b border-slate-100">
+            <div className="relative mx-auto w-14 h-14">
+              <div className={`w-14 h-14 rounded-full font-bold text-lg flex items-center justify-center border shadow-xs ${
+                activeChat.type === 'GROUP' ? 'bg-violet-100 text-violet-700 border-violet-200' : getAvatarColor(activeChat.name)
+              }`}>
+                {activeChat.type === 'GROUP' ? <Users className="w-6 h-6" /> : activeChat.name?.[0]}
+              </div>
+              <span className={`w-3.5 h-3.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
+                activeChat.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
+              }`} />
             </div>
             <h3 className="font-bold text-xs text-slate-800">{activeChat.name}</h3>
+            <p className={`text-[10px] flex items-center justify-center gap-1.5 ${
+              activeChat.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+              }`} />
+              <span>{activeChat.lastActiveText || (activeChat.isOnline ? 'Đang hoạt động' : 'Ngoại tuyến')}</span>
+            </p>
             {activeChat.code && (
-              <span className="inline-block text-[9px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+              <span className="inline-block text-[9px] font-mono text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
                 Mã: #{activeChat.code}
               </span>
             )}
@@ -838,12 +1477,28 @@ export default function MessengerPage() {
             <div className="space-y-2 text-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thành viên nhóm ({activeChat.members?.length || 1})</span>
               <div className="space-y-1.5">
-                {(activeChat.members || ['Tôi']).map((m, idx) => (
-                  <div key={idx} className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-slate-800">{m}</span>
-                    <span className="text-[9px] text-slate-400">Thành viên</span>
-                  </div>
-                ))}
+                {(activeChat.members || ['Tôi']).map((mName, idx) => {
+                  const memberData = availableStaffs.find(s => s.name === mName) || availableCustomers.find(c => c.name === mName);
+                  const isMemberOnline = memberData?.isOnline ?? false;
+                  return (
+                    <div key={idx} className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] border ${getAvatarColor(mName)}`}>
+                            {mName[0] || 'U'}
+                          </div>
+                          <span className={`w-2 h-2 rounded-full border border-white absolute -bottom-0.5 -right-0.5 ${
+                            isMemberOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
+                          }`} />
+                        </div>
+                        <span className="font-semibold text-slate-800 truncate">{mName}</span>
+                      </div>
+                      <span className={`text-[9px] shrink-0 font-medium ${isMemberOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {isMemberOnline ? 'Trực tuyến' : 'Ngoại tuyến'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -994,6 +1649,86 @@ export default function MessengerPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: QUICK NEW 1-1 CHAT ── */}
+      {showQuickNewChatModal && (
+        <QuickNewChatModal
+          availableStaffs={availableStaffs}
+          availableCustomers={availableCustomers}
+          onClose={() => setShowQuickNewChatModal(false)}
+          onOpenConversation={handleOpenConversationById}
+        />
+      )}
+
+      {/* ── MODAL: ADD MEMBERS TO EXISTING CHAT ── */}
+      {showAddMembersModal && activeChat && (
+        <AddMembersModal
+          conversationId={activeChat.id}
+          conversationTitle={activeChat.name}
+          availableStaffs={availableStaffs}
+          availableCustomers={availableCustomers}
+          currentMemberNames={activeChat.members || []}
+          onClose={() => setShowAddMembersModal(false)}
+          onSuccess={() => {
+            setShowAddMembersModal(false);
+            loadConversations(true, false);
+            if (activeChatId) loadRealMessages(activeChatId, false);
+          }}
+        />
+      )}
+
+      {/* ── MODAL: SAVE ATTACHMENT TO CUSTOMER DOSSIER ── */}
+      {selectedAttachmentForDossier && (
+        <AssignToDossierModal
+          attachment={selectedAttachmentForDossier}
+          defaultCustomer={activeChat?.customerId ? {
+            id: activeChat.customerId,
+            code: activeChat.code,
+            name: activeChat.name,
+          } : null}
+          onClose={() => setSelectedAttachmentForDossier(null)}
+          onSuccess={() => {
+            toast.success('Đã lưu tài liệu vào hồ sơ khách hàng thành công!');
+          }}
+        />
+      )}
+
+      {/* ── MODAL: HIGH-RESOLUTION LIGHTBOX PREVIEW ── */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative max-w-5xl max-h-[92vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+              <a
+                href={lightboxUrl}
+                download="document_original.jpg"
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 rounded-xl bg-white/20 hover:bg-white/40 text-white transition-colors"
+                title="Tải ảnh gốc nguyên bản"
+              >
+                <Download className="w-4 h-4" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(null)}
+                className="p-2 rounded-xl bg-white/20 hover:bg-white/40 text-white transition-colors"
+                title="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxUrl}
+              alt="Ảnh phóng to"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            />
           </div>
         </div>
       )}

@@ -76,57 +76,57 @@ export default function Topbar({
     : user?.role ?? '...';
 
   return (
-    <header className="h-16 bg-card/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all">
+    <header className="h-12 bg-card/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-3 sm:px-4 sticky top-0 z-30 shadow-[0_2px_12px_rgba(0,0,0,0.02)] transition-all shrink-0">
       {/* Left: Hamburger + Page title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden md:flex text-muted-foreground hover:text-foreground shrink-0"
+          className="hidden md:flex text-muted-foreground hover:text-foreground shrink-0 w-8 h-8"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </Button>
-        <h2 className="text-lg font-semibold text-foreground hidden sm:block whitespace-nowrap">
+        <h2 className="text-sm sm:text-base font-bold text-foreground hidden sm:block whitespace-nowrap">
           {getPageTitle()}
         </h2>
       </div>
 
       {/* Center: Search */}
-      <div className="flex items-center w-full max-w-md ml-4">
+      <div className="flex items-center w-full max-w-sm ml-3">
         <form onSubmit={handleSearch} className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm khách hàng, hồ sơ..."
-            className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-primary transition-all w-full rounded-full"
+            className="pl-8 h-8 text-xs bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-primary transition-all w-full rounded-full"
           />
         </form>
       </div>
 
       {/* Right: Notifications + User */}
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-1.5 ml-auto">
         {/* Notification bell dropdown */}
         <NotificationDropdown />
 
-        <div className="w-px h-6 bg-border mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
 
         {/* User dropdown */}
         <div className="group relative">
-          <button className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-muted transition-all text-left">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shrink-0">
-              <UserCircle className="w-5 h-5" />
+          <button className="flex items-center gap-2 p-0.5 pr-2 rounded-full hover:bg-muted transition-all text-left">
+            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shrink-0">
+              <UserCircle className="w-4 h-4" />
             </div>
-            <div className="hidden sm:flex flex-col gap-0.5">
-              <p className="text-sm font-medium text-foreground leading-none">
+            <div className="hidden sm:flex flex-col gap-0">
+              <p className="text-xs font-semibold text-foreground leading-tight">
                 {user ? user.name : 'Đang tải...'}
               </p>
               <div className="flex items-center gap-1">
-                <Badge variant="indigo" size="sm">
+                <span className="text-[10px] text-muted-foreground leading-none">
                   {roleLabel}
-                </Badge>
+                </span>
               </div>
             </div>
           </button>

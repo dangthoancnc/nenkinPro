@@ -163,11 +163,10 @@ export function WorkflowPanel({
   };
 
   return (
-    <div className="space-y-2">
-
+    <div className="space-y-1.5">
       {/* ── Header row ── */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
           Tiến độ hồ sơ
         </span>
 
@@ -176,10 +175,10 @@ export function WorkflowPanel({
             <button
               type="button"
               onClick={() => setOpen(v => !v)}
-              className="flex items-center gap-1.5 h-6 pl-2.5 pr-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-bold hover:bg-indigo-100 transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="flex items-center gap-1 h-5.5 px-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-bold hover:bg-indigo-100 transition-colors focus:outline-none cursor-pointer"
             >
-              {STATUS_LABELS[status]}
-              <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+              <span>{STATUS_LABELS[status]}</span>
+              <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && (
@@ -189,7 +188,7 @@ export function WorkflowPanel({
                     key={s}
                     type="button"
                     onClick={() => handleDropdownSelect(s)}
-                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 hover:text-indigo-700 transition-colors ${
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-indigo-50 hover:text-indigo-700 transition-colors cursor-pointer ${
                       s === status ? 'font-bold text-indigo-700 bg-indigo-50/60' : 'text-slate-700'
                     }`}
                   >
@@ -211,13 +210,6 @@ export function WorkflowPanel({
         interactive={isEditing}
         onStatusChange={handleTimelineClick}
       />
-
-      {/* ── Hint when editing ── */}
-      {isEditing && (
-        <p className="text-[9px] text-slate-400 text-center leading-none">
-          Nhấp vào • trên timeline để chuyển bước nhanh
-        </p>
-      )}
     </div>
   );
 }

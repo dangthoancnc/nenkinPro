@@ -309,123 +309,99 @@ export function TaxOfficeCard({
         </div>
       </div>
 
-      {/* ���─ Body ────────────────────────────────────────────── */}
+      {/* ── Body ────────────────────────────────────────────── */}
       {!taxOffice ? (
         <EmptyState isEditing={isEditing} onEdit={onEdit} />
       ) : (
-        <div className="p-1.5">
+        <div className="p-3 space-y-2.5">
+          {/* Tên cục thuế */}
+          <div>
+            <p className="text-sm font-bold text-slate-800 leading-tight">
+              {taxOffice.name}
+            </p>
+            {taxOffice.romajiName && (
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">
+                {taxOffice.romajiName}
+              </p>
+            )}
+          </div>
 
-          {/* ═══ 2-COLUMN GRID ═══════════════════════════════ */}
-          <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 items-start">
+          {/* Core info block */}
+          <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 divide-y divide-slate-100">
+            <InfoRow
+              icon={MapPin}
+              label="Địa chỉ quản lý"
+              value={`〒${taxOffice.postalCode || ''} ${taxOffice.address || ''}`}
+            />
+            {taxOffice.romajiAddress && (
+              <InfoRow
+                icon={MapPin}
+                label="Địa chỉ Romaji"
+                value={taxOffice.romajiAddress}
+              />
+            )}
+            {taxOffice.phone && (
+              <InfoRow
+                icon={Phone}
+                label="Điện thoại"
+                value={taxOffice.phone}
+                mono
+              />
+            )}
+            {taxOffice.websiteUrl && (
+              <InfoRow
+                icon={Globe}
+                label="Website NTA"
+                value="Mở trang NTA ↗"
+                href={taxOffice.websiteUrl}
+              />
+            )}
+            {taxOffice.mapUrl && (
+              <InfoRow
+                icon={ExternalLink}
+                label="Bản đồ"
+                value="Mở Google Maps ↗"
+                href={taxOffice.mapUrl}
+              />
+            )}
+          </div>
 
-            {/* ── LEFT: Thông tin cục thuế ── */}
-            <section className="flex flex-col gap-2">
-
-              {/* Tên cục thuế */}
-              <div>
-                <p className="text-[12px] font-bold text-slate-800 leading-tight">
-                  {taxOffice.name}
-                </p>
-                {taxOffice.romajiName && (
-                  <p className="text-[9px] text-slate-400 font-medium mt-0.5 tracking-wide">
-                    {taxOffice.romajiName}
-                  </p>
-                )}
-              </div>
-
-              {/* Core info block */}
-              <div className="rounded-lg bg-slate-50 border border-slate-100 px-2.5 divide-y divide-slate-100">
-                <InfoRow
-                  icon={MapPin}
-                  label="Địa chỉ quản lý"
-                  value={`〒${taxOffice.postalCode}\n${taxOffice.address}`}
-                />
-                {taxOffice.romajiAddress && (
-                  <InfoRow
-                    icon={MapPin}
-                    label="Địa chỉ Romaji"
-                    value={taxOffice.romajiAddress}
-                  />
-                )}
-                {taxOffice.phone && (
-                  <InfoRow
-                    icon={Phone}
-                    label="Điện thoại"
-                    value={taxOffice.phone}
-                    mono
-                  />
-                )}
-                {taxOffice.websiteUrl && (
-                  <InfoRow
-                    icon={Globe}
-                    label="Website NTA"
-                    value="Mở trang NTA"
-                    href={taxOffice.websiteUrl}
-                  />
-                )}
-                {taxOffice.mapUrl && (
-                  <InfoRow
-                    icon={ExternalLink}
-                    label="Bản đồ"
-                    value="Mở Google Maps"
-                    href={taxOffice.mapUrl}
-                  />
-                )}
-              </div>
-
-              {/* Expandable extra contacts */}
-              {(hasExtraContacts || taxOffice.receptionInfo || taxOffice.notes) && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(v => !v)}
-                    className="flex items-center gap-1 text-[9px] font-semibold
-                               text-slate-400 hover:text-indigo-600 transition-colors"
-                  >
-                    {expanded
-                      ? <><ChevronUp className="w-3 h-3" /> Thu gọn</>
-                      : <><ChevronDown className="w-3 h-3" /> Thêm thông tin</>
-                    }
-                  </button>
-                  {expanded && (
-                    <div className="mt-2 rounded-lg bg-slate-50 border border-slate-100 px-2.5 divide-y divide-slate-100">
-                      {taxOffice.jurisdiction && (
-                        <InfoRow icon={MapPin} label="Khu vực quản lý" value={taxOffice.jurisdiction} />
-                      )}
-                      {taxOffice.consultationPhone && (
-                        <InfoRow icon={Phone} label="SĐT tư vấn" value={taxOffice.consultationPhone} mono />
-                      )}
-                      {taxOffice.generalPhone && (
-                        <InfoRow icon={Phone} label="SĐT hành chính" value={taxOffice.generalPhone} mono />
-                      )}
-                      {taxOffice.receptionInfo && (
-                        <InfoRow icon={Building2} label="Giờ tiếp nhận" value={taxOffice.receptionInfo} />
-                      )}
-                      {taxOffice.notes && (
-                        <InfoRow icon={AlertCircle} label="Ghi chú" value={taxOffice.notes} />
-                      )}
-                    </div>
+          {/* Expandable extra contacts */}
+          {(hasExtraContacts || taxOffice.receptionInfo || taxOffice.notes) && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setExpanded(v => !v)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+              >
+                {expanded
+                  ? <><ChevronUp className="w-3.5 h-3.5" /> Thu gọn thông tin phụ</>
+                  : <><ChevronDown className="w-3.5 h-3.5" /> Xem thêm thông tin chi tiết</>
+                }
+              </button>
+              {expanded && (
+                <div className="mt-1.5 rounded-lg bg-slate-50 border border-slate-100 px-3 divide-y divide-slate-100">
+                  {taxOffice.jurisdiction && (
+                    <InfoRow icon={MapPin} label="Khu vực quản lý" value={taxOffice.jurisdiction} />
+                  )}
+                  {taxOffice.consultationPhone && (
+                    <InfoRow icon={Phone} label="SĐT tư vấn" value={taxOffice.consultationPhone} mono />
+                  )}
+                  {taxOffice.generalPhone && (
+                    <InfoRow icon={Phone} label="SĐT hành chính" value={taxOffice.generalPhone} mono />
+                  )}
+                  {taxOffice.receptionInfo && (
+                    <InfoRow icon={Building2} label="Giờ tiếp nhận" value={taxOffice.receptionInfo} />
+                  )}
+                  {taxOffice.notes && (
+                    <InfoRow icon={AlertCircle} label="Ghi chú" value={taxOffice.notes} />
                   )}
                 </div>
               )}
-            </section>
-
-            {/* ── RIGHT: Địa chỉ nhận hồ sơ (tem phiếu) ── */}
-            <section className="flex flex-col min-h-[88px]">
-              {hasMailingAddress ? (
-                <MailingLabel
-                  name={taxOffice.mailingName!}
-                  postalCode={taxOffice.mailingPostalCode!}
-                  address={taxOffice.mailingAddress!}
-                />
-              ) : (
-                <EmptyMailingSlot isEditing={isEditing} onEdit={onEdit} />
-              )}
-            </section>
-
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -21,6 +21,9 @@ export type PdfCoordinate = {
 
 export type PdfMappingConfig = Record<string, PdfCoordinate>;
 
+// Cache font bytes in memory to avoid repeated disk reads
+let cachedFontBytes: Buffer | null = null;
+
 export async function fillPdfTemplate(
   templateFileName: string,
   data: Record<string, string>,
@@ -32,12 +35,14 @@ export async function fillPdfTemplate(
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   pdfDoc.registerFontkit(fontkit);
   
-  // Load Japanese font
+  // Load Japanese font from memory cache
   const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.otf');
   let customFont;
-  if (fs.existsSync(fontPath)) {
-    const fontBytes = fs.readFileSync(fontPath);
-    customFont = await pdfDoc.embedFont(fontBytes);
+  if (!cachedFontBytes && fs.existsSync(fontPath)) {
+    cachedFontBytes = fs.readFileSync(fontPath);
+  }
+  if (cachedFontBytes) {
+    customFont = await pdfDoc.embedFont(cachedFontBytes);
   }
 
   const pages = pdfDoc.getPages();

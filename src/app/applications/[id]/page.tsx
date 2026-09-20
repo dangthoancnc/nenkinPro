@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft, Plus
+  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft, Plus, Copy, Edit3, MessageSquare
 } from 'lucide-react';
 import { TransferApplicationModal } from '@/components/applications/TransferApplicationModal';
+import ChatGalleryPickerModal from '@/components/applications/ChatGalleryPickerModal';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { workspaceSchema, WorkspaceFormValues } from '@/lib/validations/workspaceSchema';
@@ -33,11 +34,11 @@ import { SettlementModal } from '@/components/SettlementModal';
 import PrintModal from './print-modal';
 
 const BASE_DOCUMENTS = [
-  { key: 'zairyuFront',         title: 'Thẻ Ngoại Kiều (Trước)', urlField: 'zairyuFrontUrl'    },
-  { key: 'zairyuBack',          title: 'Thẻ Ngoại Kiều (Sau)',   urlField: 'zairyuBackUrl'     },
+  { key: 'zairyuCard',          title: 'Thẻ Ngoại Kiều',         urlField: 'zairyuFrontUrl'    },
   { key: 'passport',            title: 'Hộ chiếu',               urlField: 'passportUrl'       },
   { key: 'nenkinBook',          title: 'Sổ Nenkin',              urlField: 'nenkinBookUrl'     },
   { key: 'bankAccounts',        title: 'Tài khoản Ngân hàng',    urlField: 'bankAccounts'      },
+  { key: 'taxOfficeInfo',       title: 'Cục Thuế Quản Lý',       urlField: 'taxOfficeId'       },
   { key: 'noticeOfEntitlement', title: 'Thông báo Lần 1',        urlField: 'noticeImageUrl'    },
   { key: 'departureStamp',      title: 'Dấu xuất cảnh',          urlField: 'departureStampUrl' },
   { key: 'vietnamContact',      title: 'Liên lạc VN & Ghi chú',  urlField: 'contactImageUrls'  },
@@ -55,6 +56,18 @@ const statusConfig: Record<string, { label: string; color: string; badgeColor: s
   CANCELLED:    { label: 'Đã hủy',         color: 'bg-red-50 text-red-700 border-red-200',             badgeColor: 'bg-red-100 text-red-700 border-red-300',             icon: AlertCircle },
 };
 
+const DOC_TO_PRINT_TAB: Record<string, string> = {
+  zairyuCard: 'lan1_zairyu',
+  passport: 'lan1_passport',
+  nenkinBook: 'lan1_nenkin_book',
+  bankAccounts: 'lan1_bank',
+  taxOfficeInfo: 'env_chuyenphat',
+  noticeOfEntitlement: 'lan1_donxin',
+  departureStamp: 'lan1_departure',
+  vietnamContact: 'lan1_donxin',
+  workHistories: 'lan1_donxin',
+};
+
 export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
@@ -64,14 +77,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [loading,           setLoading]           = useState(!isNew);
   const [saving,            setSaving]            = useState(false);
   const [deleting,          setDeleting]          = useState(false);
+  const [exportingPdf,      setExportingPdf]      = useState(false);
+  const [ocrLoading,        setOcrLoading]        = useState<Record<string, boolean>>({});
   const [isEditing,         setIsEditing]         = useState(isNew);
   const [ocrStatus,         setOcrStatus]         = useState<Record<string, string>>({});
   const [lightboxUrl,       setLightboxUrl]       = useState<string | null>(null);
-  const [activeDoc,         setActiveDoc]         = useState<string>('zairyuFront');
+  const [activeDoc,         setActiveDoc]         = useState<string>('zairyuCard');
   const [customerId,        setCustomerId]        = useState<string | null>(null);
   const [customer,          setCustomer]          = useState<any | null>(null);
   const [manualConfirmed,   setManualConfirmed]   = useState<boolean>(false);
   const [showPrintModal,    setShowPrintModal]    = useState<boolean>(false);
+  const [printModalTab,     setPrintModalTab]     = useState<string>('lan1_tonghop');
+  const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
   const [verifiedFields,    setVerifiedFields]    = useState<Record<string, boolean>>({});
   const [cropFile,          setCropFile]          = useState<File | null>(null);
   const [cropDocKey,        setCropDocKey]        = useState<string>('');
@@ -92,6 +109,79 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
   const [assignedUser, setAssignedUser] = useState<{ id: string; name: string } | null>(null);
   const [showTransferModal, setShowTransferModal] = useState<boolean>(false);
+  const [showVerifyDetails, setShowVerifyDetails] = useState<boolean>(false);
+  const [chatGalleryTarget, setChatGalleryTarget] = useState<{
+    docKey: string;
+    urlField: string;
+    docTitle: string;
+    arrIdx?: number;
+  } | null>(null);
+
+  const handleSelectFromChatGallery = async (url: string) => {
+    if (!chatGalleryTarget) return;
+    const { docKey, urlField, arrIdx } = chatGalleryTarget;
+
+    const isArrayMode = docKey === 'bankAccounts' || docKey === 'vietnamContact' || arrIdx !== undefined;
+
+    if (isArrayMode) {
+      const currentArr = getValues(urlField as any) || [];
+      const newArr = [...currentArr];
+      if (arrIdx !== undefined && arrIdx !== null) {
+        newArr[arrIdx] = url;
+      } else {
+        newArr.push(url);
+      }
+      setValue(urlField as any, newArr, { shouldDirty: true });
+
+      if (!isNew && customerId) {
+        if (docKey === 'bankAccounts') {
+          const allBanks = getValues('bankAccounts') || [];
+          const targetBankIdx = urlField.startsWith('bankAccounts.') ? parseInt(urlField.split('.')[1], 10) : 0;
+          const updatedBanks = allBanks.map((b: any, bIdx: number) => {
+            if (bIdx === targetBankIdx) {
+              return {
+                ...b,
+                bankPassbookUrls: newArr.filter((u: string) => u && typeof u === 'string' && !u.startsWith('blob:')),
+              };
+            }
+            return b;
+          });
+          await fetch(`/api/customers/${customerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bankAccounts: updatedBanks }),
+          });
+        } else {
+          await fetch(`/api/customers/${customerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [urlField]: newArr }),
+          });
+        }
+      }
+    } else {
+      setValue(urlField as any, url, { shouldDirty: true });
+      if (!isNew) {
+        if (urlField === 'noticeImageUrl') {
+          await fetch(`/api/applications/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ noticeImageUrl: url }),
+          });
+        } else if (customerId) {
+          await fetch(`/api/customers/${customerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [urlField]: url }),
+          });
+        }
+      }
+    }
+
+    toast.success('Đã chọn ảnh từ kho! Đang tự động quét AI OCR...');
+    runOcrExtract(url, docKey);
+    setChatGalleryTarget(null);
+  };
 
   const toggleVerify = (field: string) =>
     setVerifiedFields(prev => ({ ...prev, [field]: !prev[field] }));
@@ -562,7 +652,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   };
 
   const applyExtracted = (docKey: string, ext: any) => {
-    if (docKey === 'zairyuFront' || docKey === 'zairyuBack') {
+    if (docKey === 'zairyuFront' || docKey === 'zairyuBack' || docKey === 'zairyuCard' || docKey === 'taxOfficeInfo') {
       if (ext.fullName)    setValue('fullName',       ext.fullName,    { shouldValidate: true, shouldDirty: true });
       if (ext.dob)         setValue('dob',             ext.dob,         { shouldValidate: true, shouldDirty: true });
       if (ext.nationality) setValue('nationality',     ext.nationality, { shouldDirty: true });
@@ -844,7 +934,201 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         )}
 
         <div className="flex-1 rounded-xl overflow-hidden bg-slate-900/5 border border-slate-200/60 flex items-center justify-center relative min-h-0 min-w-0 max-w-full">
-          {isMultiUrl ? (
+          {activeDoc === 'zairyuCard' ? (() => {
+            const zFrontUrl = (watch('zairyuFrontUrl') as string) || '';
+            const zBackUrl = (watch('zairyuBackUrl') as string) || '';
+            return (
+              <div className="w-full h-full flex flex-col gap-2 min-h-0 overflow-y-auto p-1.5">
+                {/* Mặt trước Card */}
+                <div className="flex-1 min-h-[220px] rounded-xl overflow-hidden bg-white/70 border border-slate-200/90 flex flex-col relative shadow-2xs">
+                  <div className="px-2.5 py-1.5 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between shrink-0">
+                    <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                      <span>🪪</span> Thẻ Ngoại Kiều (Mặt trước)
+                    </span>
+                    {zFrontUrl ? (
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Đã tải</span>
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">○ Chưa có</span>
+                    )}
+                  </div>
+                  <div className="flex-1 relative flex items-center justify-center min-h-0 bg-slate-900/5">
+                    {zFrontUrl ? (
+                      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={zFrontUrl} alt="Thẻ ngoại kiều mặt trước" className="block w-full h-auto max-h-full object-contain" />
+                        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg p-0.5 shadow-md z-20">
+                          {isEditing && (
+                            <>
+                              <button type="button" title="Trích xuất AI" onClick={() => runOcrExtract(zFrontUrl, 'zairyuFront')} className="w-6 h-6 flex items-center justify-center text-indigo-300 hover:text-white rounded hover:bg-white/10">
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </button>
+                              <button type="button" title="Cắt ảnh" onClick={() => { setCropDocKey('zairyuFront'); setCropUrlField('zairyuFrontUrl'); setCropImageSrc(zFrontUrl); }} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                                <Crop className="w-3.5 h-3.5" />
+                              </button>
+                              <label className="cursor-pointer" title="Thay thế ảnh">
+                                <span className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                                  <UploadCloud className="w-3.5 h-3.5" />
+                                </span>
+                                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, 'zairyuFront', 'zairyuFrontUrl')} />
+                              </label>
+                              <button type="button" title="Xóa ảnh" onClick={() => {
+                                setValue('zairyuFrontUrl', '', { shouldDirty: true });
+                                if (!isNew && customerId) fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zairyuFrontUrl: '' }) }).catch(console.error);
+                                toast.success('Đã xóa ảnh mặt trước');
+                              }} className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-300 rounded hover:bg-white/10">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <button type="button" title="Phóng to" onClick={() => setLightboxUrl(zFrontUrl)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : isEditing ? (
+                      <div className="flex flex-col items-center justify-center gap-2 w-full h-full p-4 text-center">
+                        <label className="flex flex-col items-center justify-center gap-1 cursor-pointer text-slate-400 hover:text-indigo-600 transition-colors">
+                          <UploadCloud className="w-6 h-6 text-indigo-500" />
+                          <span className="text-[11px] font-bold">Tải ảnh Mặt trước</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, 'zairyuFront', 'zairyuFrontUrl')} />
+                        </label>
+                        {customerId && (
+                          <button
+                            type="button"
+                            onClick={() => setChatGalleryTarget({
+                              docKey: 'zairyuFront',
+                              urlField: 'zairyuFrontUrl',
+                              docTitle: 'Thẻ ngoại kiều (Mặt trước)',
+                            })}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold flex items-center gap-1 border border-indigo-200 transition-colors"
+                          >
+                            <MessageSquare className="w-3 h-3 text-indigo-600" /> Chọn từ Kho Chat
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Chưa có ảnh mặt trước</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mặt sau Card */}
+                <div className="flex-1 min-h-[220px] rounded-xl overflow-hidden bg-white/70 border border-slate-200/90 flex flex-col relative shadow-2xs">
+                  <div className="px-2.5 py-1.5 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between shrink-0">
+                    <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                      <span>🪪</span> Mặt sau thẻ (Địa chỉ sau cùng)
+                    </span>
+                    {zBackUrl ? (
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Đã tải</span>
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">○ Chưa có</span>
+                    )}
+                  </div>
+                  <div className="flex-1 relative flex items-center justify-center min-h-0 bg-slate-900/5">
+                    {zBackUrl ? (
+                      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={zBackUrl} alt="Thẻ ngoại kiều mặt sau" className="block w-full h-auto max-h-full object-contain" />
+                        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg p-0.5 shadow-md z-20">
+                          {isEditing && (
+                            <>
+                              <button type="button" title="Trích xuất AI" onClick={() => runOcrExtract(zBackUrl, 'zairyuBack')} className="w-6 h-6 flex items-center justify-center text-indigo-300 hover:text-white rounded hover:bg-white/10">
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </button>
+                              <button type="button" title="Cắt ảnh" onClick={() => { setCropDocKey('zairyuBack'); setCropUrlField('zairyuBackUrl'); setCropImageSrc(zBackUrl); }} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                                <Crop className="w-3.5 h-3.5" />
+                              </button>
+                              <label className="cursor-pointer" title="Thay thế ảnh">
+                                <span className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                                  <UploadCloud className="w-3.5 h-3.5" />
+                                </span>
+                                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, 'zairyuBack', 'zairyuBackUrl')} />
+                              </label>
+                              <button type="button" title="Xóa ảnh" onClick={() => {
+                                setValue('zairyuBackUrl', '', { shouldDirty: true });
+                                if (!isNew && customerId) fetch(`/api/customers/${customerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zairyuBackUrl: '' }) }).catch(console.error);
+                                toast.success('Đã xóa ảnh mặt sau');
+                              }} className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-300 rounded hover:bg-white/10">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <button type="button" title="Phóng to" onClick={() => setLightboxUrl(zBackUrl)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-white rounded hover:bg-white/10">
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : isEditing ? (
+                      <div className="flex flex-col items-center justify-center gap-2 w-full h-full p-4 text-center">
+                        <label className="flex flex-col items-center justify-center gap-1 cursor-pointer text-slate-400 hover:text-indigo-600 transition-colors">
+                          <UploadCloud className="w-6 h-6 text-indigo-500" />
+                          <span className="text-[11px] font-bold">Tải ảnh Mặt sau</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, 'zairyuBack', 'zairyuBackUrl')} />
+                        </label>
+                        {customerId && (
+                          <button
+                            type="button"
+                            onClick={() => setChatGalleryTarget({
+                              docKey: 'zairyuBack',
+                              urlField: 'zairyuBackUrl',
+                              docTitle: 'Thẻ ngoại kiều (Mặt sau)',
+                            })}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold flex items-center gap-1 border border-indigo-200 transition-colors"
+                          >
+                            <MessageSquare className="w-3 h-3 text-indigo-600" /> Chọn từ Kho Chat
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Chưa có ảnh mặt sau</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })() : activeDoc === 'taxOfficeInfo' ? (
+            <div className="w-full h-full p-4 flex flex-col items-center justify-center text-center space-y-3 bg-white/70 overflow-y-auto">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-2xl shadow-xs">
+                🏛️
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm">Cục Thuế Quản Lý & Địa Chỉ Nộp Hồ Sơ</h4>
+                <p className="text-xs text-slate-500 max-w-xs mt-1">
+                  Thông tin Cục thuế và Trung tâm tiếp nhận tem thư bưu điện được quản lý chi tiết tại bảng nhập liệu bên phải.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-slate-100 w-full flex flex-col gap-2 max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const backUrl = watch('zairyuBackUrl');
+                    const frontUrl = watch('zairyuFrontUrl');
+                    if (backUrl) {
+                      runOcrExtract(backUrl, 'zairyuBack');
+                    } else if (frontUrl) {
+                      runOcrExtract(frontUrl, 'zairyuFront');
+                    } else {
+                      toast.error('Chưa có ảnh Thẻ Ngoại Kiều', {
+                        description: 'Vui lòng tải ảnh Thẻ Ngoại Kiều để AI tự động tra cứu Cục thuế.',
+                        action: { label: 'Tải ảnh thẻ', onClick: () => setActiveDoc('zairyuCard') }
+                      });
+                    }
+                  }}
+                  className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Quét Cục Thuế từ Thẻ Ngoại Kiều (AI)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveDoc('zairyuCard')}
+                  className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition"
+                >
+                  ← Xem lại ảnh Thẻ Ngoại Kiều
+                </button>
+              </div>
+            </div>
+          ) : isMultiUrl ? (
             <div className="w-full h-full p-2 overflow-y-auto">
               <div className="grid grid-cols-2 gap-2">
                 {currentMultiUrls.map((url, idx) => (
@@ -930,6 +1214,21 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                       <Crop className="w-4 h-4" />
                     </button>
+                    {customerId && (
+                      <button
+                        type="button"
+                        title="Chọn từ Kho Chat của khách"
+                        onClick={() => setChatGalleryTarget({
+                          docKey: activeDoc,
+                          urlField: currentDocField,
+                          docTitle: currentDocTitle,
+                          arrIdx: isBankDoc ? selectedBankImageIndex : undefined,
+                        })}
+                        className="w-7 h-7 flex items-center justify-center text-amber-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                    )}
                     <label className="cursor-pointer" title="Thay thế ảnh">
                       <span className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                         <UploadCloud className="w-4 h-4" />
@@ -980,20 +1279,37 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </div>
             </div>
           ) : isEditing ? (
-            <label
-              className="flex flex-col items-center justify-center gap-2 cursor-pointer w-full h-full hover:bg-indigo-50/40 transition-colors text-slate-400 hover:text-indigo-600 bg-white/50 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 rounded-xl p-6"
-              onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined); }}
-            >
-              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                <UploadCloud className="w-5 h-5 text-indigo-500" />
-              </div>
-              <div className="text-center">
-                <span className="text-xs font-bold text-slate-600 block">Nhấp hoặc kéo thả ảnh</span>
-                <span className="text-[10px] text-slate-400">PNG, JPG, JPEG</span>
-              </div>
-              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined)} />
-            </label>
+            <div className="flex flex-col items-center justify-center gap-3 w-full h-full bg-white/50 border-2 border-dashed border-slate-200/80 rounded-xl p-6">
+              <label
+                className="flex flex-col items-center justify-center gap-2 cursor-pointer hover:text-indigo-600 transition-colors text-slate-400"
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files?.length) handleFileSelect({ target: { files: e.dataTransfer.files } } as any, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined); }}
+              >
+                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                  <UploadCloud className="w-5 h-5 text-indigo-500" />
+                </div>
+                <div className="text-center">
+                  <span className="text-xs font-bold text-slate-600 block">Tải ảnh từ máy tính</span>
+                  <span className="text-[10px] text-slate-400">Nhấp hoặc kéo thả PNG, JPG</span>
+                </div>
+                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileSelect(e, activeDoc, currentDocField, isBankDoc ? currentBankUrls.length : undefined)} />
+              </label>
+
+              {customerId && (
+                <button
+                  type="button"
+                  onClick={() => setChatGalleryTarget({
+                    docKey: activeDoc,
+                    urlField: currentDocField,
+                    docTitle: currentDocTitle,
+                    arrIdx: isBankDoc ? currentBankUrls.length : undefined,
+                  })}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-indigo-200 shadow-2xs"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-600" /> Chọn từ Kho Chat của khách
+                </button>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 w-full h-full text-slate-300 bg-white/50 rounded-xl p-6">
               <UploadCloud className="w-6 h-6" />
@@ -1014,43 +1330,282 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   );
 
   // ─────────────────────────────────────────────
+  // In qua Hidden Iframe (Mở trực tiếp trên toàn màn hình, không mở popup nhỏ)
+  // ─────────────────────────────────────────────
+  const printHtmlViaHiddenIframe = (htmlContent: string) => {
+    let iframe = document.getElementById('hidden-print-iframe') as HTMLIFrameElement | null;
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'hidden-print-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.style.visibility = 'hidden';
+      document.body.appendChild(iframe);
+    }
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    const triggerPrint = () => {
+      try {
+        iframe?.contentWindow?.focus();
+        iframe?.contentWindow?.print();
+      } catch (e) {
+        console.error('Print iframe error:', e);
+      }
+    };
+
+    const images = doc.images;
+    if (!images || images.length === 0) {
+      setTimeout(triggerPrint, 100);
+    } else {
+      let loadedCount = 0;
+      const totalImages = images.length;
+
+      const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= totalImages) {
+          setTimeout(triggerPrint, 150);
+        }
+      };
+
+      for (let i = 0; i < totalImages; i++) {
+        const img = images[i];
+        if (img.complete) {
+          checkAllLoaded();
+        } else {
+          img.onload = checkAllLoaded;
+          img.onerror = checkAllLoaded;
+        }
+      }
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // In Nhanh tài liệu của Tab hiện tại (Không mở Modal)
+  // ─────────────────────────────────────────────
+  const handleQuickPrintCurrentTab = () => {
+    const customerName = watch('fullName') || 'Khách hàng';
+    const customerCode = watch('code') || id.slice(0, 8);
+
+    if (activeDoc === 'taxOfficeInfo') {
+      if (!selectedTaxOffice) {
+        toast.warning('Chưa có thông tin Cục thuế để in!');
+        return;
+      }
+      const pCode = selectedTaxOffice.mailingPostalCode || selectedTaxOffice.postalCode || '';
+      const addr = selectedTaxOffice.mailingAddress || selectedTaxOffice.address || '';
+      const name = selectedTaxOffice.mailingName || selectedTaxOffice.name || '';
+      printHtmlViaHiddenIframe(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Tem Phiếu Cục Thuế - ${customerName}</title>
+          <style>
+            @page { size: A4 portrait; margin: 15mm; }
+            body { font-family: 'MS Gothic', 'Meiryo', sans-serif; padding: 24px; display: flex; justify-content: center; align-items: flex-start; }
+            .label-box { width: 160mm; border: 2px solid #1e3a8a; border-radius: 8px; padding: 24px 32px; background: white; margin-top: 20px; }
+            .postal { font-size: 26px; font-weight: bold; letter-spacing: 6px; margin-bottom: 16px; color: #1e3a8a; }
+            .address { font-size: 18px; line-height: 2; color: #1f2937; margin-bottom: 20px; }
+            .recip { font-size: 24px; font-weight: bold; color: #111827; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
+            .sender-note { margin-top: 24px; font-size: 12px; color: #64748b; font-family: sans-serif; }
+          </style>
+        </head>
+        <body>
+          <div class="label-box">
+            <div class="postal">〒${pCode}</div>
+            <div class="address">${addr}</div>
+            <div class="recip">${name} 御中</div>
+            <div class="sender-note">Hồ sơ người nộp: ${customerName} (#${customerCode})</div>
+          </div>
+        </body>
+        </html>
+      `);
+      return;
+    }
+
+    // Resolve images based on activeDoc
+    let images: { url: string; label: string }[] = [];
+    let docTitle = 'Tài liệu hồ sơ';
+
+    if (activeDoc === 'zairyuCard') {
+      docTitle = 'Thẻ Ngoại Kiều (2 Mặt)';
+      const front = watch('zairyuFrontUrl');
+      const back = watch('zairyuBackUrl');
+      if (front) images.push({ url: front, label: 'Mặt trước' });
+      if (back) images.push({ url: back, label: 'Mặt sau' });
+    } else if (activeDoc === 'passport') {
+      docTitle = 'Hộ Chiếu (Passport)';
+      const pUrl = watch('passportUrl');
+      if (pUrl) images.push({ url: pUrl, label: 'Trang thông tin hộ chiếu' });
+    } else if (activeDoc === 'nenkinBook') {
+      docTitle = 'Sổ Nenkin';
+      const nUrl = watch('nenkinBookUrl');
+      if (nUrl) images.push({ url: nUrl, label: 'Sổ Nenkin (Sổ hưu trí)' });
+    } else if (activeDoc === 'bankAccounts') {
+      docTitle = 'Sổ Ngân Hàng';
+      const bList = watch('bankAccounts') || [];
+      bList.forEach((b: any, bIdx: number) => {
+        (b.bankPassbookUrls || []).forEach((u: string, uIdx: number) => {
+          if (u) images.push({ url: u, label: `Sổ NH ${bIdx + 1} (Ảnh ${uIdx + 1})` });
+        });
+      });
+    } else if (activeDoc === 'departureStamp') {
+      docTitle = 'Dấu Xuất Cảnh';
+      const dUrl = watch('departureStampUrl');
+      if (dUrl) images.push({ url: dUrl, label: 'Dấu xuất cảnh tại sân bay' });
+    } else if (activeDoc === 'noticeOfEntitlement') {
+      docTitle = 'Thông Báo Thoát BH Lần 1';
+      const nUrl = watch('noticeImageUrl');
+      if (nUrl) images.push({ url: nUrl, label: 'Giấy thông báo chi trả Lần 1' });
+    } else if (activeDoc === 'vietnamContact') {
+      docTitle = 'Liên Lạc VN & Giấy Tờ Khác';
+      const cList = watch('contactImageUrls') || [];
+      cList.forEach((u: string, idx: number) => {
+        if (u) images.push({ url: u, label: `Ảnh đính kèm ${idx + 1}` });
+      });
+    }
+
+    if (images.length === 0) {
+      toast.warning(`Chưa có ảnh/tài liệu của tab ${docTitle} để in!`, {
+        description: 'Vui lòng tải ảnh lên trước khi in nhanh.',
+      });
+      return;
+    }
+
+    const isSingle = images.length === 1;
+    printHtmlViaHiddenIframe(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>In Nhanh - ${docTitle} - ${customerName}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+          }
+          .header-bar {
+            width: 100%;
+            max-width: 190mm;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #64748b;
+          }
+          .header-bar strong {
+            color: #0f172a;
+            font-size: 13px;
+          }
+          .content-wrap {
+            width: 100%;
+            max-width: 190mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: ${isSingle ? '0' : '10mm'};
+            flex: 1;
+          }
+          .img-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+          }
+          .img-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .img-preview {
+            max-width: 100%;
+            max-height: ${isSingle ? '240mm' : '118mm'};
+            object-fit: contain;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-bar">
+          <div>HỒ SƠ NENKIN: <strong>${customerName}</strong> (#${customerCode})</div>
+          <div>${docTitle}</div>
+        </div>
+        <div class="content-wrap">
+          ${images.map(img => `
+            <div class="img-card">
+              ${images.length > 1 ? `<div class="img-tag">${img.label}</div>` : ''}
+              <img src="${img.url}" class="img-preview" alt="${img.label}" />
+            </div>
+          `).join('')}
+        </div>
+      </body>
+      </html>
+    `);
+  };
+
+  // ─────────────────────────────────────────────
   // PANEL 2 — Form nhập liệu
   // ─────────────────────────────────────────────
   const panel2Node = (
     <div className={`${glassPanel} min-h-0 h-full`}>
-      <div className={glassPanelHeader}>
+      <div className={`${glassPanelHeader} flex items-center justify-between`}>
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thông tin chi tiết nhập liệu</span>
+        {!isNew && (
+          <button
+            type="button"
+            onClick={handleQuickPrintCurrentTab}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-2xs cursor-pointer"
+            title="In nhanh tài liệu của tab hiện tại và mở ngay hộp thoại in máy in"
+          >
+            <Printer className="w-3 h-3 text-blue-600" /> In nhanh tài liệu này
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 min-h-0 space-y-3">
-        {/* Tùy chọn trạng thái Khách hàng quay lại Nhật */}
-        <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-2.5 flex items-start gap-2.5">
-          <input
-            type="checkbox"
-            id="isReturnedToJapan"
-            {...register('isReturnedToJapan')}
-            disabled={!isEditing}
-            className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50"
-          />
-          <div>
-            <label htmlFor="isReturnedToJapan" className="text-xs font-bold text-slate-800 cursor-pointer">
-              Khách hàng đã quay lại Nhật (Cư trú)
-            </label>
-            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-              Đánh dấu nếu khách đã có địa chỉ Nhật mới. Tự động chuyển thẻ Ngân hàng nhận Lần 2 sang thẻ Nhật và bỏ qua T3.
-            </p>
-          </div>
-        </div>
-
         {(() => {
           switch (activeDoc) {
-            case 'zairyuFront':
-            case 'zairyuBack': {
+            case 'zairyuCard': {
               const zFields = ['fullName','dob','cardNumber','zairyuAddress','postalCode'];
               const allVerified = zFields.every(f => verifiedFields[f]);
               return (
                 <div className="space-y-2.5">
-                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1">THÔNG TIN THẺ NGOẠI KIỀU</div>
+                  <div className="text-xs font-bold text-indigo-600 border-b border-indigo-100 pb-1 flex items-center justify-between">
+                    <span>THÔNG TIN THẺ NGOẠI KIỀU (2 MẶT)</span>
+                    <span className="text-[10px] text-slate-600 font-semibold px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
+                      Địa chỉ ưu tiên lấy từ mặt sau
+                    </span>
+                  </div>
                   <div className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-[11px] font-bold ${
                     allVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
                   }`}>
@@ -1058,7 +1613,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       <CheckCircle className={`w-3.5 h-3.5 ${allVerified ? 'text-emerald-600' : 'text-slate-400 animate-pulse'}`} />
                       Trạng thái duyệt:
                     </span>
-                    <span>{allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                      allVerified
+                        ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300'
+                        : 'bg-amber-100/80 text-amber-800 border-amber-300'
+                    }`}>
+                      {allVerified ? 'ĐÃ DUYỆT KHỚP' : 'CHƯA DUYỆT KHỚP'}
+                    </span>
                   </div>
                   <FormField label="Họ và tên" required errorMessage={errors.fullName?.message as string}>
                     <Input {...register('fullName')} disabled={!isEditing} size="md"
@@ -1087,7 +1648,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['myNumber']} showVerify onVerify={() => toggleVerify('myNumber')} />
                     </FormField>
                   </div>
-                  <FormField label="Địa chỉ trên thẻ (Kanji)">
+                  <FormField label="Địa chỉ trên thẻ (Ưu tiên cập nhật mới nhất)">
                     <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
                       verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
                       state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}
@@ -1097,16 +1658,179 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </button>
                       ) : undefined} />
                   </FormField>
-                    <FormField label="Mã Bưu Điện">
-                      <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
-                        verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
-                        state={verifiedFields['postalCode'] ? 'verified' : 'default'}
-                        rightIcon={
-                          <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
-                            <Search className="w-3.5 h-3.5" />
+                  <FormField label="Mã Bưu Điện">
+                    <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
+                      verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
+                      state={verifiedFields['postalCode'] ? 'verified' : 'default'}
+                      rightIcon={
+                        <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
+                          <Search className="w-3.5 h-3.5" />
+                        </button>
+                      } />
+                  </FormField>
+
+                  {/* Navigation Button to Tax Office Tab */}
+                  <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between mt-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-amber-900 block">Cục Thuế Quản Lý</span>
+                      <span className="text-[10px] text-amber-700">
+                        {selectedTaxOffice?.name ? `🏛️ ${selectedTaxOffice.name} (${selectedTaxOffice.postalCode || ''})` : '⚠️ Chưa xác định Cục Thuế'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDoc('taxOfficeInfo')}
+                      className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-xs font-bold shadow-2xs flex items-center gap-1 transition"
+                    >
+                      <span>Xem / Chỉnh sửa Cục Thuế ➔</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            case 'taxOfficeInfo': {
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-indigo-100">
+                    <span className="text-xs font-bold text-indigo-700 flex items-center gap-1">
+                      <span>🏛️</span> QUẢN LÝ CỤC THUẾ & NƠI NỘP HỒ SƠ
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleVerify('taxOffice');
+                        if (!verifiedFields['taxOffice']) {
+                          toast.success('Đã tích chọn đối chiếu Cục thuế quản lý ✓');
+                        } else {
+                          toast.info('Đã bỏ tích đối chiếu Cục thuế quản lý');
+                        }
+                      }}
+                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 transition-colors border cursor-pointer select-none shadow-2xs ${
+                        verifiedFields['taxOffice']
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                          : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse'
+                      }`}
+                    >
+                      <CheckCircle className={`w-3.5 h-3.5 ${verifiedFields['taxOffice'] ? 'text-emerald-600' : 'text-amber-600'}`} />
+                      {verifiedFields['taxOffice'] ? '✓ Đã đối chiếu Cục Thuế' : 'Tích chọn đối chiếu'}
+                    </button>
+                  </div>
+
+                  {/* AI Quick Extract Bar */}
+                  <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-2.5 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="font-bold text-indigo-950 text-xs flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        Tự động tra cứu từ Thẻ Ngoại Kiều
+                      </span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        AI sẽ đọc địa chỉ cư trú mới nhất trên mặt sau (hoặc mặt trước) thẻ để tra cứu Cục Thuế NTA.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const backUrl = watch('zairyuBackUrl');
+                        const frontUrl = watch('zairyuFrontUrl');
+                        if (backUrl) {
+                          runOcrExtract(backUrl, 'zairyuBack');
+                        } else if (frontUrl) {
+                          runOcrExtract(frontUrl, 'zairyuFront');
+                        } else {
+                          toast.error('Chưa có ảnh Thẻ Ngoại Kiều', {
+                            description: 'Vui lòng tải ảnh Thẻ Ngoại Kiều để AI tự động tra cứu.',
+                            action: { label: 'Tải ảnh thẻ', onClick: () => setActiveDoc('zairyuCard') }
+                          });
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-xs shadow-xs flex items-center gap-1 shrink-0 transition"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Trích xuất AI</span>
+                    </button>
+                  </div>
+
+                  {/* Tax Office Selector Bar */}
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
+                    <label className="text-xs font-semibold text-slate-600 whitespace-nowrap">Chọn Cục Thuế:</label>
+                    <select
+                      value={selectedTaxOfficeId || ''}
+                      onChange={e => setValue('taxOfficeId', e.target.value, { shouldDirty: true })}
+                      disabled={!isEditing}
+                      className="flex-1 h-8 rounded-md border border-slate-200 px-2 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="">-- Chọn Cục Thuế Quản Lý --</option>
+                      {taxOffices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleNtaSearch(getValues('postalCode'))}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded-md transition-colors shrink-0"
+                    >
+                      🔍 Tra cứu ZIP
+                    </button>
+                  </div>
+
+                  {/* Tax Office Cards (Details, Form, Diff) */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700 text-xs">
+                          {selectedTaxOffice ? selectedTaxOffice.name : 'Chưa chọn Cục Thuế'}
+                        </span>
+                        {selectedTaxOffice?.websiteUrl && (
+                          <a href={selectedTaxOffice.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold text-indigo-600 hover:underline">
+                            (NTA Web ↗)
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {(['card', 'form', 'diff'] as const).map(panel => (
+                          <button key={panel} type="button" onClick={() => setTaxPanel(panel)}
+                            className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
+                              taxPanel === panel ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                            }`}>
+                            {panel === 'card' ? '📋 Chi tiết' : panel === 'form' ? '✏️ Sửa' : '⚡ Đối chiếu'}
                           </button>
-                        } />
-                    </FormField>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-3">
+                      {taxPanel === 'card' && (
+                        <TaxOfficeCard
+                          taxOffice={selectedTaxOffice}
+                          isEditing={isEditing}
+                          verified={!!verifiedFields['taxOffice']}
+                          onToggleVerify={() => toggleVerify('taxOffice')}
+                          onEdit={() => setTaxPanel('form')}
+                          onDiff={() => setTaxPanel('diff')}
+                          className="border-0 rounded-none shadow-none p-0"
+                        />
+                      )}
+                      {taxPanel === 'form' && (
+                        <TaxOfficeForm
+                          initialData={selectedTaxOffice ?? undefined}
+                          verified={!!verifiedFields['taxOffice']}
+                          onToggleVerify={() => toggleVerify('taxOffice')}
+                          onSubmit={handleTaxFormSubmit}
+                          onCancel={() => setTaxPanel('card')}
+                          isSubmitting={taxFormSaving}
+                          className="border-0 shadow-none p-0"
+                        />
+                      )}
+                      {taxPanel === 'diff' && (
+                        <TaxOfficeDiffPanel
+                          dbData={selectedTaxOffice ?? { id: '', name: '', postalCode: '', address: '' }}
+                          postalCode={getValues('postalCode') as string | undefined}
+                          onSyncFields={handleTaxSyncFields}
+                          onClose={() => setTaxPanel('card')}
+                          className="border-0 rounded-none shadow-none p-0"
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             }
@@ -1914,18 +2638,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
           const scrollToField = (fieldKey: string) => {
             if (fieldKey === 'taxOffice') {
-              const el = document.getElementById('tax-office-section');
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('ring-2', 'ring-indigo-400', 'bg-indigo-50/30');
-                setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-400', 'bg-indigo-50/30'), 2500);
-              }
-              toast.info('Đã định vị đến Cục thuế quản lý. Hãy kiểm tra thông tin và tự bấm nút [✓ Tích chọn đối chiếu] để xác nhận.');
+              setActiveDoc('taxOfficeInfo');
+              toast.info('Đã chuyển đến tab Cục thuế quản lý. Hãy kiểm tra thông tin và tự bấm nút [✓ Tích chọn đối chiếu] để xác nhận.');
               return;
             }
 
             // Customer fields
-            setActiveDoc('zairyuFront');
+            setActiveDoc('zairyuCard');
             setTimeout(() => {
               const inputEl = document.querySelector(`[name="${fieldKey}"]`) as HTMLElement | null;
               if (inputEl) {
@@ -1987,33 +2706,44 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </div>
 
               {!isFullyVerified && (
-                <div className="text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200 p-2.5 rounded-lg space-y-1.5 leading-snug">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Các trường bắt buộc đối chiếu ({missingFields.length} mục chưa tích - Nhấp để nhảy đến ô):</span>
+                <div className="text-[11px] text-amber-900 bg-amber-50/70 border border-amber-200/80 p-2 rounded-lg space-y-1 leading-snug">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-900 min-w-0">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="truncate">Còn <strong>{missingFields.length}/7</strong> trường cần đối chiếu thủ công</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowVerifyDetails(prev => !prev)}
+                      className="text-[10px] font-bold text-amber-800 hover:text-amber-950 underline shrink-0 cursor-pointer"
+                    >
+                      {showVerifyDetails ? 'Thu gọn ▴' : 'Chi tiết ▾'}
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {REQUIRED_VERIFY_ITEMS.map(item => {
-                      const isDone = !!verifiedFields[item.key];
-                      return (
-                        <span
-                          key={item.key}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            scrollToField(item.key);
-                          }}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-colors ${
-                            isDone
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs hover:scale-105'
-                          }`}
-                          title={`Nhấp để chuyển đến vị trí trường ${item.label}`}
-                        >
-                          {isDone ? '✓' : '✗'} {item.label}
-                        </span>
-                      );
-                    })}
-                  </div>
+                  {showVerifyDetails && (
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-amber-200/60">
+                      {REQUIRED_VERIFY_ITEMS.map(item => {
+                        const isDone = !!verifiedFields[item.key];
+                        return (
+                          <span
+                            key={item.key}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              scrollToField(item.key);
+                            }}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition-colors ${
+                              isDone
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50 shadow-2xs'
+                            }`}
+                            title={`Nhấp để chuyển đến vị trí trường ${item.label}`}
+                          >
+                            {isDone ? '✓' : '✗'} {item.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2029,7 +2759,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const panel3Node = (
     <div className={`${glassPanel} min-h-0 h-full`}>
       {/* Mini profile strip */}
-      <div className="p-2.5 border-b border-slate-100/80 bg-white/50 flex items-center gap-2.5 shrink-0">
+      <div className="px-3 py-2 border-b border-slate-100/80 bg-white/50 flex items-center gap-2.5 shrink-0">
         <div className="w-12 h-9 border border-slate-200/80 rounded-lg overflow-hidden bg-slate-100/80 flex items-center justify-center shrink-0 relative group">
           {watch('zairyuFrontUrl') ? (
             <><img src={watch('zairyuFrontUrl') || undefined} alt="Zairyu" className="w-full h-full object-contain" />
@@ -2064,7 +2794,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Workflow progress bar */}
-      <div className="p-2.5 border-b border-slate-100/80 bg-white/40 shrink-0">
+      <div className="px-3 py-2 border-b border-slate-100/80 bg-white/40 shrink-0">
         <WorkflowPanel
           status={(watch('status') || 'DRAFT') as WorkflowStatus}
           isEditing={isEditing}
@@ -2088,7 +2818,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── 2-Stage Chronological Switcher Bar ── */}
-      <div className="p-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
+      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
         <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80 shadow-2xs">
           <button
             type="button"
@@ -2100,7 +2830,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${refundStage === 'lan1' ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'}`} />
-            🔵 LẦN 1: NỘP NENKIN (80%)
+            <span>🔵 LẦN 1: NỘP NENKIN (80%)</span>
           </button>
           <button
             type="button"
@@ -2112,7 +2842,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${refundStage === 'lan2' ? 'bg-amber-300 animate-pulse' : 'bg-purple-400'}`} />
-            🟣 LẦN 2: HOÀN THUẾ (20.42%)
+            <span>🟣 LẦN 2: HOÀN THUẾ (20.42%)</span>
           </button>
         </div>
       </div>
@@ -2121,7 +2851,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       <div className="px-3 pt-1.5 border-b border-slate-100/80 bg-white/40 flex gap-1 shrink-0">
         {(['dates', 'finance', 'history'] as const).map(tab => (
           <button key={tab} type="button" onClick={() => setPanel3aTab(tab as any)}
-            className={`px-2 py-1 text-[11px] font-bold border-b-2 -mb-px transition-colors ${
+            className={`px-2.5 py-1 text-[11px] font-bold border-b-2 -mb-px transition-colors ${
               panel3aTab === (tab as any)
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -2131,71 +2861,222 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2.5 min-h-0">
+      <div className="flex-1 overflow-y-auto px-3 py-2 min-h-0">
         {panel3aTab === 'dates' && (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {refundStage === 'lan1' ? (
               // ── STAGE 1 DATES & PROGRESS ──
-              <div className="space-y-2">
-                <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wider bg-blue-50 border border-blue-200 px-2 py-1 rounded-md flex items-center justify-between">
-                  <span>🔵 Tiến độ Lần 1 (Xin 80% Thoát BH)</span>
-                  <span className="font-semibold">{watch('received1stDate') ? '✓ Đã nhận' : watch('sent1stDate') ? '⏳ Đã gửi' : '○ Chuẩn bị'}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <FormField label="Ngày viết đơn (In giấy)">
-                    <Input type="date" value={watch('applyDate') || ''} onChange={e => setValue('applyDate', e.target.value, { shouldDirty: true })} disabled={!isEditing} size="sm" />
-                  </FormField>
-                  <FormField label="Ngày gửi L1 (Đi Nhật)">
-                    <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
-                      const val = e.target.value;
-                      setValue('sent1stDate', val, { shouldDirty: true });
-                      if (val && ['DRAFT', 'PENDING'].includes(watch('status') || '')) {
-                        setValue('status', 'SENT_1ST', { shouldDirty: true });
-                        toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 1');
-                      }
-                    }} disabled={!isEditing} size="sm" />
-                  </FormField>
-                  <FormField label="Ngày nhận L1 (Về TK)">
-                    <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
-                      const val = e.target.value;
-                      setValue('received1stDate', val, { shouldDirty: true });
-                      const s1 = watch('sent1stDate');
-                      if (val && s1 && new Date(val) < new Date(s1)) {
-                        toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Gửi Lần 1');
-                      }
-                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
-                        setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
-                        toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 1');
-                      }
-                    }} disabled={!isEditing} size="sm" />
-                  </FormField>
-                </div>
-                {isEditing && (
-                  <div className="pt-1 flex flex-wrap gap-1">
-                    <button type="button" onClick={() => {
-                      const today = new Date().toISOString().split('T')[0];
-                      setValue('sent1stDate', today, { shouldDirty: true });
-                      setValue('status', 'SENT_1ST', { shouldDirty: true });
-                      toast.success('Đã ghi nhận gửi Lần 1 hôm nay!');
-                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
-                      + Hôm nay gửi L1
-                    </button>
-                    <button type="button" onClick={() => {
-                      const today = new Date().toISOString().split('T')[0];
-                      setValue('received1stDate', today, { shouldDirty: true });
-                      setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
-                      toast.success('Đã ghi nhận nhận tiền Lần 1 hôm nay!');
-                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
-                      + Hôm nay nhận L1
-                    </button>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="Ngày viết đơn (In)">
+                      <Input type="date" value={watch('applyDate') || ''} onChange={e => setValue('applyDate', e.target.value, { shouldDirty: true })} disabled={!isEditing} size="sm" />
+                    </FormField>
+                    <FormField label="Ngày gửi L1 (Đi Nhật)">
+                      <Input type="date" value={watch('sent1stDate') || ''} onChange={e => {
+                        const val = e.target.value;
+                        setValue('sent1stDate', val, { shouldDirty: true });
+                        if (val && ['DRAFT', 'PENDING'].includes(watch('status') || '')) {
+                          setValue('status', 'SENT_1ST', { shouldDirty: true });
+                          toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 1');
+                        }
+                      }} disabled={!isEditing} size="sm" />
+                    </FormField>
+                    <div className="col-span-2">
+                      <FormField label="Ngày nhận L1 (Về TK)">
+                        <Input type="date" value={watch('received1stDate') || ''} onChange={e => {
+                          const val = e.target.value;
+                          setValue('received1stDate', val, { shouldDirty: true });
+                          const s1 = watch('sent1stDate');
+                          if (val && s1 && new Date(val) < new Date(s1)) {
+                            toast.warning('Ngày Nhận Lần 1 không thể nhỏ hơn Ngày Gửi Lần 1');
+                          }
+                          if (val && ['DRAFT', 'PENDING', 'SENT_1ST'].includes(watch('status') || '')) {
+                            setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                            toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 1');
+                          }
+                        }} disabled={!isEditing} size="sm" />
+                      </FormField>
+                    </div>
                   </div>
-                )}
+                  {isEditing && (
+                    <div className="pt-0.5 flex flex-wrap gap-1">
+                      <button type="button" onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setValue('sent1stDate', today, { shouldDirty: true });
+                        setValue('status', 'SENT_1ST', { shouldDirty: true });
+                        toast.success('Đã ghi nhận gửi Lần 1 hôm nay!');
+                      }} className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-colors">
+                        + Hôm nay gửi L1
+                      </button>
+                      <button type="button" onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setValue('received1stDate', today, { shouldDirty: true });
+                        setValue('status', 'RECEIVED_1ST', { shouldDirty: true });
+                        toast.success('Đã ghi nhận nhận tiền Lần 1 hôm nay!');
+                      }} className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors">
+                        + Hôm nay nhận L1
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── LOẠI HỒ SƠ & CHỈ ĐỊNH NGÂN HÀNG ── */}
+                <div className="pt-2 border-t border-slate-100/90 space-y-2 text-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-indigo-600">⚙️</span> LOẠI HỒ SƠ & CHỈ ĐỊNH NGÂN HÀNG
+                    </span>
+                  </div>
+
+                  {/* 1. Đối tượng khách hàng */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        1. Đối tượng khách hàng:
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                        watch('isReturnedToJapan')
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {watch('isReturnedToJapan') ? '🇯🇵 Quay lại Nhật' : '🇻🇳 Về hẳn'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => setValue('isReturnedToJapan', false, { shouldDirty: true })}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          !watch('isReturnedToJapan')
+                            ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-bold shadow-2xs ring-1 ring-emerald-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🇻🇳 Khách về hẳn</span>
+                          {!watch('isReturnedToJapan') && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Cư trú tại VN, cần ĐD thuế L2
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          setValue('isReturnedToJapan', true, { shouldDirty: true });
+                          // Khi khách quay lại Nhật: tự động gán L2 vào TK Nhật của khách nếu chưa có
+                          if (!isBank1Shared && !hasSeparateBank2) {
+                            if (bank1.bankCountry === 'JAPAN') {
+                              setValue('bankAccounts.0.purpose' as const, 'BOTH', { shouldDirty: true });
+                            } else {
+                              appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                              setSelectedBankIndex(1);
+                              setSelectedBankImageIndex(0);
+                            }
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          watch('isReturnedToJapan')
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🇯🇵 Quay lại Nhật</span>
+                          {watch('isReturnedToJapan') && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Có địa chỉ Nhật mới, bỏ qua T3
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Chỉ định ngân hàng nhận Lần 2 */}
+                  <div className="space-y-1 pt-1.5 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        2. Chỉ định ngân hàng Lần 2 (20.42%):
+                      </label>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">
+                        {isBank1Shared ? 'Dùng chung TK L1' : (hasSeparateBank2 ? 'TK Nhật riêng (Khách)' : 'Người đại diện thuế')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          if (isBank1Shared) {
+                            setValue('bankAccounts.0.purpose' as const, 'FIRST_REFUND', { shouldDirty: true });
+                          }
+                          if (hasSeparateBank2) {
+                            removeBank(1);
+                            setSelectedBankIndex(0);
+                            setSelectedBankImageIndex(0);
+                          }
+                          toast.info('Lần 2 sẽ nhận tiền qua tài khoản Người đại diện thuế');
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          (!isBank1Shared && !hasSeparateBank2)
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">👤 Người đại diện thuế</span>
+                          {(!isBank1Shared && !hasSeparateBank2) && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Nhận qua TK Người đại diện
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          if (bank1.bankCountry === 'JAPAN') {
+                            setValue('bankAccounts.0.purpose' as const, 'BOTH', { shouldDirty: true });
+                            toast.success('Đã chọn dùng chung Tài khoản Nhật L1 cho Lần 2');
+                          } else if (!hasSeparateBank2) {
+                            appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                            setSelectedBankIndex(1);
+                            setSelectedBankImageIndex(0);
+                            toast.success('Đã thêm mục Tài khoản Nhật riêng cho Lần 2');
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          (isBank1Shared || hasSeparateBank2)
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🏦 Tài khoản của khách</span>
+                          {(isBank1Shared || hasSeparateBank2) && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          {isBank1Shared ? 'Dùng chung với TK L1 (Nhật)' : (hasSeparateBank2 ? 'TK Nhật riêng cho L2' : 'TK ngân hàng Nhật của khách')}
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 {/* ── NỘI DUNG ỦY QUYỀN LẦN 1 (委任内容) ── */}
-                <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2 space-y-1.5 text-xs">
-                  <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between border-b border-slate-200 pb-1">
-                    <span className="flex items-center gap-1">📜 Nội dung ủy quyền L1 (委任状)</span>
-                    <span className="text-[9px] text-slate-400 font-normal">Tự động in vòng khoanh ○</span>
+                <div className="pt-2 border-t border-slate-100/90 space-y-1.5 text-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-indigo-600">📜</span> NỘI DUNG ỦY QUYỀN L1 (委任状)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      (Tự động in vòng khoanh ○)
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 gap-1 pt-0.5">
                     <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-slate-700 font-semibold hover:text-indigo-600">
@@ -2253,61 +3134,205 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </div>
             ) : (
               // ── STAGE 2 DATES & PROGRESS ──
-              <div className="space-y-2">
-                <div className="text-[10px] font-bold text-purple-700 uppercase tracking-wider bg-purple-50 border border-purple-200 px-2 py-1 rounded-md flex items-center justify-between">
-                  <span>🟣 Tiến độ Lần 2 (Xin 20.42% Thuế)</span>
-                  <span className="font-semibold">{watch('received2ndDate') ? '✓ Đã hoàn thuế' : watch('sent2ndDate') ? '⏳ Đã nộp thuế' : '○ Chuẩn bị'}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="Ngày gửi L2 (Tới Cục thuế)">
-                    <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
-                      const val = e.target.value;
-                      setValue('sent2ndDate', val, { shouldDirty: true });
-                      const r1 = watch('received1stDate');
-                      if (val && r1 && new Date(val) < new Date(r1)) {
-                        toast.warning('Ngày Gửi Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
-                      }
-                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
-                        setValue('status', 'SENT_2ND', { shouldDirty: true });
-                        toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 2');
-                      }
-                    }} disabled={!isEditing} size="sm" />
-                  </FormField>
-                  <FormField label="Ngày nhận L2 (Hoàn thuế)">
-                    <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
-                      const val = e.target.value;
-                      setValue('received2ndDate', val, { shouldDirty: true });
-                      const s2 = watch('sent2ndDate');
-                      if (val && s2 && new Date(val) < new Date(s2)) {
-                        toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Gửi Lần 2');
-                      }
-                      if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
-                        setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
-                        toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 2');
-                      }
-                    }} disabled={!isEditing} size="sm" />
-                  </FormField>
-                </div>
-                {isEditing && (
-                  <div className="pt-1 flex flex-wrap gap-1">
-                    <button type="button" onClick={() => {
-                      const today = new Date().toISOString().split('T')[0];
-                      setValue('sent2ndDate', today, { shouldDirty: true });
-                      setValue('status', 'SENT_2ND', { shouldDirty: true });
-                      toast.success('Đã ghi nhận gửi Lần 2 hôm nay!');
-                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
-                      + Hôm nay gửi L2
-                    </button>
-                    <button type="button" onClick={() => {
-                      const today = new Date().toISOString().split('T')[0];
-                      setValue('received2ndDate', today, { shouldDirty: true });
-                      setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
-                      toast.success('Đã ghi nhận nhận tiền Lần 2 hôm nay!');
-                    }} className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors">
-                      + Hôm nay Nhận L2
-                    </button>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="Ngày gửi L2 (Tới Cục thuế)">
+                      <Input type="date" value={watch('sent2ndDate') || ''} onChange={e => {
+                        const val = e.target.value;
+                        setValue('sent2ndDate', val, { shouldDirty: true });
+                        const r1 = watch('received1stDate');
+                        if (val && r1 && new Date(val) < new Date(r1)) {
+                          toast.warning('Ngày Gửi Lần 2 không thể nhỏ hơn Ngày Nhận Lần 1');
+                        }
+                        if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST'].includes(watch('status') || '')) {
+                          setValue('status', 'SENT_2ND', { shouldDirty: true });
+                          toast.info('Đã tự động chuyển trạng thái: Đã gửi Lần 2');
+                        }
+                      }} disabled={!isEditing} size="sm" />
+                    </FormField>
+                    <FormField label="Ngày nhận L2 (Hoàn thuế)">
+                      <Input type="date" value={watch('received2ndDate') || ''} onChange={e => {
+                        const val = e.target.value;
+                        setValue('received2ndDate', val, { shouldDirty: true });
+                        const s2 = watch('sent2ndDate');
+                        if (val && s2 && new Date(val) < new Date(s2)) {
+                          toast.warning('Ngày Nhận Lần 2 không thể nhỏ hơn Ngày Gửi Lần 2');
+                        }
+                        if (val && ['DRAFT', 'PENDING', 'SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND'].includes(watch('status') || '')) {
+                          setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+                          toast.info('Đã tự động chuyển trạng thái: Đã nhận Lần 2');
+                        }
+                      }} disabled={!isEditing} size="sm" />
+                    </FormField>
                   </div>
-                )}
+                  {isEditing && (
+                    <div className="pt-0.5 flex flex-wrap gap-1">
+                      <button type="button" onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setValue('sent2ndDate', today, { shouldDirty: true });
+                        setValue('status', 'SENT_2ND', { shouldDirty: true });
+                        toast.success('Đã ghi nhận gửi Lần 2 hôm nay!');
+                      }} className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded border border-purple-200 transition-colors">
+                        + Hôm nay gửi L2
+                      </button>
+                      <button type="button" onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setValue('received2ndDate', today, { shouldDirty: true });
+                        setValue('status', 'RECEIVED_2ND', { shouldDirty: true });
+                        toast.success('Đã ghi nhận nhận tiền Lần 2 hôm nay!');
+                      }} className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors">
+                        + Hôm nay Nhận L2
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── LOẠI HỒ SƠ & CHỈ ĐỊNH NGÂN HÀNG (STAGE 2) ── */}
+                <div className="pt-2 border-t border-slate-100/90 space-y-2 text-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-indigo-600">⚙️</span> LOẠI HỒ SƠ & CHỈ ĐỊNH NGÂN HÀNG
+                    </span>
+                  </div>
+
+                  {/* 1. Đối tượng khách hàng */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        1. Đối tượng khách hàng:
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                        watch('isReturnedToJapan')
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {watch('isReturnedToJapan') ? '🇯🇵 Quay lại Nhật' : '🇻🇳 Về hẳn'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => setValue('isReturnedToJapan', false, { shouldDirty: true })}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          !watch('isReturnedToJapan')
+                            ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-bold shadow-2xs ring-1 ring-emerald-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🇻🇳 Khách về hẳn</span>
+                          {!watch('isReturnedToJapan') && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Cư trú tại VN, cần ĐD thuế L2
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          setValue('isReturnedToJapan', true, { shouldDirty: true });
+                          if (!isBank1Shared && !hasSeparateBank2) {
+                            if (bank1.bankCountry === 'JAPAN') {
+                              setValue('bankAccounts.0.purpose' as const, 'BOTH', { shouldDirty: true });
+                            } else {
+                              appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                              setSelectedBankIndex(1);
+                              setSelectedBankImageIndex(0);
+                            }
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          watch('isReturnedToJapan')
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🇯🇵 Quay lại Nhật</span>
+                          {watch('isReturnedToJapan') && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Có địa chỉ Nhật mới, bỏ qua T3
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Chỉ định ngân hàng nhận Lần 2 */}
+                  <div className="space-y-1 pt-1.5 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        2. Chỉ định ngân hàng Lần 2 (20.42%):
+                      </label>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">
+                        {isBank1Shared ? 'Dùng chung TK L1' : (hasSeparateBank2 ? 'TK Nhật riêng (Khách)' : 'Người đại diện thuế')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          if (isBank1Shared) {
+                            setValue('bankAccounts.0.purpose' as const, 'FIRST_REFUND', { shouldDirty: true });
+                          }
+                          if (hasSeparateBank2) {
+                            removeBank(1);
+                            setSelectedBankIndex(0);
+                            setSelectedBankImageIndex(0);
+                          }
+                          toast.info('Lần 2 sẽ nhận tiền qua tài khoản Người đại diện thuế');
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          (!isBank1Shared && !hasSeparateBank2)
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">👤 Người đại diện thuế</span>
+                          {(!isBank1Shared && !hasSeparateBank2) && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          Nhận qua TK Người đại diện
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          if (bank1.bankCountry === 'JAPAN') {
+                            setValue('bankAccounts.0.purpose' as const, 'BOTH', { shouldDirty: true });
+                            toast.success('Đã chọn dùng chung Tài khoản Nhật L1 cho Lần 2');
+                          } else if (!hasSeparateBank2) {
+                            appendBank({ purpose: 'SECOND_REFUND', bankCountry: 'JAPAN', bankPassbookUrls: [] });
+                            setSelectedBankIndex(1);
+                            setSelectedBankImageIndex(0);
+                            toast.success('Đã thêm mục Tài khoản Nhật riêng cho Lần 2');
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg border text-left transition-all ${
+                          (isBank1Shared || hasSeparateBank2)
+                            ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${!isEditing ? 'opacity-90 cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">🏦 Tài khoản của khách</span>
+                          {(isBank1Shared || hasSeparateBank2) && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-normal leading-tight mt-0.5">
+                          {isBank1Shared ? 'Dùng chung với TK L1 (Nhật)' : (hasSeparateBank2 ? 'TK Nhật riêng cho L2' : 'TK ngân hàng Nhật của khách')}
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2417,6 +3442,103 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                 ))
               )}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Fixed Tax Office / Mailing Center Label at bottom of Panel 3 ── */}
+      <div className="px-3 py-2 border-t border-slate-200/90 bg-slate-50/95 shrink-0">
+        {selectedTaxOffice ? (
+          <div className="bg-gradient-to-br from-blue-50/90 to-indigo-50/50 border border-blue-200 rounded-lg p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-blue-950 text-xs flex items-center gap-1.5">
+                <span className="text-sm">📮</span> ĐỊA CHỈ NHẬN HỒ SƠ (TEM PHIẾU NTA)
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = `〒${selectedTaxOffice.mailingPostalCode || selectedTaxOffice.postalCode || ''}\n${selectedTaxOffice.mailingAddress || selectedTaxOffice.address || ''}\n${selectedTaxOffice.mailingName || selectedTaxOffice.name || ''} 御中`;
+                    navigator.clipboard.writeText(text);
+                    toast.success('Đã sao chép địa chỉ gửi thư!');
+                  }}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  title="Sao chép địa chỉ"
+                >
+                  <Copy className="w-3 h-3 text-slate-600" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pCode = selectedTaxOffice.mailingPostalCode || selectedTaxOffice.postalCode || '';
+                    const addr = selectedTaxOffice.mailingAddress || selectedTaxOffice.address || '';
+                    const name = selectedTaxOffice.mailingName || selectedTaxOffice.name || '';
+                    printHtmlViaHiddenIframe(`
+                      <!DOCTYPE html>
+                      <html><head><title>Tem phiếu gửi hồ sơ Nenkin</title>
+                      <style>
+                        body { font-family: 'MS Gothic','Meiryo',sans-serif; padding: 24px; }
+                        .postal  { font-size: 24px; font-weight: bold; letter-spacing: 4px; margin-bottom: 12px; color: #1e3a8a; }
+                        .address { font-size: 16px; line-height: 1.8; color: #1f2937; margin-bottom: 12px; }
+                        .recip   { font-size: 20px; font-weight: bold; color: #111827; }
+                        @media print { body { margin: 0; padding: 16px; } }
+                      </style></head><body>
+                      <div class="postal">〒${pCode}</div>
+                      <div class="address">${addr}</div>
+                      <div class="recip">${name} 御中</div>
+                      </body></html>
+                    `);
+                  }}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  title="In tem phiếu khổ nhỏ"
+                >
+                  <Printer className="w-3 h-3 text-blue-600" />
+                  <span>In Tem</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveDoc('taxOfficeInfo')}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-indigo-700 border border-indigo-300 hover:bg-indigo-50 transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  title="Chuyển đến tab Cục thuế để chỉnh sửa"
+                >
+                  <Edit3 className="w-3 h-3 text-indigo-600" />
+                  <span>Sửa</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Clear, High-Legibility Address Box */}
+            <div className="bg-white p-2.5 rounded-lg border border-blue-100/90 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-blue-950 font-mono text-sm tracking-wider">
+                  〒{selectedTaxOffice.mailingPostalCode || selectedTaxOffice.postalCode || '---'}
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800">
+                  Bưu cục thụ lý
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-800 leading-normal">
+                {selectedTaxOffice.mailingAddress || selectedTaxOffice.address || 'Chưa có địa chỉ gửi thư'}
+              </p>
+              <p className="text-xs font-bold text-slate-900 leading-normal pt-0.5 border-t border-slate-100">
+                {selectedTaxOffice.mailingName || selectedTaxOffice.name} <span className="font-normal text-slate-600">御中</span>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+            <div>
+              <span className="font-bold text-amber-950 text-xs block">⚠️ Chưa xác định Cục Thuế</span>
+              <span className="text-[11px] text-amber-800">Cần Cục thuế để in đơn Lần 2 & tem thư bưu điện</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveDoc('taxOfficeInfo')}
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-xs font-bold shadow-2xs shrink-0 transition"
+            >
+              + Tra cứu
+            </button>
           </div>
         )}
       </div>
@@ -2664,15 +3786,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     <>
       <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-2 shrink-0 py-0.5">
-        <div className="flex items-center gap-1.5 min-w-0">
+      {/* ── Header Ribbon (Compact Single Bar) ── */}
+      <div className="flex items-center justify-between gap-2 shrink-0 py-1.5 px-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs mb-0.5">
+        <div className="flex items-center gap-2 min-w-0">
           <button type="button" onClick={() => router.push('/applications')}
-            className="p-1 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:bg-white transition-colors shadow-xs">
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+            className="p-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-md transition-colors shadow-2xs flex items-center justify-center shrink-0">
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-700" />
           </button>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="text-xs sm:text-sm font-bold tracking-tight text-slate-800 truncate">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 truncate">
               {isNew ? 'Tạo Hồ sơ mới' : (watch('fullName') || 'Chi tiết Hồ sơ')}
             </h1>
             {!isNew && (
@@ -2695,7 +3817,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Desktop Header Actions */}
-        <div className="hidden lg:flex items-center gap-1 shrink-0">
+        <div className="hidden lg:flex items-center gap-1.5 shrink-0">
           {!isEditing ? (
             <>
               {!isNew && (
@@ -2703,38 +3825,75 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   href={`/customer/portal?id=${customerId || id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-2xs mr-1"
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold text-xs transition-colors flex items-center gap-1 shadow-2xs"
                   title="Mở tab mới xem toàn bộ Trang Tra Cứu của Khách hàng"
                 >
                   <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                  Xem giao diện Khách ↗
+                  <span>Xem góc nhìn Khách</span>
                 </a>
               )}
-              {!isNew && <Button type="button" variant="danger" size="xs" onClick={handleDelete} loading={deleting} loadingText="Đang xóa...">Xóa</Button>}
               {!isNew && (
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => window.open(`/api/applications/${id}/export-bundle?stage=all`, '_blank')}
-                  iconLeft={<Download className="w-3 h-3 text-emerald-600" />}
-                  className="font-semibold"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-md font-semibold text-xs border border-rose-200 flex items-center gap-1 transition-colors shadow-2xs"
                 >
-                  Tải PDF
-                </Button>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deleting ? 'Đang xóa...' : 'Xóa'}</span>
+                </button>
               )}
-              {!isNew && <Button type="button" variant="secondary" size="xs" onClick={() => setShowPrintModal(true)} iconLeft={<Printer className="w-3 h-3" />}>In</Button>}
-              <Button type="button" size="xs" className="px-3 font-semibold" onClick={() => setIsEditing(true)}>Sửa Hồ sơ</Button>
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={() => setShowDownloadModal(true)}
+                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md font-semibold text-xs border border-emerald-200 flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  title="Mở hộp thoại chọn tải Hồ sơ Lần 1, Lần 2 hoặc Trọn bộ PDF"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Tải PDF</span>
+                </button>
+              )}
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintModalTab('lan1_tonghop');
+                    setShowPrintModal(true);
+                  }}
+                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-semibold text-xs border border-blue-200 flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  title="Xem trước & In từng trang hoặc toàn bộ tài liệu hồ sơ"
+                >
+                  <Printer className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Mở trang in hồ sơ</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-xs shadow-2xs flex items-center gap-1 transition-colors"
+              >
+                <span>✏️ Sửa Hồ sơ</span>
+              </button>
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" size="xs" disabled={saving}
-                onClick={() => { if (isNew) router.push('/applications'); else { setIsEditing(false); reset(); } }}>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => { if (isNew) router.push('/applications'); else { setIsEditing(false); reset(); } }}
+                className="px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-md font-semibold text-xs border border-slate-200 transition-colors shadow-2xs"
+              >
                 Hủy
-              </Button>
-              <Button type="submit" size="xs" className="px-3 font-bold bg-indigo-600 hover:bg-indigo-700" loading={saving} loadingText="Đang lưu..." iconLeft={<Save className="w-3 h-3" />}>
-                Lưu Hồ sơ
-              </Button>
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-xs shadow-2xs flex items-center gap-1 transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}</span>
+              </button>
             </>
           )}
         </div>
@@ -2826,29 +3985,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── DESKTOP WORKSPACE GRID (lg:) ── */}
-      {/*
-        Enterprise layout strategy:
-        - Outer grid: 2 columns (doc viewer | right workspace)
-        - Right workspace: CSS grid-rows [1fr_auto] so:
-            * Row 1 (flex-1): Panel 2 + Panel 3 side-by-side, each scrollable internally
-            * Row 2 (auto): Tax Panel — sized to its natural content, never clipped
-        - No rigid fixed heights anywhere
-      */}
-      <div className="hidden lg:grid flex-1 grid-cols-[35%_1fr] gap-2 min-h-0">
+      <div className="hidden lg:grid flex-1 grid-cols-[28.5%_43.5%_28%] gap-2 min-h-0">
         {/* LEFT COLUMN: Document Image Viewer (Panel 1) */}
         <div className="min-h-0 overflow-hidden">{panel1Node}</div>
 
-        {/* RIGHT COLUMN: grid-rows[1fr_auto] */}
-        <div className="grid min-h-0" style={{ gridTemplateRows: '1fr auto', gap: '6px' }}>
-          {/* Row 1: Form Details + Progress/Finance — fills available space, scrolls internally */}
-          <div className="grid grid-cols-8 gap-2 min-h-0 overflow-hidden">
-            <div className="col-span-5 min-h-0 overflow-hidden">{panel2Node}</div>
-            <div className="col-span-3 min-h-0 overflow-hidden">{panel3Node}</div>
-          </div>
+        {/* MIDDLE COLUMN: Full-height Form Details (Panel 2) */}
+        <div className="min-h-0 overflow-hidden">{panel2Node}</div>
 
-          {/* Row 2: Tax Office Panel — auto-height, always fully visible */}
-          <div className="min-h-0">{taxPanelNode}</div>
-        </div>
+        {/* RIGHT COLUMN: Progress, Finance & Fixed Tax Mailing Label (Panel 3) */}
+        <div className="min-h-0 overflow-hidden">{panel3Node}</div>
       </div>
 
       {/* ── MOBILE STICKY BOTTOM ACTION BAR (< lg) ── */}
@@ -2912,7 +4057,115 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         isOpen={showPrintModal}
         onClose={() => setShowPrintModal(false)}
         id={id}
+        initialTab={printModalTab}
       />
+
+      {/* Download Bundle Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 shadow-2xl max-w-md w-full border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Tải Bộ Hồ Sơ PDF</h3>
+                  <p className="text-[11px] text-slate-500">Chọn gói tài liệu PDF cần xuất về máy</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDownloadModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {/* Option 1: Stage 1 */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(`/api/applications/${id}/export-bundle?stage=1`, '_blank');
+                  setShowDownloadModal(false);
+                }}
+                className="w-full p-3 rounded-xl border border-blue-200 bg-blue-50/40 hover:bg-blue-50 text-left transition-all group flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                  L1
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-blue-950">Bộ Hồ Sơ Lần 1 (Xin 80% Thoát BH)</span>
+                    <span className="text-[10px] text-blue-600 font-semibold group-hover:underline">Tải về ↗</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Gồm Đơn xin thoái thác Nenkin L1 + Giấy ủy quyền đại diện L1.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2: Stage 2 */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(`/api/applications/${id}/export-bundle?stage=2`, '_blank');
+                  setShowDownloadModal(false);
+                }}
+                className="w-full p-3 rounded-xl border border-purple-200 bg-purple-50/40 hover:bg-purple-50 text-left transition-all group flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                  L2
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-purple-950">Bộ Khai Thuế Lần 2 (Hoàn 20.42%)</span>
+                    <span className="text-[10px] text-purple-600 font-semibold group-hover:underline">Tải về ↗</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Gồm Đơn chỉ định người đại diện thuế (Nouzeikanrinin) + Tờ khai thuế bảng 1-2 & 3.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 3: All */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(`/api/applications/${id}/export-bundle?stage=all`, '_blank');
+                  setShowDownloadModal(false);
+                }}
+                className="w-full p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50 text-left transition-all group flex items-start gap-3 cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                  All
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-emerald-950">Trọn Bộ Toàn Bộ Hồ Sơ (Cả L1 & L2)</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold group-hover:underline">Tải về ↗</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Gộp tất cả 5 biểu mẫu PDF chuẩn của Nenkin & Cục thuế NTA Nhật Bản.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDownloadModal(false)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settlement Notification Draft Modal (Dành cho Nhân viên) */}
       <SettlementModal
@@ -2950,20 +4203,32 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             .catch(console.error);
         }}
       />
+
+      {/* ── MODAL: PICK FROM CUSTOMER CHAT & UNCLASSIFIED STORAGE ── */}
+      {chatGalleryTarget && customerId && (
+        <ChatGalleryPickerModal
+          customerId={customerId}
+          customerName={customer?.fullName || watch('fullName')}
+          targetDocTitle={chatGalleryTarget.docTitle}
+          onSelect={handleSelectFromChatGallery}
+          onClose={() => setChatGalleryTarget(null)}
+        />
+      )}
     </>
   );
 
-  async function runOcrExtract(imageUrl: string) {
-    setOcrStatus(prev => ({ ...prev, [activeDoc]: 'processing' }));
+  async function runOcrExtract(imageUrl: string, customDocType?: string) {
+    const docKey = customDocType || activeDoc;
+    setOcrStatus(prev => ({ ...prev, [docKey]: 'processing' }));
     const toastId = toast.loading('Đang trích xuất AI...');
     try {
       const form = new FormData();
-      form.append('imageUrl', imageUrl); form.append('documentType', activeDoc); form.append('action', 'extract');
+      form.append('imageUrl', imageUrl); form.append('documentType', docKey); form.append('action', 'extract');
       if (customerId) form.append('customerId', customerId);
       const res = await fetch('/api/ocr', { method: 'POST', body: form });
       const data = await res.json();
       if (data.success && data.extractedData && !data.extractedData.error) {
-        applyExtracted(activeDoc, data.extractedData);
+        applyExtracted(docKey, data.extractedData);
         toast.success('Trích xuất AI thành công!', { id: toastId, description: 'Thông tin đã được điền vào form.' });
       } else {
         toast.error('AI không tìm thấy thông tin', { id: toastId, description: data.error || 'Vui lòng nhập thủ công.' });
@@ -2971,7 +4236,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     } catch {
       toast.error('Lỗi kết nối OCR', { id: toastId, description: 'Đã xảy ra lỗi khi gọi API.' });
     } finally {
-      setOcrStatus(prev => ({ ...prev, [activeDoc]: 'done' }));
+      setOcrStatus(prev => ({ ...prev, [docKey]: 'done' }));
     }
   }
 }

@@ -34,7 +34,9 @@ export async function POST(request: Request) {
 
     const rawDocType = formData.get('documentType') as string || 'zairyuFront';
     let documentType = rawDocType;
-    if (rawDocType === 'nenkinBook') {
+    if (rawDocType === 'zairyuCard' || rawDocType === 'taxOfficeInfo') {
+      documentType = 'zairyuFront';
+    } else if (rawDocType === 'nenkinBook') {
       documentType = 'nenkin';
     } else if (rawDocType.startsWith('bankPassbook')) {
       documentType = 'bank';
@@ -177,7 +179,8 @@ export async function POST(request: Request) {
       let result = null;
       let lastError: Error | null = null;
 
-      const MODELS_TO_TRY = ['gemini-1.5-flash', 'gemini-2.5-flash'];
+      // Primary model gemini-2.5-flash (Rule: Always use gemini-2.5-flash, older models return 404)
+      const MODELS_TO_TRY = ['gemini-2.5-flash'];
 
       // Try each API key and model fallback
       for (let i = 0; i < apiKeys.length; i++) {

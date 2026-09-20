@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup Tối Ưu Giao Diện Hồ Sơ Nenkin - High-Density Enterprise</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased font-sans text-xs select-none">
+
+  <!-- Top Bar Mockup -->
+  <header class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shadow-xs sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <a href="#" class="flex items-center gap-1.5 font-bold text-emerald-700 text-sm hover:opacity-80 transition">
+        <span class="p-1 bg-emerald-50 rounded border border-emerald-200">←</span>
+        <span>DUONG NGOC HUONG</span>
+      </a>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Bản nháp</span>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">Chưa gán bàn giao</span>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium flex items-center gap-1 transition">
+        <span>👁️ Xem góc nhìn Khách</span>
+      </button>
+      <button class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-md font-medium border border-rose-200 flex items-center gap-1 transition">
+        <span>🗑️ Xóa</span>
+      </button>
+      <button class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md font-medium border border-emerald-200 flex items-center gap-1 transition">
+        <span>📥 Tải PDF</span>
+      </button>
+      <button class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium border border-blue-200 flex items-center gap-1 transition">
+        <span>🖨️ In nhanh hồ sơ</span>
+      </button>
+      <button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-bold shadow-xs flex items-center gap-1 transition">
+        <span>💾 Lưu Hồ sơ</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Banner: Tối ưu mới -->
+  <div class="bg-indigo-50 border-b border-indigo-100 px-4 py-1.5 flex items-center justify-between text-[11px] text-indigo-900">
+    <div class="flex items-center gap-2">
+      <span class="px-1.5 py-0.2 bg-indigo-600 text-white font-bold rounded text-[9px]">BẢN ĐỀ XUẤT TỐI ƯU</span>
+      <span>💡 Giao diện đã được tinh gọn: Gom khối Cục thuế quản lý, phân biệt rõ nhãn L1 (VN) & L2 (Nhật), tối ưu vùng xem ảnh.</span>
+    </div>
+    <span class="text-indigo-600 font-semibold cursor-pointer hover:underline" onclick="this.parentElement.style.display='none'">✕ Đóng</span>
+  </div>
+
+  <!-- 3-Column Enterprise Workspace Layout -->
+  <main class="grid grid-cols-12 gap-3 p-3 h-[calc(100vh-85px)] min-h-[680px]">
+    
+    <!-- ========================================================================= -->
+    <!-- PANEL 1 (LEFT - 3 COLS): DANH MỤC TÀI LIỆU & XEM ẢNH NÉT CAO             -->
+    <!-- ========================================================================= -->
+    <section class="col-span-3 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col min-h-0 overflow-hidden">
+      
+      <!-- Header Panel 1 -->
+      <div class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+          <span>📁</span> DANH MỤC TÀI LIỆU (9 MỤC)
+        </span>
+        <span class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Đã đủ 4/9 ảnh</span>
+      </div>
+
+      <!-- Compact Document Selector Grid -->
+      <div class="p-2 border-b border-slate-200 bg-white grid grid-cols-3 gap-1.5">
+        <button class="p-1.5 rounded-lg border border-emerald-300 bg-emerald-50/50 text-slate-700 text-left hover:border-emerald-500 transition flex items-center justify-between">
+          <span class="truncate font-medium">🪪 Thẻ Kiều (T)</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-emerald-300 bg-emerald-50/50 text-slate-700 text-left hover:border-emerald-500 transition flex items-center justify-between">
+          <span class="truncate font-medium">🪪 Thẻ Kiều (S)</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-emerald-300 bg-emerald-50/50 text-slate-700 text-left hover:border-emerald-500 transition flex items-center justify-between">
+          <span class="truncate font-medium">🛂 Hộ chiếu</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-emerald-300 bg-emerald-50/50 text-slate-700 text-left hover:border-emerald-500 transition flex items-center justify-between">
+          <span class="truncate font-medium">📖 Sổ Nenkin</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+        <!-- Active Bank Account Button -->
+        <button class="p-1.5 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-900 font-bold text-left transition flex items-center justify-between shadow-xs">
+          <span class="truncate">🏦 Ngân hàng</span>
+          <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-left hover:border-slate-300 transition flex items-center justify-between">
+          <span class="truncate">📄 Thông báo L1</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-left hover:border-slate-300 transition flex items-center justify-between">
+          <span class="truncate">✈️ Dấu xuất cảnh</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-left hover:border-slate-300 transition flex items-center justify-between">
+          <span class="truncate">💬 Liên lạc VN</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        </button>
+        <button class="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-left hover:border-slate-300 transition flex items-center justify-between">
+          <span class="truncate">🏢 Lịch sử việc</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        </button>
+      </div>
+
+      <!-- Image Context & Sub Tabs: Phân biệt rõ ràng L1 (VN) và L2 (Nhật) -->
+      <div class="px-3 py-2 bg-slate-50/70 border-b border-slate-200 flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span id="leftBankTitle" class="font-bold text-slate-700 text-[11px] flex items-center gap-1">
+            <span class="text-blue-600">📌</span> Sổ Ngân hàng (Lần 1: Việt Nam)
+          </span>
+          <span class="text-[10px] text-slate-400">1 ảnh đính kèm</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button id="btnImgTab1" onclick="switchImageTab('lan1')" class="flex-1 py-1 px-2 rounded-md font-bold text-[10px] bg-blue-600 text-white shadow-2xs transition">
+            🇻🇳 Ảnh Sổ Lần 1 (1)
+          </button>
+          <button id="btnImgTab2" onclick="switchImageTab('lan2')" class="flex-1 py-1 px-2 rounded-md font-medium text-[10px] bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">
+            🇯🇵 Ảnh Sổ Lần 2 (0)
+          </button>
+          <label class="py-1 px-2.5 rounded-md font-semibold text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition flex items-center gap-1 shadow-2xs">
+            <span>＋ Thêm ảnh</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Image Viewer Dropzone Area -->
+      <div class="flex-1 p-2 bg-slate-900/5 relative min-h-0 flex flex-col items-center justify-center overflow-hidden">
+        
+        <!-- Mockup Loaded Passbook Image (Tab 1) -->
+        <div id="mockImgL1" class="w-full h-full rounded-lg overflow-hidden border border-slate-300 bg-white relative group shadow-inner">
+          <div class="w-full h-full bg-slate-200 flex flex-col items-center justify-center p-4 text-center">
+            <div class="w-20 h-16 bg-blue-100 rounded-lg border border-blue-300 flex items-center justify-center text-2xl mb-2 text-blue-700">
+              🏦
+            </div>
+            <span class="font-bold text-slate-700 text-xs">AGRIBANK - SỔ TÀI KHOẢN VIỆT NAM</span>
+            <span class="text-slate-500 text-[10px] mt-1 font-mono">STK: 1063317287 • VC BAC GIANG</span>
+            <span class="mt-3 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] rounded-full font-semibold border border-emerald-200">✓ Đã trích xuất OCR tự động</span>
+          </div>
+
+          <!-- Hover Action Overlay -->
+          <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+            <button class="px-2.5 py-1.5 bg-white/90 hover:bg-white text-slate-800 rounded font-medium text-[10px] shadow">🔍 Phóng to</button>
+            <button class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-[10px] shadow">✂️ Cắt lại</button>
+            <button class="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-medium text-[10px] shadow">🗑️ Xóa</button>
+          </div>
+        </div>
+
+        <!-- Mockup Empty State for Tab 2 -->
+        <div id="mockImgL2" class="w-full h-full rounded-lg border-2 border-dashed border-slate-300 bg-white/60 p-4 flex flex-col items-center justify-center text-center hidden">
+          <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-2">
+            👤
+          </div>
+          <span class="font-bold text-slate-700 text-xs">Sử dụng Tài khoản Người Đại Diện</span>
+          <p class="text-slate-500 text-[10px] max-w-[200px] mt-1">
+            Lần 2 đang chỉ định nhận tiền qua Người đại diện thuế. Không bắt buộc phải tải ảnh sổ tài khoản của khách.
+          </p>
+          <button class="mt-3 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-md font-medium text-[10px] shadow-2xs">
+            ＋ Tải ảnh bổ sung (nếu có)
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Left Panel Footer -->
+      <div class="px-3 py-1.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
+        <span>Kéo & thả ảnh trực tiếp để tải lên</span>
+        <span class="text-blue-600 font-medium">Hỗ trợ JPG, PNG, WEBP</span>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- PANEL 2 (CENTER - 5 COLS): FORM NHẬP LIỆU CHI TIẾT & CỤC THUẾ GOM GỌN     -->
+    <!-- ========================================================================= -->
+    <section class="col-span-5 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col min-h-0 overflow-hidden">
+      
+      <!-- Panel 2 Header -->
+      <div class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+          <span>📝</span> THÔNG TIN CHI TIẾT NHẬP LIỆU
+        </span>
+        <span class="text-[10px] text-slate-500">Tự động đồng bộ với hồ sơ & in PDF</span>
+      </div>
+
+      <!-- Scrollable Form Container -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-3">
+        
+        <!-- Toggle: Khách hàng quay lại Nhật -->
+        <div class="bg-blue-50/60 border border-blue-200 rounded-lg p-2.5 flex items-start gap-2.5">
+          <input type="checkbox" id="checkReturned" class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          <div>
+            <label for="checkReturned" class="font-bold text-slate-800 text-[11px] cursor-pointer">
+              Khách hàng đã quay lại Nhật (Cư trú)
+            </label>
+            <p class="text-[10px] text-slate-500 mt-0.5">
+              Đánh dấu nếu khách đã có địa chỉ Nhật mới. Tự động chuyển thẻ Ngân hàng nhận Lần 2 sang thẻ Nhật và bỏ qua T3.
+            </p>
+          </div>
+        </div>
+
+        <!-- 2-Tab Navigation (Nenkin L1 vs Hoàn Thuế L2) -->
+        <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
+          <button id="btnTab1" onclick="switchBankTab('lan1')" class="py-1.5 px-2 rounded-md font-bold text-xs bg-white text-blue-700 shadow-xs border border-slate-200/80 flex items-center justify-center gap-1.5 transition">
+            <span>🇻🇳 1. Tài khoản Lần 1 (Nenkin 80%)</span>
+            <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] rounded font-semibold">VN (L1)</span>
+          </button>
+          <button id="btnTab2" onclick="switchBankTab('lan2')" class="py-1.5 px-2 rounded-md font-medium text-xs text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 transition">
+            <span>🇯🇵 2. Tài khoản Lần 2 (Hoàn thuế)</span>
+            <span id="badgeL2" class="px-1.5 py-0.2 bg-indigo-100 text-indigo-800 text-[9px] rounded font-semibold">👤 Người đại diện</span>
+          </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- FORM TAB 1: TÀI KHOẢN LẦN 1 (NENKIN 80%)  -->
+        <!-- ========================================== -->
+        <div id="formTab1" class="space-y-2.5">
+          <div class="flex items-center justify-between pb-1 border-b border-slate-100">
+            <span class="font-bold text-blue-900 text-xs flex items-center gap-1">
+              <span>🇻🇳</span> THÔNG TIN TÀI KHOẢN LẦN 1 (NENKIN 80%)
+            </span>
+            <span class="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              Nhận tiền qua ngân hàng Việt Nam
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Quốc gia nhận L1</label>
+              <select class="w-full h-8 px-2 bg-white border border-slate-200 rounded-md text-xs font-medium focus:border-blue-500 focus:outline-none">
+                <option value="VN" selected>🇻🇳 Việt Nam (Mặc định)</option>
+                <option value="JP">🇯🇵 Nhật Bản</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Mục đích nhận tiền</label>
+              <select class="w-full h-8 px-2 bg-slate-100 border border-slate-200 rounded-md text-xs font-medium text-slate-600" disabled>
+                <option selected>Lần 1 (Nenkin 80%) — Cố định</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="bg-amber-50/70 border border-amber-200 rounded-md p-2 text-[10px] text-amber-800 flex items-start gap-1.5">
+            <span class="text-amber-600 font-bold">💡</span>
+            <span>Tài khoản ngân hàng tại Việt Nam dùng để nhận tiền thoái thác Nenkin Lần 1. Khoản hoàn thuế Lần 2 sẽ được thiết lập riêng tại Tab 2.</span>
+          </div>
+
+          <!-- Bank Fields -->
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Tên ngân hàng (Gợi ý tự động)</label>
+            <input type="text" value="NGÂN HÀNG NÔNG NGHIỆP VÀ PHÁT TRIỂN NÔNG THÔN VN (AGRIBANK)" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-medium focus:border-blue-500 focus:outline-none">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Chi nhánh</label>
+              <input type="text" value="VC BAC GIANG" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs uppercase font-medium">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Số tài khoản</label>
+              <input type="text" value="1063317287" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-mono font-bold text-slate-800">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Chủ tài khoản (Romaji)</label>
+              <input type="text" value="DUONG NGOC HUONG" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs uppercase font-bold text-slate-800">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Swift Code</label>
+              <input type="text" value="VBAAVNVX" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-mono uppercase">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Địa chỉ chi nhánh (Eng)</label>
+            <input type="text" value="THANH CONG, TIEN PHONG, BAC NINH" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-medium">
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- FORM TAB 2: TÀI KHOẢN LẦN 2 (HOÀN THUẾ)   -->
+        <!-- ========================================== -->
+        <div id="formTab2" class="space-y-2.5 hidden">
+          <div class="flex items-center justify-between pb-1 border-b border-slate-100">
+            <span class="font-bold text-indigo-900 text-xs flex items-center gap-1">
+              <span>🇯🇵</span> THÔNG TIN TÀI KHOẢN LẦN 2 (HOÀN THUẾ 20.42%)
+            </span>
+            <span class="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+              Bắt buộc tài khoản tại Nhật Bản
+            </span>
+          </div>
+
+          <!-- Selector: Người Đại Diện vs TK Nhật của Khách -->
+          <div class="grid grid-cols-2 gap-2">
+            <div id="selRep" onclick="setL2Mode('rep')" class="p-2.5 rounded-lg border-2 border-blue-600 bg-blue-50/70 cursor-pointer transition flex items-start gap-2 shadow-2xs">
+              <span class="text-lg">👤</span>
+              <div>
+                <span class="font-bold text-blue-900 text-xs block">Người đại diện thuế</span>
+                <span class="text-[10px] text-slate-500">Nhận hoàn thuế qua tài khoản Đại diện (Mặc định)</span>
+              </div>
+            </div>
+
+            <div id="selCust" onclick="setL2Mode('cust')" class="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex items-start gap-2">
+              <span class="text-lg">🏦</span>
+              <div>
+                <span class="font-bold text-slate-700 text-xs block">TK Nhật của khách</span>
+                <span class="text-[10px] text-slate-500">Khách có tài khoản ngân hàng Nhật riêng cho L2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode 1: Thông tin Người Đại Diện Thuế -->
+          <div id="boxRepMode" class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-700 text-xs flex items-center gap-1">
+                <span>👤</span> THÔNG TIN ĐẠI DIỆN THUẾ THỤ HƯỞNG
+              </span>
+              <button class="text-[10px] text-blue-600 hover:underline font-semibold">Đổi người đại diện</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-md border border-slate-200 text-xs">
+              <div>
+                <span class="text-slate-400 text-[10px] block">Họ và tên đại diện:</span>
+                <span class="font-bold text-slate-800">NGUYEN VAN THANG</span>
+              </div>
+              <div>
+                <span class="text-slate-400 text-[10px] block">Mã số thuế / MST:</span>
+                <span class="font-mono text-slate-800">9010001000000</span>
+              </div>
+              <div>
+                <span class="text-slate-400 text-[10px] block">Ngân hàng thụ hưởng:</span>
+                <span class="font-semibold text-slate-800">ゆうちょ銀行 (Bưu điện Yucho)</span>
+              </div>
+              <div>
+                <span class="text-slate-400 text-[10px] block">Số tài khoản / Ký hiệu:</span>
+                <span class="font-mono font-bold text-emerald-700">10120 - 12345678</span>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 italic">
+              * Khi xuất giấy tờ ủy quyền L2 và hồ sơ khai thuế, hệ thống sẽ tự động điền thông tin người đại diện trên vào đơn.
+            </p>
+          </div>
+
+          <!-- Mode 2: Form Khai Báo TK Nhật của Khách (Ẩn ban đầu) -->
+          <div id="boxCustMode" class="bg-indigo-50/50 border border-indigo-200 rounded-lg p-3 space-y-2.5 hidden">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-indigo-900 text-xs flex items-center gap-1">
+                <span>🏦</span> KHAI BÁO TÀI KHOẢN NHẬT BẢN CỦA KHÁCH (LẦN 2)
+              </span>
+              <button onclick="clearJpBankForm()" class="text-[10px] text-rose-600 hover:underline font-medium">✕ Xóa form</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Hình thức tổ chức</label>
+                <select class="w-full h-8 px-2 bg-white border border-slate-200 rounded-md text-xs font-medium">
+                  <option selected>🏦 Ngân hàng thường (銀行)</option>
+                  <option>📮 Bưu điện (ゆうちょ銀行)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Loại tài khoản (預金種目)</label>
+                <select class="w-full h-8 px-2 bg-white border border-slate-200 rounded-md text-xs font-medium">
+                  <option selected>普通 (Thường - 1)</option>
+                  <option>当座 (Vãng lai - 2)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Tên ngân hàng Nhật (Tự động lọc từ điển JP)</label>
+              <input type="text" placeholder="VD: 三菱UFJ銀行, 三井住友銀行, ゆうちょ銀行..." class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-medium">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Chi nhánh</label>
+                <input type="text" placeholder="VD: 新宿支店" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Số tài khoản (7 số)</label>
+                <input type="text" placeholder="VD: 1234567" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-mono">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Chủ tài khoản (Katakana)</label>
+                <input type="text" placeholder="VD: ドゥオン ゴック フオン" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Chủ tài khoản (Romaji)</label>
+                <input type="text" value="DUONG NGOC HUONG" class="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs uppercase font-medium">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- KHỐI TỐI ƯU GOM GỌN: CỤC THUẾ QUẢN LÝ & ĐỊA CHỈ NỘP HỒ SƠ        -->
+        <!-- (Thay thế cho 2 khối trùng lặp ở bản cũ)                          -->
+        <!-- ================================================================= -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+          
+          <!-- Box Header -->
+          <div class="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="text-amber-600 font-bold">🏛️</span>
+              <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                CỤC THUẾ QUẢN LÝ & ĐỊA CHỈ NỘP HỒ SƠ
+              </span>
+            </div>
+            <button class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition flex items-center gap-1">
+              <span>✓ Bấm tích xanh đối chiếu</span>
+            </button>
+          </div>
+
+          <!-- Selector Bar -->
+          <div class="p-2.5 bg-white border-b border-slate-100 flex items-center gap-2">
+            <label class="text-[11px] font-semibold text-slate-600 whitespace-nowrap">Chọn Cục Thuế:</label>
+            <select class="flex-1 h-8 px-2.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none">
+              <option selected>今治税務署 (Cục thuế Imabari)</option>
+              <option>松山税務署 (Cục thuế Matsuyama)</option>
+              <option>高松税務署 (Cục thuế Takamatsu)</option>
+            </select>
+            <button class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition">
+              🔍 Tra cứu
+            </button>
+          </div>
+
+          <!-- 2-Column Info Grid (Cục thuế & Tem nhãn bưu điện) -->
+          <div class="grid grid-cols-2 divide-x divide-slate-100 bg-white p-2.5 text-xs gap-2">
+            
+            <!-- Cột Trái: Thông tin Cục Thuế -->
+            <div class="space-y-1">
+              <span class="font-bold text-slate-800 text-xs block">今治税務署</span>
+              <div class="text-[11px] text-slate-600 space-y-0.5">
+                <p>📍 〒794-0015 今治市常盤町4丁目5番地1</p>
+                <p>📞 0898-32-6100</p>
+              </div>
+            </div>
+
+            <!-- Cột Phải: Địa chỉ nhận hồ sơ (Tem phiếu gửi thư) -->
+            <div class="pl-2 space-y-1 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-blue-900 text-[11px]">📮 ĐỊA CHỈ NHẬN HỒ SƠ - TEM PHIẾU</span>
+                <button class="text-[9px] font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200 hover:bg-blue-50">In Tem</button>
+              </div>
+              <div class="text-[10px] text-slate-700 font-mono space-y-0.5">
+                <p class="font-bold text-blue-950">〒768-8526</p>
+                <p>高松市天神町2番10号 高松国税局業務センター</p>
+                <p class="font-semibold">(今治税務署) 御中</p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- PANEL 3 (RIGHT - 4 COLS): TIẾN ĐỘ, TÀI CHÍNH & IN NHANH HỒ SƠ            -->
+    <!-- ========================================================================= -->
+    <section class="col-span-4 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col min-h-0 overflow-hidden">
+      
+      <!-- Customer Mini Badge Header -->
+      <div class="p-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/40 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-2xs">
+            H
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-slate-900 text-xs">DUONG NGOC HUONG</span>
+              <span class="text-[10px] text-slate-400 font-mono">(793/63)</span>
+            </div>
+            <span class="text-[10px] text-slate-500">NS: 08/03/1987 • QT: ベトナム</span>
+          </div>
+        </div>
+
+        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">
+          Bước 1 / 6
+        </span>
+      </div>
+
+      <!-- Scrollable Right Content -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-3">
+        
+        <!-- Timeline 6 Steps (Compact & Sắc nét) -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-700 text-[11px]">TIẾN ĐỘ HỒ SƠ</span>
+            <span class="text-[10px] text-amber-700 font-semibold">Đang chuẩn bị nộp</span>
+          </div>
+
+          <!-- 6-step progress circles -->
+          <div class="grid grid-cols-6 gap-1 text-center text-[9px] relative">
+            <div class="flex flex-col items-center">
+              <div class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center shadow-2xs">1</div>
+              <span class="font-bold text-blue-700 mt-1">Nháp</span>
+            </div>
+            <div class="flex flex-col items-center opacity-50">
+              <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center">2</div>
+              <span class="mt-1">Nộp L1</span>
+            </div>
+            <div class="flex flex-col items-center opacity-50">
+              <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center">3</div>
+              <span class="mt-1">Nhận L1</span>
+            </div>
+            <div class="flex flex-col items-center opacity-50">
+              <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center">4</div>
+              <span class="mt-1">Nộp L2</span>
+            </div>
+            <div class="flex flex-col items-center opacity-50">
+              <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center">5</div>
+              <span class="mt-1">Nhận L2</span>
+            </div>
+            <div class="flex flex-col items-center opacity-50">
+              <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center">6</div>
+              <span class="mt-1">Xong</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action: Fast PDF Print Buttons (Tối ưu mới) -->
+        <div class="grid grid-cols-2 gap-2">
+          <button class="p-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition">
+            <span>📄 In Bộ Hồ Sơ L1</span>
+          </button>
+          <button class="p-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition">
+            <span>📄 In Khai Thuế L2</span>
+          </button>
+        </div>
+
+        <!-- Phase Tabs: L1 vs L2 -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="grid grid-cols-2 bg-slate-100 border-b border-slate-200 p-1 gap-1">
+            <button class="py-1 px-2 rounded-md font-bold text-xs bg-white text-blue-700 shadow-2xs">
+              🟣 LẦN 1: NỘP NENKIN
+            </button>
+            <button class="py-1 px-2 rounded-md font-medium text-xs text-slate-600 hover:text-slate-900">
+              🟣 LẦN 2: HOÀN THUẾ
+            </button>
+          </div>
+
+          <div class="p-3 space-y-2.5 bg-white">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Ngày viết đơn (In giấy)</label>
+                <input type="date" value="2026-08-28" class="w-full h-8 px-2 bg-white border border-slate-200 rounded-md text-xs font-mono">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Ngày gửi L1 (Đi Nhật)</label>
+                <input type="date" class="w-full h-8 px-2 bg-white border border-slate-200 rounded-md text-xs font-mono">
+              </div>
+            </div>
+
+            <!-- Authorization Checklist -->
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5">
+              <span class="font-bold text-slate-700 text-[10px] uppercase block">Nội dung ủy quyền L1 (委任状)</span>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-700 cursor-pointer">
+                <input type="checkbox" checked class="rounded border-slate-300 text-blue-600">
+                <span>Mục 3: Xin nhận tiền thoái thác Nenkin</span>
+              </label>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-700 cursor-pointer">
+                <input type="checkbox" class="rounded border-slate-300 text-blue-600">
+                <span>Mục 4: Xin cấp lại sổ/chứng nhận Nenkin</span>
+              </label>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-700 cursor-pointer">
+                <input type="checkbox" class="rounded border-slate-300 text-blue-600">
+                <span>Mục 1: Tra cứu thời gian đóng bảo hiểm</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Panel Footer Floating Button -->
+      <div class="p-2 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <span class="text-[10px] text-slate-400">Trạng thái: Sẵn sàng xuất file</span>
+        <button class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-[10px] shadow-xs flex items-center gap-1">
+          <span>🤖 Trợ Lý AI VietNenkin</span>
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Interactive JavaScript Logic for Mockup -->
+  <script>
+    function switchBankTab(tab) {
+      const btn1 = document.getElementById('btnTab1');
+      const btn2 = document.getElementById('btnTab2');
+      const form1 = document.getElementById('formTab1');
+      const form2 = document.getElementById('formTab2');
+
+      if (tab === 'lan1') {
+        btn1.className = "py-1.5 px-2 rounded-md font-bold text-xs bg-white text-blue-700 shadow-xs border border-slate-200/80 flex items-center justify-center gap-1.5 transition";
+        btn2.className = "py-1.5 px-2 rounded-md font-medium text-xs text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 transition";
+        form1.classList.remove('hidden');
+        form2.classList.add('hidden');
+        switchImageTab('lan1');
+      } else {
+        btn2.className = "py-1.5 px-2 rounded-md font-bold text-xs bg-white text-indigo-700 shadow-xs border border-slate-200/80 flex items-center justify-center gap-1.5 transition";
+        btn1.className = "py-1.5 px-2 rounded-md font-medium text-xs text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 transition";
+        form2.classList.remove('hidden');
+        form1.classList.add('hidden');
+        switchImageTab('lan2');
+      }
+    }
+
+    function switchImageTab(tab) {
+      const b1 = document.getElementById('btnImgTab1');
+      const b2 = document.getElementById('btnImgTab2');
+      const title = document.getElementById('leftBankTitle');
+      const imgL1 = document.getElementById('mockImgL1');
+      const imgL2 = document.getElementById('mockImgL2');
+
+      if (tab === 'lan1') {
+        b1.className = "flex-1 py-1 px-2 rounded-md font-bold text-[10px] bg-blue-600 text-white shadow-2xs transition";
+        b2.className = "flex-1 py-1 px-2 rounded-md font-medium text-[10px] bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition";
+        title.innerHTML = '<span class="text-blue-600">📌</span> Sổ Ngân hàng (Lần 1: Việt Nam)';
+        imgL1.classList.remove('hidden');
+        imgL2.classList.add('hidden');
+      } else {
+        b2.className = "flex-1 py-1 px-2 rounded-md font-bold text-[10px] bg-indigo-600 text-white shadow-2xs transition";
+        b1.className = "flex-1 py-1 px-2 rounded-md font-medium text-[10px] bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition";
+        title.innerHTML = '<span class="text-indigo-600">📌</span> Sổ Ngân hàng (Lần 2: Nhật Bản)';
+        imgL2.classList.remove('hidden');
+        imgL1.classList.add('hidden');
+      }
+    }
+
+    function setL2Mode(mode) {
+      const selRep = document.getElementById('selRep');
+      const selCust = document.getElementById('selCust');
+      const boxRep = document.getElementById('boxRepMode');
+      const boxCust = document.getElementById('boxCustMode');
+      const badge = document.getElementById('badgeL2');
+
+      if (mode === 'rep') {
+        selRep.className = "p-2.5 rounded-lg border-2 border-blue-600 bg-blue-50/70 cursor-pointer transition flex items-start gap-2 shadow-2xs";
+        selCust.className = "p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex items-start gap-2";
+        boxRep.classList.remove('hidden');
+        boxCust.classList.add('hidden');
+        badge.innerHTML = "👤 Người đại diện";
+        badge.className = "px-1.5 py-0.2 bg-indigo-100 text-indigo-800 text-[9px] rounded font-semibold";
+      } else {
+        selCust.className = "p-2.5 rounded-lg border-2 border-indigo-600 bg-indigo-50/70 cursor-pointer transition flex items-start gap-2 shadow-2xs";
+        selRep.className = "p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex items-start gap-2";
+        boxCust.classList.remove('hidden');
+        boxRep.classList.add('hidden');
+        badge.innerHTML = "🏦 TK Nhật khách";
+        badge.className = "px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[9px] rounded font-semibold";
+      }
+    }
+
+    function clearJpBankForm() {
+      if (confirm('Bạn muốn xóa thông tin tài khoản Nhật Bản này?')) {
+        alert('Đã làm sạch form ngân hàng Nhật Bản!');
+      }
+    }
+  </script>
+</body>
+</html>

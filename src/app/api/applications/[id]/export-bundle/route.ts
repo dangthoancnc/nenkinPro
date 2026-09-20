@@ -19,7 +19,9 @@ export async function GET(
     if (error || !user) return error;
 
     const searchParams = request.nextUrl.searchParams;
-    const stage = searchParams.get('stage') || 'all'; // '1' | '2' | 'all'
+    const stageParam = (searchParams.get('stage') || 'all').toLowerCase();
+    const isStage1 = stageParam === '1' || stageParam === 'stage_1' || stageParam === 'lan1';
+    const isStage2 = stageParam === '2' || stageParam === 'stage_2' || stageParam === 'lan2';
 
     const application = await prisma.nenkinApplication.findUnique({
       where: { id },
@@ -48,12 +50,12 @@ export async function GET(
 
     let templatesToProcess: { template: TemplateType; file: string }[] = [];
 
-    if (stage === '1') {
+    if (isStage1) {
       templatesToProcess = [
         { template: 'don_xin_lan_1', file: 'don_xin_lan_1.pdf' },
         { template: 'ininjyo_yoshiki_lan_1', file: 'ininjyo_yoshiki_lan_1.pdf' },
       ];
-    } else if (stage === '2') {
+    } else if (isStage2) {
       templatesToProcess = [
         { template: 'nouzeikanrinin', file: 'nouzeikanrinin.pdf' },
         { template: 'bang_1_2', file: 'bang_1_2.pdf' },
@@ -71,27 +73,36 @@ export async function GET(
 
     const mergedPdf = await PDFDocument.create();
 
-    for (const item of templatesToProcess) {
-      try {
-        const data = mapDocument(mapperInput, item.template);
-        const configPath = path.join(process.cwd(), 'public', 'templates', `${item.template}.json`);
-        let config: PdfMappingConfig = {};
-        if (fs.existsSync(configPath)) {
-          config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        }
+    // Process all templates in parallel for maximum performance
+    const compiledDocs = await Promise.all(
+      templatesToProcess.map(async (item) => {
+        try {
+          const data = mapDocument(mapperInput, item.template);
+          const configPath = path.join(process.cwd(), 'public', 'templates', `${item.template}.json`);
+          let config: PdfMappingConfig = {};
+          if (fs.existsSync(configPath)) {
+            config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+          }
 
-        const pdfBytes = await fillPdfTemplate(item.file, data, config);
-        const doc = await PDFDocument.load(pdfBytes);
+          const pdfBytes = await fillPdfTemplate(item.file, data, config);
+          return await PDFDocument.load(pdfBytes);
+        } catch (e) {
+          console.warn(`Error compiling page ${item.template}:`, e);
+          return null;
+        }
+      })
+    );
+
+    for (const doc of compiledDocs) {
+      if (doc) {
         const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
         copiedPages.forEach(p => mergedPdf.addPage(p));
-      } catch (e) {
-        console.warn(`Error compiling page ${item.template}:`, e);
       }
     }
 
     const finalPdfBytes = await mergedPdf.save();
     const customerName = (application.customer.fullName || 'HoSo').replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const stageLabel = stage === '1' ? 'Lan1' : stage === '2' ? 'Lan2' : 'TronBo';
+    const stageLabel = isStage1 ? 'Lan1' : isStage2 ? 'Lan2' : 'TronBo';
 
     return new NextResponse(Buffer.from(finalPdfBytes), {
       status: 200,

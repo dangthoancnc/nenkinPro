@@ -138,10 +138,9 @@ export function WorkflowTimeline({
   const activeStep  = NENKIN_WORKFLOW_STEPS[activeIndex]
 
   return (
-    <div className={cn('w-full', className)}>
-
+    <div className={cn('w-full select-none', className)}>
       {/* ── Step row ─────────────────────────────────────────────── */}
-      <div className="flex items-start">
+      <div className="flex items-center justify-between w-full">
         {NENKIN_WORKFLOW_STEPS.map((step, i) => {
           const ss          = getStepStatus(i, activeIndex)
           const dateVal     = step.dateKey ? resolvedDates[step.dateKey as keyof typeof resolvedDates] : null
@@ -151,8 +150,7 @@ export function WorkflowTimeline({
           return (
             <React.Fragment key={step.key}>
               {/* ── Node ── */}
-              <div className="flex flex-col items-center flex-shrink-0" style={{ minWidth: 44 }}>
-
+              <div className="flex flex-col items-center min-w-0 shrink-0">
                 {/* Dot */}
                 <button
                   type="button"
@@ -160,69 +158,56 @@ export function WorkflowTimeline({
                   onClick={() => isClickable && onStatusChange?.(step.statusKey)}
                   title={isClickable ? `Chuyển sang: ${step.label}` : step.label}
                   className={cn(
-                    'w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 transition-all duration-200 select-none text-[9px]',
+                    'w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full flex items-center justify-center border transition-all duration-150 select-none text-[8px]',
                     step.dot[ss],
-                    isClickable && 'cursor-pointer hover:scale-110 hover:shadow-md',
+                    isClickable && 'cursor-pointer hover:scale-110 shadow-2xs',
                     !isClickable && 'cursor-default',
                   )}
                 >
                   {ss === 'done' && (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
-                  {ss === 'active'  && <span className="w-2 h-2 rounded-full bg-white block" />}
-                  {ss === 'pending' && <span className="text-[9px] font-semibold">{i + 1}</span>}
+                  {ss === 'active'  && <span className="w-1.5 h-1.5 rounded-full bg-white block" />}
+                  {ss === 'pending' && <span className="text-[8px] font-semibold">{i + 1}</span>}
                 </button>
 
                 {/* Short label */}
                 <span className={cn(
-                  'mt-1 text-[9px] font-semibold text-center leading-tight whitespace-nowrap',
+                  'mt-0.5 text-[8px] font-semibold text-center leading-none truncate max-w-[42px]',
                   ss === 'done'    && 'text-slate-500',
                   ss === 'active'  && step.labelActive,
                   ss === 'pending' && 'text-slate-400',
-                )}>
+                )}
+                title={step.label}
+                >
                   {step.shortLabel}
                 </span>
 
-                {/* ── B.17: milestone date badge ── */}
-                {shortDate ? (
+                {/* Milestone date badge */}
+                {shortDate && (
                   <span className={cn(
-                    'mt-0.5 text-[8px] font-mono rounded px-0.5 py-px leading-tight',
+                    'mt-0.5 text-[7px] font-mono rounded px-0.5 leading-none',
                     ss === 'done'   && step.badgeDone,
-                    ss === 'active' && 'bg-white border border-current text-inherit',
+                    ss === 'active' && 'bg-indigo-50 text-indigo-700 font-bold',
                     ss === 'pending'&& 'text-slate-300',
                   )}>
                     {shortDate}
                   </span>
-                ) : (
-                  // Placeholder to keep column heights equal
-                  <span className="mt-0.5 h-3.5 block" />
                 )}
               </div>
 
               {/* ── Connector line ── */}
               {i < NENKIN_WORKFLOW_STEPS.length - 1 && (
                 <div className={cn(
-                  'flex-1 h-0.5 mt-3.5 rounded-full transition-all duration-500',
+                  'flex-1 h-0.5 mx-0.5 -mt-3.5 rounded-full transition-all duration-300 min-w-[6px]',
                   i < activeIndex ? NENKIN_WORKFLOW_STEPS[i + 1].line : 'bg-slate-200',
                 )} />
               )}
             </React.Fragment>
           )
         })}
-      </div>
-
-      {/* ── Footer: progress + current label ───────────────────────── */}
-      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
-        <span className="text-[9px] text-slate-400 font-medium">
-          Bước {activeIndex + 1} / {NENKIN_WORKFLOW_STEPS.length}
-        </span>
-        {activeStep && (
-          <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded', activeStep.badgeDone)}>
-            {activeStep.label}
-          </span>
-        )}
       </div>
     </div>
   )

@@ -14,6 +14,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const isSidebarOpen = isPinned || isHovered;
   const pathname = usePathname();
   const isNoLayoutRoute = pathname === '/' || pathname === '/onboarding' || pathname === '/login' || pathname?.startsWith('/customer') || pathname?.endsWith('/print');
+  const isApplicationWorkspace = pathname?.startsWith('/applications/') && pathname !== '/applications' && !pathname?.endsWith('/don-xin');
 
   useEffect(() => {
     const updateSidebarWidth = () => {
@@ -52,10 +53,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           isPinned ? 'md:ml-64 ml-0' : 'md:ml-16 ml-0'
         }`}
       >
-        <Suspense fallback={<div className="h-16 bg-card/80 border-b border-border sticky top-0 z-30" />}>
-          <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
-        </Suspense>
-        <main className={`flex-1 relative min-h-0 ${pathname?.includes('/applications/') ? 'p-1.5 sm:p-2 pb-16 md:pb-1.5 overflow-y-auto overflow-x-hidden h-full' : 'p-2 sm:p-3 pb-16 md:pb-3 overflow-x-hidden'}`}>
+        {!isApplicationWorkspace && (
+          <Suspense fallback={<div className="h-12 bg-card/80 border-b border-border sticky top-0 z-30" />}>
+            <Topbar isSidebarOpen={isPinned} setIsSidebarOpen={setIsPinned} />
+          </Suspense>
+        )}
+        <main className={`flex-1 relative min-h-0 ${isApplicationWorkspace ? 'p-1.5 sm:p-2 overflow-hidden h-full' : 'p-2 sm:p-3 pb-16 md:pb-3 overflow-x-hidden'}`}>
           {children}
         </main>
       </div>

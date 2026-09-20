@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         senderName,
         isMe,
         content: m.content,
+        attachments: (m.attachments as any) || [],
         time: new Date(m.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         createdAt: m.createdAt,
       };
@@ -52,17 +53,19 @@ export async function POST(request: NextRequest) {
     if (error || !user) return error;
 
     const body = await request.json();
-    const { conversationId, content } = body;
+    const { conversationId, content, attachments } = body;
 
-    if (!conversationId || !content) {
-      return NextResponse.json({ success: false, error: 'conversationId and content are required' }, { status: 400 });
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    if (!conversationId || (!content && !hasAttachments)) {
+      return NextResponse.json({ success: false, error: 'conversationId và nội dung hoặc tệp đính kèm là bắt buộc' }, { status: 400 });
     }
 
-    const message = await prisma.message.create({
+    const message = await (prisma.message as any).create({
       data: {
         conversationId,
         senderUserId: user.id,
-        content,
+        content: content || '',
+        attachments: hasAttachments ? attachments : undefined,
       },
       include: {
         senderUser: { select: { id: true, name: true } },
@@ -82,6 +85,7 @@ export async function POST(request: NextRequest) {
         senderName: message.senderUser?.name || user.name || 'Tôi',
         isMe: true,
         content: message.content,
+        attachments: (message.attachments as any) || [],
         time: new Date(message.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         createdAt: message.createdAt,
       },

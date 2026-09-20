@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireApplicationAccess } from '@/lib/auth/authorization';
 import { mapDocument } from '@/lib/documentMapper';
 import { fillPdfTemplate } from '@/lib/pdfGenerator';
 import { getRequiredTags } from '@/features/templates/template-field-catalog';
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
     if (!applicationId || !templateType) {
       return NextResponse.json({ error: 'Missing applicationId or templateType' }, { status: 400 });
     }
+
+    const { user, error: authError } = await requireApplicationAccess(applicationId);
+    if (authError || !user) return authError;
 
     const application = await prisma.nenkinApplication.findUnique({
       where: { id: applicationId },

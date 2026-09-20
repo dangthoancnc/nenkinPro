@@ -51,9 +51,9 @@ export async function validateSession(token: string) {
     return null;
   }
 
-  // Update lastSeenAt (throttled to 5 minutes to avoid DB pressure)
-  const FIVE_MINUTES = 5 * 60 * 1000;
-  if (Date.now() - session.lastSeenAt.getTime() > FIVE_MINUTES) {
+  // Update lastSeenAt (throttled to 1 minute to ensure accurate realtime presence)
+  const ONE_MINUTE = 60 * 1000;
+  if (Date.now() - session.lastSeenAt.getTime() > ONE_MINUTE) {
     prisma.staffSession.update({
       where: { id: session.id },
       data: { lastSeenAt: new Date() }
