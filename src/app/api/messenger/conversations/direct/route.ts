@@ -131,6 +131,9 @@ export async function POST(request: NextRequest) {
     if (exactDirect) {
       const custParticipant = exactDirect.participants?.find((p: any) => p.customer)?.customer;
       const userParticipant = exactDirect.participants?.find((p: any) => p.user && p.user.id !== user.id)?.user;
+      const staffRole = userParticipant?.role
+        ? (userParticipant.role === 'ADMIN' ? 'Quản trị viên' : userParticipant.role === 'MANAGER' ? 'Quản lý' : 'Cộng tác viên (CTV)')
+        : (targetUserId ? 'Nhân viên' : undefined);
 
       return NextResponse.json({
         success: true,
@@ -141,6 +144,7 @@ export async function POST(request: NextRequest) {
           type: exactDirect.type,
           code: custParticipant?.code || userParticipant?.staffCode || targetCode,
           phone: custParticipant?.phone || targetPhone,
+          role: staffRole,
           lastMessage: exactDirect.messages?.[0]?.content || 'Chưa có tin nhắn',
           updatedAt: exactDirect.updatedAt,
           isArchived: Boolean(exactDirect.isArchived),
@@ -181,6 +185,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const newTargetUser = newConv.participants?.find((p: any) => p.user && p.user.id !== user.id)?.user;
+    const newStaffRole = newTargetUser?.role
+      ? (newTargetUser.role === 'ADMIN' ? 'Quản trị viên' : newTargetUser.role === 'MANAGER' ? 'Quản lý' : 'Cộng tác viên (CTV)')
+      : (targetUserId ? 'Nhân viên' : undefined);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -190,6 +199,7 @@ export async function POST(request: NextRequest) {
         type: newConv.type,
         code: targetCode,
         phone: targetPhone,
+        role: newStaffRole,
         lastMessage: newConv.messages?.[0]?.content || '',
         updatedAt: newConv.updatedAt,
         isArchived: false,

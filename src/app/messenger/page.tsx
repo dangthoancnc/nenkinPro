@@ -1108,21 +1108,39 @@ export default function MessengerPage() {
                     <h3 className="font-bold text-xs text-slate-900 truncate">{activeChat.name}</h3>
                     
                     {/* Category Pill Tag */}
-                    {activeChat.type === 'CUSTOMER_SUPPORT' && (
-                      <span className="px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 text-[9px] font-bold border border-teal-200">
-                        Tư vấn Trực tiếp
-                      </span>
-                    )}
-                    {activeChat.type === 'CTV' && (
-                      <span className="px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-700 text-[9px] font-bold border border-slate-200">
-                        CTV
-                      </span>
-                    )}
-                    {activeChat.type === 'GROUP' && (
-                      <span className="px-1.5 py-0.2 rounded-md bg-violet-50 text-violet-700 text-[9px] font-bold border border-violet-200">
-                        Nhóm ({activeChat.membersCount || 2} TV)
-                      </span>
-                    )}
+                    {(() => {
+                      const matchedStaff = availableStaffs.find(s => s.name === activeChat.name || (activeChat.code && s.code === activeChat.code));
+                      const roleTag = matchedStaff?.role || activeChat.role;
+                      if (roleTag) {
+                        return (
+                          <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 text-[9px] font-bold border border-blue-200">
+                            {roleTag}
+                          </span>
+                        );
+                      }
+                      if (activeChat.type === 'CUSTOMER_SUPPORT') {
+                        return (
+                          <span className="px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 text-[9px] font-bold border border-teal-200">
+                            Tư vấn Trực tiếp
+                          </span>
+                        );
+                      }
+                      if (activeChat.type === 'CTV') {
+                        return (
+                          <span className="px-1.5 py-0.2 rounded-md bg-purple-50 text-purple-700 text-[9px] font-bold border border-purple-200">
+                            CTV
+                          </span>
+                        );
+                      }
+                      if (activeChat.type === 'GROUP') {
+                        return (
+                          <span className="px-1.5 py-0.2 rounded-md bg-violet-50 text-violet-700 text-[9px] font-bold border border-violet-200">
+                            Nhóm ({activeChat.membersCount || 2} TV)
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     {/* Support Status Pill Tag - ONLY for CUSTOMER_SUPPORT type */}
                     {activeChat.type === 'CUSTOMER_SUPPORT' && (
@@ -1738,20 +1756,35 @@ export default function MessengerPage() {
                 activeChat.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
               }`} />
             </div>
-            <h3 className="font-bold text-xs text-slate-800">{activeChat.name}</h3>
-            <p className={`text-[10px] flex items-center justify-center gap-1.5 ${
-              activeChat.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
-              }`} />
-              <span>{activeChat.lastActiveText || (activeChat.isOnline ? 'Đang hoạt động' : 'Ngoại tuyến')}</span>
-            </p>
-            {activeChat.code && (
-              <span className="inline-block text-[9px] font-mono text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                Mã: #{activeChat.code}
-              </span>
-            )}
+            {(() => {
+              const matchedStaff = availableStaffs.find(s => s.name === activeChat.name || (activeChat.code && s.code === activeChat.code));
+              const roleTag = matchedStaff?.role || activeChat.role;
+              return (
+                <>
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    <h3 className="font-bold text-xs text-slate-800">{activeChat.name}</h3>
+                    {roleTag && (
+                      <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 text-[9px] font-bold border border-blue-200">
+                        {roleTag}
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] flex items-center justify-center gap-1.5 ${
+                    activeChat.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      activeChat.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                    }`} />
+                    <span>{activeChat.lastActiveText || (activeChat.isOnline ? 'Đang hoạt động' : 'Ngoại tuyến')}</span>
+                  </p>
+                  {(activeChat.code || matchedStaff?.code) && (
+                    <span className="inline-block text-[9px] font-mono text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                      Mã: #{activeChat.code || matchedStaff?.code}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {activeChat.type === 'GROUP' ? (
@@ -1785,16 +1818,45 @@ export default function MessengerPage() {
           ) : (
             <div className="space-y-2 text-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thông tin liên hệ</span>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2 text-[11px]">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">SĐT:</span>
-                  <span className="font-semibold text-slate-800">{activeChat.phone || 'Chưa có'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Loại tài khoản:</span>
-                  <span className="font-bold text-indigo-600">{activeChat.type === 'CTV' ? 'Cộng tác viên' : 'Khách hàng'}</span>
-                </div>
-              </div>
+              {(() => {
+                const matchedStaff = availableStaffs.find(s => s.name === activeChat.name || (activeChat.code && s.code === activeChat.code));
+                const isStaff = !!matchedStaff || activeChat.type === 'DIRECT' || activeChat.role === 'ADMIN' || activeChat.role === 'MANAGER' || (activeChat.code && activeChat.code.startsWith('NV'));
+                const roleTitle = matchedStaff?.role || (activeChat.role === 'ADMIN' ? 'Quản trị viên' : activeChat.role === 'MANAGER' ? 'Quản lý' : activeChat.role === 'CTV' || activeChat.type === 'CTV' ? 'Cộng tác viên (CTV)' : isStaff ? 'Nhân viên nội bộ' : 'Khách hàng');
+                const accountTypeLabel = isStaff ? 'Nhân sự nội bộ' : activeChat.type === 'CTV' ? 'Cộng tác viên (CTV)' : 'Khách hàng';
+
+                return (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2 text-[11px]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Phân loại:</span>
+                      <span className={`font-bold ${isStaff ? 'text-blue-600' : activeChat.type === 'CTV' ? 'text-purple-600' : 'text-emerald-600'}`}>
+                        {accountTypeLabel}
+                      </span>
+                    </div>
+                    {isStaff && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Chức vụ:</span>
+                        <span className="font-semibold text-slate-800">{roleTitle}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">{isStaff ? 'Mã nhân viên:' : 'Mã định danh:'}</span>
+                      <span className="font-mono font-medium text-slate-700">
+                        {activeChat.code ? `#${activeChat.code}` : matchedStaff?.code ? `#${matchedStaff.code}` : 'Chưa có'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">SĐT:</span>
+                      <span className="font-semibold text-slate-800">{activeChat.phone || 'Chưa có'}</span>
+                    </div>
+                    {activeChat.email && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Email:</span>
+                        <span className="text-slate-700 truncate max-w-[120px]" title={activeChat.email}>{activeChat.email}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

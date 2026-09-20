@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
         type: c.type,
         code: custParticipant?.code || userParticipant?.staffCode || '',
         phone: custParticipant?.phone || '',
+        role: userParticipant?.role ? (userParticipant.role === 'ADMIN' ? 'Quản trị viên' : userParticipant.role === 'MANAGER' ? 'Quản lý' : 'Cộng tác viên (CTV)') : undefined,
         lastMessage: lastMsg,
         updatedAt: c.updatedAt,
         isArchived: Boolean(c.isArchived),
