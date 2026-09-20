@@ -117,6 +117,67 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     arrIdx?: number;
   } | null>(null);
 
+  // Discuss / Pin this dossier to active mini chat(s)
+  const [showPickChatModal, setShowPickChatModal] = useState(false);
+  const [activeDockedChats, setActiveDockedChats] = useState<any[]>([]);
+
+  const handleDiscussOrPinDossier = () => {
+    try {
+      const raw = localStorage.getItem('nenkin_docked_chats');
+      const chats: any[] = raw ? JSON.parse(raw) : [];
+      const openChats = chats.filter((c: any) => c.isOpen);
+
+      const dossierData = {
+        id,
+        name: getValues('fullName') || customer?.fullName || 'Khách hàng',
+        code: customer?.code || '',
+        status: watch('status') || 'Chờ xử lý',
+      };
+
+      if (openChats.length === 0) {
+        toast.info('Chưa có cửa sổ chat nào mở. Đang mở danh bạ để bạn chọn người cần trao đổi...');
+        window.dispatchEvent(new Event('nenkin:open-messenger-drawer'));
+        return;
+      }
+
+      if (openChats.length === 1) {
+        const targetChat = openChats[0];
+        window.dispatchEvent(new CustomEvent('nenkin:pin-dossier-to-chat', {
+          detail: {
+            conversationId: targetChat.conversationId,
+            dossier: dossierData,
+          },
+        }));
+        toast.success(`Đã gắn hồ sơ vào cuộc trò chuyện với ${targetChat.name}!`);
+        return;
+      }
+
+      // If > 1 open chats: show picker modal to select target
+      setActiveDockedChats(openChats);
+      setShowPickChatModal(true);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSendDossierToSpecificChat = (targetChat: any) => {
+    const dossierData = {
+      id,
+      name: getValues('fullName') || customer?.fullName || 'Khách hàng',
+      code: customer?.code || '',
+      status: watch('status') || 'Chờ xử lý',
+    };
+
+    window.dispatchEvent(new CustomEvent('nenkin:pin-dossier-to-chat', {
+      detail: {
+        conversationId: targetChat.conversationId,
+        dossier: dossierData,
+      },
+    }));
+    toast.success(`Đã gắn hồ sơ vào cuộc trò chuyện với ${targetChat.name}!`);
+    setShowPickChatModal(false);
+  };
+
   const handleSelectFromChatGallery = async (url: string) => {
     if (!chatGalleryTarget) return;
     const { docKey, urlField, arrIdx } = chatGalleryTarget;
@@ -3868,6 +3929,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <span>Mở trang in hồ sơ</span>
                 </button>
               )}
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={handleDiscussOrPinDossier}
+                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-md font-semibold text-xs border border-amber-300 flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  title="Gắn thông tin hồ sơ này vào cửa sổ chat để thảo luận với đồng nghiệp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Gắn vào Chat</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -4213,6 +4285,51 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           onSelect={handleSelectFromChatGallery}
           onClose={() => setChatGalleryTarget(null)}
         />
+      )}
+
+      {/* ── MODAL: PICK TARGET CHAT TO PIN DOSSIER ── */}
+      {showPickChatModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3 animate-in zoom-in-95 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-blue-600" />
+                Gửi hồ sơ vào cuộc trò chuyện nào?
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowPickChatModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Bạn đang mở {activeDockedChats.length} cuộc trò chuyện. Hãy chọn người bạn muốn gửi thẻ hồ sơ này:
+            </p>
+            <div className="space-y-1.5 max-h-56 overflow-y-auto">
+              {activeDockedChats.map(c => (
+                <button
+                  key={c.conversationId}
+                  type="button"
+                  onClick={() => handleSendDossierToSpecificChat(c)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:border-blue-300 flex items-center justify-between transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {c.name?.[0] || 'U'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs text-slate-800 group-hover:text-blue-700 truncate">{c.name}</p>
+                      <p className="text-[10px] text-slate-400">{c.role || (c.isStaff ? 'Nhân viên' : 'Khách hàng')}</p>
+                    </div>
+                  </div>
+                  <Send className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

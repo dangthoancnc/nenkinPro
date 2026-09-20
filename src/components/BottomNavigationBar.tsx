@@ -20,18 +20,26 @@ export default function BottomNavigationBar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center h-full py-1 px-0.5 transition-all text-center min-w-0 ${
-                isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
-              }`}
-            >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600 stroke-[2.5]' : 'text-slate-500'}`} />
-              <span className="text-[9px] leading-tight truncate w-full mt-0.5 block">{item.name}</span>
-            </Link>
-          );
+            const isMessengerItem = item.href === '/messenger';
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => {
+                  if (isMessengerItem && pathname !== '/messenger') {
+                    e.preventDefault();
+                    window.dispatchEvent(new Event('nenkin:open-messenger-drawer'));
+                  }
+                }}
+                className={`flex-1 flex flex-col items-center justify-center h-full py-1 px-0.5 transition-all text-center min-w-0 ${
+                  isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
+                }`}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600 stroke-[2.5]' : 'text-slate-500'}`} />
+                <span className="text-[9px] leading-tight truncate w-full mt-0.5 block">{item.name}</span>
+              </Link>
+            );
         })}
       </div>
     </nav>

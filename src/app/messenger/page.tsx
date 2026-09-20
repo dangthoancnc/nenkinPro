@@ -28,6 +28,10 @@ export interface ChatAttachment {
   originalSize?: number;
   originalPurged?: boolean;
   purgedAt?: string;
+  id?: string;
+  code?: string;
+  status?: string;
+  isImage?: boolean;
 }
 
 interface ChatMessage {
@@ -162,6 +166,83 @@ export default function MessengerPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const prevMsgCountRef = useRef(0);
+
+  // Dossier @ mention & Right Panel search state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [rightPanelDossierSearch, setRightPanelDossierSearch] = useState('');
+  const [rightPanelDossierResults, setRightPanelDossierResults] = useState<any[]>([]);
+
+  const handleMentionInputChange = (val: string) => {
+    setInputText(val);
+    const match = val.match(/[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]*)$/);
+    if (match) {
+      const q = match[1] || '';
+      setMentionQuery(q);
+      setLoadingSuggestions(true);
+      fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=5`)
+        .then(r => r.json())
+        .then(d => { if (d.success && Array.isArray(d.data)) setMentionSuggestions(d.data); })
+        .catch(console.error)
+        .finally(() => setLoadingSuggestions(false));
+    } else {
+      setMentionQuery(null);
+      setMentionSuggestions([]);
+    }
+  };
+
+  const handleSelectMentionDossier = (app: any) => {
+    if (!activeChat) return;
+    const dossierAtt: ChatAttachment = {
+      type: 'dossier',
+      id: app.id,
+      name: app.customer?.fullName || 'Khách hàng',
+      code: app.customer?.code || '',
+      status: app.status || 'Bản nháp',
+      url: `/applications/${app.id}`,
+    };
+
+    fetch('/api/messenger/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: activeChat.id,
+        content: `📋 [Đã đề cập hồ sơ: ${dossierAtt.name} #${dossierAtt.code}]`,
+        attachments: [dossierAtt],
+      }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data) {
+          setMessages(prev => [...prev, d.data]);
+          toast.success(`Đã đề cập hồ sơ ${dossierAtt.name}`);
+        }
+      })
+      .catch(console.error);
+
+    setInputText('');
+    setMentionQuery(null);
+    setMentionSuggestions([]);
+  };
+
+  const handleSearchRightPanelDossiers = (q: string) => {
+    setRightPanelDossierSearch(q);
+    if (!q.trim()) {
+      setRightPanelDossierResults([]);
+      return;
+    }
+    fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=5`)
+      .then(r => r.json())
+      .then(d => { if (d.success && Array.isArray(d.data)) setRightPanelDossierResults(d.data); })
+      .catch(console.error);
+  };
+
+  const handlePinDossierFromRightPanel = (app: any) => {
+    handleSelectMentionDossier(app);
+    setRightPanelDossierSearch('');
+    setRightPanelDossierResults([]);
+  };
 
   // Ref to track current activeChatId across closures (prevents stale closure bug)
   const activeChatIdRef = useRef<string | null>(null);
@@ -1503,15 +1584,51 @@ export default function MessengerPage() {
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="space-y-2 pt-1">
                             {(() => {
+                              const dossierAtts = msg.attachments.filter(att => att.type === 'dossier');
                               const imageAtts = msg.attachments.filter(att =>
-                                att.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(att.url)
+                                att.type !== 'dossier' && (att.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(att.url))
                               );
                               const docAtts = msg.attachments.filter(att =>
-                                !att.type?.startsWith('image/') && !/\.(jpg|jpeg|png|webp|gif)$/i.test(att.url)
+                                att.type !== 'dossier' && !att.type?.startsWith('image/') && !/\.(jpg|jpeg|png|webp|gif)$/i.test(att.url)
                               );
 
                               return (
                                 <>
+                                  {/* 0. Dossier Mention Cards */}
+                                  {dossierAtts.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      {dossierAtts.map((att, aIdx) => (
+                                        <div
+                                          key={aIdx}
+                                          className={`p-2.5 rounded-xl border text-left ${
+                                            msg.isMe ? 'bg-white/10 border-white/25 text-white' : 'bg-blue-50/90 border-blue-200 text-slate-800'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-1.5 font-bold text-xs">
+                                            <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                                            <span>Hồ Sơ: {att.name}</span>
+                                          </div>
+                                          <div className="flex items-center justify-between gap-1 text-[11px] mt-1 opacity-90">
+                                            <span>Mã định danh: #{att.code || 'HS'}</span>
+                                            <span className="px-2 py-0.5 rounded bg-black/15 font-semibold text-[10px]">
+                                              {att.status || 'Bản nháp'}
+                                            </span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => window.open(`/applications/${att.id}`, '_blank')}
+                                            className={`mt-2 w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                                              msg.isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            }`}
+                                          >
+                                            <span>Xem chi tiết hồ sơ</span>
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
                                   {/* 1. Images Gallery */}
                                   {imageAtts.length > 0 && (
                                     <div className={`grid gap-2 ${imageAtts.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -1832,14 +1949,52 @@ export default function MessengerPage() {
                 </button>
               </div>
 
-              <input
-                type="text"
-                value={inputText}
-                onChange={e => setInputText(e.target.value)}
-                onPaste={handlePaste}
-                placeholder={`Nhập tin nhắn gửi đến ${activeChat.name}... (Có thể dán Ctrl+V ảnh)`}
-                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-2xs"
-              />
+              <div className="flex-1 relative">
+                {/* Mention Autocomplete Suggestions Popup */}
+                {mentionQuery !== null && (
+                  <div className="absolute bottom-12 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden z-20 animate-in slide-in-from-bottom-2">
+                    <div className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-[10px] font-bold text-slate-600">
+                      <span>Gợi ý hồ sơ {mentionQuery ? `("${mentionQuery}")` : ''}:</span>
+                      {loadingSuggestions && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
+                    </div>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-slate-100">
+                      {mentionSuggestions.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-slate-400 italic">
+                          {loadingSuggestions ? 'Đang tìm hồ sơ...' : 'Không tìm thấy hồ sơ khớp'}
+                        </div>
+                      ) : (
+                        mentionSuggestions.map(app => (
+                          <div
+                            key={app.id}
+                            onClick={() => handleSelectMentionDossier(app)}
+                            className="p-2.5 hover:bg-blue-50/80 cursor-pointer flex items-center justify-between gap-2 transition-colors group"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-slate-800 group-hover:text-blue-600 truncate flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                <span>{app.customer?.fullName || 'Khách hàng'}</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400">#{app.customer?.code || ''}</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-medium shrink-0">
+                              {app.status}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={e => handleMentionInputChange(e.target.value)}
+                  onPaste={handlePaste}
+                  placeholder={`Nhập tin nhắn gửi đến ${activeChat.name}... (Gõ @ để gắn hồ sơ, có thể dán Ctrl+V ảnh)`}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-2xs"
+                />
+              </div>
               <Button
                 type="submit"
                 size="xs"
@@ -2012,6 +2167,128 @@ export default function MessengerPage() {
               })()}
             </div>
           )}
+
+          {/* ── MEDIA & ATTACHMENTS SECTION ── */}
+          {(() => {
+            const mediaList = messages.flatMap(m =>
+              (m.attachments || []).filter(a => a.type !== 'dossier' && a.url && (a.url.match(/\.(jpeg|jpg|png|webp|gif)$/i) || a.isImage || a.type?.startsWith('image/')))
+            );
+
+            return (
+              <div className="space-y-2 text-xs border-t border-slate-200/80 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Ảnh & Tài Liệu Media ({mediaList.length})
+                  </span>
+                </div>
+                {mediaList.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">Chưa có ảnh/tài liệu nào được gửi</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                    {mediaList.map((m, mIdx) => (
+                      <div
+                        key={mIdx}
+                        onClick={() => {
+                          if (m.url) {
+                            setLightboxUrl(m.url);
+                            setLightboxMetadata({
+                              name: m.name || 'Ảnh media',
+                              editedUrl: m.url,
+                              originalUrl: m.originalUrl,
+                              originalName: m.originalName,
+                              isViewingOriginal: false,
+                            });
+                          }
+                        }}
+                        className="relative rounded-lg overflow-hidden aspect-square bg-slate-100 border border-slate-200 cursor-pointer group shadow-2xs"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={m.url} alt={m.name || 'Media'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── MENTIONED DOSSIERS SECTION ── */}
+          {(() => {
+            const mentionedDossiers = messages.flatMap(m =>
+              (m.attachments || []).filter(a => a.type === 'dossier')
+            );
+            // Deduplicate by id
+            const uniqueDossiers = Array.from(new Map(mentionedDossiers.filter(d => d.id).map(d => [d.id as string, d])).values());
+
+            return (
+              <div className="space-y-2 text-xs border-t border-slate-200/80 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Hồ Sơ Được Đề Cập ({uniqueDossiers.length})
+                  </span>
+                </div>
+                {uniqueDossiers.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">Chưa có hồ sơ nào được nhắc đến</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {uniqueDossiers.map((d, dIdx) => (
+                      <div
+                        key={dIdx}
+                        className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-[11px]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-800 truncate flex items-center gap-1">
+                            <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            {d.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">#{d.code || 'HS'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => window.open(`/applications/${d.id}`, '_blank')}
+                          className="px-2 py-1 bg-white hover:bg-blue-50 text-blue-600 border border-slate-200 rounded-lg text-[10px] font-bold shrink-0 shadow-2xs flex items-center gap-1"
+                        >
+                          <span>Mở</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick Add / Mention Dossier directly from Right Panel */}
+                <div className="pt-2">
+                  <div className="relative">
+                    <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Tìm hồ sơ để ghim vào chat..."
+                      value={rightPanelDossierSearch}
+                      onChange={e => handleSearchRightPanelDossiers(e.target.value)}
+                      className="w-full pl-7 pr-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none"
+                    />
+                  </div>
+
+                  {rightPanelDossierResults.length > 0 && (
+                    <div className="mt-1 max-h-36 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-200 rounded-lg shadow-lg">
+                      {rightPanelDossierResults.map(res => (
+                        <div
+                          key={res.id}
+                          onClick={() => handlePinDossierFromRightPanel(res)}
+                          className="p-1.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-[11px] group"
+                        >
+                          <span className="font-semibold text-slate-800 group-hover:text-blue-600 truncate">
+                            {res.customer?.fullName}
+                          </span>
+                          <span className="text-[9px] font-bold text-blue-600">Ghim</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

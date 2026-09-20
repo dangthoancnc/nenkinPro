@@ -7,10 +7,12 @@ import { usePathname } from 'next/navigation';
 
 import BottomNavigationBar from './BottomNavigationBar';
 import MiniDockedChat from './messenger/MiniDockedChat';
+import MessengerDrawer from './messenger/MessengerDrawer';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isPinned, setIsPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isMessengerDrawerOpen, setIsMessengerDrawerOpen] = useState(false);
   
   const isSidebarOpen = isPinned || isHovered;
   const pathname = usePathname();
@@ -30,6 +32,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     return () => window.removeEventListener('resize', updateSidebarWidth);
   }, [isPinned]);
 
+  useEffect(() => {
+    const handleOpenDrawer = () => setIsMessengerDrawerOpen(true);
+    window.addEventListener('nenkin:open-messenger-drawer', handleOpenDrawer);
+    return () => window.removeEventListener('nenkin:open-messenger-drawer', handleOpenDrawer);
+  }, []);
+
   if (isNoLayoutRoute) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -47,6 +55,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           setIsPinned={setIsPinned}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onOpenMessengerDrawer={() => setIsMessengerDrawerOpen(true)}
         />
       </div>
       <div 
@@ -63,6 +72,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           {children}
         </main>
       </div>
+      <MessengerDrawer 
+        isOpen={isMessengerDrawerOpen} 
+        onClose={() => setIsMessengerDrawerOpen(false)} 
+      />
       <MiniDockedChat />
       <BottomNavigationBar />
     </div>

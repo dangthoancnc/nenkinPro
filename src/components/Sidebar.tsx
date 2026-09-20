@@ -5,7 +5,21 @@ import { usePathname } from 'next/navigation';
 import { LogOut, Banknote, Pin, PinOff, Home } from 'lucide-react';
 import { menuItems } from '@/lib/navigation';
 
-export default function Sidebar({ isOpen, isPinned, setIsPinned, onMouseEnter, onMouseLeave }: { isOpen: boolean, isPinned?: boolean, setIsPinned?: (val: boolean) => void, onMouseEnter?: () => void, onMouseLeave?: () => void }) {
+export default function Sidebar({
+  isOpen,
+  isPinned,
+  setIsPinned,
+  onMouseEnter,
+  onMouseLeave,
+  onOpenMessengerDrawer,
+}: {
+  isOpen: boolean;
+  isPinned?: boolean;
+  setIsPinned?: (val: boolean) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onOpenMessengerDrawer?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -44,10 +58,18 @@ export default function Sidebar({ isOpen, isPinned, setIsPinned, onMouseEnter, o
               ? pathname === '/dashboard'
               : pathname?.startsWith(item.href);
 
+            const isMessengerItem = item.href === '/messenger';
+
             return (
               <li key={item.name}>
                 <Link
                   href={item.href}
+                  onClick={(e) => {
+                    if (isMessengerItem && pathname !== '/messenger' && onOpenMessengerDrawer) {
+                      e.preventDefault();
+                      onOpenMessengerDrawer();
+                    }
+                  }}
                   className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-md ${
                     isActive 
                       ? 'bg-teal-800 text-white font-semibold border-l-4 border-teal-400 pl-2 md:pl-2' 
