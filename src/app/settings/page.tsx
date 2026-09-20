@@ -1,9 +1,14 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { Settings, FileText, Building2, Banknote, UserCheck } from 'lucide-react';
+import { Settings, FileText, Building2, UserCheck, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 
 export default function SettingsPage() {
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
   return (
     <div className="space-y-6 max-w-4xl">
       <header className="mb-8">
@@ -82,7 +87,29 @@ export default function SettingsPage() {
             </div>
           </Card>
         </Link>
+
+        {/* Security / Change Password Card */}
+        <div onClick={() => setShowChangePassword(true)} className="block group cursor-pointer">
+          <Card className="p-6 h-full bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl rounded-3xl hover:border-violet-400 hover:shadow-2xl transition-all">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-violet-50/80 flex items-center justify-center shrink-0 group-hover:bg-violet-100 transition-colors">
+                <Lock className="w-6 h-6 text-violet-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">Bảo Mật & Đổi Mật Khẩu</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-3">
+                  Tự cập nhật mật khẩu đăng nhập cá nhân định kỳ để đảm bảo an toàn cho tài khoản và dữ liệu hệ thống.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
     </div>
   );
 }

@@ -505,6 +505,43 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
 
   const activeDoc = DOCUMENT_TYPES.find(d => d.id === activeTab) || DOCUMENT_TYPES[0];
 
+  const handleOpenPdfMapper = async () => {
+    try {
+      const res = await fetch('/api/templates/mapping/verify-passcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: typeof window !== 'undefined' ? sessionStorage.getItem('nenkin_admin_passcode') || '' : '' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsLayoutMode(true);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    const code = prompt('🛡️ Chức năng Tùy chỉnh Tọa độ in PDF:\nYêu cầu quyền ADMIN hoặc Mật khẩu Cấp 2 của Quản trị viên để tránh sai lệch biểu mẫu.\n\nVui lòng nhập Mật khẩu Cấp 2:');
+    if (!code) return;
+
+    try {
+      const res = await fetch('/api/templates/mapping/verify-passcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: code.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        sessionStorage.setItem('nenkin_admin_passcode', code.trim());
+        setIsLayoutMode(true);
+      } else {
+        alert(data.error || 'Mật khẩu Cấp 2 không chính xác.');
+      }
+    } catch {
+      alert('Không thể xác thực quyền truy cập.');
+    }
+  };
+
   if (isLayoutMode) {
     const firstTemplate = activeDoc.pages.find(p => p.templateName)?.templateName;
     return (
@@ -582,9 +619,7 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
           {activeDoc.pages.some(p => p.templateName) && (
             <button
               type="button"
-              onClick={() => {
-                setIsLayoutMode(true);
-              }}
+              onClick={handleOpenPdfMapper}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-md shadow-amber-600/20 transition-colors"
               title="Mở PDF Mapper với dữ liệu hồ sơ này"
             >

@@ -27,7 +27,10 @@ export async function GET(
       where: { id },
       include: {
         customer: { include: { taxOffice: true, bankAccounts: true } },
-        taxRepresentative: true,
+        taxRepresentative: {
+          include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+        },
+        taxRepBankAccount: true,
       },
     });
 

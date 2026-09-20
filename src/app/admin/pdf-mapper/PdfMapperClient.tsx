@@ -1111,19 +1111,51 @@ export default function PdfMapperClient({
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/templates/mapping', {
+      let passcode = typeof window !== 'undefined' ? sessionStorage.getItem('nenkin_admin_passcode') || '' : '';
+      let res = await fetch('/api/templates/mapping', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateName: selectedTemplate, config })
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-passcode': passcode
+        },
+        body: JSON.stringify({ templateName: selectedTemplate, config, adminPasscode: passcode })
       });
-      if (res.ok) {
-        alert('Đã lưu cấu hình thành công!');
+      let data = await res.json().catch(() => ({}));
+
+      if (res.status === 403 && data.requiresPasscode) {
+        const inputCode = prompt('🛡️ Bảo vệ Hệ thống:\nChức năng lưu tọa độ PDF yêu cầu quyền ADMIN hoặc Mật khẩu Cấp 2 của Quản trị viên.\n\nVui lòng nhập Mật khẩu Cấp 2:');
+        if (!inputCode) {
+          setSaving(false);
+          return;
+        }
+        passcode = inputCode.trim();
+        res = await fetch('/api/templates/mapping', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-passcode': passcode
+          },
+          body: JSON.stringify({ templateName: selectedTemplate, config, adminPasscode: passcode })
+        });
+        data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          sessionStorage.setItem('nenkin_admin_passcode', passcode);
+          alert('✅ Xác thực Mật khẩu Cấp 2 thành công! Đã lưu cấu hình tọa độ.');
+          return;
+        } else {
+          alert(data.error || '❌ Mật khẩu Cấp 2 không đúng hoặc không có quyền thao tác.');
+          return;
+        }
+      }
+
+      if (res.ok && data.success) {
+        alert('✅ Đã lưu cấu hình tọa độ thành công!');
       } else {
-        alert('Lỗi khi lưu.');
+        alert(data.error || 'Lỗi khi lưu.');
       }
     } catch (err) {
       console.error(err);
-      alert('Lỗi mạng.');
+      alert('Lỗi kết nối mạng.');
     } finally {
       setSaving(false);
     }

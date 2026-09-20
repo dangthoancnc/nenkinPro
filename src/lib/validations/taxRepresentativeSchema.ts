@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+export const taxRepBankAccountSchema = z.object({
+  id:                  z.string().optional(),
+  isDefault:           z.boolean().default(false),
+  bankName:            z.string().optional().nullable(),
+  branchName:          z.string().optional().nullable(),
+  accountNumber:       z.string().optional().nullable(),
+  accountName:         z.string().optional().nullable(),
+  accountNameKatakana: z.string().optional().nullable(),
+  isYucho:             z.boolean().default(false),
+  bankAccountType:     z.string().default('ORDINARY'),
+  yuchoKigo:           z.string().optional().nullable(),
+  yuchoBango:          z.string().optional().nullable(),
+});
+
 export const taxRepresentativeSchema = z.object({
   fullName:            z.string().min(1, 'Họ tên bắt buộc'),
   fullNameKana:        z.string().optional().nullable(),
@@ -21,6 +35,8 @@ export const taxRepresentativeSchema = z.object({
   yuchoKigo:           z.string().optional().nullable(),
   yuchoBango:          z.string().optional().nullable(),
   linkedUserId:        z.string().optional().nullable(),
+
+  bankAccounts:        z.array(taxRepBankAccountSchema).optional(),
 });
 
 export type TaxRepresentativeInput = z.infer<typeof taxRepresentativeSchema>;

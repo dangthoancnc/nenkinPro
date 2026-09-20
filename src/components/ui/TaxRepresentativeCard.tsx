@@ -7,6 +7,20 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+export interface TaxRepBankAccountData {
+  id?:                 string
+  isDefault?:          boolean
+  bankName?:           string | null
+  branchName?:         string | null
+  accountNumber?:      string | null
+  accountName?:        string | null
+  accountNameKatakana?: string | null
+  isYucho?:            boolean
+  bankAccountType?:    string | null
+  yuchoKigo?:          string | null
+  yuchoBango?:         string | null
+}
+
 export interface TaxRepresentativeData {
   id:                  string
   fullName:            string
@@ -28,10 +42,13 @@ export interface TaxRepresentativeData {
   bankAccountType?:    string | null
   yuchoKigo?:          string | null
   yuchoBango?:         string | null
+
+  bankAccounts?:       TaxRepBankAccountData[]
 }
 
 export interface TaxRepresentativeCardProps {
   representative:  TaxRepresentativeData | null
+  selectedBankAccount?: TaxRepBankAccountData | null
   isEditing?:      boolean
   verified?:       boolean
   onToggleVerify?: () => void
@@ -79,6 +96,7 @@ function InfoRow({
 
 export function TaxRepresentativeCard({
   representative,
+  selectedBankAccount,
   isEditing = false,
   verified = false,
   onToggleVerify,
@@ -112,9 +130,19 @@ export function TaxRepresentativeCard({
   const {
     fullName, fullNameKana, address, postalCode, phone,
     relationship, occupation,
-    bankName, branchName, accountNumber, accountName, accountNameKatakana,
-    isYucho, bankAccountType, yuchoKigo, yuchoBango,
   } = representative
+
+  // Resolve active bank account
+  const activeBank = selectedBankAccount || (representative.bankAccounts?.find(a => a.isDefault) || representative.bankAccounts?.[0]) || representative;
+  const bankName = activeBank.bankName;
+  const branchName = activeBank.branchName;
+  const accountNumber = activeBank.accountNumber;
+  const accountName = activeBank.accountName;
+  const accountNameKatakana = activeBank.accountNameKatakana;
+  const isYucho = activeBank.isYucho;
+  const bankAccountType = activeBank.bankAccountType;
+  const yuchoKigo = activeBank.yuchoKigo;
+  const yuchoBango = activeBank.yuchoBango;
 
   const isYuchoBank = isYucho || bankName?.includes('ゆうちょ') || bankName?.includes('Yucho')
 

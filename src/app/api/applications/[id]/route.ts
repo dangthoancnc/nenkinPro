@@ -20,7 +20,10 @@ export async function GET(
         customer: {
           include: { taxOffice: true, bankAccounts: true }
         },
-        taxRepresentative: true,
+        taxRepresentative: {
+          include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+        },
+        taxRepBankAccount: true,
         assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
       },
     });
@@ -38,7 +41,12 @@ export async function GET(
           applications: {
             orderBy: { createdAt: 'desc' },
             take: 1,
-            include: { taxRepresentative: true }
+            include: {
+              taxRepresentative: {
+                include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+              },
+              taxRepBankAccount: true
+            }
           },
           taxOffice: true
         }
@@ -50,7 +58,8 @@ export async function GET(
           application = {
             ...app,
             customer,
-            taxRepresentative: app.taxRepresentative
+            taxRepresentative: app.taxRepresentative,
+            taxRepBankAccount: (app as any).taxRepBankAccount
           } as any;
         } else {
           // Auto-create a draft application for existing customer so staff can manage it
@@ -63,7 +72,10 @@ export async function GET(
               customer: {
                 include: { taxOffice: true }
               },
-              taxRepresentative: true
+              taxRepresentative: {
+                include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+              },
+              taxRepBankAccount: true
             }
           });
           application = newApp as any;
@@ -83,6 +95,7 @@ export async function GET(
     let taxRep = application.taxRepresentative;
     if (!taxRep) {
       taxRep = await prisma.taxRepresentative.findFirst({
+        include: { bankAccounts: { orderBy: { isDefault: 'desc' } } },
         orderBy: { createdAt: 'desc' }
       });
     }

@@ -49,12 +49,19 @@ function TaxRepresentativesPageInner() {
   const filtered = representatives.filter(rep => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
+    const matchBank = rep.bankAccounts?.some(b => 
+      (b.bankName && b.bankName.toLowerCase().includes(q)) ||
+      (b.branchName && b.branchName.toLowerCase().includes(q)) ||
+      (b.accountNumber && b.accountNumber.includes(q)) ||
+      (b.yuchoBango && b.yuchoBango.includes(q))
+    )
     return (
       rep.fullName.toLowerCase().includes(q) ||
       (rep.fullNameKana && rep.fullNameKana.toLowerCase().includes(q)) ||
       (rep.bankName && rep.bankName.toLowerCase().includes(q)) ||
       rep.postalCode.includes(q) ||
-      (rep.phone && rep.phone.includes(q))
+      (rep.phone && rep.phone.includes(q)) ||
+      Boolean(matchBank)
     )
   })
 
@@ -197,14 +204,46 @@ function TaxRepresentativesPageInner() {
                       {rep.phone || '—'}
                     </TableCell>
                     <TableCell>
-                      <div className="font-semibold text-slate-700">
-                        {rep.bankName || '—'} {rep.branchName ? `(${rep.branchName})` : ''}
-                      </div>
-                      <div className="font-mono text-[10px] text-slate-500">
-                        {isYucho
-                          ? `Kigo: ${rep.yuchoKigo || ''} - Bango: ${rep.yuchoBango || ''}`
-                          : `STK: ${rep.accountNumber || ''} (${rep.bankAccountType === 'CURRENT' ? '当座' : '普通'})`}
-                      </div>
+                      {rep.bankAccounts && rep.bankAccounts.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {rep.bankAccounts.map((acc, idx) => {
+                            const isAccYucho = acc.isYucho || acc.bankName?.includes('ゆうちょ');
+                            return (
+                              <div key={acc.id || idx} className="text-xs border-b border-slate-100 last:border-0 pb-1 last:pb-0">
+                                <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                                  <span>{acc.bankName || '—'} {acc.branchName ? `(${acc.branchName})` : ''}</span>
+                                  {acc.isDefault && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-50 text-amber-700 font-bold border border-amber-200">
+                                      ⭐ Mặc định
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="font-mono text-[10px] text-slate-500 flex items-center gap-2">
+                                  <span>
+                                    {isAccYucho
+                                      ? `記号: ${acc.yuchoKigo || ''} - 番号: ${acc.yuchoBango || ''}`
+                                      : `STK: ${acc.accountNumber || ''} (${acc.bankAccountType === 'CURRENT' ? '当座' : '普通'})`}
+                                  </span>
+                                  {acc.accountNameKatakana && (
+                                    <span className="text-slate-400 font-sans text-[9px]">{acc.accountNameKatakana}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-semibold text-slate-700">
+                            {rep.bankName || '—'} {rep.branchName ? `(${rep.branchName})` : ''}
+                          </div>
+                          <div className="font-mono text-[10px] text-slate-500">
+                            {isYucho
+                              ? `Kigo: ${rep.yuchoKigo || ''} - Bango: ${rep.yuchoBango || ''}`
+                              : `STK: ${rep.accountNumber || ''} (${rep.bankAccountType === 'CURRENT' ? '当座' : '普通'})`}
+                          </div>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">

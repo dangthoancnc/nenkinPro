@@ -56,12 +56,25 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error } = await requireRole(['ADMIN']);
+  const { user, error } = await requireStaff();
   if (error || !user) return error;
 
   try {
     const body = await request.json();
-    const { templateName, config } = body;
+    const { templateName, config, adminPasscode } = body;
+
+    // Authorization: Admin has direct access; non-admin staff requires secondary passcode
+    if (user.role !== 'ADMIN') {
+      const validPasscode = process.env.PDF_MAPPER_PASSCODE || 'nenkin@admin2026';
+      const providedPasscode = adminPasscode || request.headers.get('x-admin-passcode');
+      if (!providedPasscode || providedPasscode !== validPasscode) {
+        return NextResponse.json({
+          success: false,
+          requiresPasscode: true,
+          error: 'Chức năng này yêu cầu quyền ADMIN hoặc Mật khẩu cấp 2 của Quản trị viên để tránh làm sai lệch tọa độ.'
+        }, { status: 403 });
+      }
+    }
 
     if (!templateName || !config) {
       return NextResponse.json({ success: false, error: 'Missing templateName or config' }, { status: 400 });

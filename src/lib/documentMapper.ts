@@ -15,11 +15,30 @@ import { calculateNenkinTax } from './taxCalculator';
 export type TemplateType = 'don_xin_lan_1' | 'ininjyo_yoshiki_lan_1' | 'nouzeikanrinin' | 'bang_1_2' | 'bang_3' | 'giay_uy_thac_lan_2';
 
 export interface DocumentMapperInput {
-  application: NenkinApplication;
+  application: NenkinApplication & { taxRepBankAccount?: any; taxRepBankAccountId?: string | null };
   customer: Customer;
   workHistories: WorkHistory[];
   taxOffice: TaxOffice | null;
-  taxRepresentative: TaxRepresentative | null;
+  taxRepresentative: (TaxRepresentative & { bankAccounts?: any[] }) | null;
+}
+
+export function resolveTaxRepBankAccount(input: DocumentMapperInput) {
+  const { application, taxRepresentative } = input;
+  const appAny = application as any;
+  const repAny = taxRepresentative as any;
+  if (!repAny) return null;
+
+  if (appAny?.taxRepBankAccount) return appAny.taxRepBankAccount;
+  if (appAny?.taxRepBankAccountId && Array.isArray(repAny.bankAccounts)) {
+    const found = repAny.bankAccounts.find((b: any) => b.id === appAny.taxRepBankAccountId);
+    if (found) return found;
+  }
+  if (Array.isArray(repAny.bankAccounts) && repAny.bankAccounts.length > 0) {
+    const def = repAny.bankAccounts.find((b: any) => b.isDefault);
+    if (def) return def;
+    return repAny.bankAccounts[0];
+  }
+  return repAny;
 }
 
 // ---------------------------------------------------------------------------
@@ -365,7 +384,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
 // Shared: TaxRepresentative tags
 // ---------------------------------------------------------------------------
 
-function mapRepresentative(rep: TaxRepresentative | null): Record<string, string> {
+function mapRepresentative(rep: TaxRepresentative | null, chosenAccount?: any): Record<string, string> {
   if (!rep) {
     return {
       taxRep_fullName: '', taxRep_fullNameKana: '', taxRep_fullName_kata: '', taxRep_address: '',
@@ -388,10 +407,16 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
   }
 
   const anyRep = rep as any;
-  const isYucho = anyRep.isYucho || false;
-  const kigo = anyRep.yuchoKigo || '';
-  const bango = anyRep.yuchoBango || '';
-  const accNum = rep.accountNumber || '';
+  const bankSource = chosenAccount || anyRep;
+  const isYucho = bankSource.isYucho ?? anyRep.isYucho ?? false;
+  const kigo = bankSource.yuchoKigo ?? anyRep.yuchoKigo ?? '';
+  const bango = bankSource.yuchoBango ?? anyRep.yuchoBango ?? '';
+  const accNum = bankSource.accountNumber ?? rep.accountNumber ?? '';
+  const bankName = bankSource.bankName ?? rep.bankName ?? '';
+  const branchName = bankSource.branchName ?? rep.branchName ?? '';
+  const accountName = bankSource.accountName ?? rep.accountName ?? rep.fullName ?? '';
+  const accountNameKatakana = bankSource.accountNameKatakana ?? anyRep.accountNameKatakana ?? anyRep.furigana ?? '';
+  const isCurrent = bankSource.bankAccountType === 'CURRENT';
 
   const repPhoneClean = (rep.phone || '').trim();
   const repPhoneDigits = (rep.phone || '').replace(/\D/g, '');
@@ -457,13 +482,13 @@ function mapRepresentative(rep: TaxRepresentative | null): Record<string, string
     taxRep_dob_d:         repDob.d || '02',
     
     // Bank details
-    taxRep_bankName:      rep.bankName ?? '',
-    taxRep_branchName:    rep.branchName ?? '',
+    taxRep_bankName:      bankName,
+    taxRep_branchName:    branchName,
     taxRep_accountNumber: accNum,
-    taxRep_accountName:   rep.accountName ?? '',
-    taxRep_accountNameKatakana: anyRep.accountNameKatakana ?? '',
-    taxRep_accountType_1_mark: (!isYucho && anyRep.bankAccountType !== 'CURRENT') ? '○' : '',
-    taxRep_accountType_2_mark: (!isYucho && anyRep.bankAccountType === 'CURRENT') ? '○' : '',
+    taxRep_accountName:   accountName,
+    taxRep_accountNameKatakana: accountNameKatakana,
+    taxRep_accountType_1_mark: (!isYucho && !isCurrent) ? '○' : '',
+    taxRep_accountType_2_mark: (!isYucho && isCurrent) ? '○' : '',
     taxRep_bank_type_bank_mark: !isYucho ? '○' : '',
     taxRep_bank_type_shiten_mark: !isYucho ? '○' : '',
     taxRep_yucho_kigo:    kigo,
@@ -557,19 +582,20 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
   const customBank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND');
   const isBank1stShared = (bank1st.purpose === 'BOTH' && (bank1st.bankCountry === 'JAPAN' || bank1st.bankCountry === 'JP'));
   const rep = input.taxRepresentative;
+  const chosenTaxRepBank = resolveTaxRepBankAccount(input);
 
-  const bank2nd = customBank2nd || (isBank1stShared ? bank1st : (rep ? {
-    bankName: rep.bankName ?? '',
-    branchName: rep.branchName ?? '',
-    accountNumber: rep.accountNumber ?? '',
-    accountName: rep.fullName ?? '',
-    accountNameKatakana: (rep as any).furigana || '',
-    bankAccountType: (rep as any).bankAccountType || 'ORDINARY',
-    isYucho: (rep as any).isYucho,
-    yuchoKigo: (rep as any).yuchoKigo,
-    yuchoBango: (rep as any).yuchoBango,
+  const bank2nd = customBank2nd || (isBank1stShared ? bank1st : (chosenTaxRepBank ? {
+    bankName: chosenTaxRepBank.bankName ?? rep?.bankName ?? '',
+    branchName: chosenTaxRepBank.branchName ?? rep?.branchName ?? '',
+    accountNumber: chosenTaxRepBank.accountNumber ?? rep?.accountNumber ?? '',
+    accountName: chosenTaxRepBank.accountName ?? rep?.fullName ?? '',
+    accountNameKatakana: chosenTaxRepBank.accountNameKatakana || (rep as any)?.furigana || '',
+    bankAccountType: chosenTaxRepBank.bankAccountType || 'ORDINARY',
+    isYucho: chosenTaxRepBank.isYucho,
+    yuchoKigo: chosenTaxRepBank.yuchoKigo,
+    yuchoBango: chosenTaxRepBank.yuchoBango,
     swiftCode: '',
-    bankBranchAddress: (rep as any).address || '',
+    bankBranchAddress: (rep as any)?.address || '',
   } : {}));
   
   // Mặc định cho template cũ dùng bank chung (nếu có)
@@ -661,9 +687,11 @@ export function mapTemplate2(input: DocumentMapperInput): Record<string, string>
   const delegateOther = Boolean(appAny?.delegateOther);
   const delegateOtherText = appAny?.delegateOtherText || '';
 
+  const chosenTaxRepBank = resolveTaxRepBankAccount(input);
+
   return {
     ...mapCustomerBase(customer),
-    ...mapRepresentative(taxRepresentative),
+    ...mapRepresentative(taxRepresentative, chosenTaxRepBank),
     ...mapTaxOffice(taxOffice),
     ...docDateTags(application.applyDate),
     
@@ -691,6 +719,7 @@ export function mapTemplate2(input: DocumentMapperInput): Record<string, string>
 
 export function mapTemplate3(input: DocumentMapperInput): Record<string, string> {
   const { application, customer, taxOffice, taxRepresentative } = input;
+  const chosenTaxRepBank = resolveTaxRepBankAccount(input);
 
   // Departure date (ngày rời Nhật) - check both customer and application
   const depField = (customer as any)?.departureDate || (application as any)?.departureDate;
@@ -700,7 +729,7 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
 
   return {
     ...mapCustomerBase(customer),
-    ...mapRepresentative(taxRepresentative),
+    ...mapRepresentative(taxRepresentative, chosenTaxRepBank),
     ...mapTaxOffice(taxOffice),
     ...docDateTags(application.applyDate),
 
@@ -788,21 +817,24 @@ export function mapTemplateBang12(input: DocumentMapperInput): Record<string, st
 
   // Tax representative bank info (for refund account on 確定申告書)
   const rep = taxRepresentative;
-  const repAccountNum = rep?.accountNumber ?? '';
+  const chosenTaxRepBank = resolveTaxRepBankAccount(input);
+  const repAccountNum = chosenTaxRepBank?.accountNumber || rep?.accountNumber || '';
 
   // Lấy tài khoản ngân hàng Lần 2 của khách (fallback nếu không có Người đại diện)
   const bankAccounts = (customer as any).bankAccounts || [];
   const bank2nd = bankAccounts.find((a: any) => a.purpose === 'TAX_REFUND_2ND' || a.purpose === 'SECOND_REFUND' || a.purpose === 'BOTH') || bankAccounts[1] || bankAccounts[0] || {};
-  const refundBankName = rep?.bankName || bank2nd.bankName || '';
-  const refundBranchName = rep?.branchName || bank2nd.branchName || '';
+  const refundBankName = chosenTaxRepBank?.bankName || rep?.bankName || bank2nd.bankName || '';
+  const refundBranchName = chosenTaxRepBank?.branchName || rep?.branchName || bank2nd.branchName || '';
   const refundAccountNum = repAccountNum || bank2nd.accountNumber || '';
-  const refundAccountName = rep?.accountName || bank2nd.accountName || '';
-  const refundAccountTypeCurrent = rep ? (rep as any).bankAccountType === 'CURRENT' : (bank2nd.bankAccountType === 'CURRENT' || bank2nd.bankAccountType === '2');
-  const isYucho = rep ? (rep as any).isYucho : bank2nd.isYucho;
+  const refundAccountName = chosenTaxRepBank?.accountName || rep?.accountName || bank2nd.accountName || '';
+  const refundAccountTypeCurrent = chosenTaxRepBank
+    ? chosenTaxRepBank.bankAccountType === 'CURRENT'
+    : (rep ? (rep as any).bankAccountType === 'CURRENT' : (bank2nd.bankAccountType === 'CURRENT' || bank2nd.bankAccountType === '2'));
+  const isYucho = chosenTaxRepBank ? chosenTaxRepBank.isYucho : (rep ? (rep as any).isYucho : bank2nd.isYucho);
 
   return {
     ...mapCustomerBase(customer),
-    ...mapRepresentative(taxRepresentative),
+    ...mapRepresentative(taxRepresentative, chosenTaxRepBank),
     ...mapTaxOffice(taxOffice),
     
     taxYear_era_yr: taxYearStr ? taxYearStr.padStart(2, '0') : '',

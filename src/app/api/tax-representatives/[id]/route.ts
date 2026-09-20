@@ -16,6 +16,9 @@ export async function GET(
     const representative = await prisma.taxRepresentative.findUnique({
       where: { id },
       include: {
+        bankAccounts: {
+          orderBy: { isDefault: 'desc' }
+        },
         _count: {
           select: { applications: true }
         }
@@ -58,10 +61,16 @@ export async function PUT(
   }
 
   try {
-    const existing = await prisma.taxRepresentative.findUnique({ where: { id } });
+    const existing = await prisma.taxRepresentative.findUnique({
+      where: { id },
+      include: { bankAccounts: true }
+    });
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy người đại diện' }, { status: 404 });
     }
+
+    const rawBankAccounts = parsed.data.bankAccounts;
+    const defaultAcc = rawBankAccounts ? (rawBankAccounts.find(a => a.isDefault) || rawBankAccounts[0]) : null;
 
     // Merge & build data
     const mergedInput = {
@@ -75,21 +84,94 @@ export async function PUT(
       occupation:          parsed.data.occupation !== undefined ? parsed.data.occupation : existing.occupation,
       dob:                 parsed.data.dob !== undefined ? parsed.data.dob : (existing.dob ? existing.dob.toISOString().slice(0, 10) : null),
       
-      bankName:            parsed.data.bankName !== undefined ? parsed.data.bankName : existing.bankName,
-      branchName:          parsed.data.branchName !== undefined ? parsed.data.branchName : existing.branchName,
-      accountNumber:       parsed.data.accountNumber !== undefined ? parsed.data.accountNumber : existing.accountNumber,
-      accountName:         parsed.data.accountName !== undefined ? parsed.data.accountName : existing.accountName,
-      accountNameKatakana: parsed.data.accountNameKatakana !== undefined ? parsed.data.accountNameKatakana : existing.accountNameKatakana,
-      isYucho:             parsed.data.isYucho !== undefined ? parsed.data.isYucho : existing.isYucho,
-      bankAccountType:     parsed.data.bankAccountType !== undefined ? parsed.data.bankAccountType : existing.bankAccountType,
-      yuchoKigo:           parsed.data.yuchoKigo !== undefined ? parsed.data.yuchoKigo : existing.yuchoKigo,
-      yuchoBango:          parsed.data.yuchoBango !== undefined ? parsed.data.yuchoBango : existing.yuchoBango,
+      bankName:            defaultAcc ? (defaultAcc.bankName || null) : (parsed.data.bankName !== undefined ? parsed.data.bankName : existing.bankName),
+      branchName:          defaultAcc ? (defaultAcc.branchName || null) : (parsed.data.branchName !== undefined ? parsed.data.branchName : existing.branchName),
+      accountNumber:       defaultAcc ? (defaultAcc.accountNumber || null) : (parsed.data.accountNumber !== undefined ? parsed.data.accountNumber : existing.accountNumber),
+      accountName:         defaultAcc ? (defaultAcc.accountName || null) : (parsed.data.accountName !== undefined ? parsed.data.accountName : existing.accountName),
+      accountNameKatakana: defaultAcc ? (defaultAcc.accountNameKatakana || null) : (parsed.data.accountNameKatakana !== undefined ? parsed.data.accountNameKatakana : existing.accountNameKatakana),
+      isYucho:             defaultAcc ? Boolean(defaultAcc.isYucho) : (parsed.data.isYucho !== undefined ? parsed.data.isYucho : existing.isYucho),
+      bankAccountType:     defaultAcc ? (defaultAcc.bankAccountType || 'ORDINARY') : (parsed.data.bankAccountType !== undefined ? parsed.data.bankAccountType : existing.bankAccountType),
+      yuchoKigo:           defaultAcc ? (defaultAcc.yuchoKigo || null) : (parsed.data.yuchoKigo !== undefined ? parsed.data.yuchoKigo : existing.yuchoKigo),
+      yuchoBango:          defaultAcc ? (defaultAcc.yuchoBango || null) : (parsed.data.yuchoBango !== undefined ? parsed.data.yuchoBango : existing.yuchoBango),
+      linkedUserId:        parsed.data.linkedUserId !== undefined ? parsed.data.linkedUserId : (existing as any).linkedUserId,
     };
 
     const data = buildTaxRepData(mergedInput as any);
-    const updated = await prisma.taxRepresentative.update({
-      where: { id },
-      data,
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Update TaxRepresentative
+      const rep = await tx.taxRepresentative.update({
+        where: { id },
+        data,
+      });
+
+      // 2. Synchronize bankAccounts if provided
+      if (rawBankAccounts && Array.isArray(rawBankAccounts)) {
+        const keptIds: string[] = [];
+
+        for (let i = 0; i < rawBankAccounts.length; i++) {
+          const acc = rawBankAccounts[i];
+          const isDef = defaultAcc ? acc === defaultAcc : i === 0;
+
+          if (acc.id && existing.bankAccounts.some(b => b.id === acc.id)) {
+            // Update existing bank account
+            await tx.taxRepBankAccount.update({
+              where: { id: acc.id },
+              data: {
+                isDefault: isDef,
+                bankName: acc.bankName || null,
+                branchName: acc.branchName || null,
+                accountNumber: acc.accountNumber || null,
+                accountName: acc.accountName || rep.fullName,
+                accountNameKatakana: acc.accountNameKatakana || rep.fullNameKana,
+                isYucho: Boolean(acc.isYucho),
+                bankAccountType: acc.bankAccountType || 'ORDINARY',
+                yuchoKigo: acc.yuchoKigo || null,
+                yuchoBango: acc.yuchoBango || null,
+              }
+            });
+            keptIds.push(acc.id);
+          } else {
+            // Create new bank account
+            const createdAcc = await tx.taxRepBankAccount.create({
+              data: {
+                taxRepresentativeId: id,
+                isDefault: isDef,
+                bankName: acc.bankName || null,
+                branchName: acc.branchName || null,
+                accountNumber: acc.accountNumber || null,
+                accountName: acc.accountName || rep.fullName,
+                accountNameKatakana: acc.accountNameKatakana || rep.fullNameKana,
+                isYucho: Boolean(acc.isYucho),
+                bankAccountType: acc.bankAccountType || 'ORDINARY',
+                yuchoKigo: acc.yuchoKigo || null,
+                yuchoBango: acc.yuchoBango || null,
+              }
+            });
+            keptIds.push(createdAcc.id);
+          }
+        }
+
+        // Remove bank accounts that were deleted in the UI
+        const toDelete = existing.bankAccounts.filter(b => !keptIds.includes(b.id));
+        for (const del of toDelete) {
+          // Unlink applications pointing to this deleted account first
+          await tx.nenkinApplication.updateMany({
+            where: { taxRepBankAccountId: del.id },
+            data: { taxRepBankAccountId: null }
+          });
+          await tx.taxRepBankAccount.delete({ where: { id: del.id } });
+        }
+      }
+
+      return await tx.taxRepresentative.findUnique({
+        where: { id },
+        include: {
+          bankAccounts: {
+            orderBy: { isDefault: 'desc' }
+          }
+        }
+      });
     });
 
     return NextResponse.json({ success: true, data: updated });

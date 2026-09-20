@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
             bankAccounts: true
           }
         },
-        taxRepresentative: true,
+        taxRepresentative: {
+          include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+        },
+        taxRepBankAccount: true,
       }
     });
 

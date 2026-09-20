@@ -283,6 +283,9 @@ model NenkinApplication {
   taxRepresentativeId String?
   taxRepresentative   TaxRepresentative?  @relation(fields: [taxRepresentativeId], references: [id])
 
+  taxRepBankAccountId String?
+  taxRepBankAccount   TaxRepBankAccount? @relation(fields: [taxRepBankAccountId], references: [id], onDelete: SetNull)
+
   assignedUserId      String?
   assignedUser        User?               @relation("AssignedStaff", fields: [assignedUserId], references: [id], onDelete: SetNull)
   assignedAt          DateTime?
@@ -332,11 +335,37 @@ model TaxRepresentative {
   yuchoBango          String?
 
   applications  NenkinApplication[]
+  bankAccounts  TaxRepBankAccount[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@map("nenkin_tax_representatives")
+}
+
+model TaxRepBankAccount {
+  id                  String             @id @default(uuid())
+  taxRepresentativeId String
+  taxRepresentative   TaxRepresentative  @relation(fields: [taxRepresentativeId], references: [id], onDelete: Cascade)
+
+  isDefault           Boolean            @default(false)
+  bankName            String?
+  branchName          String?
+  accountNumber       String?
+  accountName         String?
+  accountNameKatakana String?
+  isYucho             Boolean            @default(false)
+  bankAccountType     String?            @default("ORDINARY") // 'ORDINARY' hoặc 'CURRENT'
+  yuchoKigo           String?
+  yuchoBango          String?
+
+  applications        NenkinApplication[]
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([taxRepresentativeId])
+  @@map("nenkin_tax_rep_bank_accounts")
 }
 
 model TaxOffice {

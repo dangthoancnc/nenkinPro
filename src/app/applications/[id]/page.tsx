@@ -339,6 +339,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
             revisionNote:                data.revisionNote                || '',
             isReturnedToJapan:           data.isReturnedToJapan           || false,
+            taxRepresentativeId:         data.taxRepresentativeId         || '',
+            taxRepBankAccountId:         data.taxRepBankAccountId         || '',
           };
           
           const totalExpectedJpy = data.totalExpectedJpy ? Number(data.totalExpectedJpy) : 0;
@@ -420,6 +422,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
   const selectedTaxRepresentativeId = watch('taxRepresentativeId');
   const selectedTaxRepresentative   = taxRepresentatives.find(t => t.id === selectedTaxRepresentativeId) ?? taxRepresentatives[0] ?? null;
+  const selectedTaxRepBankAccountId = watch('taxRepBankAccountId') as string | undefined;
+  const activeTaxRepBank = (selectedTaxRepresentative?.bankAccounts && selectedTaxRepresentative.bankAccounts.length > 0)
+    ? (selectedTaxRepresentative.bankAccounts.find(b => b.id === selectedTaxRepBankAccountId) 
+       || selectedTaxRepresentative.bankAccounts.find(b => b.isDefault) 
+       || selectedTaxRepresentative.bankAccounts[0])
+    : null;
 
   const handleTaxRepFormSubmit = useCallback(async (values: TaxRepresentativeFormValues, repId?: string) => {
     setTaxRepFormSaving(true);
@@ -527,6 +535,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       const applicationPayload = {
         status: data.status,
         taxRepresentativeId: data.taxRepresentativeId || null,
+        taxRepBankAccountId: data.taxRepBankAccountId || null,
         applyDate:       data.applyDate       ? new Date(data.applyDate).toISOString()       : null,
         sent1stDate:     data.sent1stDate     ? new Date(data.sent1stDate).toISOString()     : null,
         received1stDate: data.received1stDate ? new Date(data.received1stDate).toISOString() : null,
@@ -2513,25 +2522,66 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                               </div>
 
                               {selectedTaxRepresentative ? (
-                                <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 shadow-2xs">
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500">Ngân hàng:</span>
-                                    <span className="font-semibold text-slate-800">{selectedTaxRepresentative.bankName || 'Chưa có'}</span>
+                                <div className="space-y-2">
+                                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 shadow-2xs">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-500">Ngân hàng:</span>
+                                      <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                        {activeTaxRepBank?.bankName || selectedTaxRepresentative.bankName || 'Chưa có'}
+                                        {activeTaxRepBank?.isDefault && (
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-50 text-amber-700 font-bold border border-amber-200">
+                                            Mặc định
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Chi nhánh:</span>
+                                      <span className="font-semibold text-slate-800">{activeTaxRepBank?.branchName || selectedTaxRepresentative.branchName || 'Chưa có'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Số tài khoản:</span>
+                                      <span className="font-mono font-bold text-indigo-700">
+                                        {(activeTaxRepBank?.isYucho || selectedTaxRepresentative.isYucho)
+                                          ? `記号: ${activeTaxRepBank?.yuchoKigo || selectedTaxRepresentative.yuchoKigo || ''} - 番号: ${activeTaxRepBank?.yuchoBango || selectedTaxRepresentative.yuchoBango || ''}`
+                                          : (activeTaxRepBank?.accountNumber || selectedTaxRepresentative.accountNumber || 'Chưa có')}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Loại tài khoản:</span>
+                                      <span className="font-medium text-slate-700">
+                                        {(activeTaxRepBank?.isYucho || selectedTaxRepresentative.isYucho)
+                                          ? 'ゆうちょ銀行 (Bưu điện)'
+                                          : ((activeTaxRepBank?.bankAccountType || selectedTaxRepresentative.bankAccountType) === 'CURRENT' ? '当座 (Tiết kiệm)' : '普通 (Thường)')}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500">Chi nhánh:</span>
-                                    <span className="font-semibold text-slate-800">{selectedTaxRepresentative.branchName || 'Chưa có'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500">Số tài khoản:</span>
-                                    <span className="font-mono font-bold text-indigo-700">{selectedTaxRepresentative.accountNumber || 'Chưa có'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500">Loại tài khoản:</span>
-                                    <span className="font-medium text-slate-700">
-                                      {selectedTaxRepresentative.bankAccountType === 'CURRENT' ? '当座 (Tiết kiệm)' : '普通 (Thường)'}
-                                    </span>
-                                  </div>
+
+                                  {/* Multi-bank Account Picker for this Representative */}
+                                  {selectedTaxRepresentative.bankAccounts && selectedTaxRepresentative.bankAccounts.length > 1 && (
+                                    <div className="p-2 bg-indigo-50/50 border border-indigo-100 rounded-lg">
+                                      <label className="text-[11px] font-bold text-indigo-900 mb-1 flex items-center gap-1">
+                                        💳 Tài khoản JPY chỉ định cho hồ sơ này:
+                                      </label>
+                                      {isEditing ? (
+                                        <select
+                                          value={selectedTaxRepBankAccountId || activeTaxRepBank?.id || ''}
+                                          onChange={e => setValue('taxRepBankAccountId', e.target.value, { shouldDirty: true })}
+                                          className="w-full h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-medium focus:ring-1 focus:ring-indigo-500"
+                                        >
+                                          {selectedTaxRepresentative.bankAccounts.map(b => (
+                                            <option key={b.id} value={b.id}>
+                                              {b.isDefault ? '⭐ [Mặc định] ' : ''}{b.bankName} {b.branchName ? `(${b.branchName})` : ''} - {b.isYucho ? `${b.yuchoKigo}-${b.yuchoBango}` : b.accountNumber}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <div className="text-xs text-indigo-800 font-medium">
+                                          Tài khoản: <strong>{activeTaxRepBank?.bankName} ({activeTaxRepBank?.branchName})</strong>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
@@ -2543,7 +2593,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                                 <div className="flex items-center gap-2 pt-1">
                                   <select
                                     value={selectedTaxRepresentativeId || selectedTaxRepresentative?.id || ''}
-                                    onChange={e => setValue('taxRepresentativeId', e.target.value, { shouldDirty: true })}
+                                    onChange={e => {
+                                      const newRepId = e.target.value;
+                                      setValue('taxRepresentativeId', newRepId, { shouldDirty: true });
+                                      const foundRep = taxRepresentatives.find(r => r.id === newRepId);
+                                      const defAcc = foundRep?.bankAccounts?.find(b => b.isDefault) || foundRep?.bankAccounts?.[0];
+                                      setValue('taxRepBankAccountId', defAcc?.id || '', { shouldDirty: true });
+                                    }}
                                     className="flex-1 h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-medium"
                                   >
                                     <option value="">-- Chọn Người đại diện thuế --</option>
@@ -3778,7 +3834,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {isEditing && (
                 <select
                   value={selectedTaxRepresentativeId || selectedTaxRepresentative?.id || ''}
-                  onChange={e => setValue('taxRepresentativeId', e.target.value, { shouldDirty: true })}
+                  onChange={e => {
+                    const newRepId = e.target.value;
+                    setValue('taxRepresentativeId', newRepId, { shouldDirty: true });
+                    const foundRep = taxRepresentatives.find(r => r.id === newRepId);
+                    const defAcc = foundRep?.bankAccounts?.find(b => b.isDefault) || foundRep?.bankAccounts?.[0];
+                    setValue('taxRepBankAccountId', defAcc?.id || '', { shouldDirty: true });
+                  }}
                   className="h-6 rounded-lg border border-slate-200/80 px-1.5 text-[11px] bg-white/80 max-w-[170px] focus:outline-none focus:border-indigo-400 font-semibold ml-1"
                 >
                   <option value="">-- Đổi Người đại diện --</option>
@@ -3819,6 +3881,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             {taxRepPanel === 'card' && (
               <TaxRepresentativeCard
                 representative={selectedTaxRepresentative}
+                selectedBankAccount={activeTaxRepBank}
                 isEditing={isEditing}
                 verified={!!verifiedFields['taxRepresentative']}
                 onToggleVerify={() => toggleVerify('taxRepresentative')}

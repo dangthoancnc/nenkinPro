@@ -1,9 +1,10 @@
 "use client";
-import { Bell, Search, UserCircle, Menu } from 'lucide-react';
+import { Bell, Search, UserCircle, Menu, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { NotificationDropdown } from '@/components/NotificationDropdown';
+import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, FormEvent } from 'react';
 
@@ -75,6 +76,8 @@ export default function Topbar({
     ? 'Nhân viên'
     : user?.role ?? '...';
 
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
   return (
     <header className="h-12 bg-card/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-3 sm:px-4 sticky top-0 z-30 shadow-[0_2px_12px_rgba(0,0,0,0.02)] transition-all shrink-0">
       {/* Left: Hamburger + Page title */}
@@ -138,14 +141,26 @@ export default function Topbar({
               <p className="text-xs text-muted-foreground">{roleLabel}</p>
             </div>
             <button
+              onClick={() => setShowChangePassword(true)}
+              className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-medium transition-colors border-b border-border flex items-center gap-2"
+            >
+              <Lock className="w-3.5 h-3.5 text-indigo-500" />
+              Đổi mật khẩu
+            </button>
+            <button
               onClick={handleLogout}
-              className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors"
+              className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
             >
               Đăng xuất
             </button>
           </div>
         </div>
       </div>
+
+      <ChangePasswordModal 
+        isOpen={showChangePassword} 
+        onClose={() => setShowChangePassword(false)} 
+      />
     </header>
   );
 }
