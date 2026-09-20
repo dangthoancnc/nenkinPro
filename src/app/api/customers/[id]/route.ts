@@ -259,6 +259,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               accountNameKatakana: acc.accountNameKatakana || null,
               swiftCode: acc.swiftCode || null,
               bankBranchAddress: acc.bankBranchAddress || null,
+              bankBranchCity: acc.bankBranchCity || null,
               bankInstitutionCode: acc.bankInstitutionCode || null,
               branchCode: acc.branchCode || null,
               bankAccountType: acc.bankAccountType || null,
@@ -289,6 +290,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               update: {
                 swiftCode: acc.swiftCode,
                 address: acc.bankBranchAddress,
+                city: acc.bankBranchCity || undefined,
               },
               create: {
                 country: 'VIETNAM',
@@ -296,6 +298,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 branchName: acc.branchName || '',
                 swiftCode: acc.swiftCode,
                 address: acc.bankBranchAddress,
+                city: acc.bankBranchCity || null,
               }
             });
           } catch (e) {}

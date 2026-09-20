@@ -11,6 +11,7 @@ interface BankDict {
   branchName: string | null;
   swiftCode: string | null;
   address: string | null;
+  city: string | null;
 }
 
 interface BankAutocompleteProps {
@@ -85,6 +86,7 @@ export function BankAutocomplete({
     if (bank.branchName) setValue(`bankAccounts.${index}.branchName` as any, bank.branchName, { shouldDirty: true });
     if (bank.swiftCode) setValue(`bankAccounts.${index}.swiftCode` as any, bank.swiftCode, { shouldDirty: true });
     if (bank.address) setValue(`bankAccounts.${index}.bankBranchAddress` as any, bank.address, { shouldDirty: true });
+    if (bank.city) setValue(`bankAccounts.${index}.bankBranchCity` as any, bank.city, { shouldDirty: true });
   };
 
   return (

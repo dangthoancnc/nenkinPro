@@ -477,6 +477,7 @@ model BankAccount {
   
   swiftCode           String?
   bankBranchAddress   String?
+  bankBranchCity      String?
   bankInstitutionCode String?
   branchCode          String?
   bankAccountType     String?  // ORDINARY (1) hoặc CURRENT (2)

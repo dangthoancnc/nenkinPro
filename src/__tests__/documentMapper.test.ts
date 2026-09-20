@@ -78,4 +78,26 @@ describe('documentMapper', () => {
     expect(resKyosho.tax_residence_mark).toBe('○');
     expect(resJigyo.tax_business_mark).toBe('○');
   });
+
+  it('mapTemplate1 maps bankBranchCity properly', () => {
+    const inputWithBankCity = {
+      ...baseInput,
+      customer: {
+        ...baseInput.customer,
+        bankAccounts: [
+          {
+            purpose: 'FIRST_REFUND',
+            bankCountry: 'VIETNAM',
+            bankName: 'VCB',
+            branchName: 'Bac Giang',
+            bankBranchAddress: 'Song Khe',
+            bankBranchCity: 'BAC NINH',
+          }
+        ]
+      } as any
+    };
+    const result = mapTemplate1(inputWithBankCity);
+    expect(result.bankBranchCity).toBe('BAC NINH');
+    expect(result.bank1st_branchCity).toBe('BAC NINH');
+  });
 });

@@ -24,6 +24,7 @@ export const customerSchema = z.object({
     accountNameKatakana: z.string().nullable().optional(),
     swiftCode: z.string().nullable().optional(),
     bankBranchAddress: z.string().nullable().optional(),
+    bankBranchCity: z.string().nullable().optional(),
     bankInstitutionCode: z.string().nullable().optional(),
     branchCode: z.string().nullable().optional(),
     bankAccountType: z.string().nullable().optional(),

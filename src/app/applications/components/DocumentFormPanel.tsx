@@ -420,6 +420,9 @@ const BankForm: React.FC<
       <FieldRow label="Địa chỉ chi nhánh (Eng)">
         <Input {...register(`bankAccounts.${idx}.bankBranchAddress`)} disabled={!isEditing} className="h-8 text-xs" />
       </FieldRow>
+      <FieldRow label="Thành phố chi nhánh (City)">
+        <Input {...register(`bankAccounts.${idx}.bankBranchCity`)} disabled={!isEditing} placeholder="VD: BAC NINH, HA NOI..." className="h-8 text-xs" />
+      </FieldRow>
       <FieldRow label="Tên chủ tài khoản (Romaji)">
         <Input {...register(`bankAccounts.${idx}.accountName`)} disabled={!isEditing} className="h-8 text-xs uppercase" />
       </FieldRow>

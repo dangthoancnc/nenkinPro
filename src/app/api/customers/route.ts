@@ -115,6 +115,7 @@ export async function POST(req: Request) {
             accountNameKatakana: acc.accountNameKatakana || null,
             swiftCode: acc.swiftCode || null,
             bankBranchAddress: acc.bankBranchAddress || null,
+            bankBranchCity: acc.bankBranchCity || null,
             bankInstitutionCode: acc.bankInstitutionCode || null,
             branchCode: acc.branchCode || null,
             bankAccountType: acc.bankAccountType || null,
@@ -151,6 +152,7 @@ export async function POST(req: Request) {
               update: {
                 swiftCode: acc.swiftCode,
                 address: acc.bankBranchAddress,
+                city: acc.bankBranchCity || undefined,
               },
               create: {
                 country: 'VIETNAM',
@@ -158,6 +160,7 @@ export async function POST(req: Request) {
                 branchName: acc.branchName || '',
                 swiftCode: acc.swiftCode,
                 address: acc.bankBranchAddress,
+                city: acc.bankBranchCity || null,
               }
             });
           } catch (e) {}

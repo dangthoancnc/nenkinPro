@@ -339,6 +339,7 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     accountName: primaryBank.accountName || customer.fullName || '',
     accountNameKatakana: isJpBank ? (primaryBank.accountNameKatakana || kataName || '') : '',
     bankBranchAddress: primaryBank.bankBranchAddress ?? '',
+    bankBranchCity: primaryBank.bankBranchCity ?? '',
     bankCountry: primaryBank.bankCountry ?? '',
     swiftCode: primaryBank.swiftCode ?? '',
     bank_type_bank_mark: '○',
@@ -610,6 +611,7 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     bank_account_type_2_mark: (defaultBank.bankAccountType === 'CURRENT' || defaultBank.bankAccountType === '2') ? '\u2713' : '',
     accountName:       defaultBank.accountName ?? '',
     bankBranchAddress: defaultBank.bankBranchAddress ?? '',
+    bankBranchCity:    defaultBank.bankBranchCity ?? '',
     bankCountry:       defaultBank.bankCountry ?? '',
     accountNameKatakana: defaultBank.bankCountry === 'JAPAN' ? (defaultBank.accountNameKatakana ?? '') : '',
     accountNumber:     defaultBank.accountNumber ?? '',
@@ -623,6 +625,7 @@ export function mapTemplate1(input: DocumentMapperInput): Record<string, string>
     // Template mới cần tách biệt
     bank1st_name: bank1st.bankName ?? '',
     bank1st_branch: bank1st.branchName ?? '',
+    bank1st_branchCity: bank1st.bankBranchCity ?? '',
     bank1st_accountNumber: bank1st.accountNumber ?? '',
     bank1st_accountName: bank1st.accountName ?? '',
     bank1st_katakanaName: bank1st.accountNameKatakana ?? '',

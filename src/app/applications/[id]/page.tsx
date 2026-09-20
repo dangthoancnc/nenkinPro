@@ -2378,10 +2378,16 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </div>
                       )}
 
-                      <FormField label="Địa chỉ chi nhánh (Eng)">
-                        <Input {...register('bankAccounts.0.bankBranchAddress' as const)} disabled={!isEditing} size="md"
-                          verified={verifiedFields['bankBranchAddress']} showVerify onVerify={() => toggleVerify('bankBranchAddress')} />
-                      </FormField>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <FormField label="Địa chỉ chi nhánh (Eng)">
+                          <Input {...register('bankAccounts.0.bankBranchAddress' as const)} disabled={!isEditing} size="md"
+                            verified={verifiedFields['bankBranchAddress']} showVerify onVerify={() => toggleVerify('bankBranchAddress')} />
+                        </FormField>
+                        <FormField label="Thành phố chi nhánh (City)">
+                          <Input {...register('bankAccounts.0.bankBranchCity' as const)} disabled={!isEditing} size="md" placeholder="VD: BAC NINH, HA NOI..."
+                            verified={verifiedFields['bankBranchCity']} showVerify onVerify={() => toggleVerify('bankBranchCity')} />
+                        </FormField>
+                      </div>
                       <FormField label="Chủ tài khoản (Romaji)">
                         <Input {...register('bankAccounts.0.accountName' as const)} disabled={!isEditing} size="md" className="uppercase"
                           verified={verifiedFields['accountName']} showVerify onVerify={() => toggleVerify('accountName')} />
@@ -2718,9 +2724,14 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                                 </div>
                               )}
 
-                              <FormField label="Địa chỉ chi nhánh (Eng)">
-                                <Input {...register('bankAccounts.1.bankBranchAddress' as const)} disabled={!isEditing} size="md" />
-                              </FormField>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <FormField label="Địa chỉ chi nhánh (Eng)">
+                                  <Input {...register('bankAccounts.1.bankBranchAddress' as const)} disabled={!isEditing} size="md" />
+                                </FormField>
+                                <FormField label="Thành phố chi nhánh (City)">
+                                  <Input {...register('bankAccounts.1.bankBranchCity' as const)} disabled={!isEditing} size="md" placeholder="VD: TOKYO, AICHI..." />
+                                </FormField>
+                              </div>
                               <FormField label="Chủ tài khoản (Romaji)">
                                 <Input {...register('bankAccounts.1.accountName' as const)} disabled={!isEditing} size="md" className="uppercase" />
                               </FormField>
