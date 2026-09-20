@@ -966,5 +966,38 @@
     "align": "right",
     "width": 49,
     "height": 12
+  },
+  "line_1789908882256_59": {
+    "page": 1,
+    "x": 147.94,
+    "y": 771.65,
+    "size": 9,
+    "type": "line",
+    "align": "center",
+    "width": 51,
+    "height": 12,
+    "thickness": 1
+  },
+  "line_1789908882256_129": {
+    "page": 1,
+    "x": 147.5,
+    "y": 762.76,
+    "size": 9,
+    "type": "line",
+    "align": "center",
+    "width": 51,
+    "height": 12,
+    "thickness": 1
+  },
+  "static_1789908882256_78": {
+    "page": 1,
+    "x": 124.72,
+    "y": 780.54,
+    "size": 9,
+    "type": "text",
+    "align": "center",
+    "width": 120,
+    "height": 13,
+    "value": "退職所得の選択課税"
   }
 }

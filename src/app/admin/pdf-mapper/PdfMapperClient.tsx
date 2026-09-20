@@ -1911,6 +1911,46 @@ export default function PdfMapperClient({
                 <option value="circle">⭕ Khoanh tròn / Elip</option>
                 <option value="line">➖ Đường kẻ</option>
               </select>
+
+              {/* Chọn Trang (Page) */}
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[11px] shrink-0">
+                <span className="text-slate-400 font-semibold text-[10px]">Trang:</span>
+                <select
+                  value={config[selectedTag].page ?? 0}
+                  onChange={(e) => {
+                    const newPage = Number(e.target.value);
+                    setConfig(prev => {
+                      if (!prev[selectedTag]) return prev;
+                      let newY = prev[selectedTag].y;
+                      const pageHeight = pageDimensions[newPage]?.height || A4_H;
+                      if (newY < 0 || newY > pageHeight) {
+                        newY = pageHeight - 80;
+                      }
+                      return {
+                        ...prev,
+                        [selectedTag]: {
+                          ...prev[selectedTag],
+                          page: newPage,
+                          y: Number(newY.toFixed(2))
+                        }
+                      };
+                    });
+                  }}
+                  className="bg-slate-950 border border-slate-600 rounded text-amber-300 font-bold text-xs px-1 py-0.5 focus:ring-1 focus:ring-blue-400 outline-none"
+                  title="Trang hiển thị thẻ này trên biểu mẫu PDF"
+                >
+                  {Array.from(new Array(numPages || 1), (_, idx) => (
+                    <option key={idx} value={idx}>
+                      Trang {idx + 1}
+                    </option>
+                  ))}
+                </select>
+                {(config[selectedTag].y < 0 || config[selectedTag].y > (pageDimensions[config[selectedTag].page]?.height || A4_H)) && (
+                  <span className="text-[10px] text-red-400 font-bold bg-red-950/80 border border-red-600 px-1 rounded animate-pulse" title="Cảnh báo: Tọa độ Y nằm ngoài trang, sẽ không in được trên trang này!">
+                    ⚠️ Ngoài trang
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Nhóm 2: Định dạng chữ hoặc Tùy biến Elip */}
