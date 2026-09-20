@@ -215,6 +215,7 @@ export default function PdfMapperClient({
   const historyRef = useRef<ConfigMap[]>([]);
   const historyPointerRef = useRef<number>(-1);
   const isUndoRedoActionRef = useRef<boolean>(false);
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -226,6 +227,9 @@ export default function PdfMapperClient({
   const pushToHistory = (newConfig: ConfigMap) => {
     if (isUndoRedoActionRef.current) {
       isUndoRedoActionRef.current = false;
+      return;
+    }
+    if (!newConfig || Object.keys(newConfig).length === 0) {
       return;
     }
     const stack = historyRef.current.slice(0, historyPointerRef.current + 1);
@@ -240,6 +244,10 @@ export default function PdfMapperClient({
   };
 
   const handleUndo = () => {
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current);
+      historyTimeoutRef.current = null;
+    }
     if (historyPointerRef.current > 0) {
       isUndoRedoActionRef.current = true;
       historyPointerRef.current -= 1;
@@ -250,6 +258,10 @@ export default function PdfMapperClient({
   };
 
   const handleRedo = () => {
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current);
+      historyTimeoutRef.current = null;
+    }
     if (historyPointerRef.current < historyRef.current.length - 1) {
       isUndoRedoActionRef.current = true;
       historyPointerRef.current += 1;
@@ -260,7 +272,22 @@ export default function PdfMapperClient({
   };
 
   useEffect(() => {
-    pushToHistory(config);
+    if (isUndoRedoActionRef.current) {
+      isUndoRedoActionRef.current = false;
+      return;
+    }
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current);
+    }
+    historyTimeoutRef.current = setTimeout(() => {
+      pushToHistory(config);
+    }, 300);
+
+    return () => {
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current);
+      }
+    };
   }, [config]);
 
   useEffect(() => {
@@ -551,6 +578,18 @@ export default function PdfMapperClient({
     }
   };
 
+  const handleDeleteTag = (tag: string) => {
+    setConfig(prev => {
+      const newConf = { ...prev };
+      delete newConf[tag];
+      return newConf;
+    });
+    setSelectedTags(prev => prev.filter(t => t !== tag));
+    if (selectedTag === tag) {
+      setSelectedTag(null);
+    }
+  };
+
   const handleBatchSetFontWeight = (weight: 'normal' | 'bold') => {
     if (selectedTags.length === 0) return;
     setConfig(prev => {
@@ -688,13 +727,30 @@ export default function PdfMapperClient({
     });
   };
 
+  const configRef = useRef(config);
+  configRef.current = config;
+  const selectedTagRef = useRef(selectedTag);
+  selectedTagRef.current = selectedTag;
+  const selectedTagsRef = useRef(selectedTags);
+  selectedTagsRef.current = selectedTags;
+  const handleBatchDeleteRef = useRef(handleBatchDelete);
+  handleBatchDeleteRef.current = handleBatchDelete;
+  const handleDeleteTagRef = useRef(handleDeleteTag);
+  handleDeleteTagRef.current = handleDeleteTag;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeElement = document.activeElement;
       const activeTag = activeElement?.tagName;
       const isTextInput = activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && (activeElement as HTMLInputElement).type !== 'number');
 
-      const activeTagsList = selectedTags.length > 0 ? selectedTags : (selectedTag && config[selectedTag] ? [selectedTag] : []);
+      const currentSelectedTags = selectedTagsRef.current;
+      const currentSelectedTag = selectedTagRef.current;
+      const currentConfig = configRef.current;
+
+      const activeTagsList = currentSelectedTags.length > 0 
+        ? currentSelectedTags 
+        : (currentSelectedTag && currentConfig[currentSelectedTag] ? [currentSelectedTag] : []);
 
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() === 'c') {
@@ -702,7 +758,7 @@ export default function PdfMapperClient({
             e.preventDefault();
             const clipboard: Record<string, Coordinate> = {};
             activeTagsList.forEach(t => {
-              if (config[t]) clipboard[t] = { ...config[t] };
+              if (currentConfig[t]) clipboard[t] = { ...currentConfig[t] };
             });
             clipboardRef.current = clipboard;
           }
@@ -761,12 +817,12 @@ export default function PdfMapperClient({
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!isTextInput) {
-          if (selectedTags.length > 0) {
+          if (currentSelectedTags.length > 0) {
             e.preventDefault();
-            handleBatchDelete(selectedTags);
-          } else if (selectedTag && config[selectedTag]) {
+            handleBatchDeleteRef.current(currentSelectedTags);
+          } else if (currentSelectedTag && currentConfig[currentSelectedTag]) {
             e.preventDefault();
-            handleDeleteTag(selectedTag);
+            handleDeleteTagRef.current(currentSelectedTag);
             setSelectedTag(null);
           }
           return;
@@ -800,7 +856,7 @@ export default function PdfMapperClient({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTag, selectedTags, config]);
+  }, []);
 
   const handlePageMouseDown = (e: React.MouseEvent<HTMLDivElement>, pageIndex: number) => {
     if (e.button !== 0) return;
@@ -1168,15 +1224,6 @@ export default function PdfMapperClient({
     } else {
       alert('Vui lòng chọn một hồ sơ khách hàng ở mục "Dữ liệu xem trước" để mở trang in thực tế.');
     }
-  };
-
-  const handleDeleteTag = (tag: string) => {
-    setConfig(prev => {
-      const newConf = { ...prev };
-      delete newConf[tag];
-      return newConf;
-    });
-    setSelectedTags(prev => prev.filter(t => t !== tag));
   };
 
   return (
