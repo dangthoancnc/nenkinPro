@@ -13,6 +13,10 @@ export interface AssignAttachmentTarget {
   name: string;
   size?: number;
   type?: string;
+  isEdited?: boolean;
+  originalUrl?: string | null;
+  originalName?: string;
+  originalSize?: number;
 }
 
 interface CustomerOption {

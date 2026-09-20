@@ -27,10 +27,16 @@ export interface ImageEditorModalProps {
   onClose: () => void;
   imageUrl: string;
   imageName?: string;
+  originalUrl?: string | null;
+  originalName?: string;
   isPendingMode?: boolean;
   onApplyPending?: (croppedBlob: Blob, fileName: string) => void;
   onSaveToDossier?: (croppedBlob: Blob, fileName: string) => void;
-  onSendToChat?: (croppedBlob: Blob, fileName: string) => Promise<void> | void;
+  onSendToChat?: (
+    croppedBlob: Blob,
+    fileName: string,
+    metadata?: { originalUrl?: string; originalName?: string }
+  ) => Promise<void> | void;
 }
 
 type HandleType = 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'move';
@@ -40,6 +46,8 @@ export default function ImageEditorModal({
   onClose,
   imageUrl,
   imageName = 'document_image.jpg',
+  originalUrl,
+  originalName,
   isPendingMode = false,
   onApplyPending,
   onSaveToDossier,
@@ -225,6 +233,29 @@ export default function ImageEditorModal({
     setCrop({ ...DEFAULT_CROP });
     setSelectedRatioId('free');
     toast.info('Đã chọn 100% toàn bộ ảnh (không cắt viền)');
+  };
+
+  // Load raw uncropped original image if available
+  const handleLoadOriginal = async () => {
+    if (!originalUrl) return;
+    setIsLoadingImage(true);
+    try {
+      const { safeUrl: cleanUrl, isBlobUrl } = await getSafeImageUrl(originalUrl);
+      setSafeUrl(cleanUrl);
+      setIsBlobUrlCreated(isBlobUrl);
+      const imgEl = await createImage(cleanUrl);
+      setLoadedImgElement(imgEl);
+      setCrop({ ...DEFAULT_CROP });
+      setBaseRotation(0);
+      setFineAngle(0);
+      setFlipHorizontal(false);
+      setSelectedRatioId('free');
+      toast.success('Đã tải lại toàn bộ dữ liệu từ tệp ảnh gốc ban đầu!');
+    } catch (err: any) {
+      toast.error('Không thể tải ảnh gốc: ' + (err.message || 'Thất bại'));
+    } finally {
+      setIsLoadingImage(false);
+    }
   };
 
   const handleResetAll = () => {
@@ -473,7 +504,10 @@ export default function ImageEditorModal({
       const res = await generateCroppedImage();
       if (!res) return;
 
-      await onSendToChat(res.blob, getProcessedFileName('edited'));
+      await onSendToChat(res.blob, getProcessedFileName('edited'), {
+        originalUrl: originalUrl || imageUrl,
+        originalName: originalName || imageName,
+      });
       toast.success('Đã gửi ảnh đã chỉnh sửa vào cuộc trò chuyện!', { id: loadId });
       onClose();
     } catch (err: any) {
@@ -548,6 +582,20 @@ export default function ImageEditorModal({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {originalUrl && originalUrl !== imageUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={handleLoadOriginal}
+                disabled={isProcessing}
+                className="h-7 px-2 text-[10px] gap-1 rounded-lg border-amber-600/50 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white"
+                title="Tải lại toàn bộ dữ liệu từ tệp ảnh gốc ban đầu"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span className="hidden sm:inline">Tải lại ảnh gốc</span>
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"

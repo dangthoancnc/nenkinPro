@@ -6,7 +6,7 @@ import {
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
   Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
   ChevronLeft, Info, Download, FolderPlus, Maximize2, Sparkles, UploadCloud,
-  UserPlus, Edit3, BookUser, Crop,
+  UserPlus, Edit3, BookUser, Crop, RotateCcw,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +21,12 @@ export interface ChatAttachment {
   name: string;
   size?: number;
   type?: string;
+  isEdited?: boolean;
+  originalUrl?: string | null;
+  originalName?: string;
+  originalSize?: number;
+  originalPurged?: boolean;
+  purgedAt?: string;
 }
 
 interface ChatMessage {
@@ -126,9 +132,23 @@ export default function MessengerPage() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [selectedAttachmentForDossier, setSelectedAttachmentForDossier] = useState<AssignAttachmentTarget | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxMetadata, setLightboxMetadata] = useState<{
+    name: string;
+    messageId?: string;
+    editedUrl?: string;
+    originalUrl?: string | null;
+    originalName?: string;
+    isViewingOriginal?: boolean;
+    originalPurged?: boolean;
+  } | null>(null);
   const [imageEditorTarget, setImageEditorTarget] = useState<{
     url: string;
     name: string;
+    size?: number;
+    messageId?: string;
+    originalUrl?: string | null;
+    originalName?: string;
+    originalSize?: number;
     isPending?: boolean;
     pendingIndex?: number;
   } | null>(null);
@@ -445,7 +465,11 @@ export default function MessengerPage() {
     });
   };
 
-  const handleSendEditedImageToChat = async (blob: Blob, fileName: string) => {
+  const handleSendEditedImageToChat = async (
+    blob: Blob,
+    fileName: string,
+    metadata?: { originalUrl?: string; originalName?: string }
+  ) => {
     if (!activeChat) return;
     const file = new File([blob], fileName, { type: 'image/jpeg' });
     const fd = new FormData();
@@ -461,6 +485,13 @@ export default function MessengerPage() {
     }
 
     const uploadedAtt = upData.data[0];
+    const finalAttachment: ChatAttachment = {
+      ...uploadedAtt,
+      isEdited: true,
+      originalUrl: metadata?.originalUrl || imageEditorTarget?.originalUrl || imageEditorTarget?.url,
+      originalName: metadata?.originalName || imageEditorTarget?.originalName || imageEditorTarget?.name,
+      originalSize: imageEditorTarget?.originalSize || imageEditorTarget?.size,
+    };
 
     const res = await fetch('/api/messenger/messages', {
       method: 'POST',
@@ -468,7 +499,7 @@ export default function MessengerPage() {
       body: JSON.stringify({
         conversationId: activeChat.id,
         content: `[Ảnh đã xử lý & cắt xoay: ${fileName}]`,
-        attachments: [uploadedAtt],
+        attachments: [finalAttachment],
       }),
     });
 
@@ -506,9 +537,59 @@ export default function MessengerPage() {
         name: uploadedAtt.name,
         size: uploadedAtt.size,
         type: uploadedAtt.type,
+        originalUrl: imageEditorTarget?.originalUrl || imageEditorTarget?.url,
+        originalName: imageEditorTarget?.originalName || imageEditorTarget?.name,
+        originalSize: imageEditorTarget?.originalSize || imageEditorTarget?.size,
+        isEdited: true,
       });
     } catch (err: any) {
       toast.error('Lỗi khi chuẩn bị ảnh hồ sơ: ' + err.message, { id: loadId });
+    }
+  };
+
+  // Delete raw original image from storage to save space
+  const handleDeleteOriginalImage = async (messageId: string, originalUrl: string, fileName?: string) => {
+    const confirmDelete = window.confirm(
+      `Bạn có chắc muốn XÓA VĨNH VIỄN tệp ảnh gốc "${fileName || 'bản gốc'}" trên máy chủ để tiết kiệm dung lượng?\n\n` +
+      `Lưu ý:\n- Bản ảnh đã cắt xoay vẫn được bảo tồn 100% trong cuộc trò chuyện.\n- Thao tác này sẽ giải phóng dung lượng lưu trữ trên máy chủ.`
+    );
+    if (!confirmDelete) return;
+
+    const loadId = toast.loading('Đang xóa tệp ảnh gốc để giải phóng dung lượng...');
+    try {
+      const res = await fetch('/api/messenger/attachments/delete-original', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, originalUrl }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Đã xóa tệp ảnh gốc thành công! Dung lượng lưu trữ đã được giải phóng.', { id: loadId });
+        // Update local state
+        setMessages(prev =>
+          prev.map(m => {
+            if (m.id === messageId && m.attachments) {
+              return {
+                ...m,
+                attachments: m.attachments.map(att => {
+                  if (att.originalUrl === originalUrl || att.url === originalUrl) {
+                    return { ...att, originalUrl: null, originalPurged: true };
+                  }
+                  return att;
+                }),
+              };
+            }
+            return m;
+          })
+        );
+        if (lightboxMetadata?.originalUrl === originalUrl) {
+          setLightboxMetadata(prev => prev ? { ...prev, originalUrl: null, originalPurged: true } : null);
+        }
+      } else {
+        toast.error('Lỗi khi xóa ảnh gốc: ' + (data.error || 'Thất bại'), { id: loadId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối: ' + err.message, { id: loadId });
     }
   };
 
@@ -1290,23 +1371,60 @@ export default function MessengerPage() {
                                           key={attIdx}
                                           className="relative group/att rounded-xl overflow-hidden border border-black/10 bg-black/5 aspect-4/3 sm:aspect-video flex items-center justify-center"
                                         >
+                                          {/* Badge if edited or has original */}
+                                          {(att.isEdited || att.originalUrl) && (
+                                            <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1">
+                                              <span className="px-1.5 py-0.2 rounded bg-indigo-950/85 text-indigo-300 text-[8px] font-bold border border-indigo-700/50 backdrop-blur-xs">
+                                                Đã sửa
+                                              </span>
+                                              {att.originalPurged && (
+                                                <span
+                                                  className="px-1.5 py-0.2 rounded bg-slate-900/85 text-slate-400 text-[8px] border border-slate-700/50 backdrop-blur-xs"
+                                                  title="Đã xóa ảnh gốc để tiết kiệm dung lượng"
+                                                >
+                                                  Đã dọn gốc
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+
                                           {/* eslint-disable-next-line @next/next/no-img-element */}
                                           <img
                                             src={att.url}
                                             alt={att.name}
                                             className="w-full h-full object-cover cursor-pointer hover:scale-102 transition-transform duration-150"
-                                            onClick={() => setLightboxUrl(att.url)}
+                                            onClick={() => {
+                                              setLightboxUrl(att.url);
+                                              setLightboxMetadata({
+                                                name: att.name,
+                                                messageId: msg.id,
+                                                editedUrl: att.url,
+                                                originalUrl: att.originalUrl,
+                                                originalName: att.originalName,
+                                                isViewingOriginal: false,
+                                              });
+                                            }}
                                           />
 
                                           {/* Overlay Action Bar on Hover */}
                                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-transparent p-2 flex items-center justify-between opacity-0 group-hover/att:opacity-100 transition-opacity">
-                                            <span className="text-[9px] text-white truncate max-w-[120px]" title={att.name}>
+                                            <span className="text-[9px] text-white truncate max-w-[100px]" title={att.name}>
                                               {att.name}
                                             </span>
                                             <div className="flex items-center gap-1 shrink-0">
                                               <button
                                                 type="button"
-                                                onClick={() => setLightboxUrl(att.url)}
+                                                onClick={() => {
+                                                  setLightboxUrl(att.url);
+                                                  setLightboxMetadata({
+                                                    name: att.name,
+                                                    messageId: msg.id,
+                                                    editedUrl: att.url,
+                                                    originalUrl: att.originalUrl,
+                                                    originalName: att.originalName,
+                                                    isViewingOriginal: false,
+                                                  });
+                                                }}
                                                 className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
                                                 title="Xem phóng to"
                                               >
@@ -1314,19 +1432,58 @@ export default function MessengerPage() {
                                               </button>
                                               <button
                                                 type="button"
-                                                onClick={() => setImageEditorTarget({ url: att.url, name: att.name })}
+                                                onClick={() => setImageEditorTarget({
+                                                  url: att.url,
+                                                  name: att.name,
+                                                  size: att.size,
+                                                  messageId: msg.id,
+                                                  originalUrl: att.originalUrl || att.url,
+                                                  originalName: att.originalName || att.name,
+                                                  originalSize: att.originalSize || att.size,
+                                                })}
                                                 className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
                                                 title="Cắt & Xoay ảnh"
                                               >
                                                 <Crop className="w-3 h-3" />
                                               </button>
+                                              {/* View original if this is an edited image */}
+                                              {att.originalUrl && !att.originalPurged && (
+                                                <>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setLightboxUrl(att.originalUrl!);
+                                                      setLightboxMetadata({
+                                                        name: att.originalName || 'anh_goc.jpg',
+                                                        messageId: msg.id,
+                                                        editedUrl: att.url,
+                                                        originalUrl: att.originalUrl,
+                                                        originalName: att.originalName,
+                                                        isViewingOriginal: true,
+                                                      });
+                                                    }}
+                                                    className="p-1 rounded-md bg-amber-500/30 hover:bg-amber-500/50 text-amber-200"
+                                                    title="Xem ảnh gốc ban đầu"
+                                                  >
+                                                    <RotateCcw className="w-3 h-3" />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteOriginalImage(msg.id, att.originalUrl!, att.originalName)}
+                                                    className="p-1 rounded-md bg-rose-500/30 hover:bg-rose-500/60 text-rose-200"
+                                                    title="Xóa tệp ảnh gốc khỏi máy chủ để tiết kiệm dung lượng"
+                                                  >
+                                                    <Trash2 className="w-3 h-3" />
+                                                  </button>
+                                                </>
+                                              )}
                                               <a
                                                 href={att.url}
                                                 download={att.name}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
-                                                title="Tải ảnh gốc nguyên bản"
+                                                title="Tải ảnh này về máy"
                                               >
                                                 <Download className="w-3 h-3" />
                                               </a>
@@ -1824,16 +1981,41 @@ export default function MessengerPage() {
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
-          onClick={() => setLightboxUrl(null)}
+          onClick={() => {
+            setLightboxUrl(null);
+            setLightboxMetadata(null);
+          }}
         >
           <div className="relative max-w-5xl max-h-[92vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
             <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+              {/* Badge for Original vs Edited */}
+              {lightboxMetadata?.isViewingOriginal ? (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/90 text-white text-[10px] font-bold tracking-wide uppercase shadow-xs flex items-center gap-1">
+                  <RotateCcw className="w-3 h-3" /> Ảnh gốc ban đầu
+                </span>
+              ) : lightboxMetadata?.originalUrl ? (
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[10px] font-bold tracking-wide uppercase shadow-xs flex items-center gap-1">
+                  <Crop className="w-3 h-3" /> Bản đã crop / xoay
+                </span>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => {
                   const urlToEdit = lightboxUrl;
+                  const nameToEdit = lightboxMetadata?.name || 'document.jpg';
+                  const origUrl = lightboxMetadata?.originalUrl || lightboxUrl;
+                  const origName = lightboxMetadata?.originalName || nameToEdit;
+                  const msgId = lightboxMetadata?.messageId;
                   setLightboxUrl(null);
-                  setImageEditorTarget({ url: urlToEdit, name: 'document.jpg' });
+                  setLightboxMetadata(null);
+                  setImageEditorTarget({
+                    url: urlToEdit,
+                    name: nameToEdit,
+                    originalUrl: origUrl,
+                    originalName: origName,
+                    messageId: msgId,
+                  });
                 }}
                 className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold shadow-xs"
                 title="Chỉnh sửa (Cắt & Xoay ảnh)"
@@ -1841,19 +2023,81 @@ export default function MessengerPage() {
                 <Crop className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Cắt / Xoay</span>
               </button>
+
+              {/* Toggle view between Original and Edited photo */}
+              {lightboxMetadata?.originalUrl && !lightboxMetadata.originalPurged && (
+                lightboxMetadata.isViewingOriginal && lightboxMetadata.editedUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLightboxUrl(lightboxMetadata.editedUrl!);
+                      setLightboxMetadata(prev => prev ? ({ ...prev, isViewingOriginal: false }) : null);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold shadow-xs"
+                    title="Chuyển về xem ảnh đã xử lý (crop/xoay)"
+                  >
+                    <Crop className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Xem bản đã crop</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLightboxUrl(lightboxMetadata.originalUrl!);
+                      setLightboxMetadata(prev => prev ? ({ ...prev, isViewingOriginal: true }) : null);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold shadow-xs"
+                    title="Xem ảnh gốc ban đầu chưa chỉnh sửa"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Xem ảnh gốc</span>
+                  </button>
+                )
+              )}
+
+              {/* Purge original image file button */}
+              {lightboxMetadata?.originalUrl && !lightboxMetadata.originalPurged && lightboxMetadata?.messageId && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const msgId = lightboxMetadata.messageId!;
+                    const origUrl = lightboxMetadata.originalUrl!;
+                    const origName = lightboxMetadata.originalName;
+                    await handleDeleteOriginalImage(msgId, origUrl, origName);
+                    if (lightboxMetadata.isViewingOriginal && lightboxMetadata.editedUrl) {
+                      setLightboxUrl(lightboxMetadata.editedUrl);
+                      setLightboxMetadata(prev => prev ? ({ ...prev, originalUrl: null, originalPurged: true, isViewingOriginal: false }) : null);
+                    } else if (lightboxMetadata.isViewingOriginal) {
+                      setLightboxUrl(null);
+                      setLightboxMetadata(null);
+                    } else {
+                      setLightboxMetadata(prev => prev ? ({ ...prev, originalUrl: null, originalPurged: true }) : null);
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold shadow-xs"
+                  title="Xóa tệp ảnh gốc trên máy chủ để tiết kiệm dung lượng"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Xóa file gốc</span>
+                </button>
+              )}
+
               <a
                 href={lightboxUrl}
-                download="document_original.jpg"
+                download={lightboxMetadata?.name || 'document.jpg'}
                 target="_blank"
                 rel="noreferrer"
                 className="p-2 rounded-xl bg-white/20 hover:bg-white/40 text-white transition-colors"
-                title="Tải ảnh gốc nguyên bản"
+                title="Tải ảnh này về máy"
               >
                 <Download className="w-4 h-4" />
               </a>
               <button
                 type="button"
-                onClick={() => setLightboxUrl(null)}
+                onClick={() => {
+                  setLightboxUrl(null);
+                  setLightboxMetadata(null);
+                }}
                 className="p-2 rounded-xl bg-white/20 hover:bg-white/40 text-white transition-colors"
                 title="Đóng"
               >
@@ -1877,6 +2121,8 @@ export default function MessengerPage() {
           onClose={() => setImageEditorTarget(null)}
           imageUrl={imageEditorTarget.url}
           imageName={imageEditorTarget.name}
+          originalUrl={imageEditorTarget.originalUrl}
+          originalName={imageEditorTarget.originalName}
           isPendingMode={!!imageEditorTarget.isPending}
           onApplyPending={handleApplyPendingImage}
           onSaveToDossier={handleSaveEditedImageToDossier}
