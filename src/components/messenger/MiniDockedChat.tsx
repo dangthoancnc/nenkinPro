@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  X, Send, Minimize2, Maximize2, ChevronUp,
+  X, Send, Minimize2, Maximize2, ChevronUp, ChevronDown, Minus,
   Loader2, MessageSquare, Image as ImageIcon,
   FileText, ExternalLink, Paperclip, Check,
   Info, ArrowLeft
@@ -62,7 +62,6 @@ export default function MiniDockedChat() {
   const saveChats = (list: DockedChatState[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-      window.dispatchEvent(new Event('nenkin:dock-chats-updated'));
     } catch (e) {
       console.error(e);
     }
@@ -139,9 +138,6 @@ export default function MiniDockedChat() {
   const activeChats = dockedChats.filter(c => c.isOpen);
   if (activeChats.length === 0) return null;
 
-  const expandedChats = activeChats.filter(c => !c.isMinimized);
-  const minimizedChats = activeChats.filter(c => c.isMinimized);
-
   const handleToggleMinimize = (convId: string) => {
     setDockedChats(prev => {
       const next = prev.map(c => c.conversationId === convId ? { ...c, isMinimized: !c.isMinimized } : c);
@@ -164,41 +160,8 @@ export default function MiniDockedChat() {
   };
 
   return (
-    <div className="fixed bottom-0 right-0 z-40 font-sans pointer-events-none p-3 flex flex-row-reverse items-end gap-3 max-w-full overflow-visible">
-      {/* Minimized Pills Bar */}
-      {minimizedChats.length > 0 && (
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-slate-700/50">
-          {minimizedChats.map(c => (
-            <div
-              key={c.conversationId}
-              onClick={() => handleToggleMinimize(c.conversationId)}
-              className="flex items-center gap-2 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl cursor-pointer transition-colors text-xs font-semibold"
-              title={`Mở lại chat với ${c.name}`}
-            >
-              <div className="relative shrink-0">
-                <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center">
-                  {c.name?.[0] || 'U'}
-                </div>
-                <span className={`w-1.5 h-1.5 rounded-full absolute bottom-0 right-0 ${c.isOnline ? 'bg-emerald-400 ring-1 ring-white' : 'bg-slate-400'}`} />
-              </div>
-              <span className="truncate max-w-[90px]">{c.name}</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClose(c.conversationId);
-                }}
-                className="p-0.5 hover:bg-white/20 rounded-md text-white/70 hover:text-white"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Expanded Windows (Rendered side-by-side up to 2-3 windows) */}
-      {expandedChats.slice(0, 3).map((chat) => (
+    <div className="fixed bottom-0 right-4 z-[70] font-sans pointer-events-none flex flex-row-reverse items-end gap-3 max-w-[calc(100vw-1rem)] overflow-visible">
+      {activeChats.slice(0, 3).map((chat) => (
         <div key={chat.conversationId} className="pointer-events-auto">
           <MiniChatWindow
             chat={chat}
@@ -492,6 +455,62 @@ function MiniChatWindow({
   );
   const uniqueDossiers = Array.from(new Map(mentionedDossiers.filter(d => d.id).map(d => [d.id as string, d])).values());
 
+  // ── RENDER COLLAPSED TAB IF MINIMIZED ──
+  if (chat.isMinimized) {
+    return (
+      <div
+        onClick={onToggleMinimize}
+        className="w-[230px] sm:w-[260px] h-11 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-t-xl shadow-xl flex items-center justify-between px-3 cursor-pointer hover:brightness-105 transition-all duration-200 border-t border-x border-blue-400/30 select-none animate-in slide-in-from-bottom-2"
+        title="Bấm để mở rộng lại cửa sổ chat"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="relative shrink-0">
+            <div className="w-6 h-6 rounded-full bg-white/20 text-white font-bold text-[10px] flex items-center justify-center border border-white/30">
+              {chat.name?.[0] || 'U'}
+            </div>
+            <span className={`w-2 h-2 rounded-full border-2 border-indigo-700 absolute bottom-0 right-0 ${
+              chat.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+            }`} />
+          </div>
+
+          <span className="font-bold text-xs truncate leading-tight">
+            {chat.name}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+          {currentDossierId && (
+            <button
+              type="button"
+              onClick={handlePinCurrentPageDossier}
+              className="px-1.5 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-[9px] flex items-center gap-0.5 shadow-xs"
+              title="Gắn hồ sơ đang xem vào chat"
+            >
+              <Paperclip className="w-2.5 h-2.5" />
+              <span>Gắn</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggleMinimize}
+            className="p-1 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition-colors"
+            title="Mở rộng cửa sổ chat"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-md hover:bg-rose-500/80 text-white/90 hover:text-white transition-colors"
+            title="Đóng chat"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-[340px] sm:w-[360px] max-w-[calc(100vw-2rem)] h-[460px] max-h-[75vh] bg-white border border-slate-200 shadow-2xl rounded-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 relative">
       
@@ -520,6 +539,17 @@ function MiniChatWindow({
 
         {/* Header Controls */}
         <div className="flex items-center gap-1 shrink-0">
+          {currentDossierId && (
+            <button
+              type="button"
+              onClick={handlePinCurrentPageDossier}
+              className="px-2 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-[10px] flex items-center gap-1 shadow-2xs transition-all hover:scale-105 active:scale-95 shrink-0"
+              title="Gắn thông tin hồ sơ đang xem trên trang này vào cuộc trò chuyện"
+            >
+              <Paperclip className="w-3 h-3 text-amber-900" />
+              <span>Gắn HS</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveView(prev => prev === 'info' ? 'chat' : 'info')}
@@ -534,9 +564,9 @@ function MiniChatWindow({
             type="button"
             onClick={onToggleMinimize}
             className="p-1 rounded-lg hover:bg-white/20 text-white/90 hover:text-white transition-colors"
-            title="Thu nhỏ xuống thanh bar"
+            title="Thu nhỏ cửa sổ chat"
           >
-            <Minimize2 className="w-3.5 h-3.5" />
+            <Minus className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -862,23 +892,6 @@ function MiniChatWindow({
                   ))
                 )}
               </div>
-            </div>
-          )}
-
-          {/* ── CURRENT PAGE DOSSIER PIN BAR (If viewing /applications/[id]) ── */}
-          {currentDossierId && (
-            <div className="px-2.5 py-1 bg-amber-50/90 border-t border-amber-200/70 flex items-center justify-between text-[10px] text-amber-900 shrink-0">
-              <span className="truncate flex items-center gap-1 font-semibold">
-                <Paperclip className="w-3 h-3 text-amber-600" />
-                Đang xem hồ sơ trang này
-              </span>
-              <button
-                type="button"
-                onClick={handlePinCurrentPageDossier}
-                className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold transition-colors shadow-2xs"
-              >
-                Gắn vào chat
-              </button>
             </div>
           )}
 
