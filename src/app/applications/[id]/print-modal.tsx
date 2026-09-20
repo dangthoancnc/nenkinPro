@@ -32,6 +32,7 @@ const DOCUMENT_TYPES = [
     pages: [
       { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_p1' },
       { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fallbackType: 'lan1_p2' },
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 2, fallbackType: 'lan1_p3' },
       { templateName: 'ininjyo_yoshiki_lan_1', pdfFile: '/forms/ininjyo_yoshiki_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_uyquyen' },
       { isImage: true, imageKey: 'zairyu' },
       { isImage: true, imageKey: 'passport' },
@@ -46,7 +47,8 @@ const DOCUMENT_TYPES = [
     category: 'LẦN 1',
     pages: [
       { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 0, fallbackType: 'lan1_p1' },
-      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fallbackType: 'lan1_p2' }
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 1, fallbackType: 'lan1_p2' },
+      { templateName: 'don_xin_lan_1', pdfFile: '/forms/don_xin_lan_1.pdf', pageNumber: 2, fallbackType: 'lan1_p3' }
     ]
   },
   {

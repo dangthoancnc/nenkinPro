@@ -57,8 +57,8 @@ export function drawConfigOnPages(
 
       if (shouldDraw) {
         page.drawEllipse({
-          x: coord.x + (coord.width || 20) / 2,
-          y: coord.y + (coord.height || 20) / 2,
+          x: coord.x,
+          y: coord.y,
           xScale: (coord.width || 20) / 2,
           yScale: (coord.height || 20) / 2,
           borderWidth: coord.thickness || 1,
