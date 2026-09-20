@@ -8,8 +8,8 @@ export async function POST() {
   if (error || !user) return error;
 
   try {
-    const p1 = await hashPassword("duyen2026");
-    const p2 = await hashPassword("long2026");
+    const p1 = await hashPassword("Duyen@nenkin123");
+    const p2 = await hashPassword("Long@nenkin123");
 
     const staffData = [
       { email: "daoduyen1102@gmail.com", password: p1, name: "Dao Thi Duyen", role: "MANAGER" as const, staffCode: "NV001" },

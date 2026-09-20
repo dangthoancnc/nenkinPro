@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { passcode } = body;
-    const validPasscode = process.env.PDF_MAPPER_PASSCODE || 'nenkin@admin2026';
+    const validPasscode = process.env.PDF_MAPPER_PASSCODE || 'admin@nenkin123';
 
     if (passcode && passcode === validPasscode) {
       return NextResponse.json({ success: true, isAdmin: false, message: 'Đã xác thực Mật khẩu Cấp 2 thành công' });

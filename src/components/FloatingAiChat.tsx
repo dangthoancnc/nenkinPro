@@ -32,7 +32,7 @@ export function FloatingAiChat() {
     {
       id: 'init-1',
       sender: 'ai',
-      text: 'Xin chào quý khách! Em là Trợ lý AI của VietNenkin Duyên. Em có thể giúp quý khách giải đáp thắc mắc về thủ tục lấy 80% Nenkin & Hoàn 20.42% tiền thuế.',
+      text: 'Xin chào quý khách! Em là Trợ lý AI của VietNenkin. Em có thể giúp quý khách giải đáp thắc mắc về thủ tục lấy 80% Nenkin & Hoàn 20.42% tiền thuế.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -248,7 +248,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 
 2️⃣ **Giai đoạn 2 (Lần 2 - 20.42% Thuế khấu trừ):**
    • Cục Thuế giữ lại **20.42% tiền thuế thu nhập**.
-   • Khoản tiền thuế này sẽ được **VietNenkin Duyên nộp đơn xin hoàn lại 100%** qua Người đại diện nộp thuế (*Tax Representative*).`,
+   • Khoản tiền thuế này sẽ được **VietNenkin nộp đơn xin hoàn lại 100%** qua Người đại diện nộp thuế (*Tax Representative*).`,
 
     'giay-to': `📑 **CÁC GIẤY TỜ CẦN CHUẨN BỊ (CHỈ CẦN CHỤP ẢNH RÕ NÉT):**
 
@@ -266,12 +266,12 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
 
     'tra-cuu': `📲 **HƯỚNG DẪN TRA CỨU TIẾN ĐỘ HỒ SƠ:**
 
-1️⃣ Bấm vào phần **"Theo dõi hồ sơ"** trên trang chủ VietNenkin Duyên.
+1️⃣ Bấm vào phần **"Theo dõi hồ sơ"** trên trang chủ VietNenkin.
 2️⃣ Nhập **Mã số hồ sơ / Mã tra cứu** (Ví dụ: \`KH001\` hoặc Mã thẻ ngoại kiều).
 3️⃣ Nhập **Mã PIN bảo mật** đã được cấp (Mặc định: \`123456\`).
 4️⃣ Bấm **Đăng nhập tra cứu** để xem chi tiết tiền thực nhận Lần 1, tiền thuế Lần 2 & trạng thái xử lý!`,
 
-    'phi-dich-vu': `🏢 **CHÍNH SÁCH PHÍ DỊCH VỤ VIETNENKIN DUYÊN:**
+    'phi-dich-vu': `🏢 **CHÍNH SÁCH PHÍ DỊCH VỤ VIETNENKIN:**
 
 • Cam kết **Phí dịch vụ minh bạch**, không phát sinh chi phí ẩn.
 • **Giảm ngay 2.000 JPY** khi có Mã giới thiệu từ CTV hoặc Khách hàng cũ.
@@ -300,7 +300,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
         { label: '📑 Giấy tờ thủ tục cần gì?', key: 'giay-to', query: 'Hồ sơ lấy Nenkin gồm những giấy tờ gì?', answer: '' },
         { label: '⏳ Thời gian mất bao lâu?', key: 'thoi-gian', query: 'Thời gian làm thủ tục lấy Nenkin & hoàn thuế mất bao lâu?', answer: '' },
         { label: '📲 Hướng dẫn tra cứu tiến độ', key: 'tra-cuu', query: 'Hướng dẫn tra cứu tiến độ hồ sơ Nenkin', answer: '' },
-        { label: '🏢 Phí dịch vụ & Quyền lợi', key: 'phi-dich-vu', query: 'Chính sách phí dịch vụ VietNenkin Duyên', answer: '' },
+        { label: '🏢 Phí dịch vụ & Quyền lợi', key: 'phi-dich-vu', query: 'Chính sách phí dịch vụ VietNenkin', answer: '' },
       ];
 
   const handleSendMessage = async (textToSend?: string, keyToSend?: string, directAnswer?: string) => {
@@ -444,7 +444,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
           {
             id: Date.now().toString(),
             sender: 'system',
-            text: `✅ Đã kết nối yêu cầu của ${customerName} (SĐT: ${customerContact}) với Đội ngũ Tư vấn viên VietNenkin Duyên. Chuyên viên sẽ liên hệ lại quý khách trong ít phút!`,
+            text: `✅ Đã kết nối yêu cầu của ${customerName} (SĐT: ${customerContact}) với Đội ngũ Tư vấn viên VietNenkin. Chuyên viên sẽ liên hệ lại quý khách trong ít phút!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
@@ -486,7 +486,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
           {
             id: Date.now().toString(),
             sender: 'system',
-            text: `🎧 ĐÃ KẾT NỐI TƯ VẤN VIÊN TRỰC TIẾP!\nQuý khách có thể gõ câu hỏi nhắn tin trực tiếp với Chuyên viên VietNenkin Duyên bên dưới. Chuyên viên sẽ trả lời ngay trong ít phút!`,
+            text: `🎧 ĐÃ KẾT NỐI TƯ VẤN VIÊN TRỰC TIẾP!\nQuý khách có thể gõ câu hỏi nhắn tin trực tiếp với Chuyên viên VietNenkin bên dưới. Chuyên viên sẽ trả lời ngay trong ít phút!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
@@ -803,7 +803,7 @@ Hồ sơ Nenkin gồm 2 Giai đoạn nhận tiền:
                 </div>
                 <h4 className="text-sm font-bold text-white">Kết Nối Trực Tiếp Tư Vấn Viên</h4>
                 <p className="text-xs text-slate-400">
-                  Để lại thông tin, chuyên viên VietNenkin Duyên sẽ nhắn tin phản hồi quý khách trong ít phút.
+                  Để lại thông tin, chuyên viên VietNenkin sẽ nhắn tin phản hồi quý khách trong ít phút.
                 </p>
               </div>
 

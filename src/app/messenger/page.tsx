@@ -943,7 +943,7 @@ export default function MessengerPage() {
             </div>
             <div className="min-w-0">
               <h2 className="font-extrabold text-xs text-slate-800 tracking-tight truncate">Nenkin Messenger</h2>
-              <span className="text-[10px] text-slate-400 block font-medium truncate">VietNenkin Duyên Hub</span>
+              <span className="text-[10px] text-slate-400 block font-medium truncate">VietNenkin Hub</span>
             </div>
           </div>
           

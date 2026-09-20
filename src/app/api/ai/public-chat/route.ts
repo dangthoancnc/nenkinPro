@@ -29,7 +29,7 @@ Hồ sơ Nenkin được chia làm 2 Giai đoạn nhận tiền:
 
 2️⃣ **Giai đoạn 2 (Lần 2 - 20.42% Thuế khấu trừ):**
    • Cục Thuế giữ lại **20.42% tiền thuế thu nhập**.
-   • Khoản tiền thuế này sẽ được **VietNenkin Duyên nộp đơn xin hoàn lại 100%** qua Người đại diện nộp thuế (*Tax Representative*).`,
+   • Khoản tiền thuế này sẽ được **VietNenkin nộp đơn xin hoàn lại 100%** qua Người đại diện nộp thuế (*Tax Representative*).`,
   },
   {
     keywords: ['giấy tờ', 'giay to', 'hồ sơ', 'ho so', 'cần những gì', 'can nhung gi', 'thủ tục'],
@@ -51,7 +51,7 @@ Hồ sơ Nenkin được chia làm 2 Giai đoạn nhận tiền:
   },
   {
     keywords: ['phí', 'chi phí', 'phi dịch vụ', 'gia ca', 'bảng giá'],
-    reply: `🏢 **CHÍNH SÁCH PHÍ DỊCH VỤ VIETNENKIN DUYÊN:**
+    reply: `🏢 **CHÍNH SÁCH PHÍ DỊCH VỤ VIETNENKIN:**
 
 • Cam kết **Phí dịch vụ minh bạch**, không phát sinh thêm chi phí ẩn.
 • **Giảm ngay 2.000 JPY** khi có Mã giới thiệu từ CTV hoặc Khách hàng cũ.
@@ -61,7 +61,7 @@ Hồ sơ Nenkin được chia làm 2 Giai đoạn nhận tiền:
     keywords: ['tra cứu', 'tra cuu', 'theo dõi', 'xem tiến độ', 'mã pin'],
     reply: `📲 **HƯỚNG DẪN TRA CỨU TIẾN ĐỘ HỒ SƠ:**
 
-1️⃣ Bấm vào phần **"Theo dõi hồ sơ"** trên trang chủ VietNenkin Duyên.
+1️⃣ Bấm vào phần **"Theo dõi hồ sơ"** trên trang chủ VietNenkin.
 2️⃣ Nhập **Mã số hồ sơ / Mã tra cứu** (Ví dụ: \`KH001\` hoặc Mã thẻ ngoại kiều).
 3️⃣ Nhập **Mã PIN bảo mật** đã được cấp (Mặc định: \`123456\`).
 4️⃣ Bấm **Đăng nhập tra cứu** để xem chi tiết tiền thực nhận Lần 1, tiền thuế Lần 2 & trạng thái xử lý!`,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const systemPrompt = `Bạn là Trợ lý AI VietNenkin Duyên. Nhiệm vụ của bạn là tư vấn ngắn gọn, chính xác (100-200 từ) về thủ tục lấy tiền Nenkin Nhật Bản (Lần 1 80% & Lần 2 Thuế 20.42%). Nếu câu hỏi phức tạp, hãy khuyên khách bấm nút "Gặp trực tiếp Tư vấn viên".`;
+    const systemPrompt = `Bạn là Trợ lý AI VietNenkin. Nhiệm vụ của bạn là tư vấn ngắn gọn, chính xác (100-200 từ) về thủ tục lấy tiền Nenkin Nhật Bản (Lần 1 80% & Lần 2 Thuế 20.42%). Nếu câu hỏi phức tạp, hãy khuyên khách bấm nút "Gặp trực tiếp Tư vấn viên".`;
 
     const result = await model.generateContent(`${systemPrompt}\n\nCâu hỏi khách hàng: ${message}`);
     const response = await result.response;
@@ -151,5 +151,5 @@ export async function POST(request: NextRequest) {
 }
 
 function generateFallbackReply(msg: string): string {
-  return `Dạ quý khách có thể chọn các nút câu hỏi soạn sẵn bên dưới để xem phản hồi tức thì, hoặc bấm **"Gặp trực tiếp Tư vấn viên"** để được chuyên viên VietNenkin Duyên hỗ trợ trực tiếp ạ!`;
+  return `Dạ quý khách có thể chọn các nút câu hỏi soạn sẵn bên dưới để xem phản hồi tức thì, hoặc bấm **"Gặp trực tiếp Tư vấn viên"** để được chuyên viên VietNenkin hỗ trợ trực tiếp ạ!`;
 }

@@ -65,7 +65,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="text-lg sm:text-xl font-bold tracking-wide">
-            VietNenkin<span className="text-red-500">Duyên</span>
+            VietNenkin<span className="text-red-500">Pro</span>
           </span>
         </div>
 
@@ -134,7 +134,7 @@ export default function Home() {
             Dịch vụ lấy lại Nenkin <span className="text-amber-400">Uy tín & Nhanh chóng</span>
           </h1>
           <p className="text-sm md:text-base text-slate-300 font-medium max-w-2xl mx-auto drop-shadow-sm">
-            Hỗ trợ hoàn thuế và lấy lại tiền Nenkin Nhật Bản với thủ tục đơn giản, chuyên nghiệp và tận tâm bởi đội ngũ VietNenkin Duyên.
+            Hỗ trợ hoàn thuế và lấy lại tiền Nenkin Nhật Bản với thủ tục đơn giản, chuyên nghiệp và tận tâm bởi đội ngũ VietNenkin.
           </p>
         </div>
       </section>
@@ -263,7 +263,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-4 text-center text-[11px] border-t border-slate-800">
-        <p>© 2026 VietNenkin Duyên. All rights reserved.</p>
+        <p>© 2026 VietNenkin. All rights reserved.</p>
       </footer>
     </div>
   );

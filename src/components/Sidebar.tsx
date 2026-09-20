@@ -37,7 +37,7 @@ export default function Sidebar({
           </div>
           {isOpen && (
             <h1 className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
-              VietNenkin <span className="text-teal-400">Duyên</span>
+              VietNenkin <span className="text-teal-400">Pro</span>
             </h1>
           )}
         </div>

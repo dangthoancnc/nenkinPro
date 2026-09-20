@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Authorization: Admin has direct access; non-admin staff requires secondary passcode
     if (user.role !== 'ADMIN') {
-      const validPasscode = process.env.PDF_MAPPER_PASSCODE || 'nenkin@admin2026';
+      const validPasscode = process.env.PDF_MAPPER_PASSCODE || 'admin@nenkin123';
       const providedPasscode = adminPasscode || request.headers.get('x-admin-passcode');
       if (!providedPasscode || providedPasscode !== validPasscode) {
         return NextResponse.json({
