@@ -12,6 +12,7 @@ export default function Sidebar({
   onMouseEnter,
   onMouseLeave,
   onOpenMessengerDrawer,
+  onOpenQuickToolsDrawer,
 }: {
   isOpen: boolean;
   isPinned?: boolean;
@@ -19,6 +20,7 @@ export default function Sidebar({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   onOpenMessengerDrawer?: () => void;
+  onOpenQuickToolsDrawer?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -59,6 +61,7 @@ export default function Sidebar({
               : pathname?.startsWith(item.href);
 
             const isMessengerItem = item.href === '/messenger';
+            const isQuickToolsItem = item.href === '/quick-tools';
 
             return (
               <li key={item.name}>
@@ -68,6 +71,9 @@ export default function Sidebar({
                     if (isMessengerItem && pathname !== '/messenger' && onOpenMessengerDrawer) {
                       e.preventDefault();
                       onOpenMessengerDrawer();
+                    } else if (isQuickToolsItem && onOpenQuickToolsDrawer) {
+                      e.preventDefault();
+                      onOpenQuickToolsDrawer();
                     }
                   }}
                   className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-md ${

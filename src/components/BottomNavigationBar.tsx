@@ -21,6 +21,7 @@ export default function BottomNavigationBar() {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             const isMessengerItem = item.href === '/messenger';
+            const isQuickToolsItem = item.href === '/quick-tools';
 
             return (
               <Link
@@ -30,6 +31,9 @@ export default function BottomNavigationBar() {
                   if (isMessengerItem && pathname !== '/messenger') {
                     e.preventDefault();
                     window.dispatchEvent(new Event('nenkin:open-messenger-drawer'));
+                  } else if (isQuickToolsItem) {
+                    e.preventDefault();
+                    window.dispatchEvent(new Event('nenkin:open-quick-tools'));
                   }
                 }}
                 className={`flex-1 flex flex-col items-center justify-center h-full py-1 px-0.5 transition-all text-center min-w-0 ${
