@@ -178,3 +178,79 @@ export async function getCroppedImg(
     height: cropH,
   };
 }
+
+export interface NormalizedCrop {
+  x: number; // 0 to 1
+  y: number; // 0 to 1
+  width: number; // 0 to 1
+  height: number; // 0 to 1
+}
+
+export const DEFAULT_CROP: NormalizedCrop = {
+  x: 0,
+  y: 0,
+  width: 1,
+  height: 1,
+};
+
+/**
+ * Clamps normalized crop within bounds [0, 1] with minimum dimensions
+ */
+export function clampCrop(crop: NormalizedCrop, minSize = 0.05): NormalizedCrop {
+  const width = Math.max(minSize, Math.min(1, crop.width));
+  const height = Math.max(minSize, Math.min(1, crop.height));
+  const x = Math.max(0, Math.min(1 - width, crop.x));
+  const y = Math.max(0, Math.min(1 - height, crop.y));
+  return { x, y, width, height };
+}
+
+/**
+ * Computes centered crop for a target aspect ratio inside displayed container dimensions
+ */
+export function computeAspectRatioCrop(
+  boxWidth: number,
+  boxHeight: number,
+  targetRatio: number
+): NormalizedCrop {
+  if (boxWidth <= 0 || boxHeight <= 0 || targetRatio <= 0) return { ...DEFAULT_CROP };
+  const currentRatio = boxWidth / boxHeight;
+
+  if (currentRatio > targetRatio) {
+    // Current is wider than target -> shrink width
+    const targetW = (boxHeight * targetRatio) / boxWidth;
+    const clampedW = Math.min(1, Math.max(0.05, targetW));
+    return {
+      x: (1 - clampedW) / 2,
+      y: 0,
+      width: clampedW,
+      height: 1,
+    };
+  } else {
+    // Current is taller than target -> shrink height
+    const targetH = (boxWidth / targetRatio) / boxHeight;
+    const clampedH = Math.min(1, Math.max(0.05, targetH));
+    return {
+      x: 0,
+      y: (1 - clampedH) / 2,
+      width: 1,
+      height: clampedH,
+    };
+  }
+}
+
+/**
+ * Converts normalized crop [0, 1] to pixel crop based on total pixels
+ */
+export function normalizedToPixelCrop(
+  crop: NormalizedCrop,
+  totalWidth: number,
+  totalHeight: number
+): PixelCrop {
+  return {
+    x: Math.round(crop.x * totalWidth),
+    y: Math.round(crop.y * totalHeight),
+    width: Math.round(crop.width * totalWidth),
+    height: Math.round(crop.height * totalHeight),
+  };
+}
+
