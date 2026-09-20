@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   X, Search, Copy, Check, ExternalLink, MapPin, Building2,
   CreditCard, Sparkles, UploadCloud, Loader2, ArrowRight,
-  HelpCircle, Phone, Mail, FileText, Compass, Landmark
+  HelpCircle, Phone, Mail, FileText, Compass, Landmark,
+  History, RotateCcw, Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
@@ -14,6 +15,18 @@ interface QuickToolsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+export interface ToolHistoryItem {
+  id: string;
+  type: 'POSTAL' | 'TAX_OFFICE' | 'OCR' | 'BANK';
+  title: string;
+  subtitle: string;
+  timestamp: number;
+  data: any;
+}
+
+const STORAGE_KEY = 'nenkin_quick_tools_state';
+const HISTORY_KEY = 'nenkin_quick_tools_history';
 
 // Popular Japanese banks dataset for instant lookup
 const POPULAR_JAPAN_BANKS = [
@@ -71,6 +84,107 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
   // ── Tab 4: Bank lookup state ──
   const [bankQuery, setBankQuery] = useState('');
 
+  // ── History & Persistence state ──
+  const [history, setHistory] = useState<ToolHistoryItem[]>([]);
+  const isHydratedRef = useRef(false);
+
+  // Load saved state and history on initial client mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        if (parsed.activeTab) setActiveTab(parsed.activeTab);
+        if (parsed.zipInput !== undefined) setZipInput(parsed.zipInput);
+        if (parsed.addressInput !== undefined) setAddressInput(parsed.addressInput);
+        if (parsed.zipResult) setZipResult(parsed.zipResult);
+        if (parsed.addressResult) setAddressResult(parsed.addressResult);
+        if (parsed.taxZipInput !== undefined) setTaxZipInput(parsed.taxZipInput);
+        if (parsed.taxOfficeResult) setTaxOfficeResult(parsed.taxOfficeResult);
+        if (parsed.ocrResult) setOcrResult(parsed.ocrResult);
+        if (parsed.bankQuery !== undefined) setBankQuery(parsed.bankQuery);
+      }
+      const savedHistory = localStorage.getItem(HISTORY_KEY);
+      if (savedHistory) {
+        const parsedHist = JSON.parse(savedHistory);
+        if (Array.isArray(parsedHist)) setHistory(parsedHist);
+      }
+    } catch (e) {
+      console.error('Failed to load QuickTools state:', e);
+    } finally {
+      isHydratedRef.current = true;
+    }
+  }, []);
+
+  // Save current active state to localStorage whenever inputs or results change
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    try {
+      const stateToSave = {
+        activeTab,
+        zipInput,
+        addressInput,
+        zipResult,
+        addressResult,
+        taxZipInput,
+        taxOfficeResult,
+        ocrResult,
+        bankQuery,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {}
+  }, [activeTab, zipInput, addressInput, zipResult, addressResult, taxZipInput, taxOfficeResult, ocrResult, bankQuery]);
+
+  // Helper to add item to history
+  const addHistoryItem = (item: Omit<ToolHistoryItem, 'id' | 'timestamp'>) => {
+    setHistory(prev => {
+      const filtered = prev.filter(h => !(h.type === item.type && h.title === item.title));
+      const newItem: ToolHistoryItem = {
+        ...item,
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+      };
+      const updated = [newItem, ...filtered].slice(0, 15);
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  // Helper to clear history
+  const clearHistory = (type?: 'POSTAL' | 'TAX_OFFICE' | 'OCR' | 'BANK') => {
+    setHistory(prev => {
+      const updated = type ? prev.filter(h => h.type !== type) : [];
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      toast.success(type ? 'Đã xóa lịch sử mục này' : 'Đã xóa toàn bộ lịch sử tra cứu');
+      return updated;
+    });
+  };
+
+  // Apply history item
+  const handleApplyHistory = (item: ToolHistoryItem) => {
+    if (item.type === 'POSTAL') {
+      if (item.data.zipInput !== undefined) setZipInput(item.data.zipInput);
+      if (item.data.zipResult !== undefined) setZipResult(item.data.zipResult);
+      if (item.data.addressInput !== undefined) setAddressInput(item.data.addressInput);
+      if (item.data.addressResult !== undefined) setAddressResult(item.data.addressResult);
+      toast.info(`Đã nạp lại: ${item.title}`);
+    } else if (item.type === 'TAX_OFFICE') {
+      if (item.data.taxZipInput !== undefined) setTaxZipInput(item.data.taxZipInput);
+      if (item.data.taxOfficeResult !== undefined) setTaxOfficeResult(item.data.taxOfficeResult);
+      toast.info(`Đã nạp lại: ${item.title}`);
+    } else if (item.type === 'OCR') {
+      if (item.data.ocrResult !== undefined) setOcrResult(item.data.ocrResult);
+      toast.info(`Đã nạp lại: ${item.title}`);
+    } else if (item.type === 'BANK') {
+      if (item.data.bankQuery !== undefined) setBankQuery(item.data.bankQuery);
+      toast.info(`Đã tìm theo: ${item.title}`);
+    }
+  };
+
   // Copy helper
   const copyToClipboard = (text: string, label: string = 'Nội dung') => {
     if (!text) return;
@@ -95,6 +209,12 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
       if (data.success && data.data) {
         setZipResult(data.data);
         toast.success(`Tìm thấy địa chỉ: ${data.data.fullAddress}`);
+        addHistoryItem({
+          type: 'POSTAL',
+          title: `〒 ${data.data.postalCode}`,
+          subtitle: data.data.fullAddress,
+          data: { zipInput: data.data.postalCode, zipResult: data.data },
+        });
       } else {
         toast.error(data.error || 'Không tìm thấy địa chỉ cho mã bưu điện này');
       }
@@ -120,6 +240,12 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
       if (data.success && data.data) {
         setAddressResult(data.data);
         toast.success(`Mã bưu điện: 〒${data.data.postalCode}`);
+        addHistoryItem({
+          type: 'POSTAL',
+          title: `〒 ${data.data.postalCode}`,
+          subtitle: data.data.fullAddress,
+          data: { addressInput: addressInput.trim(), addressResult: data.data },
+        });
       } else {
         toast.error(data.error || 'Không tìm thấy mã bưu điện cho địa chỉ này');
       }
@@ -147,6 +273,12 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
       if (data.success && data.data) {
         setTaxOfficeResult(data.data);
         toast.success(`Đã tìm thấy: ${data.data.name}`);
+        addHistoryItem({
+          type: 'TAX_OFFICE',
+          title: data.data.name,
+          subtitle: data.data.address || `Mã bưu điện: ${clean}`,
+          data: { taxZipInput: clean, taxOfficeResult: data.data },
+        });
       } else {
         toast.error(data.error || 'Không tìm thấy cục thuế');
       }
@@ -228,6 +360,12 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
       if (data.success && data.extractedData) {
         setOcrResult(data.extractedData);
         toast.success('Trích xuất thành công!', { id: loadId });
+        addHistoryItem({
+          type: 'OCR',
+          title: data.extractedData.name || 'Thẻ ngoại kiều',
+          subtitle: `Số thẻ: ${data.extractedData.cardCode || '---'} • Hạn: ${data.extractedData.periodDate || '---'}`,
+          data: { ocrResult: data.extractedData },
+        });
       } else {
         throw new Error(data.error || 'AI không nhận diện được thông tin trên ảnh');
       }
@@ -237,8 +375,6 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
       setOcrLoading(false);
     }
   };
-
-  if (!isOpen) return null;
 
   // Filtered banks
   const filteredBanks = POPULAR_JAPAN_BANKS.filter(b => {
@@ -252,18 +388,28 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
     );
   });
 
+  const tabHistory = history.filter(h => h.type === activeTab);
+
   return (
-    <div className="fixed inset-0 z-[125] flex justify-end animate-in fade-in duration-200 font-sans">
+    <div
+      className={`fixed inset-0 z-[125] flex justify-end font-sans transition-all duration-300 ${
+        isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}
+    >
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity"
+        className={`fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
       />
 
-      {/* Slide-over Drawer (Width 480px, compact high-density) */}
+      {/* Slide-over Drawer (Width max-w-xl / 576px, compact high-density) */}
       <div
         onPaste={activeTab === 'OCR' ? handlePasteImage : undefined}
-        className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 border-l border-slate-200"
+        className={`relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col z-10 transition-transform duration-300 border-l border-slate-200 ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
       >
         
         {/* Drawer Header */}
@@ -295,63 +441,102 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
           </div>
         </div>
 
-        {/* Tab Navigation Buttons */}
-        <div className="p-2 bg-slate-100/80 border-b border-slate-200 flex items-center gap-1 shrink-0 overflow-x-auto scrollbar-none">
+        {/* Tab Navigation Buttons - 4 columns grid, fits 100% on all screens */}
+        <div className="p-1.5 bg-slate-100/90 border-b border-slate-200 grid grid-cols-4 gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('POSTAL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            className={`py-2 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all text-center truncate ${
               activeTab === 'POSTAL'
-                ? 'bg-white text-teal-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-white text-teal-800 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
+            title="Tra cứu Mã Bưu Điện & Địa chỉ Nhật Bản"
           >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>Địa Chỉ & Bưu Điện</span>
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+            <span className="truncate">Địa Chỉ (〒)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('TAX_OFFICE')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            className={`py-2 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all text-center truncate ${
               activeTab === 'TAX_OFFICE'
-                ? 'bg-white text-teal-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-white text-teal-800 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
+            title="Tra cứu Cục Thuế quản lý (NTA)"
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Cục Thuế (NTA)</span>
+            <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+            <span className="truncate">Cục Thuế</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('OCR')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            className={`py-2 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all text-center truncate ${
               activeTab === 'OCR'
-                ? 'bg-white text-teal-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-white text-teal-800 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
+            title="Trích xuất tự động Thẻ Ngoại Kiều (Zairyu Card)"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Thẻ Ngoại Kiều</span>
+            <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+            <span className="truncate">Ngoại Kiều</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('BANK')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+            className={`py-2 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all text-center truncate ${
               activeTab === 'BANK'
-                ? 'bg-white text-teal-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-white text-teal-800 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
+            title="Tra cứu Mã Ngân Hàng Nhật Bản (Ginkō Code / SWIFT)"
           >
-            <Landmark className="w-3.5 h-3.5" />
-            <span>Mã Ngân Hàng</span>
+            <Landmark className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
+            <span className="truncate">Ngân Hàng</span>
           </button>
         </div>
 
         {/* Tab Contents Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3.5 min-h-0 text-xs">
+          
+          {/* Recent History Bar if available for activeTab */}
+          {tabHistory.length > 0 && (
+            <div className="p-2.5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-1.5 shadow-2xs animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 px-0.5">
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <History className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Vừa tra cứu gần đây ({tabHistory.length})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => clearHistory(activeTab)}
+                  className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors font-medium flex items-center gap-0.5"
+                  title="Xóa lịch sử mục này"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Xóa</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                {tabHistory.map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleApplyHistory(item)}
+                    className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50/60 text-[11px] text-slate-700 font-medium transition-all shrink-0 text-left flex items-center gap-1.5 shadow-2xs group"
+                    title={`${item.title} - ${item.subtitle}`}
+                  >
+                    <span className="font-bold text-teal-800 group-hover:text-teal-900">{item.title}</span>
+                    <span className="text-[10px] text-slate-400 max-w-[130px] truncate group-hover:text-slate-600">{item.subtitle}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
           {/* ════════ TAB 1: POSTAL CODE & ADDRESS ════════ */}
           {activeTab === 'POSTAL' && (
@@ -394,14 +579,24 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
                   <div className="bg-white p-3 rounded-xl border border-teal-200 text-slate-800 space-y-2 animate-in slide-in-from-top-1">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                       <span className="font-mono font-bold text-teal-700 text-xs">〒{zipResult.postalCode}</span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(zipResult.fullAddress, 'Địa chỉ')}
-                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Sao chép</span>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { setZipResult(null); setZipInput(''); }}
+                          className="px-2 py-0.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 text-[10px] font-medium transition-colors"
+                          title="Xóa kết quả này"
+                        >
+                          Xóa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(zipResult.fullAddress, 'Địa chỉ')}
+                          className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Sao chép</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div>
@@ -473,14 +668,24 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
                   <div className="bg-white p-3 rounded-xl border border-indigo-200 text-slate-800 space-y-2 animate-in slide-in-from-top-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-slate-500">Mã bưu điện tìm thấy:</span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(addressResult.postalCode, 'Mã bưu điện')}
-                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Sao chép</span>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { setAddressResult(null); setAddressInput(''); }}
+                          className="px-2 py-0.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 text-[10px] font-medium transition-colors"
+                          title="Xóa kết quả này"
+                        >
+                          Xóa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(addressResult.postalCode, 'Mã bưu điện')}
+                          className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Sao chép</span>
+                        </button>
+                      </div>
                     </div>
 
                     <p className="font-mono font-bold text-base text-indigo-700 select-all">
@@ -556,17 +761,27 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
                         <p className="text-[11px] text-slate-400 font-mono">{taxOfficeResult.romajiName}</p>
                       )}
                     </div>
-                    {taxOfficeResult.ntaPageUrl && (
-                      <a
-                        href={taxOfficeResult.ntaPageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-[10px] flex items-center gap-1 transition-colors"
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setTaxOfficeResult(null); setTaxZipInput(''); }}
+                        className="px-2 py-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 font-semibold text-[10px] transition-colors"
+                        title="Xóa kết quả này"
                       >
-                        <span>Trang NTA</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
+                        Xóa
+                      </button>
+                      {taxOfficeResult.ntaPageUrl && (
+                        <a
+                          href={taxOfficeResult.ntaPageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-[10px] flex items-center gap-1 transition-colors"
+                        >
+                          <span>Trang NTA</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   {/* Mail Destination (Quan trọng nhất để gửi hồ sơ) */}
@@ -737,17 +952,31 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
                       <FileText className="w-4 h-4 text-purple-600" />
                       Kết Quả Nhận Diện AI
                     </h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const fullText = `Họ tên: ${ocrResult.fullName || ''}\nSố thẻ: ${ocrResult.zairyuNumber || ''}\nNgày sinh: ${ocrResult.dob || ''}\nQuốc tịch: ${ocrResult.nationality || ''}\nĐịa chỉ: ${ocrResult.address || ''}\nHạn thẻ: ${ocrResult.periodOfStay || ''}`;
-                        copyToClipboard(fullText, 'Toàn bộ thông tin');
-                      }}
-                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] flex items-center gap-1"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>Sao chép tất cả</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOcrResult(null);
+                          setOcrImageFile(null);
+                          setOcrImagePreview(null);
+                        }}
+                        className="px-2 py-0.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 font-bold text-[10px] transition-colors"
+                        title="Xóa kết quả này"
+                      >
+                        Xóa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fullText = `Họ tên: ${ocrResult.fullName || ''}\nSố thẻ: ${ocrResult.zairyuNumber || ''}\nNgày sinh: ${ocrResult.dob || ''}\nQuốc tịch: ${ocrResult.nationality || ''}\nĐịa chỉ: ${ocrResult.address || ''}\nHạn thẻ: ${ocrResult.periodOfStay || ''}`;
+                          copyToClipboard(fullText, 'Toàn bộ thông tin');
+                        }}
+                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Sao chép tất cả</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
@@ -874,7 +1103,15 @@ export default function QuickToolsDrawer({ isOpen, onClose }: QuickToolsDrawerPr
                         </div>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(b.code, `Mã ngân hàng ${b.romaji}`)}
+                          onClick={() => {
+                            copyToClipboard(b.code, `Mã ngân hàng ${b.romaji}`);
+                            addHistoryItem({
+                              type: 'BANK',
+                              title: `${b.romaji} (${b.code})`,
+                              subtitle: `SWIFT: ${b.swift} • ${b.name.split(' (')[0]}`,
+                              data: { bankQuery: b.code },
+                            });
+                          }}
                           className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 shrink-0"
                           title="Sao chép mã 4 số"
                         >
