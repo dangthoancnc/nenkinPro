@@ -31,6 +31,11 @@ const participantSelect = {
       fullName: true,
       code: true,
       phone: true,
+      applications: {
+        take: 1,
+        orderBy: { createdAt: 'desc' as const },
+        select: { id: true, status: true },
+      },
       sessions: {
         where: { revokedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { lastSeenAt: 'desc' as const },
@@ -181,6 +186,7 @@ export async function GET(request: NextRequest) {
       return {
         id: c.id,
         customerId: custParticipant?.id || null,
+        applicationId: c.applicationId || custParticipant?.applications?.[0]?.id || null,
         name: c.title || custParticipant?.fullName || userParticipant?.name || 'Cuộc trò chuyện',
         type: c.type,
         code: custParticipant?.code || userParticipant?.staffCode || '',

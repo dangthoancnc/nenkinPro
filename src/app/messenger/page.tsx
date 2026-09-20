@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   MessageSquare, Send, Image as ImageIcon, Paperclip, CheckCircle2,
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
   Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
   ChevronLeft, Info, Download, FolderPlus, Maximize2, Sparkles, UploadCloud,
-  UserPlus, Edit3, BookUser, Crop, RotateCcw,
+  UserPlus, Edit3, BookUser, Crop, RotateCcw, ExternalLink,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -43,6 +44,7 @@ interface ChatMessage {
 interface ChatConversation {
   id: string;
   customerId?: string | null;
+  applicationId?: string | null;
   name: string;
   type: 'CUSTOMER' | 'CUSTOMER_SUPPORT' | 'CTV' | 'GROUP' | 'DIRECT';
   code?: string;
@@ -91,6 +93,7 @@ const getAvatarColor = (name: string) => {
 };
 
 export default function MessengerPage() {
+  const router = useRouter();
   const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP' | 'ARCHIVED'>('CUSTOMER');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -751,6 +754,65 @@ export default function MessengerPage() {
     }
   };
 
+  // Helper: compute dossier / profile URL for active chat counterpart
+  const getDossierUrl = (chat: ChatConversation | null) => {
+    if (!chat) return null;
+    const matchedStaff = availableStaffs.find(s => s.name === chat.name || (chat.code && s.code === chat.code));
+    const isStaff = !!matchedStaff || chat.type === 'DIRECT' || chat.role === 'ADMIN' || chat.role === 'MANAGER' || (chat.code && chat.code.startsWith('NV'));
+
+    if (isStaff) {
+      return `/hr?q=${encodeURIComponent(chat.name)}`;
+    }
+    // Customer
+    if (chat.applicationId) {
+      return `/applications/${chat.applicationId}`;
+    }
+    if (chat.code) {
+      return `/applications?q=${encodeURIComponent(chat.code)}`;
+    }
+    if (chat.customerId) {
+      return `/applications?q=${encodeURIComponent(chat.name)}`;
+    }
+    return `/applications?q=${encodeURIComponent(chat.name)}`;
+  };
+
+  const handleOpenDossierNewTab = () => {
+    const url = getDossierUrl(activeChat);
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenDossierAndDockChat = () => {
+    if (!activeChat) return;
+    const url = getDossierUrl(activeChat);
+    if (!url) return;
+
+    const matchedStaff = availableStaffs.find(s => s.name === activeChat.name || (activeChat.code && s.code === activeChat.code));
+    const isStaff = !!matchedStaff || activeChat.type === 'DIRECT' || activeChat.role === 'ADMIN' || activeChat.role === 'MANAGER' || (activeChat.code && activeChat.code.startsWith('NV'));
+    const roleTitle = matchedStaff?.role || (activeChat.role === 'ADMIN' ? 'Quản trị viên' : activeChat.role === 'MANAGER' ? 'Quản lý' : activeChat.role === 'CTV' || activeChat.type === 'CTV' ? 'Cộng tác viên (CTV)' : isStaff ? 'Nhân viên nội bộ' : 'Khách hàng');
+
+    const dockData = {
+      conversationId: activeChat.id,
+      name: activeChat.name,
+      code: activeChat.code || matchedStaff?.code || '',
+      role: roleTitle,
+      isStaff,
+      isOnline: activeChat.isOnline,
+      isOpen: true,
+      isMinimized: false,
+      targetUrl: url,
+    };
+
+    try {
+      localStorage.setItem('nenkin_docked_chat', JSON.stringify(dockData));
+      window.dispatchEvent(new Event('nenkin:dock-chat'));
+    } catch (e) {
+      console.error(e);
+    }
+
+    router.push(url);
+  };
+
   const filteredChats = conversations
     .filter(c => {
       if (chatCategory === 'ARCHIVED') return c.isArchived === true;
@@ -937,13 +999,17 @@ export default function MessengerPage() {
                     }}
                     className={`p-3 flex items-center gap-2.5 cursor-pointer transition-all ${
                       activeChatId === chat.id
-                        ? 'bg-blue-50/90 border-l-4 border-blue-600 shadow-2xs'
-                        : 'hover:bg-slate-50/80'
+                        ? 'bg-blue-50/95 border-l-4 border-blue-600 shadow-2xs'
+                        : 'hover:bg-slate-50/80 border-l-4 border-transparent'
                     }`}
                   >
                     <div className="relative shrink-0">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border ${
-                        chat.type === 'GROUP' ? 'bg-violet-100 text-violet-700 border-violet-200' : getAvatarColor(chat.name)
+                        activeChatId === chat.id
+                          ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                          : chat.type === 'GROUP'
+                          ? 'bg-violet-100 text-violet-700 border-violet-200'
+                          : getAvatarColor(chat.name)
                       }`}>
                         {chat.type === 'GROUP' ? <Users className="w-4 h-4" /> : (chat.name?.[0] || 'K')}
                       </div>
@@ -953,14 +1019,25 @@ export default function MessengerPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <h4 className="font-bold text-xs text-slate-800 truncate flex items-center gap-1">
+                        <h4 className={`font-bold text-xs truncate flex items-center gap-1 ${
+                          activeChatId === chat.id ? 'text-blue-700' : 'text-slate-800'
+                        }`}>
                           {chat.name}
                           {chat.type === 'CUSTOMER_SUPPORT' && <span className="px-1.5 py-0.2 bg-teal-100 text-teal-800 text-[8px] font-bold rounded">Tư vấn</span>}
                         </h4>
-                        {chat.code && <span className="text-[9px] font-mono text-slate-400 shrink-0">#{chat.code}</span>}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {activeChatId === chat.id && (
+                            <span className="px-1.5 py-0.2 bg-blue-600 text-white text-[8px] font-bold rounded-full shrink-0 shadow-2xs animate-in fade-in">
+                              Đang chọn
+                            </span>
+                          )}
+                          {chat.code && <span className="text-[9px] font-mono text-slate-400 shrink-0">#{chat.code}</span>}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <p className="text-[11px] text-slate-500 truncate flex-1">{chat.lastMessage}</p>
+                        <p className={`text-[11px] truncate flex-1 ${activeChatId === chat.id ? 'text-blue-900/80 font-medium' : 'text-slate-500'}`}>
+                          {chat.lastMessage}
+                        </p>
                         {chat.isArchived ? (
                           <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[8px] font-bold rounded shrink-0">Đã lưu</span>
                         ) : chat.supportStatus === 'UNASSIGNED' ? (
@@ -1021,57 +1098,82 @@ export default function MessengerPage() {
               {filteredDirectoryMembers.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400 italic">Không tìm thấy danh bạ phù hợp</div>
               ) : (
-                filteredDirectoryMembers.map((m) => (
-                  <div
-                    key={m.id}
-                    onClick={() => handleOpenDirectChat(m)}
-                    className="p-2.5 sm:p-3 flex items-center justify-between gap-2.5 hover:bg-slate-50/90 active:bg-slate-100/80 transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {/* Avatar with Online Status Dot */}
-                      <div className="relative shrink-0">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border ${getAvatarColor(m.name)}`}>
-                          {m.name?.[0] || 'U'}
-                        </div>
-                        <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
-                          m.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
-                        }`} />
-                      </div>
+                filteredDirectoryMembers.map((m) => {
+                  const isMemberActive = !!activeChat && (
+                    (activeChat.customerId && activeChat.customerId === m.id) ||
+                    (activeChat.code && m.code && activeChat.code === m.code) ||
+                    activeChat.name === m.name
+                  );
 
-                      {/* Info: Name, Role, Online Status */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 justify-between">
-                          <span className="font-bold text-xs text-slate-800 truncate group-hover:text-blue-600 transition-colors">
-                            {m.name}
-                          </span>
-                          {m.type === 'STAFF' && m.role && (
-                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium rounded shrink-0">
-                              {m.role}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between gap-1 mt-0.5">
-                          <p className={`text-[10px] truncate flex items-center gap-1 ${
-                            m.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => handleOpenDirectChat(m)}
+                      className={`p-2.5 sm:p-3 flex items-center justify-between gap-2.5 transition-all cursor-pointer group ${
+                        isMemberActive
+                          ? 'bg-blue-50/95 border-l-4 border-blue-600 shadow-2xs font-semibold'
+                          : 'hover:bg-slate-50/90 active:bg-slate-100/80 border-l-4 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        {/* Avatar with Online Status Dot */}
+                        <div className="relative shrink-0">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs border ${
+                            isMemberActive
+                              ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                              : getAvatarColor(m.name)
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                            <span>{m.isOnline ? 'Đang hoạt động' : (m.lastActiveText || 'Ngoại tuyến')}</span>
-                          </p>
-                          <span className="text-[9px] font-mono text-slate-400 shrink-0">
-                            {m.code ? `#${m.code}` : ''}
-                          </span>
+                            {m.name?.[0] || 'U'}
+                          </div>
+                          <span className={`w-2.5 h-2.5 rounded-full border-2 border-white absolute bottom-0 right-0 ${
+                            m.isOnline ? 'bg-emerald-500 animate-pulse ring-1 ring-emerald-200' : 'bg-slate-300'
+                          }`} />
+                        </div>
+
+                        {/* Info: Name, Role, Online Status */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 justify-between">
+                            <span className={`font-bold text-xs truncate transition-colors ${
+                              isMemberActive ? 'text-blue-700' : 'text-slate-800 group-hover:text-blue-600'
+                            }`}>
+                              {m.name}
+                            </span>
+                            {m.type === 'STAFF' && m.role && (
+                              <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium rounded shrink-0">
+                                {m.role}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-1 mt-0.5">
+                            <p className={`text-[10px] truncate flex items-center gap-1 ${
+                              m.isOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400 font-normal'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                              <span>{m.isOnline ? 'Đang hoạt động' : (m.lastActiveText || 'Ngoại tuyến')}</span>
+                            </p>
+                            <span className="text-[9px] font-mono text-slate-400 shrink-0">
+                              {m.code ? `#${m.code}` : ''}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Subtle Action on Hover (Message icon button) */}
-                    <div className="shrink-0 pl-1">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center transition-colors shadow-2xs">
-                        <MessageSquare className="w-3.5 h-3.5" />
+                      {/* Subtle Action on Hover or Active Badge */}
+                      <div className="shrink-0 pl-1">
+                        {isMemberActive ? (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[9px] font-bold shadow-2xs animate-in fade-in flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            Đang chat
+                          </span>
+                        ) : (
+                          <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center transition-colors shadow-2xs">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -1220,6 +1322,35 @@ export default function MessengerPage() {
                       </button>
                     </div>
                   ) : null
+                )}
+
+                {/* Dossier Quick Access Buttons (Profile Link + Mini Docked Chat) */}
+                {activeChat.type !== 'GROUP' && (
+                  <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={handleOpenDossierAndDockChat}
+                      className="h-7 px-2.5 bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs border border-slate-200/60 transition-all"
+                      title="Mở hồ sơ tại tab này & thu nhỏ chat nổi (Facebook Messenger style) để vừa duyệt vừa trao đổi"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="hidden sm:inline">
+                        {(() => {
+                          const matchedStaff = availableStaffs.find(s => s.name === activeChat.name || (activeChat.code && s.code === activeChat.code));
+                          const isStaff = !!matchedStaff || activeChat.type === 'DIRECT' || activeChat.role === 'ADMIN' || activeChat.role === 'MANAGER' || (activeChat.code && activeChat.code.startsWith('NV'));
+                          return isStaff ? 'Hồ Sơ NV' : 'Hồ Sơ Khách';
+                        })()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenDossierNewTab}
+                      className="h-7 w-7 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 rounded-lg flex items-center justify-center transition-colors"
+                      title="Mở hồ sơ ở tab mới"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
 
                 {/* Add Member Button - invite anyone into this chat */}
@@ -1854,6 +1985,28 @@ export default function MessengerPage() {
                         <span className="text-slate-700 truncate max-w-[120px]" title={activeChat.email}>{activeChat.email}</span>
                       </div>
                     )}
+
+                    {/* Dossier Quick Access */}
+                    <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={handleOpenDossierAndDockChat}
+                        className="w-full h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                        title="Mở hồ sơ & thu nhỏ khung chat nổi để vừa duyệt vừa trao đổi"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Mở hồ sơ & Thu nhỏ chat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenDossierNewTab}
+                        className="w-full h-7 px-2.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1.5 border border-slate-200 transition-colors"
+                        title="Mở hồ sơ ở tab mới"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Mở hồ sơ ở tab mới</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })()}

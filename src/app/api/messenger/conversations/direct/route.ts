@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     let targetName = 'Đồng nghiệp';
     let targetCode = '';
     let targetPhone = '';
+    let targetApplicationId: string | null = null;
     let convType = 'DIRECT';
     let targetPresence = { isOnline: false, lastActiveText: 'Ngoại tuyến' };
 
@@ -67,6 +68,11 @@ export async function POST(request: NextRequest) {
           fullName: true,
           code: true,
           phone: true,
+          applications: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, status: true },
+          },
           sessions: {
             where: { revokedAt: null, expiresAt: { gt: new Date() } },
             orderBy: { lastSeenAt: 'desc' },
@@ -86,6 +92,7 @@ export async function POST(request: NextRequest) {
       targetName = targetCust.fullName;
       targetCode = targetCust.code;
       targetPhone = targetCust.phone || '';
+      targetApplicationId = targetCust.applications?.[0]?.id || null;
       convType = 'CUSTOMER';
       const latest = extractLatestActivity(targetCust);
       targetPresence = calculatePresence(false, latest, now);
@@ -112,7 +119,19 @@ export async function POST(request: NextRequest) {
         participants: {
           include: {
             user: { select: { id: true, name: true, role: true, staffCode: true } },
-            customer: { select: { id: true, fullName: true, code: true, phone: true } },
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                code: true,
+                phone: true,
+                applications: {
+                  take: 1,
+                  orderBy: { createdAt: 'desc' },
+                  select: { id: true },
+                },
+              },
+            },
           },
         },
         messages: {
@@ -140,6 +159,7 @@ export async function POST(request: NextRequest) {
         data: {
           id: exactDirect.id,
           customerId: custParticipant?.id || null,
+          applicationId: exactDirect.applicationId || custParticipant?.applications?.[0]?.id || targetApplicationId || null,
           name: exactDirect.title || custParticipant?.fullName || userParticipant?.name || 'Cuộc trò chuyện',
           type: exactDirect.type,
           code: custParticipant?.code || userParticipant?.staffCode || targetCode,
@@ -175,7 +195,19 @@ export async function POST(request: NextRequest) {
         participants: {
           include: {
             user: { select: { id: true, name: true, role: true, staffCode: true } },
-            customer: { select: { id: true, fullName: true, code: true, phone: true } },
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                code: true,
+                phone: true,
+                applications: {
+                  take: 1,
+                  orderBy: { createdAt: 'desc' },
+                  select: { id: true },
+                },
+              },
+            },
           },
         },
         messages: {
@@ -190,11 +222,14 @@ export async function POST(request: NextRequest) {
       ? (newTargetUser.role === 'ADMIN' ? 'Quản trị viên' : newTargetUser.role === 'MANAGER' ? 'Quản lý' : 'Cộng tác viên (CTV)')
       : (targetUserId ? 'Nhân viên' : undefined);
 
+    const newCustParticipant = newConv.participants?.find((p: any) => p.customer)?.customer;
+
     return NextResponse.json({
       success: true,
       data: {
         id: newConv.id,
         customerId: targetCustomerId || null,
+        applicationId: newConv.applicationId || newCustParticipant?.applications?.[0]?.id || targetApplicationId || null,
         name: targetName,
         type: newConv.type,
         code: targetCode,

@@ -6,6 +6,7 @@ import Topbar from './Topbar';
 import { usePathname } from 'next/navigation';
 
 import BottomNavigationBar from './BottomNavigationBar';
+import MiniDockedChat from './messenger/MiniDockedChat';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isPinned, setIsPinned] = useState(false);
@@ -62,6 +63,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           {children}
         </main>
       </div>
+      <MiniDockedChat />
       <BottomNavigationBar />
     </div>
   );
