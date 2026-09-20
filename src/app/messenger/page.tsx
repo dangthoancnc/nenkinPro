@@ -6,7 +6,7 @@ import {
   UserCircle, Search, FileText, Users, Plus, Shield, UserCheck, X, Loader2,
   Archive, ArchiveRestore, Trash2, Inbox, AlertTriangle, MoreVertical, Zap, Unlock, CheckCircle,
   ChevronLeft, Info, Download, FolderPlus, Maximize2, Sparkles, UploadCloud,
-  UserPlus, Edit3, BookUser,
+  UserPlus, Edit3, BookUser, Crop,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import AssignToDossierModal, { AssignAttachmentTarget } from '@/components/messenger/AssignToDossierModal';
 import AddMembersModal from '@/components/messenger/AddMembersModal';
 import QuickNewChatModal from '@/components/messenger/QuickNewChatModal';
+import ImageEditorModal from '@/components/messenger/ImageEditorModal';
 
 export interface ChatAttachment {
   url: string;
@@ -125,6 +126,12 @@ export default function MessengerPage() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [selectedAttachmentForDossier, setSelectedAttachmentForDossier] = useState<AssignAttachmentTarget | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [imageEditorTarget, setImageEditorTarget] = useState<{
+    url: string;
+    name: string;
+    isPending?: boolean;
+    pendingIndex?: number;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -408,6 +415,100 @@ export default function MessengerPage() {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleAddFiles(e.dataTransfer.files);
       toast.info(`📂 Đã nhận ${e.dataTransfer.files.length} tệp kéo thả!`);
+    }
+  };
+
+  // Image Editor Handlers: Apply Pending, Send to Chat, Save to Dossier
+  const handleApplyPendingImage = (blob: Blob, fileName: string) => {
+    if (imageEditorTarget?.pendingIndex === undefined) return;
+    const idx = imageEditorTarget.pendingIndex;
+    const newFile = new File([blob], fileName, { type: 'image/jpeg' });
+    const newUrl = URL.createObjectURL(newFile);
+
+    setPendingPreviews(prev => {
+      if (prev[idx]) URL.revokeObjectURL(prev[idx].url);
+      const next = [...prev];
+      next[idx] = {
+        file: newFile,
+        url: newUrl,
+        isImage: true,
+        name: fileName,
+        size: newFile.size,
+      };
+      return next;
+    });
+
+    setPendingFiles(prev => {
+      const next = [...prev];
+      next[idx] = newFile;
+      return next;
+    });
+  };
+
+  const handleSendEditedImageToChat = async (blob: Blob, fileName: string) => {
+    if (!activeChat) return;
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    const fd = new FormData();
+    fd.append('files', file);
+
+    const upRes = await fetch('/api/messenger/upload', {
+      method: 'POST',
+      body: fd,
+    });
+    const upData = await upRes.json();
+    if (!upData.success || !Array.isArray(upData.data) || upData.data.length === 0) {
+      throw new Error(upData.error || 'Tải ảnh lên máy chủ thất bại');
+    }
+
+    const uploadedAtt = upData.data[0];
+
+    const res = await fetch('/api/messenger/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: activeChat.id,
+        content: `[Ảnh đã xử lý & cắt xoay: ${fileName}]`,
+        attachments: [uploadedAtt],
+      }),
+    });
+
+    const data = await res.json();
+    if (data.success && data.data) {
+      setMessages(prev => [...prev, data.data]);
+      setConversations(prev =>
+        prev.map(c => (c.id === activeChat.id ? { ...c, lastMessage: `[Đã gửi ảnh đã chỉnh sửa: ${fileName}]` } : c))
+      );
+    } else {
+      throw new Error(data.error || 'Không thể gửi tin nhắn');
+    }
+  };
+
+  const handleSaveEditedImageToDossier = async (blob: Blob, fileName: string) => {
+    const loadId = toast.loading('Đang chuẩn bị ảnh đã cắt xoay để lưu hồ sơ...');
+    try {
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+      const fd = new FormData();
+      fd.append('files', file);
+
+      const upRes = await fetch('/api/messenger/upload', {
+        method: 'POST',
+        body: fd,
+      });
+      const upData = await upRes.json();
+      if (!upData.success || !Array.isArray(upData.data) || upData.data.length === 0) {
+        throw new Error(upData.error || 'Tải ảnh lên máy chủ thất bại');
+      }
+
+      const uploadedAtt = upData.data[0];
+      toast.dismiss(loadId);
+      setSelectedAttachmentForDossier({
+        url: uploadedAtt.url,
+        name: uploadedAtt.name,
+        size: uploadedAtt.size,
+        type: uploadedAtt.type,
+      });
+    } catch (err: any) {
+      toast.error('Lỗi khi chuẩn bị ảnh hồ sơ: ' + err.message, { id: loadId });
     }
   };
 
@@ -1211,6 +1312,14 @@ export default function MessengerPage() {
                                               >
                                                 <Maximize2 className="w-3 h-3" />
                                               </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageEditorTarget({ url: att.url, name: att.name })}
+                                                className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white"
+                                                title="Cắt & Xoay ảnh"
+                                              >
+                                                <Crop className="w-3 h-3" />
+                                              </button>
                                               <a
                                                 href={att.url}
                                                 download={att.name}
@@ -1349,6 +1458,21 @@ export default function MessengerPage() {
                     <span className="text-[10px] font-semibold text-slate-700 truncate min-w-0" title={p.name}>
                       {p.name}
                     </span>
+                    {p.isImage && (
+                      <button
+                        type="button"
+                        onClick={() => setImageEditorTarget({
+                          url: p.url,
+                          name: p.name,
+                          isPending: true,
+                          pendingIndex: idx,
+                        })}
+                        className="text-slate-400 hover:text-indigo-600 p-0.5 rounded"
+                        title="Cắt & Xoay ảnh trước khi gửi"
+                      >
+                        <Crop className="w-3 h-3" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleRemovePendingFile(idx)}
@@ -1704,6 +1828,19 @@ export default function MessengerPage() {
         >
           <div className="relative max-w-5xl max-h-[92vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
             <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+              <button
+                type="button"
+                onClick={() => {
+                  const urlToEdit = lightboxUrl;
+                  setLightboxUrl(null);
+                  setImageEditorTarget({ url: urlToEdit, name: 'document.jpg' });
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold shadow-xs"
+                title="Chỉnh sửa (Cắt & Xoay ảnh)"
+              >
+                <Crop className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cắt / Xoay</span>
+              </button>
               <a
                 href={lightboxUrl}
                 download="document_original.jpg"
@@ -1731,6 +1868,20 @@ export default function MessengerPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* ── MODAL: IMAGE EDITOR (ROTATE & CROP) ── */}
+      {imageEditorTarget && (
+        <ImageEditorModal
+          isOpen={!!imageEditorTarget}
+          onClose={() => setImageEditorTarget(null)}
+          imageUrl={imageEditorTarget.url}
+          imageName={imageEditorTarget.name}
+          isPendingMode={!!imageEditorTarget.isPending}
+          onApplyPending={handleApplyPendingImage}
+          onSaveToDossier={handleSaveEditedImageToDossier}
+          onSendToChat={handleSendEditedImageToChat}
+        />
       )}
 
     </div>
