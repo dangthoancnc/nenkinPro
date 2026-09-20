@@ -3,6 +3,10 @@ import {
   getRadianAngle,
   calculateRotatedSize,
   ASPECT_RATIO_PRESETS,
+  DEFAULT_CROP,
+  normalizedToPixelCrop,
+  clampCrop,
+  computeAspectRatioCrop,
 } from '@/lib/messenger/cropUtils';
 
 describe('Image Crop & Rotate Math Utilities', () => {
@@ -62,7 +66,6 @@ describe('Image Crop & Rotate Math Utilities', () => {
   });
 
   it('defaults to 100% full image selection (no crop by default)', () => {
-    const { DEFAULT_CROP, normalizedToPixelCrop } = require('@/lib/messenger/cropUtils');
     expect(DEFAULT_CROP).toEqual({ x: 0, y: 0, width: 1, height: 1 });
 
     const pixelCrop = normalizedToPixelCrop(DEFAULT_CROP, 1920, 1080);
@@ -70,7 +73,6 @@ describe('Image Crop & Rotate Math Utilities', () => {
   });
 
   it('clamps crop coordinates correctly within [0, 1] bounds', () => {
-    const { clampCrop } = require('@/lib/messenger/cropUtils');
     // Test negative coordinates
     const clamped1 = clampCrop({ x: -0.2, y: -0.1, width: 0.8, height: 0.8 });
     expect(clamped1.x).toBe(0);
@@ -83,7 +85,6 @@ describe('Image Crop & Rotate Math Utilities', () => {
   });
 
   it('computes centered aspect ratio crop correctly', () => {
-    const { computeAspectRatioCrop } = require('@/lib/messenger/cropUtils');
     // Square image (1000x1000) with 2:1 aspect ratio -> width=1, height=0.5, y=0.25
     const crop = computeAspectRatioCrop(1000, 1000, 2);
     expect(crop.width).toBe(1);
