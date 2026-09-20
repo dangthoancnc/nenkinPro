@@ -173,6 +173,7 @@ export default function MessengerPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [rightPanelDossierSearch, setRightPanelDossierSearch] = useState('');
   const [rightPanelDossierResults, setRightPanelDossierResults] = useState<any[]>([]);
+  const [rightPanelTab, setRightPanelTab] = useState<'dossiers' | 'media'>('dossiers');
 
   const handleMentionInputChange = (val: string) => {
     setInputText(val);
@@ -2168,124 +2169,168 @@ export default function MessengerPage() {
             </div>
           )}
 
-          {/* ── MEDIA & ATTACHMENTS SECTION ── */}
+          {/* ── TABBED SECTION: MENTIONED DOSSIERS & MEDIA ── */}
           {(() => {
             const mediaList = messages.flatMap(m =>
               (m.attachments || []).filter(a => a.type !== 'dossier' && a.url && (a.url.match(/\.(jpeg|jpg|png|webp|gif)$/i) || a.isImage || a.type?.startsWith('image/')))
             );
-
-            return (
-              <div className="space-y-2 text-xs border-t border-slate-200/80 pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Ảnh & Tài Liệu Media ({mediaList.length})
-                  </span>
-                </div>
-                {mediaList.length === 0 ? (
-                  <p className="text-[11px] text-slate-400 italic">Chưa có ảnh/tài liệu nào được gửi</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
-                    {mediaList.map((m, mIdx) => (
-                      <div
-                        key={mIdx}
-                        onClick={() => {
-                          if (m.url) {
-                            setLightboxUrl(m.url);
-                            setLightboxMetadata({
-                              name: m.name || 'Ảnh media',
-                              editedUrl: m.url,
-                              originalUrl: m.originalUrl,
-                              originalName: m.originalName,
-                              isViewingOriginal: false,
-                            });
-                          }
-                        }}
-                        className="relative rounded-lg overflow-hidden aspect-square bg-slate-100 border border-slate-200 cursor-pointer group shadow-2xs"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={m.url} alt={m.name || 'Media'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ── MENTIONED DOSSIERS SECTION ── */}
-          {(() => {
             const mentionedDossiers = messages.flatMap(m =>
               (m.attachments || []).filter(a => a.type === 'dossier')
             );
-            // Deduplicate by id
             const uniqueDossiers = Array.from(new Map(mentionedDossiers.filter(d => d.id).map(d => [d.id as string, d])).values());
 
             return (
-              <div className="space-y-2 text-xs border-t border-slate-200/80 pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Hồ Sơ Được Đề Cập ({uniqueDossiers.length})
-                  </span>
+              <div className="flex-1 flex flex-col min-h-0 border-t border-slate-200/80 pt-3 space-y-2">
+                {/* Segmented Control Tabs */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelTab('dossiers')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rightPanelTab === 'dossiers'
+                        ? 'bg-white text-blue-600 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Hồ sơ</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
+                      rightPanelTab === 'dossiers' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {uniqueDossiers.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelTab('media')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rightPanelTab === 'media'
+                        ? 'bg-white text-blue-600 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Media & Tệp</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
+                      rightPanelTab === 'media' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {mediaList.length}
+                    </span>
+                  </button>
                 </div>
-                {uniqueDossiers.length === 0 ? (
-                  <p className="text-[11px] text-slate-400 italic">Chưa có hồ sơ nào được nhắc đến</p>
-                ) : (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {uniqueDossiers.map((d, dIdx) => (
-                      <div
-                        key={dIdx}
-                        className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-[11px]"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-800 truncate flex items-center gap-1">
-                            <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                            {d.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-mono">#{d.code || 'HS'}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => window.open(`/applications/${d.id}`, '_blank')}
-                          className="px-2 py-1 bg-white hover:bg-blue-50 text-blue-600 border border-slate-200 rounded-lg text-[10px] font-bold shrink-0 shadow-2xs flex items-center gap-1"
-                        >
-                          <span>Mở</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
+
+                {/* Tab 1: Hồ Sơ Đề Cập Content */}
+                {rightPanelTab === 'dossiers' && (
+                  <div className="flex-1 flex flex-col min-h-0 space-y-2 text-xs">
+                    {uniqueDossiers.length === 0 ? (
+                      <div className="p-4 text-center text-[11px] text-slate-400 italic bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                        Chưa có hồ sơ nào được nhắc đến trong đoạn chat
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                        {uniqueDossiers.map((d, dIdx) => (
+                          <div
+                            key={dIdx}
+                            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 flex items-center justify-between gap-2 text-[11px] transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-slate-800 truncate flex items-center gap-1">
+                                <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                {d.name}
+                              </p>
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+                                <span className="font-mono">#{d.code || 'HS'}</span>
+                                {d.status && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-slate-500">{d.status}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => window.open(`/applications/${d.id}`, '_blank')}
+                              className="px-2 py-1 bg-white hover:bg-blue-50 text-blue-600 border border-slate-200 rounded-lg text-[10px] font-bold shrink-0 shadow-2xs flex items-center gap-1"
+                              title="Mở hồ sơ ở tab mới"
+                            >
+                              <span>Mở</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quick Add / Mention Dossier directly from Right Panel */}
+                    <div className="pt-1">
+                      <div className="relative">
+                        <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Tìm hồ sơ để ghim vào chat..."
+                          value={rightPanelDossierSearch}
+                          onChange={e => handleSearchRightPanelDossiers(e.target.value)}
+                          className="w-full pl-7 pr-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                      </div>
+
+                      {rightPanelDossierResults.length > 0 && (
+                        <div className="mt-1 max-h-36 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-200 rounded-lg shadow-lg">
+                          {rightPanelDossierResults.map(res => (
+                            <div
+                              key={res.id}
+                              onClick={() => handlePinDossierFromRightPanel(res)}
+                              className="p-1.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-[11px] group"
+                            >
+                              <span className="font-semibold text-slate-800 group-hover:text-blue-600 truncate">
+                                {res.customer?.fullName}
+                              </span>
+                              <span className="text-[9px] font-bold text-blue-600">Ghim</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Quick Add / Mention Dossier directly from Right Panel */}
-                <div className="pt-2">
-                  <div className="relative">
-                    <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Tìm hồ sơ để ghim vào chat..."
-                      value={rightPanelDossierSearch}
-                      onChange={e => handleSearchRightPanelDossiers(e.target.value)}
-                      className="w-full pl-7 pr-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none"
-                    />
+                {/* Tab 2: Ảnh & Media Content */}
+                {rightPanelTab === 'media' && (
+                  <div className="flex-1 min-h-0 text-xs">
+                    {mediaList.length === 0 ? (
+                      <div className="p-4 text-center text-[11px] text-slate-400 italic bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                        Chưa có ảnh/tài liệu nào được gửi trong đoạn chat
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
+                        {mediaList.map((m, mIdx) => (
+                          <div
+                            key={mIdx}
+                            onClick={() => {
+                              if (m.url) {
+                                setLightboxUrl(m.url);
+                                setLightboxMetadata({
+                                  name: m.name || 'Ảnh media',
+                                  editedUrl: m.url,
+                                  originalUrl: m.originalUrl,
+                                  originalName: m.originalName,
+                                  isViewingOriginal: false,
+                                });
+                              }
+                            }}
+                            className="relative rounded-lg overflow-hidden aspect-square bg-slate-100 border border-slate-200 cursor-pointer group shadow-2xs hover:border-blue-400 transition-all"
+                            title={m.name || 'Ảnh media'}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={m.url} alt={m.name || 'Media'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  {rightPanelDossierResults.length > 0 && (
-                    <div className="mt-1 max-h-36 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-200 rounded-lg shadow-lg">
-                      {rightPanelDossierResults.map(res => (
-                        <div
-                          key={res.id}
-                          onClick={() => handlePinDossierFromRightPanel(res)}
-                          className="p-1.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-[11px] group"
-                        >
-                          <span className="font-semibold text-slate-800 group-hover:text-blue-600 truncate">
-                            {res.customer?.fullName}
-                          </span>
-                          <span className="text-[9px] font-bold text-blue-600">Ghim</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             );
           })()}

@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   X, Send, Minimize2, Maximize2, ChevronUp,
   Loader2, MessageSquare, Image as ImageIcon,
-  FileText, ExternalLink, Paperclip, Check
+  FileText, ExternalLink, Paperclip, Check,
+  Info, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -232,6 +233,11 @@ function MiniChatWindow({
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Info & Media View state
+  const [activeView, setActiveView] = useState<'chat' | 'info'>('chat');
+  const [infoTab, setInfoTab] = useState<'dossiers' | 'media'>('dossiers');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Mention Autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -477,6 +483,15 @@ function MiniChatWindow({
     }
   };
 
+  // ── EXTRACT MEDIA & DOSSIERS FOR INFO VIEW ──
+  const mediaList = messages.flatMap(m =>
+    (m.attachments || []).filter(a => a.type !== 'dossier' && a.url && (a.url.match(/\.(jpeg|jpg|png|webp|gif)$/i) || a.type?.startsWith('image/')))
+  );
+  const mentionedDossiers = messages.flatMap(m =>
+    (m.attachments || []).filter(a => a.type === 'dossier')
+  );
+  const uniqueDossiers = Array.from(new Map(mentionedDossiers.filter(d => d.id).map(d => [d.id as string, d])).values());
+
   return (
     <div className="w-[340px] sm:w-[360px] max-w-[calc(100vw-2rem)] h-[460px] max-h-[75vh] bg-white border border-slate-200 shadow-2xl rounded-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 relative">
       
@@ -507,6 +522,16 @@ function MiniChatWindow({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
+            onClick={() => setActiveView(prev => prev === 'info' ? 'chat' : 'info')}
+            className={`p-1 rounded-lg transition-colors ${
+              activeView === 'info' ? 'bg-white text-indigo-700 font-bold' : 'hover:bg-white/20 text-white/90 hover:text-white'
+            }`}
+            title={activeView === 'info' ? 'Quay lại tin nhắn' : 'Thông tin cuộc trò chuyện (Hồ sơ & Media)'}
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
             onClick={onToggleMinimize}
             className="p-1 rounded-lg hover:bg-white/20 text-white/90 hover:text-white transition-colors"
             title="Thu nhỏ xuống thanh bar"
@@ -532,185 +557,368 @@ function MiniChatWindow({
         </div>
       </div>
 
-      {/* ── MESSAGE LIST ── */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/60 min-h-0 text-xs">
-        {loadingMessages && messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin mr-1.5 text-blue-600" />
-            <span className="text-[11px]">Đang nạp tin nhắn...</span>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center p-4">
-            <MessageSquare className="w-7 h-7 text-slate-300 mb-1.5" />
-            <p className="font-semibold text-xs text-slate-600">Bắt đầu cuộc trò chuyện</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Gõ tin nhắn hoặc gõ @ để nhắc đến hồ sơ.</p>
-          </div>
-        ) : (
-          messages.map(msg => {
-            const isMe = !msg.senderCustomerId; // Staff logged in
-            return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={`max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow-2xs ${
-                    isMe
-                      ? 'bg-blue-600 text-white rounded-br-xs'
-                      : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
-                  }`}
+      {activeView === 'info' ? (
+        /* ── DETAILS / INFO VIEW ── */
+        <div className="flex-1 flex flex-col min-h-0 bg-slate-50/70 relative">
+          {/* Top Return & Contact Info */}
+          <div className="p-2.5 bg-white border-b border-slate-200/80 space-y-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setActiveView('chat')}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Quay lại trò chuyện</span>
+              </button>
+              <span className="text-[10px] font-mono text-slate-400">
+                {chat.code ? `#${chat.code}` : ''}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+              <div className="min-w-0">
+                <p className="font-bold text-xs text-slate-800 truncate">{chat.name}</p>
+                <p className="text-[10px] text-slate-500">
+                  {chat.role || (chat.isStaff ? 'Nhân sự nội bộ' : 'Khách hàng')}
+                </p>
+              </div>
+
+              {chat.targetUrl && (
+                <button
+                  type="button"
+                  onClick={() => window.open(chat.targetUrl, '_blank')}
+                  className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold flex items-center gap-1 border border-blue-200/60 shrink-0 shadow-2xs transition-colors"
+                  title="Mở hồ sơ ở tab mới"
                 >
-                  {/* Attachments */}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="space-y-1.5 mb-1.5">
-                      {msg.attachments.map((att, aIdx) => {
-                        // Dossier Mention Card
-                        if (att.type === 'dossier') {
-                          return (
-                            <div
-                              key={aIdx}
-                              className={`p-2 rounded-xl text-left border ${
-                                isMe ? 'bg-white/10 border-white/25 text-white' : 'bg-blue-50/80 border-blue-200 text-slate-800'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 font-bold text-[11px]">
-                                <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                <span className="truncate">{att.name}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-1 text-[10px] mt-1 opacity-90">
-                                <span>#{att.code || 'HS'}</span>
-                                <span className="px-1.5 py-0.2 rounded bg-black/15 font-semibold text-[9px]">
-                                  {att.status || 'Bản nháp'}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => window.open(`/applications/${att.id}`, '_blank')}
-                                className={`mt-1.5 w-full py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${
-                                  isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
-                                }`}
-                              >
-                                <span>Xem chi tiết hồ sơ</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </button>
-                            </div>
-                          );
-                        }
+                  <span>Mở hồ sơ</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
 
-                        // Image Attachment
-                        return (
-                          <div key={aIdx} className="rounded-lg overflow-hidden border border-black/10 bg-black/5">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={att.url}
-                              alt={att.name || 'Ảnh đính kèm'}
-                              className="max-h-36 w-full object-cover cursor-pointer hover:opacity-95"
-                              onClick={() => window.open(att.url, '_blank')}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                </div>
-
-                <span className="text-[9px] text-slate-400 mt-0.5 px-1">
-                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* Mini Segmented Tabs */}
+          <div className="p-2 shrink-0">
+            <div className="flex items-center bg-slate-200/70 p-0.5 rounded-xl border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setInfoTab('dossiers')}
+                className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                  infoTab === 'dossiers'
+                    ? 'bg-white text-blue-600 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <FileText className="w-3 h-3" />
+                <span>Hồ sơ gắn</span>
+                <span className={`px-1 rounded-full text-[9px] font-bold ${
+                  infoTab === 'dossiers' ? 'bg-blue-100 text-blue-700' : 'bg-slate-300/80 text-slate-600'
+                }`}>
+                  {uniqueDossiers.length}
                 </span>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+              </button>
 
-      {/* ── AUTOCOMPLETE POPUP FOR @ OR / DOSSIER MENTIONS ── */}
-      {mentionQuery !== null && (
-        <div className="absolute bottom-14 left-2 right-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden z-20 animate-in slide-in-from-bottom-2">
-          <div className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-[10px] font-bold text-slate-600">
-            <span>Gợi ý hồ sơ {mentionQuery ? `("${mentionQuery}")` : ''}:</span>
-            {loadingSuggestions && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
+              <button
+                type="button"
+                onClick={() => setInfoTab('media')}
+                className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                  infoTab === 'media'
+                    ? 'bg-white text-blue-600 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>Media & Tệp</span>
+                <span className={`px-1 rounded-full text-[9px] font-bold ${
+                  infoTab === 'media' ? 'bg-blue-100 text-blue-700' : 'bg-slate-300/80 text-slate-600'
+                }`}>
+                  {mediaList.length}
+                </span>
+              </button>
+            </div>
           </div>
-          <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
-            {mentionSuggestions.length === 0 ? (
-              <div className="p-3 text-center text-[11px] text-slate-400 italic">
-                {loadingSuggestions ? 'Đang tìm hồ sơ...' : 'Không tìm thấy hồ sơ khớp'}
-              </div>
-            ) : (
-              mentionSuggestions.map(app => (
-                <div
-                  key={app.id}
-                  onClick={() => handleSelectMention(app)}
-                  className="p-2 hover:bg-blue-50/80 cursor-pointer flex items-center justify-between gap-2 transition-colors group"
-                >
-                  <div className="min-w-0">
-                    <div className="font-bold text-xs text-slate-800 group-hover:text-blue-600 truncate flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      <span>{app.customer?.fullName || 'Khách hàng'}</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400">#{app.customer?.code || ''}</span>
-                  </div>
-                  <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium shrink-0">
-                    {app.status}
-                  </span>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto p-2 pt-0 min-h-0 text-xs">
+            {infoTab === 'dossiers' ? (
+              uniqueDossiers.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
+                  <FileText className="w-7 h-7 text-slate-300 mb-1" />
+                  <p className="font-semibold text-[11px] text-slate-500">Chưa có hồ sơ nào</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Gõ @ trong tin nhắn để gắn hồ sơ vào cuộc trò chuyện này</p>
                 </div>
-              ))
+              ) : (
+                <div className="space-y-1.5">
+                  {uniqueDossiers.map((d, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-2xs hover:border-blue-300 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-[11px] text-slate-800 truncate flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          {d.name}
+                        </p>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5 font-mono">
+                          <span>#{d.code || 'HS'}</span>
+                          {d.status && <span>• {d.status}</span>}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/applications/${d.id}`, '_blank')}
+                        className="px-2 py-1 bg-slate-50 hover:bg-blue-50 text-blue-600 border border-slate-200 rounded-lg text-[10px] font-bold shrink-0 flex items-center gap-1 transition-colors"
+                        title="Mở hồ sơ ở tab mới"
+                      >
+                        <span>Mở</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              mediaList.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
+                  <ImageIcon className="w-7 h-7 text-slate-300 mb-1" />
+                  <p className="font-semibold text-[11px] text-slate-500">Chưa có ảnh media nào</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Các ảnh gửi qua lại sẽ xuất hiện tại đây</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {mediaList.map((m, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => m.url && setLightboxImage(m.url)}
+                      className="relative rounded-lg overflow-hidden aspect-square bg-slate-100 border border-slate-200 cursor-pointer group shadow-2xs hover:border-blue-400 transition-all"
+                      title={m.name || 'Ảnh media'}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.url} alt={m.name || 'Media'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
+
+          {/* Lightbox Preview if an image is selected */}
+          {lightboxImage && (
+            <div
+              onClick={() => setLightboxImage(null)}
+              className="absolute inset-0 z-30 bg-slate-900/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 animate-in fade-in"
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxImage}
+                alt="Preview"
+                className="max-w-full max-h-[80%] object-contain rounded-lg shadow-2xl"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(lightboxImage, '_blank');
+                }}
+                className="mt-2 px-3 py-1 bg-white text-slate-800 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-md hover:bg-slate-100"
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span>Mở ảnh kích thước đầy đủ</span>
+              </button>
+            </div>
+          )}
         </div>
+      ) : (
+        <>
+          {/* ── MESSAGE LIST ── */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/60 min-h-0 text-xs">
+            {loadingMessages && messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400">
+                <Loader2 className="w-5 h-5 animate-spin mr-1.5 text-blue-600" />
+                <span className="text-[11px]">Đang nạp tin nhắn...</span>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center p-4">
+                <MessageSquare className="w-7 h-7 text-slate-300 mb-1.5" />
+                <p className="font-semibold text-xs text-slate-600">Bắt đầu cuộc trò chuyện</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Gõ tin nhắn hoặc gõ @ để nhắc đến hồ sơ.</p>
+              </div>
+            ) : (
+              messages.map(msg => {
+                const isMe = !msg.senderCustomerId; // Staff logged in
+                return (
+                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div
+                      className={`max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow-2xs ${
+                        isMe
+                          ? 'bg-blue-600 text-white rounded-br-xs'
+                          : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
+                      }`}
+                    >
+                      {/* Attachments */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="space-y-1.5 mb-1.5">
+                          {msg.attachments.map((att, aIdx) => {
+                            // Dossier Mention Card
+                            if (att.type === 'dossier') {
+                              return (
+                                <div
+                                  key={aIdx}
+                                  className={`p-2 rounded-xl text-left border ${
+                                    isMe ? 'bg-white/10 border-white/25 text-white' : 'bg-blue-50/80 border-blue-200 text-slate-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                                    <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                    <span className="truncate">{att.name}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-1 text-[10px] mt-1 opacity-90">
+                                    <span>#{att.code || 'HS'}</span>
+                                    <span className="px-1.5 py-0.2 rounded bg-black/15 font-semibold text-[9px]">
+                                      {att.status || 'Bản nháp'}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(`/applications/${att.id}`, '_blank')}
+                                    className={`mt-1.5 w-full py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-colors ${
+                                      isMe ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                  >
+                                    <span>Xem chi tiết hồ sơ</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            // Image Attachment
+                            return (
+                              <div key={aIdx} className="rounded-lg overflow-hidden border border-black/10 bg-black/5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={att.url}
+                                  alt={att.name || 'Ảnh đính kèm'}
+                                  className="max-h-36 w-full object-cover cursor-pointer hover:opacity-95"
+                                  onClick={() => window.open(att.url, '_blank')}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    </div>
+
+                    <span className="text-[9px] text-slate-400 mt-0.5 px-1">
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* ── AUTOCOMPLETE POPUP FOR @ OR / DOSSIER MENTIONS ── */}
+          {mentionQuery !== null && (
+            <div className="absolute bottom-14 left-2 right-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden z-20 animate-in slide-in-from-bottom-2">
+              <div className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-[10px] font-bold text-slate-600">
+                <span>Gợi ý hồ sơ {mentionQuery ? `("${mentionQuery}")` : ''}:</span>
+                {loadingSuggestions && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
+              </div>
+              <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                {mentionSuggestions.length === 0 ? (
+                  <div className="p-3 text-center text-[11px] text-slate-400 italic">
+                    {loadingSuggestions ? 'Đang tìm hồ sơ...' : 'Không tìm thấy hồ sơ khớp'}
+                  </div>
+                ) : (
+                  mentionSuggestions.map(app => (
+                    <div
+                      key={app.id}
+                      onClick={() => handleSelectMention(app)}
+                      className="p-2 hover:bg-blue-50/80 cursor-pointer flex items-center justify-between gap-2 transition-colors group"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-slate-800 group-hover:text-blue-600 truncate flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span>{app.customer?.fullName || 'Khách hàng'}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400">#{app.customer?.code || ''}</span>
+                      </div>
+                      <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium shrink-0">
+                        {app.status}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── CURRENT PAGE DOSSIER PIN BAR (If viewing /applications/[id]) ── */}
+          {currentDossierId && (
+            <div className="px-2.5 py-1 bg-amber-50/90 border-t border-amber-200/70 flex items-center justify-between text-[10px] text-amber-900 shrink-0">
+              <span className="truncate flex items-center gap-1 font-semibold">
+                <Paperclip className="w-3 h-3 text-amber-600" />
+                Đang xem hồ sơ trang này
+              </span>
+              <button
+                type="button"
+                onClick={handlePinCurrentPageDossier}
+                className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold transition-colors shadow-2xs"
+              >
+                Gắn vào chat
+              </button>
+            </div>
+          )}
+
+          {/* ── QUICK INPUT BAR ── */}
+          <form onSubmit={handleSendMessage} className="p-2 bg-white border-t border-slate-100 flex items-center gap-1.5 shrink-0">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
+              title="Gửi ảnh tài liệu"
+            >
+              <ImageIcon className="w-4 h-4" />
+            </button>
+
+            <input
+              type="text"
+              value={inputText}
+              onChange={handleInputChange}
+              placeholder="Nhập tin nhắn... (Gõ @ để gắn hồ sơ)"
+              className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isSending}
+              className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0 shadow-xs"
+              title="Gửi tin nhắn"
+            >
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </form>
+        </>
       )}
-
-      {/* ── CURRENT PAGE DOSSIER PIN BAR (If viewing /applications/[id]) ── */}
-      {currentDossierId && (
-        <div className="px-2.5 py-1 bg-amber-50/90 border-t border-amber-200/70 flex items-center justify-between text-[10px] text-amber-900 shrink-0">
-          <span className="truncate flex items-center gap-1 font-semibold">
-            <Paperclip className="w-3 h-3 text-amber-600" />
-            Đang xem hồ sơ trang này
-          </span>
-          <button
-            type="button"
-            onClick={handlePinCurrentPageDossier}
-            className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold transition-colors shadow-2xs"
-          >
-            Gắn vào chat
-          </button>
-        </div>
-      )}
-
-      {/* ── QUICK INPUT BAR ── */}
-      <form onSubmit={handleSendMessage} className="p-2 bg-white border-t border-slate-100 flex items-center gap-1.5 shrink-0">
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept="image/*"
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
-          title="Gửi ảnh tài liệu"
-        >
-          <ImageIcon className="w-4 h-4" />
-        </button>
-
-        <input
-          type="text"
-          value={inputText}
-          onChange={handleInputChange}
-          placeholder="Nhập tin nhắn... (Gõ @ để gắn hồ sơ)"
-          className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
-        />
-
-        <button
-          type="submit"
-          disabled={!inputText.trim() || isSending}
-          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0 shadow-xs"
-          title="Gửi tin nhắn"
-        >
-          {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </button>
-      </form>
 
     </div>
   );
