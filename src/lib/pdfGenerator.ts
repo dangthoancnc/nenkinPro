@@ -1,4 +1,4 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, rgb, PDFPage, PDFFont } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
@@ -24,29 +24,12 @@ export type PdfMappingConfig = Record<string, PdfCoordinate>;
 // Cache font bytes in memory to avoid repeated disk reads
 let cachedFontBytes: Buffer | null = null;
 
-export async function fillPdfTemplate(
-  templateFileName: string,
+export function drawConfigOnPages(
+  pages: PDFPage[],
   data: Record<string, string>,
-  config: PdfMappingConfig
-): Promise<Uint8Array> {
-  const templatePath = path.join(process.cwd(), 'public', 'forms', templateFileName);
-  const pdfBytes = fs.readFileSync(templatePath);
-  
-  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-  pdfDoc.registerFontkit(fontkit);
-  
-  // Load Japanese font from memory cache
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.otf');
-  let customFont;
-  if (!cachedFontBytes && fs.existsSync(fontPath)) {
-    cachedFontBytes = fs.readFileSync(fontPath);
-  }
-  if (cachedFontBytes) {
-    customFont = await pdfDoc.embedFont(cachedFontBytes);
-  }
-
-  const pages = pdfDoc.getPages();
-  
+  config: PdfMappingConfig,
+  customFont?: PDFFont
+) {
   for (const [key, coord] of Object.entries(config)) {
     if (coord.x === null || coord.y === null || coord.page === null) {
       continue;
@@ -85,7 +68,6 @@ export async function fillPdfTemplate(
       continue;
     }
 
-    
     let textToDraw = '';
     if (baseKey.startsWith('static_')) {
       textToDraw = coord.value || '';
@@ -131,6 +113,64 @@ export async function fillPdfTemplate(
       });
     }
   }
+}
 
-  return await pdfDoc.save();
+export async function fillPdfTemplate(
+  templateFileName: string,
+  data: Record<string, string>,
+  config: PdfMappingConfig
+): Promise<Uint8Array> {
+  const templatePath = path.join(process.cwd(), 'public', 'forms', templateFileName);
+  const pdfBytes = fs.readFileSync(templatePath);
+  
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  pdfDoc.registerFontkit(fontkit);
+  
+  // Load Japanese font from memory cache and enable font subsetting (reduces PDF size from 14MB to < 1MB)
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.otf');
+  let customFont: PDFFont | undefined;
+  if (!cachedFontBytes && fs.existsSync(fontPath)) {
+    cachedFontBytes = fs.readFileSync(fontPath);
+  }
+  if (cachedFontBytes) {
+    customFont = await pdfDoc.embedFont(cachedFontBytes, { subset: true });
+  }
+
+  const pages = pdfDoc.getPages();
+  drawConfigOnPages(pages, data, config, customFont);
+
+  return await pdfDoc.save({ useObjectStreams: true });
+}
+
+export async function generateBundlePdf(
+  items: { template: string; file: string; data: Record<string, string>; config: PdfMappingConfig }[]
+): Promise<Uint8Array> {
+  const mergedPdf = await PDFDocument.create();
+  mergedPdf.registerFontkit(fontkit);
+
+  // Load Japanese font once for the entire bundle with subsetting
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.otf');
+  let customFont: PDFFont | undefined;
+  if (!cachedFontBytes && fs.existsSync(fontPath)) {
+    cachedFontBytes = fs.readFileSync(fontPath);
+  }
+  if (cachedFontBytes) {
+    customFont = await mergedPdf.embedFont(cachedFontBytes, { subset: true });
+  }
+
+  for (const item of items) {
+    const templatePath = path.join(process.cwd(), 'public', 'forms', item.file);
+    if (!fs.existsSync(templatePath)) continue;
+    const templateBytes = fs.readFileSync(templatePath);
+    const templateDoc = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
+    const copiedPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
+    
+    for (const page of copiedPages) {
+      mergedPdf.addPage(page);
+    }
+
+    drawConfigOnPages(copiedPages, item.data, item.config, customFont);
+  }
+
+  return await mergedPdf.save({ useObjectStreams: true });
 }

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { mapDocument, TemplateType } from '@/lib/documentMapper';
-import { fillPdfTemplate, PdfMappingConfig } from '@/lib/pdfGenerator';
-import { PDFDocument } from 'pdf-lib';
+import { generateBundlePdf, PdfMappingConfig } from '@/lib/pdfGenerator';
 import fs from 'fs';
 import path from 'path';
 import { requireApplicationAccess } from '@/lib/auth/authorization';
@@ -74,36 +73,26 @@ export async function GET(
       ];
     }
 
-    const mergedPdf = await PDFDocument.create();
-
-    // Process all templates in parallel for maximum performance
-    const compiledDocs = await Promise.all(
-      templatesToProcess.map(async (item) => {
+    const bundleItems = templatesToProcess.map((item) => {
+      const data = mapDocument(mapperInput, item.template);
+      const configPath = path.join(process.cwd(), 'public', 'templates', `${item.template}.json`);
+      let config: PdfMappingConfig = {};
+      if (fs.existsSync(configPath)) {
         try {
-          const data = mapDocument(mapperInput, item.template);
-          const configPath = path.join(process.cwd(), 'public', 'templates', `${item.template}.json`);
-          let config: PdfMappingConfig = {};
-          if (fs.existsSync(configPath)) {
-            config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-          }
-
-          const pdfBytes = await fillPdfTemplate(item.file, data, config);
-          return await PDFDocument.load(pdfBytes);
-        } catch (e) {
-          console.warn(`Error compiling page ${item.template}:`, e);
-          return null;
+          config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch {
+          config = {};
         }
-      })
-    );
-
-    for (const doc of compiledDocs) {
-      if (doc) {
-        const copiedPages = await mergedPdf.copyPages(doc, doc.getPageIndices());
-        copiedPages.forEach(p => mergedPdf.addPage(p));
       }
-    }
+      return {
+        template: item.template,
+        file: item.file,
+        data,
+        config,
+      };
+    });
 
-    const finalPdfBytes = await mergedPdf.save();
+    const finalPdfBytes = await generateBundlePdf(bundleItems);
     const customerName = (application.customer.fullName || 'HoSo').replace(/[^a-zA-Z0-9_\-]/g, '_');
     const stageLabel = isStage1 ? 'Lan1' : isStage2 ? 'Lan2' : 'TronBo';
 
