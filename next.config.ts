@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 1,
     memoryBasedWorkersCount: true,
+    optimizePackageImports: [
+      "lucide-react",
+      "date-fns",
+      "recharts",
+      "@hookform/resolvers",
+      "clsx",
+      "tailwind-merge",
+      "sonner",
+    ],
   }
 };
 
