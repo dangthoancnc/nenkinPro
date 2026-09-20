@@ -215,6 +215,18 @@ const ZairyuForm: React.FC<
       >
         <Input {...register('postalCode')} disabled={!isEditing} placeholder="VD: 4530015" className="h-8 text-xs font-mono" />
       </FieldRow>
+
+      <FieldRow label="Nơi nộp thuế (納税地区分)">
+        <select
+          {...register('taxAddressType')}
+          disabled={!isEditing}
+          className="w-full h-8 rounded-md border border-slate-200 px-2 text-xs bg-white font-medium focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500"
+        >
+          <option value="JUSHO">住所地 (Nơi thường trú - Mặc định)</option>
+          <option value="KYOSHO">居所地 (Nơi tạm trú / Thực tế)</option>
+          <option value="JIGYOSHO">事業所等 (Cơ sở kinh doanh / VP)</option>
+        </select>
+      </FieldRow>
     </div>
   );
 };

@@ -225,6 +225,7 @@ model NenkinApplication {
   status ApplicationStatus @default(DRAFT)
   revisionNote String? // Ghi chú yêu cầu sửa chữa từ nhân viên
   isReturnedToJapan Boolean @default(false) // Cờ đánh dấu khách hàng đã quay lại Nhật (Tự khai thuế, không cần đại diện)
+  taxAddressType    String? @default("JUSHO") // JUSHO (住所地), KYOSHO (居所地), JIGYOSHO (事業所等)
 
   applyDate       DateTime?
   sent1stDate     DateTime?

@@ -339,6 +339,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             lumpSumWithdrawalNumber:     data.lumpSumWithdrawalNumber     || '',
             revisionNote:                data.revisionNote                || '',
             isReturnedToJapan:           data.isReturnedToJapan           || false,
+            taxAddressType:              data.taxAddressType              || 'JUSHO',
             taxRepresentativeId:         data.taxRepresentativeId         || '',
             taxRepBankAccountId:         data.taxRepBankAccountId         || '',
           };
@@ -536,6 +537,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         status: data.status,
         taxRepresentativeId: data.taxRepresentativeId || null,
         taxRepBankAccountId: data.taxRepBankAccountId || null,
+        taxAddressType: data.taxAddressType || 'JUSHO',
+        isReturnedToJapan: Boolean(data.isReturnedToJapan),
         applyDate:       data.applyDate       ? new Date(data.applyDate).toISOString()       : null,
         sent1stDate:     data.sent1stDate     ? new Date(data.sent1stDate).toISOString()     : null,
         received1stDate: data.received1stDate ? new Date(data.received1stDate).toISOString() : null,
@@ -1728,16 +1731,29 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         </button>
                       ) : undefined} />
                   </FormField>
-                  <FormField label="Mã Bưu Điện">
-                    <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
-                      verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
-                      state={verifiedFields['postalCode'] ? 'verified' : 'default'}
-                      rightIcon={
-                        <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
-                          <Search className="w-3.5 h-3.5" />
-                        </button>
-                      } />
-                  </FormField>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <FormField label="Mã Bưu Điện">
+                      <Input {...register('postalCode')} disabled={!isEditing} size="md" placeholder="VD: 4530015"
+                        verified={verifiedFields['postalCode']} showVerify onVerify={() => toggleVerify('postalCode')}
+                        state={verifiedFields['postalCode'] ? 'verified' : 'default'}
+                        rightIcon={
+                          <button type="button" onClick={() => handleNtaSearch(getValues('postalCode'))} className="text-indigo-600 hover:text-indigo-800">
+                            <Search className="w-3.5 h-3.5" />
+                          </button>
+                        } />
+                    </FormField>
+                    <FormField label="Loại nơi nộp thuế (納税地区分)">
+                      <select
+                        {...register('taxAddressType')}
+                        disabled={!isEditing}
+                        className="w-full h-9 rounded-lg border border-slate-200 px-2.5 text-xs bg-white font-medium focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500"
+                      >
+                        <option value="JUSHO">住所地 (Nơi thường trú - Mặc định)</option>
+                        <option value="KYOSHO">居所地 (Nơi tạm trú / Thực tế)</option>
+                        <option value="JIGYOSHO">事業所等 (Cơ sở kinh doanh / VP)</option>
+                      </select>
+                    </FormField>
+                  </div>
 
                   {/* Navigation Button to Tax Office Tab */}
                   <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between mt-2 shadow-2xs">

@@ -25,6 +25,7 @@ export const applicationSchema = z.object({
   lumpSumWithdrawalNumber: z.string().nullable().optional(),
   revisionNote: z.string().nullable().optional(),
   isReturnedToJapan: z.coerce.boolean().nullable().optional(),
+  taxAddressType: z.string().nullable().optional(),
   
   // --- Bảng 3 Overrides ---
   tokureiTekio: z.string().nullable().optional(),

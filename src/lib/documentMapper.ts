@@ -254,8 +254,9 @@ function mapCustomerBase(customer: Customer): Record<string, string> {
     postalCode_part2,
     post_part1: postalCode_part1,
     post_part2: postalCode_part2,
-    tax_residence_mark: '○',
+    tax_residence_mark: '',
     address_tax_mark: '○',
+    tax_business_mark: '',
     phone:           customer.phone ?? '',
     phone_group_1,
     phone_group_2,
@@ -727,11 +728,20 @@ export function mapTemplate3(input: DocumentMapperInput): Record<string, string>
 
   const overseasAddr = customer.overseasAddress || [customer.overseasStreet, customer.overseasCity, customer.overseasProvince, customer.overseasCountry].filter(Boolean).join(', ') || 'VIET NAM';
 
+  const taxAddressType = (application as any)?.taxAddressType || (customer as any)?.taxAddressType || 'JUSHO';
+  const isJusho = taxAddressType === 'JUSHO' || taxAddressType === '住所地' || !taxAddressType;
+  const isKyosho = taxAddressType === 'KYOSHO' || taxAddressType === '居所地';
+  const isJigyosho = taxAddressType === 'JIGYOSHO' || taxAddressType === '事業所等';
+
   return {
     ...mapCustomerBase(customer),
     ...mapRepresentative(taxRepresentative, chosenTaxRepBank),
     ...mapTaxOffice(taxOffice),
     ...docDateTags(application.applyDate),
+
+    address_tax_mark: isJusho ? '○' : '',
+    tax_residence_mark: isKyosho ? '○' : '',
+    tax_business_mark: isJigyosho ? '○' : '',
 
     overseasAddress: overseasAddr,
     overseasStreet: customer.overseasStreet || overseasAddr,

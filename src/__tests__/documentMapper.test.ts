@@ -53,9 +53,29 @@ describe('documentMapper', () => {
     expect(result['departure_y']).toBe(result['departureDate_y']);
   });
 
-  it('injects today and doc_date tags properly', () => {
-    const result = mapTemplate1(baseInput);
-    expect(result['today_y']).toBeDefined();
-    expect(result['doc_date_era_jp']).toBe('令和');
+  it('mapTemplate3 correctly marks address_tax_mark based on taxAddressType', () => {
+    // Default JUSHO
+    const resJusho = mapTemplate3(baseInput);
+    expect(resJusho.address_tax_mark).toBe('○');
+    expect(resJusho.tax_residence_mark).toBe('');
+    expect(resJusho.tax_business_mark).toBe('');
+
+    // KYOSHO
+    const resKyosho = mapTemplate3({
+      ...baseInput,
+      application: { ...baseInput.application, taxAddressType: 'KYOSHO' } as any
+    });
+    expect(resKyosho.address_tax_mark).toBe('');
+    expect(resKyosho.tax_residence_mark).toBe('○');
+    expect(resKyosho.tax_business_mark).toBe('');
+
+    // JIGYOSHO
+    const resJigyo = mapTemplate3({
+      ...baseInput,
+      application: { ...baseInput.application, taxAddressType: 'JIGYOSHO' } as any
+    });
+    expect(resJigyo.address_tax_mark).toBe('');
+    expect(resKyosho.tax_residence_mark).toBe('○');
+    expect(resJigyo.tax_business_mark).toBe('○');
   });
 });

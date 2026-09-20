@@ -422,5 +422,32 @@
     "width": 50,
     "height": 16,
     "thickness": 1
+  },
+  "address_tax_mark": {
+    "page": 0,
+    "x": 276.92,
+    "y": 708.76,
+    "type": "circle",
+    "width": 34,
+    "height": 14,
+    "thickness": 1
+  },
+  "tax_residence_mark": {
+    "page": 0,
+    "x": 308.96,
+    "y": 708.76,
+    "type": "circle",
+    "width": 34,
+    "height": 14,
+    "thickness": 1
+  },
+  "tax_business_mark": {
+    "page": 0,
+    "x": 340.96,
+    "y": 708.76,
+    "type": "circle",
+    "width": 42,
+    "height": 14,
+    "thickness": 1
   }
 }

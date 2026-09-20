@@ -76,6 +76,7 @@ export const TEMPLATE_FIELD_CATALOG: FieldGroup[] = [
       ...generateSplitTags('post', 7, 'Mã BĐ Nhật'),
       { id: 'address_tax_mark', label: 'Khoanh chọn Nơi nộp thuế: 住所地 (○)', format: 'mark', appliesTo: ['nouzeikanrinin'] },
       { id: 'tax_residence_mark', label: 'Khoanh chọn Nơi nộp thuế: 居所地 (○)', format: 'mark', appliesTo: ['nouzeikanrinin'] },
+      { id: 'tax_business_mark', label: 'Khoanh chọn Nơi nộp thuế: 事業所等 (○)', format: 'mark', appliesTo: ['nouzeikanrinin'] },
       { id: 'overseasCountry', label: 'Quốc gia hải ngoại (VIET NAM)', appliesTo: ALL_TEMPLATES },
       { id: 'overseasStreet', label: 'Số nhà, đường hải ngoại / VN', appliesTo: ALL_TEMPLATES },
       { id: 'overseasCity', label: 'Thành phố / Quận huyện hải ngoại', appliesTo: ALL_TEMPLATES },
