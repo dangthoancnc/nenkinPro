@@ -342,6 +342,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             taxAddressType:              data.taxAddressType              || 'JUSHO',
             taxRepresentativeId:         data.taxRepresentativeId         || '',
             taxRepBankAccountId:         data.taxRepBankAccountId         || '',
+            workHistories: (customer.workHistories || []).map((wh: any) => ({
+              companyName: wh.companyName || '',
+              companyAddress: wh.companyAddress || '',
+              pensionType: wh.pensionType || '厚生年金保険',
+              startDate: formatDate(wh.startDate),
+              endDate: formatDate(wh.endDate),
+            })),
           };
           
           const totalExpectedJpy = data.totalExpectedJpy ? Number(data.totalExpectedJpy) : 0;
@@ -532,6 +539,13 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         passportIssueDate:  data.passportIssueDate  ? new Date(data.passportIssueDate).toISOString()  : null,
         passportExpiryDate: data.passportExpiryDate ? new Date(data.passportExpiryDate).toISOString() : null,
         departureDate:      data.departureDate      ? new Date(data.departureDate).toISOString()      : null,
+        workHistories: (data.workHistories || []).map((wh: any) => ({
+          companyName: wh.companyName || '',
+          companyAddress: wh.companyAddress || '',
+          pensionType: wh.pensionType || '厚生年金保険',
+          startDate: wh.startDate ? new Date(wh.startDate).toISOString() : null,
+          endDate: wh.endDate ? new Date(wh.endDate).toISOString() : null,
+        })),
       };
       const applicationPayload = {
         status: data.status,
@@ -607,6 +621,28 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
       description: 'Lỗi: ' + Object.keys(formErrors).map(k => `${k}: ${formErrors[k].message || 'Không hợp lệ'}`).join(', '),
       duration: 6000,
     });
+  };
+
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter') {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') {
+        return;
+      }
+      e.preventDefault();
+
+      const form = e.currentTarget;
+      const focusable = Array.from(
+        form.querySelectorAll<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+        )
+      ).filter(el => el.offsetParent !== null && el.tabIndex !== -1);
+
+      const index = focusable.indexOf(target);
+      if (index > -1 && index + 1 < focusable.length) {
+        focusable[index + 1].focus();
+      }
+    }
   };
 
   const handleDelete = async () => {
@@ -857,9 +893,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     : (currentDoc?.urlField || 'zairyuFrontUrl');
   const currentDocValue = watch(currentDocField as any);
   const isMultiUrl = activeDoc === 'vietnamContact';
+  const isDataDoc = activeDoc === 'taxOfficeInfo' || activeDoc === 'workHistories';
   const currentDocUrl = isBankDoc
     ? (currentBankUrls[selectedBankImageIndex] || currentBankUrls[0])
-    : isMultiUrl ? undefined : (currentDocValue as string | undefined);
+    : (isMultiUrl || isDataDoc) ? undefined : (typeof currentDocValue === 'string' && currentDocValue ? currentDocValue : undefined);
   const currentMultiUrls = isMultiUrl ? (currentDocValue as string[] || []) : [];
   const currentDocTitle = isBankDoc
     ? `Sổ Ngân hàng (${activeBankIdx === 0 ? 'Lần 1' : 'Lần 2'}: ${currentBank?.bankCountry === 'JAPAN' ? 'Nhật Bản' : 'Việt Nam'})`
@@ -889,6 +926,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               const val = watch(doc.urlField as any);
               const hasUrl = isBank
                 ? bankList.some((b: any) => b.bankPassbookUrls?.length > 0)
+                : doc.key === 'workHistories'
+                ? workFields.length > 0
+                : doc.key === 'taxOfficeInfo'
+                ? !!watch('taxOfficeId')
                 : Array.isArray(val) ? val.length > 0 : !!val;
               return (
                 <button key={doc.key} type="button" onClick={() => setActiveDoc(doc.key)}
@@ -923,6 +964,18 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải {currentMultiUrls.length} ảnh</span>
             ) : (
                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có ảnh</span>
+            )
+          ) : activeDoc === 'workHistories' ? (
+            workFields.length > 0 ? (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã nhập {workFields.length} công ty</span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có công ty</span>
+            )
+          ) : activeDoc === 'taxOfficeInfo' ? (
+            watch('taxOfficeId') ? (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã xác định Cục thuế</span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full shrink-0">○ Chưa có Cục thuế</span>
             )
           ) : currentDocUrl ? (
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full shrink-0">✓ Đã tải</span>
@@ -1198,6 +1251,43 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition"
                 >
                   ← Xem lại ảnh Thẻ Ngoại Kiều
+                </button>
+              </div>
+            </div>
+          ) : activeDoc === 'workHistories' ? (
+            <div className="w-full h-full p-4 flex flex-col items-center justify-center text-center space-y-3 bg-white/70 overflow-y-auto">
+              <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center text-2xl shadow-xs">
+                🏢
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm">Quá Trình Tham Gia Lương Hưu & Công Tác</h4>
+                <p className="text-xs text-slate-500 max-w-xs mt-1">
+                  Thông tin các công ty, thời gian làm việc và loại hình bảo hiểm được quản lý trực tiếp tại bảng nhập liệu bên phải để in vào Tờ 2 Đơn xin Nenkin.
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 max-w-xs w-full text-left text-xs space-y-2 shadow-2xs">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Số công ty đã kê khai:</span>
+                  <strong className="text-teal-700 font-bold">{workFields.length} công ty</strong>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  💡 Bạn có thể đối chiếu tên công ty và ngày tháng trên ảnh Sổ Nenkin hoặc Thẻ ngoại kiều của khách hàng.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-slate-100 w-full flex flex-col gap-2 max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveDoc('nenkinBook')}
+                  className="w-full py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-xs transition border border-indigo-200 flex items-center justify-center gap-1.5"
+                >
+                  <span>📖 Xem ảnh Sổ Nenkin để đối chiếu</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveDoc('zairyuCard')}
+                  className="w-full py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <span>🪪 Xem ảnh Thẻ Ngoại Kiều</span>
                 </button>
               </div>
             </div>
@@ -2149,10 +2239,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       </FormField>
                       <div className="grid grid-cols-2 gap-3">
                         <FormField label="Ngày Bắt Đầu">
-                          <Input type="date" {...register(`workHistories.${index}.startDate` as const)} disabled={!isEditing} size="md" />
+                          <Input type="date" min="1950-01-01" max="2099-12-31" {...register(`workHistories.${index}.startDate` as const)} disabled={!isEditing} size="md" />
                         </FormField>
                         <FormField label="Ngày Kết Thúc">
-                          <Input type="date" {...register(`workHistories.${index}.endDate` as const)} disabled={!isEditing} size="md" />
+                          <Input type="date" min="1950-01-01" max="2099-12-31" {...register(`workHistories.${index}.endDate` as const)} disabled={!isEditing} size="md" />
                         </FormField>
                       </div>
                     </div>
@@ -3935,7 +4025,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
+      <form onSubmit={handleSubmit(onSubmit, onError)} onKeyDown={handleFormKeyDown} className="h-full flex flex-col gap-1 p-1 overflow-x-hidden relative max-w-full">
 
       {/* ── Header Ribbon (Compact Single Bar) ── */}
       <div className="flex items-center justify-between gap-2 shrink-0 py-1.5 px-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs mb-0.5">

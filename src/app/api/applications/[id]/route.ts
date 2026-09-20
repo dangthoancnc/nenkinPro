@@ -18,7 +18,7 @@ export async function GET(
       where: { id },
       include: {
         customer: {
-          include: { taxOffice: true, bankAccounts: true }
+          include: { taxOffice: true, bankAccounts: true, workHistories: { orderBy: { startDate: 'asc' } } }
         },
         taxRepresentative: {
           include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
@@ -48,7 +48,8 @@ export async function GET(
               taxRepBankAccount: true
             }
           },
-          taxOffice: true
+          taxOffice: true,
+          workHistories: { orderBy: { startDate: 'asc' } }
         }
       });
 

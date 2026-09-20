@@ -114,12 +114,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             ref={ref}
             disabled={disabled}
+            {...props}
+            min={props.min ?? (type === 'date' ? "1950-01-01" : undefined)}
+            max={props.max ?? (type === 'date' ? "2099-12-31" : undefined)}
             className={cn(
               "flex-1 min-w-0 bg-transparent outline-none placeholder:text-slate-300",
               "disabled:cursor-not-allowed",
               inputPadding
             )}
-            {...props}
           />
 
           {/* Suffix text */}
