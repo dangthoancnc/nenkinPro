@@ -98,7 +98,7 @@ const getAvatarColor = (name: string) => {
 
 export default function MessengerPage() {
   const router = useRouter();
-  const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'CTV' | 'GROUP' | 'ARCHIVED'>('CUSTOMER');
+  const [chatCategory, setChatCategory] = useState<'CUSTOMER' | 'STAFF' | 'CTV' | 'GROUP' | 'ARCHIVED'>('CUSTOMER');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -280,9 +280,10 @@ export default function MessengerPage() {
               setActiveChatId(matched.id);
               loadRealMessages(matched.id, false);
               if (matched.isArchived) setChatCategory('ARCHIVED');
-              else if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER') setChatCategory('CUSTOMER');
-              else if (matched.type === 'CTV') setChatCategory('CTV');
+              else if (matched.type === 'CUSTOMER_SUPPORT' || matched.type === 'CUSTOMER' || (matched.type === 'DIRECT' && Boolean(matched.customerId))) setChatCategory('CUSTOMER');
+              else if (matched.type === 'CTV' || matched.role === 'Cộng tác viên (CTV)' || matched.role === 'COLLABORATOR') setChatCategory('CTV');
               else if (matched.type === 'GROUP') setChatCategory('GROUP');
+              else setChatCategory('STAFF');
               return;
             }
           }
@@ -900,7 +901,13 @@ export default function MessengerPage() {
       if (chatCategory === 'ARCHIVED') return c.isArchived === true;
       if (c.isArchived === true) return false;
       if (chatCategory === 'CUSTOMER') return c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId));
-      if (chatCategory === 'CTV') return c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId);
+      if (chatCategory === 'STAFF') {
+        const isStaffDirect = c.type === 'DIRECT' && !c.customerId;
+        const isStaffRole = c.role === 'Quản trị viên' || c.role === 'Quản lý' || c.role === 'Nhân viên';
+        const isCtv = c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR';
+        return (isStaffDirect || isStaffRole) && !isCtv;
+      }
+      if (chatCategory === 'CTV') return c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR';
       return c.type === chatCategory;
     })
     .filter(c =>
@@ -991,8 +998,8 @@ export default function MessengerPage() {
 
         {sidebarView === 'INBOX' ? (
           <>
-            {/* 4 Segmented Category Tabs */}
-            <div className="p-1.5 bg-slate-100/70 border-b border-slate-200/80 grid grid-cols-4 gap-1 shrink-0">
+            {/* 5 Segmented Category Tabs */}
+            <div className="p-1.5 bg-slate-100/70 border-b border-slate-200/80 grid grid-cols-5 gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1000,24 +1007,40 @@ export default function MessengerPage() {
                   const first = conversations.find(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId))));
                   if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
                 }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                className={`py-1.5 text-[9px] font-bold rounded-lg transition-all text-center truncate ${
                   chatCategory === 'CUSTOMER' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
                 }`}
+                title="Khách hàng"
               >
                 👤 Khách ({conversations.filter(c => !c.isArchived && (c.type === 'CUSTOMER' || c.type === 'CUSTOMER_SUPPORT' || (c.type === 'DIRECT' && Boolean(c.customerId)))).length})
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setChatCategory('CTV');
-                  const first = conversations.find(c => !c.isArchived && (c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId)));
+                  setChatCategory('STAFF');
+                  const first = conversations.find(c => !c.isArchived && ((c.type === 'DIRECT' && !c.customerId) || c.role === 'Quản trị viên' || c.role === 'Quản lý' || c.role === 'Nhân viên') && c.type !== 'CTV' && c.role !== 'Cộng tác viên (CTV)' && c.role !== 'COLLABORATOR');
                   if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
                 }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-                  chatCategory === 'CTV' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                className={`py-1.5 text-[9px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'STAFF' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
                 }`}
+                title="Nhân viên nội bộ"
               >
-                🤝 CTV ({conversations.filter(c => !c.isArchived && (c.type === 'CTV' || (c.type === 'DIRECT' && !c.customerId))).length})
+                💼 NV ({conversations.filter(c => !c.isArchived && ((c.type === 'DIRECT' && !c.customerId) || c.role === 'Quản trị viên' || c.role === 'Quản lý' || c.role === 'Nhân viên') && c.type !== 'CTV' && c.role !== 'Cộng tác viên (CTV)' && c.role !== 'COLLABORATOR').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatCategory('CTV');
+                  const first = conversations.find(c => !c.isArchived && (c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR'));
+                  if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
+                }}
+                className={`py-1.5 text-[9px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'CTV' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                }`}
+                title="Cộng tác viên"
+              >
+                🤝 CTV ({conversations.filter(c => !c.isArchived && (c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR')).length})
               </button>
               <button
                 type="button"
@@ -1026,9 +1049,10 @@ export default function MessengerPage() {
                   const first = conversations.find(c => !c.isArchived && c.type === 'GROUP');
                   if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
                 }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
-                  chatCategory === 'GROUP' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
+                className={`py-1.5 text-[9px] font-bold rounded-lg transition-all text-center truncate ${
+                  chatCategory === 'GROUP' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
                 }`}
+                title="Nhóm chat"
               >
                 👥 Nhóm ({conversations.filter(c => !c.isArchived && c.type === 'GROUP').length})
               </button>
@@ -1039,9 +1063,10 @@ export default function MessengerPage() {
                   const first = conversations.find(c => c.isArchived === true);
                   if (first) { setActiveChatId(first.id); loadRealMessages(first.id); }
                 }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all text-center truncate ${
+                className={`py-1.5 text-[9px] font-bold rounded-lg transition-all text-center truncate ${
                   chatCategory === 'ARCHIVED' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-white'
                 }`}
+                title="Kho lưu trữ"
               >
                 📁 Kho ({conversations.filter(c => c.isArchived === true).length})
               </button>
@@ -1148,7 +1173,7 @@ export default function MessengerPage() {
                   directoryCategoryTab === 'STAFF' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/70' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
-                🤝 CTV & NV ({availableStaffs.length})
+                💼 Nhân viên & CTV ({availableStaffs.length})
               </button>
               <button
                 type="button"

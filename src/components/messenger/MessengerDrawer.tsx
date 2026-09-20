@@ -60,7 +60,7 @@ interface MessengerDrawerProps {
 export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProps) {
   const router = useRouter();
   const [tab, setTab] = useState<'INBOX' | 'CONTACTS'>('INBOX');
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'CUSTOMER' | 'CTV' | 'GROUP'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'CUSTOMER' | 'STAFF' | 'CTV' | 'GROUP'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [staffs, setStaffs] = useState<MemberItem[]>([]);
@@ -156,8 +156,17 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
   // Filter conversations
   const filteredConversations = conversations.filter(c => {
     if (c.isArchived) return false;
-    if (categoryFilter === 'CUSTOMER' && c.type !== 'CUSTOMER' && c.type !== 'CUSTOMER_SUPPORT') return false;
-    if (categoryFilter === 'CTV' && c.type !== 'CTV') return false;
+    if (categoryFilter === 'CUSTOMER' && c.type !== 'CUSTOMER' && c.type !== 'CUSTOMER_SUPPORT' && !(c.type === 'DIRECT' && Boolean(c.customerId))) return false;
+    if (categoryFilter === 'STAFF') {
+      const isStaffDirect = c.type === 'DIRECT' && !c.customerId;
+      const isStaffRole = c.role === 'Quản trị viên' || c.role === 'Quản lý' || c.role === 'Nhân viên';
+      const isCtv = c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR';
+      if ((!isStaffDirect && !isStaffRole) || isCtv) return false;
+    }
+    if (categoryFilter === 'CTV') {
+      const isCtv = c.type === 'CTV' || c.role === 'Cộng tác viên (CTV)' || c.role === 'COLLABORATOR';
+      if (!isCtv) return false;
+    }
     if (categoryFilter === 'GROUP' && c.type !== 'GROUP') return false;
 
     if (searchQuery.trim()) {
@@ -174,7 +183,13 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
   const allContacts = [...staffs, ...customers];
   const filteredContacts = allContacts.filter(m => {
     if (categoryFilter === 'CUSTOMER' && m.type !== 'CUSTOMER') return false;
-    if (categoryFilter === 'CTV' && m.role !== 'Cộng tác viên (CTV)' && m.role !== 'COLLABORATOR') return false;
+    if (categoryFilter === 'STAFF') {
+      if (m.type !== 'STAFF') return false;
+      if (m.role === 'Cộng tác viên (CTV)' || m.role === 'COLLABORATOR') return false;
+    }
+    if (categoryFilter === 'CTV') {
+      if (m.role !== 'Cộng tác viên (CTV)' && m.role !== 'COLLABORATOR') return false;
+    }
     if (categoryFilter === 'GROUP') return false;
 
     if (searchQuery.trim()) {
@@ -301,6 +316,15 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
             </button>
             <button
               type="button"
+              onClick={() => setCategoryFilter('STAFF')}
+              className={`px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap transition-colors ${
+                categoryFilter === 'STAFF' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Nhân viên
+            </button>
+            <button
+              type="button"
               onClick={() => setCategoryFilter('CTV')}
               className={`px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap transition-colors ${
                 categoryFilter === 'CTV' ? 'bg-purple-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'
@@ -312,7 +336,7 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
               type="button"
               onClick={() => setCategoryFilter('GROUP')}
               className={`px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap transition-colors ${
-                categoryFilter === 'GROUP' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'
+                categoryFilter === 'GROUP' ? 'bg-teal-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'
               }`}
             >
               Nhóm chat
@@ -326,7 +350,17 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
             <div className="p-8 text-center text-xs text-slate-400">Đang nạp danh sách tin nhắn...</div>
           ) : tab === 'INBOX' ? (
             filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 italic">Không có cuộc trò chuyện nào</div>
+              <div className="p-8 text-center text-xs text-slate-400">
+                <p className="italic mb-2.5">Không có cuộc trò chuyện nào trong mục này</p>
+                <button
+                  type="button"
+                  onClick={() => setTab('CONTACTS')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold transition-colors shadow-2xs"
+                >
+                  <BookUser className="w-3.5 h-3.5" />
+                  <span>Mở Danh Bạ ({allContacts.length}) để nhắn tin</span>
+                </button>
+              </div>
             ) : (
               filteredConversations.map(conv => (
                 <div

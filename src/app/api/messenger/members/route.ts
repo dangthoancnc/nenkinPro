@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           return {
             id: s.id,
             name: s.name,
-            role: s.role === 'ADMIN' ? 'Quản trị viên' : s.role === 'MANAGER' ? 'Quản lý' : 'Cộng tác viên (CTV)',
+            role: s.role === 'ADMIN' ? 'Quản trị viên' : s.role === 'MANAGER' ? 'Quản lý' : s.role === 'COLLABORATOR' ? 'Cộng tác viên (CTV)' : 'Nhân viên',
             code: s.staffCode || s.id.slice(0, 8),
             type: 'STAFF',
             isOnline,
