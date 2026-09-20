@@ -356,6 +356,166 @@
     "width": 67,
     "height": 12
   },
+  "workHistory_1_pensionType": {
+    "page": 2,
+    "x": 440,
+    "y": 520,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 90,
+    "height": 20
+  },
+  "workHistory_2_companyAddress": {
+    "page": 2,
+    "x": 160,
+    "y": 483.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 110,
+    "height": 58
+  },
+  "workHistory_2_companyName": {
+    "page": 2,
+    "x": 24.72,
+    "y": 481.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 128,
+    "height": 53
+  },
+  "workHistory_2_start_full": {
+    "page": 2,
+    "x": 328.05,
+    "y": 458.03,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_2_end_full": {
+    "page": 2,
+    "x": 328.06,
+    "y": 436.92,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_2_pensionType": {
+    "page": 2,
+    "x": 440,
+    "y": 450,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 90,
+    "height": 20
+  },
+  "workHistory_3_companyAddress": {
+    "page": 2,
+    "x": 160,
+    "y": 413.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 110,
+    "height": 58
+  },
+  "workHistory_3_companyName": {
+    "page": 2,
+    "x": 24.72,
+    "y": 411.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 128,
+    "height": 53
+  },
+  "workHistory_3_start_full": {
+    "page": 2,
+    "x": 328.05,
+    "y": 388.03,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_3_end_full": {
+    "page": 2,
+    "x": 328.06,
+    "y": 366.92,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_3_pensionType": {
+    "page": 2,
+    "x": 440,
+    "y": 380,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 90,
+    "height": 20
+  },
+  "workHistory_4_companyAddress": {
+    "page": 2,
+    "x": 160,
+    "y": 343.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 110,
+    "height": 58
+  },
+  "workHistory_4_companyName": {
+    "page": 2,
+    "x": 24.72,
+    "y": 341.36,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 128,
+    "height": 53
+  },
+  "workHistory_4_start_full": {
+    "page": 2,
+    "x": 328.05,
+    "y": 318.03,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_4_end_full": {
+    "page": 2,
+    "x": 328.06,
+    "y": 296.92,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 67,
+    "height": 12
+  },
+  "workHistory_4_pensionType": {
+    "page": 2,
+    "x": 440,
+    "y": 310,
+    "size": 9,
+    "type": "text",
+    "align": "left",
+    "width": 90,
+    "height": 20
+  },
   "swift_1": {
     "page": 1,
     "x": 137.61,
