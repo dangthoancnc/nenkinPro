@@ -37,8 +37,8 @@ export async function GET(request: Request) {
       }
     }
 
-    if (q) {
-      const qClean = q.trim();
+    const qClean = (q || '').trim();
+    if (qClean) {
       const words = qClean.split(/\s+/).filter(Boolean);
       try {
         let matchingCustomerIds: string[] = [];
@@ -59,13 +59,14 @@ export async function GET(request: Request) {
           matchingCustomerIds = rows.map(r => r.id);
         }
 
-        andConditions.push({
-          OR: [
-            { customerId: { in: matchingCustomerIds } },
-            { customer: { fullName: { contains: qClean, mode: 'insensitive' } } },
-            { customer: { code: { contains: qClean, mode: 'insensitive' } } }
-          ]
-        });
+        const orBranches: any[] = [
+          { customer: { fullName: { contains: qClean, mode: 'insensitive' } } },
+          { customer: { code: { contains: qClean, mode: 'insensitive' } } }
+        ];
+        if (matchingCustomerIds.length > 0) {
+          orBranches.unshift({ customerId: { in: matchingCustomerIds } });
+        }
+        andConditions.push({ OR: orBranches });
       } catch (err) {
         console.warn('Unaccent search query fallback:', err);
         andConditions.push({

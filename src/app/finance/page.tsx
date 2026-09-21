@@ -59,7 +59,7 @@ export default function FinancePage() {
     try {
       const [ratesRes, appsRes] = await Promise.all([
         fetch(`/api/exchange-rates?limit=14${forceRefresh ? '&refresh=true' : ''}`),
-        fetch('/api/applications')
+        fetch('/api/applications?limit=1000')
       ]);
 
       if (ratesRes.ok) {
@@ -76,7 +76,8 @@ export default function FinancePage() {
 
       if (appsRes.ok) {
         const aJson = await appsRes.json();
-        setApplications(aJson);
+        const appList = Array.isArray(aJson) ? aJson : (Array.isArray(aJson?.data) ? aJson.data : []);
+        setApplications(appList);
       }
     } catch (e) {
       console.error('Failed to fetch finance page data:', e);
@@ -129,15 +130,16 @@ export default function FinancePage() {
   };
 
   // Calculations
-  const totalExpectedServiceFeeJpy = applications.reduce((sum, app) => sum + (Number(app.serviceFeeJpy) || 0), 0);
-  const totalExpectedServiceFeeVnd = applications.reduce((sum, app) => sum + (Number(app.serviceFeeVnd) || 0), 0);
-  const totalCompletedServiceFeeVnd = applications
+  const appList: Application[] = Array.isArray(applications) ? applications : (Array.isArray((applications as any)?.data) ? (applications as any).data : []);
+  const totalExpectedServiceFeeJpy = appList.reduce((sum, app) => sum + (Number(app.serviceFeeJpy) || 0), 0);
+  const totalExpectedServiceFeeVnd = appList.reduce((sum, app) => sum + (Number(app.serviceFeeVnd) || 0), 0);
+  const totalCompletedServiceFeeVnd = appList
     .filter(app => app.status === 'COMPLETED')
     .reduce((sum, app) => sum + (Number(app.serviceFeeVnd) || 0), 0);
-  const totalReferralBonusJpy = applications.reduce((sum, app) => sum + (Number(app.referralBonusJpy) || 0), 0);
+  const totalReferralBonusJpy = appList.reduce((sum, app) => sum + (Number(app.referralBonusJpy) || 0), 0);
 
   // Filter logic
-  const filteredApps = applications.filter(app => {
+  const filteredApps = appList.filter(app => {
     const matchSearch = 
       app.customer?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -284,9 +286,9 @@ export default function FinancePage() {
               <CardTitle className="text-sm font-bold text-slate-800">Biểu đồ tỷ giá JPY</CardTitle>
               <CardDescription className="text-[10px] text-slate-500">Biến động tỷ giá 14 ngày qua</CardDescription>
             </CardHeader>
-            <CardContent className="p-0 h-40">
+            <CardContent className="p-0 h-40 w-full min-w-0">
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
                   <LineChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="date" tick={{ fontSize: 9 }} stroke="#64748b" />
