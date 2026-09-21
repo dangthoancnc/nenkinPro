@@ -220,7 +220,10 @@ export async function PUT(
       }
     } catch (err: any) {
       if (
-        (err?.message?.includes('exchangeRateDate') || err?.message?.includes('collaboratorId') || err?.message?.includes('Unknown argument'))
+        err?.message?.includes('exchangeRateDate') ||
+        err?.message?.includes('collaborator') ||
+        err?.message?.includes('Unknown argument') ||
+        err?.message?.includes('Unknown field')
       ) {
         console.warn('Prisma client in memory is outdated. Falling back to resilient update...');
         const { exchangeRateDate, collaboratorId, ...restData } = formattedData;
@@ -234,7 +237,7 @@ export async function PUT(
         }
         if (exchangeRateDate !== undefined) {
           await prisma.$executeRawUnsafe(
-            `UPDATE "NenkinApplication" SET "exchangeRateDate" = $1 WHERE "id" = $2`,
+            `UPDATE "nenkin_applications" SET "exchangeRateDate" = $1 WHERE "id" = $2`,
             exchangeRateDate,
             id
           );
@@ -244,13 +247,28 @@ export async function PUT(
         }
         if (collaboratorId !== undefined) {
           await prisma.$executeRawUnsafe(
-            `UPDATE "NenkinApplication" SET "collaboratorId" = $1 WHERE "id" = $2`,
+            `UPDATE "nenkin_applications" SET "collaboratorId" = $1 WHERE "id" = $2`,
             collaboratorId,
             id
           );
           if (updatedApplication) {
             updatedApplication.collaboratorId = collaboratorId;
           }
+        }
+        if (collaboratorId) {
+          try {
+            const userObj = await prisma.user.findUnique({
+              where: { id: collaboratorId },
+              select: { id: true, name: true, staffCode: true, role: true }
+            });
+            if (updatedApplication) {
+              updatedApplication.collaborator = userObj;
+            }
+          } catch {
+            // ignore
+          }
+        } else if (updatedApplication) {
+          updatedApplication.collaborator = null;
         }
       } else {
         throw err;
