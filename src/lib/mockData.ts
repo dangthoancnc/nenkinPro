@@ -81,7 +81,7 @@ export const MOCK_DATA: Record<string, string> = {
   permResDate_d: '15',
   
   // 2b. Đại lý nhận ủy quyền & Nội dung ủy quyền Lần 1
-  agentName: 'CÔNG TY CỔ PHẦN NENKINPRO',
+  agentName: 'CÔNG TY CỔ PHẦN VIETNENKIN SOLUTIONS',
   agentAddress: '東京都新宿区百人町1-2-4 グローバルビル5F',
   agentPhone: '03-1234-5678',
   delegationPurpose: 'Đại diện làm thủ tục nhận tiền Nenkin và hoàn thuế 20.42%',

@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Printer, Loader2, FileImage, Download } from 'lucide-react';
 import { PrintContainer, PrintField, ImagePrintContainer, A4_W, A4_H } from '@/components/PrintOverlay';
 import dynamic from 'next/dynamic';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 const PdfMapperClient = dynamic(() => import('@/app/admin/pdf-mapper/PdfMapperClient'), { ssr: false });
 
 interface PrintModalProps {
@@ -185,6 +186,7 @@ const DOCUMENT_TYPES = [
 ];
 
 export default function PrintModal({ isOpen, onClose, id, initialTemplate, initialTab }: PrintModalProps) {
+  const { isAdmin } = useCurrentUser();
   const [appData, setAppData] = useState<any | null>(null);
   const [allConfigs, setAllConfigs] = useState<Record<string, Record<string, any>>>({});
   const [loading, setLoading] = useState(true);
@@ -508,6 +510,10 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
   const activeDoc = DOCUMENT_TYPES.find(d => d.id === activeTab) || DOCUMENT_TYPES[0];
 
   const handleOpenPdfMapper = async () => {
+    if (!isAdmin) {
+      alert('Chức năng Tùy chỉnh Tọa độ in chỉ dành cho Quản trị viên (ADMIN).');
+      return;
+    }
     try {
       const res = await fetch('/api/templates/mapping/verify-passcode', {
         method: 'POST',
@@ -618,7 +624,7 @@ export default function PrintModal({ isOpen, onClose, id, initialTemplate, initi
             Tải PDF Trọn bộ
           </button>
 
-          {activeDoc.pages.some(p => p.templateName) && (
+          {isAdmin && activeDoc.pages.some(p => p.templateName) && (
             <button
               type="button"
               onClick={handleOpenPdfMapper}

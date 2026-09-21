@@ -17,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VietNenkin - Hoàn Thuế Nhanh Chóng",
-  description: "Dịch vụ xin hoàn thuế Nenkin uy tín, nhanh chóng và tin cậy.",
+  title: "VietNenkin Solutions - Hệ Thống Nghiệp Vụ Hoàn Thuế & An Sinh Nhật Bản",
+  description: "Nền tảng giải pháp quản trị và xử lý nghiệp vụ hồ sơ Nenkin & thuế chuyên nghiệp.",
 };
 
 import LayoutWrapper from "@/components/LayoutWrapper";

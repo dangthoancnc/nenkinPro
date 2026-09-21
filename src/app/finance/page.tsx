@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface Application {
   id: string;
@@ -37,6 +38,7 @@ interface Rate {
 }
 
 export default function FinancePage() {
+  const { isAdmin, isLoading: userLoading } = useCurrentUser();
   const [rates, setRates] = useState<Rate[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,8 +92,10 @@ export default function FinancePage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAdmin) {
+      fetchData();
+    }
+  }, [isAdmin]);
 
   const handleUpdateRate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +153,34 @@ export default function FinancePage() {
       'Tỷ giá': parseFloat(r.jpyToVnd)
     };
   });
+
+  if (userLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <RefreshCw className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-white border border-slate-200 rounded-2xl shadow-sm text-center">
+        <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-100">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-2">Quyền truy cập bị giới hạn</h2>
+        <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          Khu vực Quản lý Tài chính & Tỷ giá chỉ dành cho tài khoản Quản trị viên (ADMIN). Nếu bạn là Cộng tác viên, vui lòng theo dõi doanh thu và hoa hồng cá nhân tại Cổng thông tin (Portal).
+        </p>
+        <Link
+          href="/portal"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+        >
+          Đến Cổng Cộng tác viên (Portal) <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">

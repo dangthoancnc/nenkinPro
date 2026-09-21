@@ -2,12 +2,38 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Settings, FileText, Building2, UserCheck, Lock } from 'lucide-react';
+import { Settings, FileText, Building2, UserCheck, Lock, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function SettingsPage() {
+  const { isAdmin, isLoading } = useCurrentUser();
   const [showChangePassword, setShowChangePassword] = useState(false);
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-slate-500 text-sm">Đang tải cấu hình...</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-white border border-slate-200 rounded-2xl shadow-sm text-center">
+        <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-100">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-2">Quyền truy cập bị giới hạn</h2>
+        <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          Khu vực Cài đặt Hệ thống chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).
+        </p>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Quay lại Bảng điều khiển
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">

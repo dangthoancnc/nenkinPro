@@ -10,7 +10,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <Banknote className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-800">
-            Nenkin<span className="text-indigo-600">Pro</span> Portal
+            VietNenkin <span className="text-indigo-600">Solutions</span> Portal
           </h1>
         </div>
       </header>
@@ -18,7 +18,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
       <footer className="py-6 text-center text-sm text-slate-500 border-t border-slate-200 bg-white">
-        &copy; {new Date().getFullYear()} NenkinPro. Dịch vụ xin hoàn thuế Nenkin uy tín.
+        &copy; {new Date().getFullYear()} VietNenkin Solutions (VNS). Dịch vụ xin hoàn thuế Nenkin uy tín.
       </footer>
     </div>
   );

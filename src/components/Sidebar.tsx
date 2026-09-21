@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Banknote, Pin, PinOff, Home } from 'lucide-react';
 import { menuItems } from '@/lib/navigation';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function Sidebar({
   isOpen,
@@ -23,6 +24,16 @@ export default function Sidebar({
   onOpenQuickToolsDrawer?: () => void;
 }) {
   const pathname = usePathname();
+  const { user } = useCurrentUser();
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (!item.roles) return true;
+    if (!user) {
+      // Default safe items before session loads: hide strictly ADMIN items
+      return item.roles.includes('COLLABORATOR');
+    }
+    return item.roles.includes(user.role as any);
+  });
 
   return (
     <aside 
@@ -36,8 +47,8 @@ export default function Sidebar({
             <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
           </div>
           {isOpen && (
-            <h1 className="text-xl font-bold tracking-tight text-white whitespace-nowrap">
-              VietNenkin <span className="text-teal-400">Pro</span>
+            <h1 className="text-base font-bold tracking-tight text-white whitespace-nowrap">
+              VietNenkin <span className="text-teal-400 font-extrabold">Solutions</span>
             </h1>
           )}
         </div>
@@ -54,7 +65,7 @@ export default function Sidebar({
       
       <nav className="flex-1 px-3 mt-4">
         <ul className="space-y-1.5">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.href === '/dashboard'
               ? pathname === '/dashboard'

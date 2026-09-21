@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 // Removed hardcoded revenueData
 
@@ -19,6 +20,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 export default function Home() {
+  const { user, isCollaborator } = useCurrentUser();
   const [kpis, setKpis] = useState<{ title: string; value: string; trend: string; iconName: string; color: string; bg: string }[]>([]);
   const [recentApplications, setRecentApplications] = useState<{ id: string; name: string; status: string; date: string; amount: string }[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ date: string; rate: number }[]>([]);
@@ -93,8 +95,14 @@ export default function Home() {
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0">
       <div>
-        <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Tổng quan (Dashboard)</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Theo dõi các chỉ số quan trọng và tiến độ hồ sơ Nenkin.</p>
+        <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+          {isCollaborator ? 'Tổng quan Cá nhân (Personal Hub)' : 'Tổng quan Doanh nghiệp (Enterprise Dashboard)'}
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          {isCollaborator 
+            ? 'Theo dõi tiến độ hồ sơ phụ trách và thu nhập hoa hồng cá nhân.' 
+            : 'Theo dõi các chỉ số quan trọng, doanh thu và tiến độ hồ sơ Nenkin toàn hệ thống.'}
+        </p>
       </div>
 
       {loading ? (
@@ -242,21 +250,33 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">Trang theo dõi tiến độ hồ sơ Nenkin</p>
                   </div>
                 </Link>
-                <Link href="/finance" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all text-left group">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-800/60 transition-colors">
-                    <Banknote className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium group-hover:text-amber-700 dark:group-hover:text-amber-400">Tính toán chi phí</p>
-                    <p className="text-xs text-muted-foreground">Báo giá Nenkin & tỷ giá</p>
-                  </div>
-                </Link>
+                {user?.role === 'COLLABORATOR' ? (
+                  <Link href="/portal" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all text-left group">
+                    <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-800/60 transition-colors">
+                      <Banknote className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium group-hover:text-amber-700 dark:group-hover:text-amber-400">Ví Hoa hồng & Bảng tin</p>
+                      <p className="text-xs text-muted-foreground">Xem chi tiết thù lao cá nhân</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <Link href="/finance" className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all text-left group">
+                    <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-800/60 transition-colors">
+                      <Banknote className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium group-hover:text-amber-700 dark:group-hover:text-amber-400">Tài chính & Doanh thu</p>
+                      <p className="text-xs text-muted-foreground">Báo giá, dòng tiền & tỷ giá</p>
+                    </div>
+                  </Link>
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
+          <div className={`grid grid-cols-1 ${revenueData.length > 0 ? 'lg:grid-cols-2' : ''} gap-3 sm:gap-6`}>
             <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
               <CardHeader className="p-3 sm:p-4 pb-1">
                 <div className="flex items-center justify-between gap-2">
@@ -285,24 +305,26 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
-              <CardHeader className="p-3 sm:p-4 pb-1">
-                <CardTitle className="text-xs sm:text-sm font-bold">Doanh thu ước tính (Triệu VNĐ)</CardTitle>
-              </CardHeader>
-              <CardContent className="h-44 sm:h-56 p-2 sm:p-4">
-                {isMounted && (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={revenueData} margin={{ top: 5, right: 15, bottom: 5, left: -20 }}>
-                      <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 10 }} tickMargin={5} stroke="#94a3b8" />
-                      <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                      <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
-                      <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+            {revenueData.length > 0 && (
+              <Card className="bg-white/85 backdrop-blur-md border border-slate-200/70">
+                <CardHeader className="p-3 sm:p-4 pb-1">
+                  <CardTitle className="text-xs sm:text-sm font-bold">Doanh thu ước tính (Triệu VNĐ)</CardTitle>
+                </CardHeader>
+                <CardContent className="h-44 sm:h-56 p-2 sm:p-4">
+                  {isMounted && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={revenueData} margin={{ top: 5, right: 15, bottom: 5, left: -20 }}>
+                        <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} tickMargin={5} stroke="#94a3b8" />
+                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <RechartsTooltip cursor={{ fill: '#f1f5f9' }} />
+                        <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </>
       )}

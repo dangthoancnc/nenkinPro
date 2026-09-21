@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanAddress)}&format=json&addressdetails=1&countrycodes=jp&limit=1`;
         const res = await fetch(url, {
           headers: {
-            'User-Agent': 'NenkinPro/1.0 (postal-lookup)',
+            'User-Agent': 'VietNenkinSolutions/1.0 (postal-lookup)',
             'Accept-Language': 'ja',
           },
           signal: AbortSignal.timeout(6000),
