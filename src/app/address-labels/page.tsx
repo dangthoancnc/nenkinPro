@@ -30,6 +30,7 @@ import {
 import {
   AddressLabelData,
   CustomerDisplayMode,
+  LabelAlignMode,
 } from '@/components/address-labels/AddressLabelCard';
 
 type TabType = 'tax_rep' | 'tax_office' | 'nenkin_org';
@@ -51,6 +52,7 @@ export default function AddressLabelsPage() {
   const [repCount, setRepCount] = useState<number>(18);
   const [repTag, setRepTag] = useState<string>('【送付先】');
   const [repHonorific, setRepHonorific] = useState<'御中' | '様' | '行' | 'none'>('様');
+  const [repAlignMode, setRepAlignMode] = useState<LabelAlignMode>('standard');
 
   // Tab 2: Tax Office Applications state
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set());
@@ -120,13 +122,14 @@ export default function AddressLabelsPage() {
       phone: rep.phone || '',
       honorific: repHonorific,
       typeTag: repTag,
+      alignMode: repAlignMode,
     };
 
     return Array.from({ length: repCount }).map((_, idx) => ({
       ...singleLabel,
       id: `${rep.id}-${idx}`,
     }));
-  }, [selectedRepId, taxRepresentatives, repCount, repHonorific, repTag]);
+  }, [selectedRepId, taxRepresentatives, repCount, repHonorific, repTag, repAlignMode]);
 
   // Compute label items for Tab 2: Tax Office per Application
   const officeLabels: AddressLabelData[] = useMemo(() => {
@@ -431,6 +434,53 @@ export default function AddressLabelsPage() {
                     <option value="none">Không kèm kính ngữ</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Alignment Mode */}
+              <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <span>Kiểu căn lề Tên & Địa chỉ:</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.2 rounded">
+                    Chuẩn bưu điện
+                  </span>
+                </div>
+
+                <select
+                  value={repAlignMode}
+                  onChange={(e) => setRepAlignMode(e.target.value as LabelAlignMode)}
+                  className="w-full h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-semibold text-slate-800 focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="standard">
+                    1. Chuẩn Nhật: Địa chỉ căn trái — Tên căn giữa (Khuyên dùng)
+                  </option>
+                  <option value="center_all">
+                    2. Căn giữa toàn bộ (Cả Tên & Địa chỉ)
+                  </option>
+                  <option value="left_all">
+                    3. Căn trái toàn bộ (Truyền thống)
+                  </option>
+                </select>
+
+                <p className="text-[10.5px] text-slate-500 leading-tight">
+                  {repAlignMode === 'standard' && (
+                    <span>
+                      Địa chỉ căn trái chuẩn quy tắc bưu tá quét mã; Tên người đại diện căn giữa trang trọng, cân xứng hoàn hảo 2 bên con tem.
+                    </span>
+                  )}
+                  {repAlignMode === 'center_all' && (
+                    <span>
+                      Cả địa chỉ và tên người đại diện đều được căn giữa đối xứng 100%.
+                    </span>
+                  )}
+                  {repAlignMode === 'left_all' && (
+                    <span>
+                      Tất cả địa chỉ và tên người đại diện đều căn đều lề trái.
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           )}

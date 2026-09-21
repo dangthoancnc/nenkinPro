@@ -3,6 +3,7 @@
 import React from 'react';
 
 export type CustomerDisplayMode = 'inside' | 'outside' | 'code_only' | 'hidden';
+export type LabelAlignMode = 'standard' | 'center_all' | 'left_all';
 
 export interface AddressLabelData {
   id?: string;
@@ -16,6 +17,7 @@ export interface AddressLabelData {
   appCode?: string;
   customerName?: string;
   customerDisplayMode?: CustomerDisplayMode;
+  alignMode?: LabelAlignMode;
 }
 
 export function cleanAddressString(rawAddress: string, postalCode?: string): string {
@@ -56,6 +58,7 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
     appCode = '',
     customerName = '',
     customerDisplayMode = 'inside',
+    alignMode = 'standard',
   } = data;
 
   const formattedPostal = postalCode.startsWith('〒')
@@ -148,7 +151,11 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
         }`}
       >
         {/* Cleaned Address */}
-        <div className="min-w-0 pt-0.5">
+        <div
+          className={`min-w-0 pt-0.5 ${
+            alignMode === 'center_all' ? 'text-center' : 'text-left'
+          }`}
+        >
           <p
             className={`${
               isHighDensity
@@ -163,8 +170,20 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
         </div>
 
         {/* Recipient Name & Department / Furigana */}
-        <div className="min-w-0 pt-1 pb-0.5">
-          <div className="leading-snug flex items-baseline flex-wrap gap-y-0.5">
+        <div
+          className={`min-w-0 pt-1 pb-0.5 flex flex-col ${
+            alignMode === 'center_all' || (alignMode === 'standard' && isIndividual)
+              ? 'items-center text-center'
+              : 'items-start text-left'
+          }`}
+        >
+          <div
+            className={`leading-snug flex items-baseline flex-wrap gap-y-0.5 ${
+              alignMode === 'center_all' || (alignMode === 'standard' && isIndividual)
+                ? 'justify-center'
+                : 'justify-start'
+            }`}
+          >
             <span
               className={`${
                 isIndividual
