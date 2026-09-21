@@ -62,6 +62,7 @@ export default function AddressLabelsPage() {
   const [officeTag, setOfficeTag] = useState<string>('【申告書等提出先】');
   const [officeHonorific, setOfficeHonorific] = useState<'御中' | '様' | '行' | 'none'>('御中');
   const [customerDisplayMode, setCustomerDisplayMode] = useState<CustomerDisplayMode>('inside');
+  const [officeAlignMode, setOfficeAlignMode] = useState<LabelAlignMode>('standard');
 
   // Tab 3: Nenkin Org state
   const [nenkinCount, setNenkinCount] = useState<number>(18);
@@ -173,6 +174,7 @@ export default function AddressLabelsPage() {
         appCode: customer.code || '',
         customerName: customer.fullName || '',
         customerDisplayMode: customerDisplayMode,
+        alignMode: officeAlignMode,
       });
     });
 
@@ -185,6 +187,7 @@ export default function AddressLabelsPage() {
     officeHonorific,
     officeTag,
     customerDisplayMode,
+    officeAlignMode,
   ]);
 
   // Compute label items for Tab 3: Nenkin Org
@@ -582,6 +585,53 @@ export default function AddressLabelsPage() {
                   )}
                   {customerDisplayMode === 'hidden' && (
                     <span>Ẩn hoàn toàn thông tin khách hàng, tem chỉ hiển thị thông tin Cục thuế.</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Alignment Mode for Tax Office */}
+              <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <span>Kiểu căn lề Cục thuế & Nơi nhận:</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.2 rounded">
+                    Cân xứng
+                  </span>
+                </div>
+
+                <select
+                  value={officeAlignMode}
+                  onChange={(e) => setOfficeAlignMode(e.target.value as LabelAlignMode)}
+                  className="w-full h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-semibold text-slate-800 focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="standard">
+                    1. Chuẩn cân đối: Địa chỉ căn trái — Cục thuế căn giữa (Khuyên dùng)
+                  </option>
+                  <option value="center_all">
+                    2. Căn giữa toàn bộ (Cả Cục thuế & Địa chỉ)
+                  </option>
+                  <option value="left_all">
+                    3. Căn trái toàn bộ (Truyền thống)
+                  </option>
+                </select>
+
+                <p className="text-[10.5px] text-slate-500 leading-tight">
+                  {officeAlignMode === 'standard' && (
+                    <span>
+                      Địa chỉ căn trái chuẩn bưu tá đọc; Tên Cục thuế căn giữa giúp tem cân đối tuyệt đối 2 bên, không bị lệch sang trái khi tên ngắn.
+                    </span>
+                  )}
+                  {officeAlignMode === 'center_all' && (
+                    <span>
+                      Cả địa chỉ và tên Cục thuế đều được căn giữa đối xứng 100%.
+                    </span>
+                  )}
+                  {officeAlignMode === 'left_all' && (
+                    <span>
+                      Tất cả địa chỉ và tên Cục thuế đều căn đều lề trái.
+                    </span>
                   )}
                 </p>
               </div>

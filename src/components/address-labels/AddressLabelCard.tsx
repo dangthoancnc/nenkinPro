@@ -142,17 +142,15 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
         </div>
       )}
 
-      {/* ── MIDDLE: ADDRESS & RECIPIENT GROUP (BALANCED & HARMONIOUS) ── */}
+      {/* ── MIDDLE: ADDRESS & RECIPIENT GROUP (PERFECT VERTICAL BALANCE & ALIGNMENT) ── */}
       <div
-        className={`flex-1 min-h-0 flex flex-col ${
-          hasCustomerBanner
-            ? 'justify-center py-0.5'
-            : 'justify-between py-1 sm:py-1.5'
+        className={`flex-1 min-h-0 flex flex-col justify-around ${
+          hasCustomerBanner ? 'py-1' : 'py-1.5'
         }`}
       >
         {/* Cleaned Address */}
         <div
-          className={`min-w-0 pt-0.5 ${
+          className={`min-w-0 ${
             alignMode === 'center_all' ? 'text-center' : 'text-left'
           }`}
         >
@@ -161,7 +159,7 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
               isHighDensity
                 ? 'text-[9px] leading-tight'
                 : is3Cols
-                ? 'text-[10.5px] leading-snug'
+                ? 'text-[10px] leading-snug'
                 : 'text-[11.5px] leading-normal'
             } font-medium text-slate-800 print:text-black select-all line-clamp-2`}
           >
@@ -171,15 +169,15 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
 
         {/* Recipient Name & Department / Furigana */}
         <div
-          className={`min-w-0 pt-1 pb-0.5 flex flex-col ${
-            alignMode === 'center_all' || (alignMode === 'standard' && isIndividual)
+          className={`min-w-0 pt-0.5 pb-0.5 flex flex-col ${
+            alignMode === 'center_all' || alignMode === 'standard'
               ? 'items-center text-center'
               : 'items-start text-left'
           }`}
         >
           <div
             className={`leading-snug flex items-baseline flex-wrap gap-y-0.5 ${
-              alignMode === 'center_all' || (alignMode === 'standard' && isIndividual)
+              alignMode === 'center_all' || alignMode === 'standard'
                 ? 'justify-center'
                 : 'justify-start'
             }`}
@@ -193,11 +191,13 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
                     ? 'text-[14.5px] sm:text-[15px]'
                     : 'text-base sm:text-[16.5px]'
                   : isHighDensity
-                  ? 'text-[10.5px]'
-                  : recipientName.length > 14
-                  ? 'text-[11.5px]'
+                  ? 'text-[10px]'
+                  : recipientName.length > 16
+                  ? 'text-[10.5px] tracking-tighter'
+                  : recipientName.length > 12
+                  ? 'text-[11.5px] tracking-tight'
                   : is3Cols
-                  ? 'text-[12.5px]'
+                  ? 'text-[12.5px] tracking-tight'
                   : 'text-[13.5px]'
               } font-black text-slate-900 print:text-black tracking-wide inline`}
             >
@@ -228,7 +228,7 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
                     : 'text-[9.5px] font-medium text-slate-500 print:text-slate-700'
                   : isHighDensity
                   ? 'text-[8px]'
-                  : 'text-[8.5px] font-semibold text-slate-600 print:text-black'
+                  : 'text-[9px] font-bold text-slate-700 print:text-black'
               } tracking-wide truncate leading-tight mt-0.5`}
             >
               {department}
