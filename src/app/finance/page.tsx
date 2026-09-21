@@ -6,7 +6,8 @@ import {
   ArrowUpRight, AlertCircle, FileText, CheckCircle, 
   Search, ArrowRight, Sparkles, Users, UserCheck, 
   ShieldCheck, DollarSign, Wallet, Maximize2, Minimize2,
-  CheckCircle2, Clock, AlertTriangle, Layers
+  CheckCircle2, Clock, AlertTriangle, Layers,
+  Edit3, X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface UserInfo {
@@ -169,6 +171,64 @@ export default function FinancePage() {
     : (Array.isArray((applications as any)?.data) ? (applications as any).data : []);
 
   const currentRate = dcomLiveRate || (rates[0] ? parseFloat(rates[0].jpyToVnd) : 165.6);
+
+  // Quick Edit Settlement State
+  const [editingAppForSettlement, setEditingAppForSettlement] = useState<Application | null>(null);
+  const [settlementFeeJpy, setSettlementFeeJpy] = useState('');
+  const [settlementRate, setSettlementRate] = useState('');
+  const [settlementFeeVnd, setSettlementFeeVnd] = useState('');
+  const [settlementBonusJpy, setSettlementBonusJpy] = useState('');
+  const [settlementSaving, setSettlementSaving] = useState(false);
+
+  const handleOpenSettlementModal = (app: Application) => {
+    setEditingAppForSettlement(app);
+    setSettlementFeeJpy(app.serviceFeeJpy !== null && app.serviceFeeJpy !== undefined ? String(app.serviceFeeJpy) : '');
+    const activeR = app.exchangeRate ? String(app.exchangeRate) : String(currentRate);
+    setSettlementRate(activeR);
+    setSettlementFeeVnd(app.serviceFeeVnd !== null && app.serviceFeeVnd !== undefined ? String(app.serviceFeeVnd) : '');
+    setSettlementBonusJpy(app.referralBonusJpy !== null && app.referralBonusJpy !== undefined ? String(app.referralBonusJpy) : '');
+  };
+
+  const handleSaveSettlement = async () => {
+    if (!editingAppForSettlement) return;
+    setSettlementSaving(true);
+    try {
+      const payload = {
+        serviceFeeJpy: settlementFeeJpy !== '' ? parseFloat(settlementFeeJpy) : null,
+        serviceFeeVnd: settlementFeeVnd !== '' ? parseFloat(settlementFeeVnd) : null,
+        exchangeRate: settlementRate !== '' ? parseFloat(settlementRate) : null,
+        referralBonusJpy: settlementBonusJpy !== '' ? parseFloat(settlementBonusJpy) : null,
+      };
+
+      const res = await fetch(`/api/applications/${editingAppForSettlement.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error || 'Cập nhật thất bại');
+      }
+
+      // Update state locally so all tables and KPI cards re-calculate immediately
+      setApplications(prev => prev.map(a => a.id === editingAppForSettlement.id ? {
+        ...a,
+        serviceFeeJpy: payload.serviceFeeJpy,
+        serviceFeeVnd: payload.serviceFeeVnd,
+        exchangeRate: payload.exchangeRate,
+        referralBonusJpy: payload.referralBonusJpy,
+      } : a));
+
+      toast.success(`Đã cập nhật phí & hoa hồng cho hồ sơ ${editingAppForSettlement.customer?.fullName}`);
+      setEditingAppForSettlement(null);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || 'Lỗi khi lưu quyết toán');
+    } finally {
+      setSettlementSaving(false);
+    }
+  };
 
   // Extract staff / collaborator options for filter dropdown
   const staffFilterOptions = useMemo(() => {
@@ -782,11 +842,23 @@ export default function FinancePage() {
 
                               {/* 5. Phí thu khách */}
                               <TableCell className="py-2 px-2.5 text-right font-mono">
-                                <div className="font-bold text-xs text-indigo-700">
-                                  {feeJpy ? `¥${feeJpy.toLocaleString()}` : '---'}
-                                </div>
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  {feeVnd ? `${feeVnd.toLocaleString()} đ` : '---'}
+                                <div className="flex items-center justify-end gap-1.5 group">
+                                  <div>
+                                    <div className="font-bold text-xs text-indigo-700">
+                                      {feeJpy ? `¥${feeJpy.toLocaleString()}` : '---'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">
+                                      {feeVnd ? `${feeVnd.toLocaleString()} đ` : '---'}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSettlementModal(app)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-indigo-50 text-indigo-600 transition-opacity"
+                                    title="Sửa nhanh phí & hoa hồng"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </TableCell>
 
@@ -822,14 +894,24 @@ export default function FinancePage() {
                               </TableCell>
 
                               {/* 8. Thao tác */}
-                              <TableCell className="py-2 px-2 text-center">
-                                <Link 
-                                  href={`/applications/${app.id}`} 
-                                  className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-                                  title="Xem chi tiết hồ sơ & tài chính"
-                                >
-                                  <ArrowRight className="w-3.5 h-3.5" />
-                                </Link>
+                              <TableCell className="py-2 px-2 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSettlementModal(app)}
+                                    className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800 transition-colors"
+                                    title="Sửa nhanh phí thu & hoa hồng"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <Link 
+                                    href={`/applications/${app.id}`} 
+                                    className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                    title="Xem chi tiết hồ sơ & tài chính"
+                                  >
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </Link>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -944,6 +1026,228 @@ export default function FinancePage() {
           </Card>
         </div>
       </div>
+
+      {/* Quick Edit Settlement Modal */}
+      {editingAppForSettlement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-indigo-600" />
+                  Thiết lập Phí thu & Hoa hồng nhanh
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Khách: <span className="font-semibold text-slate-700">{editingAppForSettlement.customer?.fullName}</span> (#{editingAppForSettlement.customer?.code})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingAppForSettlement(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {/* Quick Calculation Ribbon */}
+              {(() => {
+                const r2 = Number(editingAppForSettlement.received2ndJpy) || 
+                           Number((editingAppForSettlement as any).tax2ndJpy) || 
+                           Number((editingAppForSettlement as any).withheldTax) || 
+                           (editingAppForSettlement.totalExpectedJpy ? Math.floor(Number(editingAppForSettlement.totalExpectedJpy) * 0.2042) : 0);
+                const default5Percent = Math.round(r2 * 0.05);
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Tiền Lần 2 (hoặc Thuế L2):</span>
+                        <span className="font-mono font-bold text-slate-800 text-sm">¥{r2.toLocaleString()}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-500 block text-[10px]">Mức chuẩn 5% L2:</span>
+                        <span className="font-mono font-bold text-indigo-700 text-sm">¥{default5Percent.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Quick helper buttons */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        className="bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-semibold gap-1 text-[11px]"
+                        onClick={() => {
+                          const currentR = parseFloat(settlementRate) || currentRate;
+                          setSettlementFeeJpy(String(default5Percent));
+                          setSettlementFeeVnd(String(Math.round(default5Percent * currentR)));
+                        }}
+                      >
+                        ⚡ Áp dụng 5% Lần 2 (¥{default5Percent.toLocaleString()})
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        className="bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200 font-semibold gap-1 text-[11px]"
+                        onClick={() => {
+                          setSettlementFeeJpy('0');
+                          setSettlementFeeVnd('0');
+                        }}
+                      >
+                        🎁 Miễn phí (¥0)
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold gap-1 text-[11px]"
+                        onClick={() => {
+                          setSettlementBonusJpy('2000');
+                        }}
+                      >
+                        ⚡ Hoa hồng chuẩn (¥2,000)
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Inputs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">Tỷ giá JPY/VND</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={settlementRate}
+                    onChange={(e) => {
+                      const newRate = e.target.value;
+                      setSettlementRate(newRate);
+                      const feeNum = parseFloat(settlementFeeJpy) || 0;
+                      const rNum = parseFloat(newRate) || 0;
+                      if (feeNum > 0 && rNum > 0) {
+                        setSettlementFeeVnd(String(Math.round(feeNum * rNum)));
+                      }
+                    }}
+                    className="h-8 text-xs font-mono font-bold"
+                    placeholder="VD: 165.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">Phí thu khách (JPY)</label>
+                  <Input
+                    type="number"
+                    value={settlementFeeJpy}
+                    onChange={(e) => {
+                      const newFee = e.target.value;
+                      setSettlementFeeJpy(newFee);
+                      const rNum = parseFloat(settlementRate) || currentRate;
+                      const feeNum = parseFloat(newFee) || 0;
+                      if (rNum > 0) {
+                        setSettlementFeeVnd(String(Math.round(feeNum * rNum)));
+                      }
+                    }}
+                    className="h-8 text-xs font-mono font-bold text-indigo-700 bg-indigo-50/30"
+                    placeholder="5% L2 hoặc nhập số tiền"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">Phí quy đổi (VNĐ)</label>
+                  <Input
+                    type="number"
+                    value={settlementFeeVnd}
+                    onChange={(e) => setSettlementFeeVnd(e.target.value)}
+                    className="h-8 text-xs font-mono font-semibold"
+                    placeholder="Quy đổi VNĐ"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">Hoa hồng CTV (JPY)</label>
+                  <Input
+                    type="number"
+                    value={settlementBonusJpy}
+                    onChange={(e) => setSettlementBonusJpy(e.target.value)}
+                    className="h-8 text-xs font-mono font-bold text-rose-600 bg-rose-50/30"
+                    placeholder="VD: 2000"
+                  />
+                </div>
+              </div>
+
+              {/* Live Calculation Preview */}
+              {(() => {
+                const r2 = Number(editingAppForSettlement.received2ndJpy) || 
+                           Number((editingAppForSettlement as any).tax2ndJpy) || 
+                           Number((editingAppForSettlement as any).withheldTax) || 
+                           (editingAppForSettlement.totalExpectedJpy ? Math.floor(Number(editingAppForSettlement.totalExpectedJpy) * 0.2042) : 0);
+                const rate = parseFloat(settlementRate) || currentRate;
+                const fee = parseFloat(settlementFeeJpy) || 0;
+                const bonus = parseFloat(settlementBonusJpy) || 0;
+                const netCustJpy = Math.max(0, r2 - fee);
+                const netProfitJpy = fee - bonus;
+
+                return (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs space-y-1.5">
+                    <span className="font-bold text-slate-700 block text-[11px] border-b border-slate-200/60 pb-1">
+                      📊 Kết quả quyết toán ước tính
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-slate-600">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Khách thực nhận:</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          ¥{netCustJpy.toLocaleString()} (~{Math.round(netCustJpy * rate).toLocaleString()} đ)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Hoa hồng chi trả CTV:</span>
+                        <span className="font-mono font-bold text-rose-600">
+                          ¥{bonus.toLocaleString()} (~{Math.round(bonus * rate).toLocaleString()} đ)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
+                      <span className="text-slate-600 font-medium">Doanh thu thuần công ty:</span>
+                      <span className="font-mono font-bold text-emerald-700">
+                        ¥{netProfitJpy.toLocaleString()} (~{Math.round(netProfitJpy * rate).toLocaleString()} đ)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-end gap-2 bg-slate-50/50">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingAppForSettlement(null)}
+                disabled={settlementSaving}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                disabled={settlementSaving}
+                onClick={handleSaveSettlement}
+              >
+                {settlementSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                Lưu quyết toán
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

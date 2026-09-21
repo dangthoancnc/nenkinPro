@@ -14,6 +14,8 @@ export const applicationSchema = z.object({
   serviceFeeJpy: z.union([z.string(), z.number()]).nullable().optional(),
   exchangeRate: z.union([z.string(), z.number()]).nullable().optional(),
   serviceFeeVnd: z.union([z.string(), z.number()]).nullable().optional(),
+  referralBonusJpy: z.union([z.string(), z.number()]).nullable().optional(),
+  referralDiscountJpy: z.union([z.string(), z.number()]).nullable().optional(),
   tax2ndJpy: z.union([z.string(), z.number()]).nullable().optional(),
   noticeDate: z.string().nullable().optional(),
   noticeImageUrl: z.string().nullable().optional(),

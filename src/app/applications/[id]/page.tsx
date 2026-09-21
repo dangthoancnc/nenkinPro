@@ -346,6 +346,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             serviceFeeJpy:               data.serviceFeeJpy               || '',
             exchangeRate:                data.exchangeRate                || '',
             serviceFeeVnd:               data.serviceFeeVnd               || '',
+            referralBonusJpy:            data.referralBonusJpy            || '',
+            referralDiscountJpy:         data.referralDiscountJpy         || '',
             noticeDate:                  formatDate(data.noticeDate),
             noticeImageUrl:              data.noticeImageUrl              || '',
             withheldTax:                 data.withheldTax                 || '',
@@ -598,6 +600,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         serviceFeeJpy:    data.serviceFeeJpy    ? parseFloat(String(data.serviceFeeJpy))    : null,
         exchangeRate:     data.exchangeRate     ? parseFloat(String(data.exchangeRate))     : null,
         serviceFeeVnd:    data.serviceFeeVnd    ? parseFloat(String(data.serviceFeeVnd))    : null,
+        referralBonusJpy: data.referralBonusJpy ? parseFloat(String(data.referralBonusJpy)) : null,
+        referralDiscountJpy: data.referralDiscountJpy ? parseFloat(String(data.referralDiscountJpy)) : null,
         noticeDate:       data.noticeDate       ? new Date(data.noticeDate).toISOString()     : null,
         noticeImageUrl:   data.noticeImageUrl   || null,
         withheldTax:      data.withheldTax      ? parseFloat(String(data.withheldTax))      : null,
@@ -3703,26 +3707,150 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             )}
 
             {isEditing && (
-              <Button type="button" variant="secondary" size="xs" className="w-full mt-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold"
-                onClick={() => {
-                  const r2 = parseFloat(String(watch('received2ndJpy') || watch('tax2ndJpy') || watch('withheldTax') || 0));
-                  const rate = parseFloat(String(watch('exchangeRate') || 165));
-                  if (r2 <= 0) {
-                    toast.warning('Chưa có số tiền Lần 2 để tính phí 5%. Vui lòng nhập số tiền Lần 2 hoặc tiền thuế trước.');
-                    return;
-                  }
-                  const feeJpy = Math.round(r2 * 0.05);
-                  setValue('serviceFeeJpy', feeJpy);
-                  setValue('serviceFeeVnd', Math.round(feeJpy * rate));
-                  if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                  toast.success(`Đã áp dụng phí mặc định: ¥${feeJpy.toLocaleString()} (5% của Lần 2)`);
-                }}>⚡ Áp dụng phí mặc định (5% Lần 2)</Button>
+              <div className="flex flex-wrap gap-1 mt-1">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  size="xs" 
+                  className="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold text-[11px]"
+                  onClick={() => {
+                    const r2 = parseFloat(String(watch('received2ndJpy') || watch('tax2ndJpy') || watch('withheldTax') || 0));
+                    const rate = parseFloat(String(watch('exchangeRate') || 165));
+                    if (r2 <= 0) {
+                      toast.warning('Chưa có số tiền Lần 2 để tính phí 5%. Vui lòng nhập số tiền Lần 2 hoặc tiền thuế trước.');
+                      return;
+                    }
+                    const feeJpy = Math.round(r2 * 0.05);
+                    setValue('serviceFeeJpy', feeJpy);
+                    setValue('serviceFeeVnd', Math.round(feeJpy * rate));
+                    if (!watch('exchangeRate')) setValue('exchangeRate', rate);
+                    toast.success(`Đã áp dụng phí 5% Lần 2: ¥${feeJpy.toLocaleString()}`);
+                  }}
+                >
+                  ⚡ Phí 5% Lần 2
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  size="xs" 
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 font-medium text-[11px]"
+                  onClick={() => {
+                    setValue('serviceFeeJpy', 0);
+                    setValue('serviceFeeVnd', 0);
+                    toast.info('Đã thiết lập Miễn phí (¥0)');
+                  }}
+                >
+                  🎁 Miễn phí
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  size="xs" 
+                  className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold text-[11px]"
+                  onClick={() => {
+                    setValue('referralBonusJpy', 2000);
+                    toast.success('Đã áp dụng hoa hồng CTV chuẩn: ¥2,000');
+                  }}
+                >
+                  ⚡ HH CTV ¥2,000
+                </Button>
+              </div>
             )}
-            <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100">
-              <FormField label="Tỷ giá JPY/VND"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-              <FormField label="Phí (JPY) (Mặc định 5% L2)"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60 font-semibold" placeholder="5% L2 hoặc nhập giảm giá" /></FormField>
-              <FormField label="Phí (VNĐ)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" /></FormField>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1.5 border-t border-slate-100">
+              <FormField label="Tỷ giá JPY/VND">
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  {...register('exchangeRate')} 
+                  disabled={!isEditing} 
+                  size="sm" 
+                  suffix="VND" 
+                  onChange={(e) => {
+                    register('exchangeRate').onChange(e);
+                    const newRate = parseFloat(e.target.value) || 0;
+                    const feeJpy = parseFloat(String(watch('serviceFeeJpy') || 0));
+                    if (feeJpy > 0 && newRate > 0) {
+                      setValue('serviceFeeVnd', Math.round(feeJpy * newRate));
+                    }
+                  }}
+                />
+              </FormField>
+              <FormField label="Phí (JPY) (Mặc định 5% L2)">
+                <Input 
+                  type="number" 
+                  {...register('serviceFeeJpy')} 
+                  disabled={!isEditing} 
+                  size="sm" 
+                  prefix="¥" 
+                  className="bg-blue-50/60 font-semibold" 
+                  placeholder="5% L2 hoặc số tiền giảm giá" 
+                  onChange={(e) => {
+                    register('serviceFeeJpy').onChange(e);
+                    const newFee = parseFloat(e.target.value) || 0;
+                    const rate = parseFloat(String(watch('exchangeRate') || 165));
+                    if (rate > 0) {
+                      setValue('serviceFeeVnd', Math.round(newFee * rate));
+                    }
+                  }}
+                />
+              </FormField>
+              <FormField label="Phí (VNĐ)">
+                <Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" />
+              </FormField>
+              <FormField label="Hoa hồng CTV (JPY)">
+                <Input type="number" {...register('referralBonusJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-rose-50/60 font-semibold text-rose-700" placeholder="VD: 2000" />
+              </FormField>
+              <FormField label="Giảm giá khách (JPY)">
+                <Input type="number" {...register('referralDiscountJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-amber-50/60 font-semibold" placeholder="VD: 1000" />
+              </FormField>
             </div>
+
+            {/* Live Financial Breakdown Card */}
+            {(() => {
+              const r2 = parseFloat(String(watch('received2ndJpy') || watch('tax2ndJpy') || watch('withheldTax') || 0));
+              const rate = parseFloat(String(watch('exchangeRate') || 165));
+              const feeJpy = parseFloat(String(watch('serviceFeeJpy') || 0));
+              const bonusJpy = parseFloat(String(watch('referralBonusJpy') || 0));
+              const netCustomerJpy = Math.max(0, r2 - feeJpy);
+              const netCustomerVnd = Math.round(netCustomerJpy * rate);
+              const netProfitJpy = feeJpy - bonusJpy;
+              const netProfitVnd = Math.round(netProfitJpy * rate);
+
+              return (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2 text-[11px] space-y-1 mt-1">
+                  <div className="font-semibold text-slate-700 flex items-center justify-between border-b border-slate-200/60 pb-1">
+                    <span>📊 Quyết toán tài chính ước tính</span>
+                    <span className="font-mono text-[10px] text-slate-500">1 JPY = {rate} VND</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pt-0.5 text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Thu hồi L2:</span>
+                      <span className="font-mono font-bold text-slate-800">¥{r2.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Phí thu khách:</span>
+                      <span className="font-mono font-bold text-indigo-700">¥{feeJpy.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-purple-800 font-semibold">
+                      <span>Khách thực nhận:</span>
+                      <span className="font-mono">¥{netCustomerJpy.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-rose-700">
+                      <span>Hoa hồng CTV:</span>
+                      <span className="font-mono font-bold">¥{bonusJpy.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 font-semibold">
+                    <span className="text-emerald-800">Lợi nhuận thuần cty:</span>
+                    <span className="font-mono text-emerald-700 font-bold">
+                      ¥{netProfitJpy.toLocaleString()} (~{netProfitVnd.toLocaleString()} đ)
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
             <p className="text-[10px] text-slate-400 italic mt-0.5">
               * Phí dịch vụ mặc định là 5% của Lần 2. Có thể nhập số tùy chọn trực tiếp vào ô Phí (JPY) đối với trường hợp giảm giá hoặc đặc biệt.
             </p>
