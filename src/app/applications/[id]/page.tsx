@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, X, UploadCloud, CheckCircle,
   AlertCircle, ZoomIn, Clock, Send, Wallet, Trash2, Sparkles,
-  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft, Plus, Copy, Edit3, MessageSquare
+  Printer, MapPin, Search, Crop, Download, Eye, ArrowRightLeft, Plus, Copy, Edit3, MessageSquare,
+  UserCheck
 } from 'lucide-react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { TransferApplicationModal } from '@/components/applications/TransferApplicationModal';
 import ChatGalleryPickerModal from '@/components/applications/ChatGalleryPickerModal';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -106,8 +108,10 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [bottomLegalTab,    setBottomLegalTab]    = useState<'office' | 'rep'>('office');
   const [mobileTab,         setMobileTab]         = useState<'doc' | 'form' | 'progress' | 'tax'>('form');
   const [historyList,       setHistoryList]       = useState<any[]>([]);
-  const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
+  const { user: currentUser } = useCurrentUser();
+  const [staffs, setStaffs] = useState<any[]>([]);
   const [assignedUser, setAssignedUser] = useState<{ id: string; name: string } | null>(null);
+  const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
   const [showTransferModal, setShowTransferModal] = useState<boolean>(false);
   const [showVerifyDetails, setShowVerifyDetails] = useState<boolean>(false);
   const [chatGalleryTarget, setChatGalleryTarget] = useState<{
@@ -342,6 +346,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             taxAddressType:              data.taxAddressType              || 'JUSHO',
             taxRepresentativeId:         data.taxRepresentativeId         || '',
             taxRepBankAccountId:         data.taxRepBankAccountId         || '',
+            assignedUserId:              data.assignedUserId              || '',
             workHistories: (customer.workHistories || []).map((wh: any) => ({
               companyName: wh.companyName || '',
               companyAddress: wh.companyAddress || '',
@@ -423,7 +428,22 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         }
       })
       .catch(console.error);
+    fetch('/api/staffs/list')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          setStaffs(d.data);
+        }
+      })
+      .catch(console.error);
   }, [id, isNew, reset]);
+
+  // Set default assignedUserId for new applications
+  useEffect(() => {
+    if (isNew && currentUser?.id && !watch('assignedUserId')) {
+      setValue('assignedUserId', currentUser.id);
+    }
+  }, [isNew, currentUser, setValue, watch]);
 
   const selectedTaxOfficeId = watch('taxOfficeId');
   const selectedTaxOffice   = taxOffices.find(t => t.id === selectedTaxOfficeId) ?? null;
@@ -551,6 +571,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         status: data.status,
         taxRepresentativeId: data.taxRepresentativeId || null,
         taxRepBankAccountId: data.taxRepBankAccountId || null,
+        assignedUserId:      data.assignedUserId      || null,
         taxAddressType: data.taxAddressType || 'JUSHO',
         isReturnedToJapan: Boolean(data.isReturnedToJapan),
         applyDate:       data.applyDate       ? new Date(data.applyDate).toISOString()       : null,
@@ -3617,23 +3638,29 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             )}
 
             {isEditing && (
-              <Button type="button" variant="secondary" size="xs" className="w-full mt-1"
+              <Button type="button" variant="secondary" size="xs" className="w-full mt-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold"
                 onClick={() => {
-                  const r1 = parseFloat(String(watch('received1stJpy') || 0));
-                  const r2 = parseFloat(String(watch('received2ndJpy') || 0));
+                  const r2 = parseFloat(String(watch('received2ndJpy') || watch('tax2ndJpy') || watch('withheldTax') || 0));
                   const rate = parseFloat(String(watch('exchangeRate') || 165));
-                  const feeJpy = (r1 + r2) * 0.2;
+                  if (r2 <= 0) {
+                    toast.warning('Chưa có số tiền Lần 2 để tính phí 5%. Vui lòng nhập số tiền Lần 2 hoặc tiền thuế trước.');
+                    return;
+                  }
+                  const feeJpy = Math.round(r2 * 0.05);
                   setValue('serviceFeeJpy', feeJpy);
-                  setValue('serviceFeeVnd', feeJpy * rate);
+                  setValue('serviceFeeVnd', Math.round(feeJpy * rate));
                   if (!watch('exchangeRate')) setValue('exchangeRate', rate);
-                  toast.success('Đã tính phí dịch vụ (20%)');
-                }}>Tính phí dịch vụ tổng (20%)</Button>
+                  toast.success(`Đã áp dụng phí mặc định: ¥${feeJpy.toLocaleString()} (5% của Lần 2)`);
+                }}>⚡ Áp dụng phí mặc định (5% Lần 2)</Button>
             )}
             <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100">
               <FormField label="Tỷ giá JPY/VND"><Input type="number" step="0.01" {...register('exchangeRate')} disabled={!isEditing} size="sm" suffix="VND" /></FormField>
-              <FormField label="Phí (JPY)"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60" /></FormField>
+              <FormField label="Phí (JPY) (Mặc định 5% L2)"><Input type="number" {...register('serviceFeeJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-blue-50/60 font-semibold" placeholder="5% L2 hoặc nhập giảm giá" /></FormField>
               <FormField label="Phí (VNĐ)"><Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" /></FormField>
             </div>
+            <p className="text-[10px] text-slate-400 italic mt-0.5">
+              * Phí dịch vụ mặc định là 5% của Lần 2. Có thể nhập số tùy chọn trực tiếp vào ô Phí (JPY) đối với trường hợp giảm giá hoặc đặc biệt.
+            </p>
 
             <Button
               type="button"
@@ -4039,10 +4066,29 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               {isNew ? 'Tạo Hồ sơ mới' : (watch('fullName') || 'Chi tiết Hồ sơ')}
             </h1>
             {!isNew && (
-              <>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${statusCfg.badgeColor}`}>
-                  <StatusIcon className="w-2.5 h-2.5" />{statusCfg.label}
-                </span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${statusCfg.badgeColor}`}>
+                <StatusIcon className="w-2.5 h-2.5" />{statusCfg.label}
+              </span>
+            )}
+            {/* Phụ trách hồ sơ */}
+            <div className="flex items-center gap-1 shrink-0">
+              {isEditing ? (
+                <div className="flex items-center gap-1 bg-indigo-50/90 border border-indigo-200/90 rounded-lg px-2 py-0.5 shadow-2xs">
+                  <UserCheck className="w-3 h-3 text-indigo-600 shrink-0" />
+                  <span className="text-[10px] font-bold text-indigo-900 shrink-0">Phụ trách:</span>
+                  <select
+                    {...register('assignedUserId')}
+                    className="bg-transparent text-[10px] font-semibold text-indigo-700 focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[170px] truncate"
+                  >
+                    <option value="">-- Chưa gán NV --</option>
+                    {staffs.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.staffCode ? `(${s.staffCode})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
                 <button
                   type="button"
                   onClick={() => setShowTransferModal(true)}
@@ -4052,8 +4098,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                   <ArrowRightLeft className="w-2.5 h-2.5 text-indigo-600" />
                   <span>{assignedUser ? `Phụ trách: ${assignedUser.name}` : 'Chưa gán (Bàn giao)'}</span>
                 </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -4447,7 +4493,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           toast.success('Đã bàn giao hồ sơ thành công!');
           fetch(`/api/applications/${id}`)
             .then(r => r.json())
-            .then(d => { if (d.assignedUser !== undefined) setAssignedUser(d.assignedUser); })
+            .then(d => {
+              if (d.assignedUser !== undefined) {
+                setAssignedUser(d.assignedUser);
+                setValue('assignedUserId', d.assignedUserId || d.assignedUser?.id || '');
+              }
+            })
             .catch(console.error);
           fetch(`/api/applications/${id}/history`)
             .then(r => r.json())

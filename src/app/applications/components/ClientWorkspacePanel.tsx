@@ -347,12 +347,11 @@ const FinanceSection: React.FC<{
   isEditing: boolean;
 }> = ({ register, watch, setValue, isEditing }) => {
   const calculateFees = () => {
-    const r1   = parseFloat(watch('received1stJpy')?.toString() || '0');
     const r2   = parseFloat(watch('received2ndJpy')?.toString() || '0');
     const rate = parseFloat(watch('exchangeRate')?.toString()   || '165');
-    const feeJpy = (r1 + r2) * 0.2;
+    const feeJpy = Math.round(r2 * 0.05);
     setValue('serviceFeeJpy', feeJpy);
-    setValue('serviceFeeVnd', feeJpy * rate);
+    setValue('serviceFeeVnd', Math.round(feeJpy * rate));
     if (!watch('exchangeRate')) setValue('exchangeRate', 165);
   };
 
@@ -377,7 +376,7 @@ const FinanceSection: React.FC<{
             onClick={calculateFees}
             type="button"
           >
-            Tính phí (20%)
+            Tính phí (5% L2)
           </Button>
         )}
       </div>

@@ -158,6 +158,11 @@ export async function PUT(
       }
     });
 
+    if ('assignedUserId' in formattedData) {
+      formattedData.assignedUserId = formattedData.assignedUserId || null;
+      formattedData.assignedAt = formattedData.assignedUserId ? new Date() : null;
+    }
+
     let updatedApplication;
     if (status) {
       updatedApplication = await updateApplicationStatus(id, status, user.id, formattedData, revisionNote);

@@ -172,7 +172,23 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerId, status, applyDate, totalExpectedJpy } = body;
+    const {
+      customerId,
+      status,
+      applyDate,
+      totalExpectedJpy,
+      assignedUserId,
+      serviceFeeJpy,
+      exchangeRate,
+      serviceFeeVnd,
+      taxRepresentativeId,
+      taxRepBankAccountId,
+      taxAddressType,
+      isReturnedToJapan,
+      received1stJpy,
+      received2ndJpy,
+      withheldTax,
+    } = body;
 
     if (!customerId) {
       return NextResponse.json({ error: 'customerId is required' }, { status: 400 });
@@ -181,16 +197,47 @@ export async function POST(request: Request) {
     const { user, error } = await requireCustomerAccess(customerId);
     if (error || !user) return error;
 
+    // Default assigned staff to user if they are staff/admin, or accept provided assignedUserId
+    const assignedStaffId = assignedUserId || (user.role !== 'COLLABORATOR' ? user.id : null);
+
     const newApplication = await prisma.nenkinApplication.create({
       data: {
         customerId,
         status: status || 'DRAFT',
         applyDate: applyDate ? new Date(applyDate) : null,
-        totalExpectedJpy: totalExpectedJpy || null,
+        totalExpectedJpy: totalExpectedJpy ? Number(totalExpectedJpy) : null,
+        assignedUserId: assignedStaffId || null,
+        assignedAt: assignedStaffId ? new Date() : null,
+        serviceFeeJpy: serviceFeeJpy ? Number(serviceFeeJpy) : null,
+        exchangeRate: exchangeRate ? Number(exchangeRate) : null,
+        serviceFeeVnd: serviceFeeVnd ? Number(serviceFeeVnd) : null,
+        taxRepresentativeId: taxRepresentativeId || null,
+        taxRepBankAccountId: taxRepBankAccountId || null,
+        taxAddressType: taxAddressType || 'JUSHO',
+        isReturnedToJapan: Boolean(isReturnedToJapan),
+        received1stJpy: received1stJpy ? Number(received1stJpy) : null,
+        received2ndJpy: received2ndJpy ? Number(received2ndJpy) : null,
+        withheldTax: withheldTax ? Number(withheldTax) : null,
       },
+      include: {
+        customer: true,
+        assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } }
+      }
     });
 
-    return NextResponse.json(newApplication, { status: 201 });
+    // Create initial history log
+    await prisma.applicationHistory.create({
+      data: {
+        applicationId: newApplication.id,
+        actorName: user.name,
+        action: 'TẠO HỒ SƠ',
+        description: assignedStaffId
+          ? `Tạo mới hồ sơ Nenkin và phân công phụ trách: [${newApplication.assignedUser?.name || assignedStaffId}].`
+          : 'Tạo mới hồ sơ Nenkin (Chưa gán người phụ trách).'
+      }
+    });
+
+    return NextResponse.json({ success: true, data: newApplication, ...newApplication }, { status: 201 });
   } catch (error) {
     console.error('Error creating application:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

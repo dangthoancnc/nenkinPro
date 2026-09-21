@@ -38,7 +38,10 @@ export function generateSettlementTemplates(input: SettlementInput) {
   const r2nd = parseFloat(String(input.received2ndJpy || tax2nd));
   const rate = parseFloat(String(input.exchangeRate || 165));
   
-  const feeJpy = parseFloat(String(input.serviceFeeJpy || Math.floor((r1st + r2nd) * 0.2)));
+  const defaultFee = Math.round(r2nd * 0.05);
+  const feeJpy = (input.serviceFeeJpy !== undefined && input.serviceFeeJpy !== null && input.serviceFeeJpy !== '')
+    ? parseFloat(String(input.serviceFeeJpy))
+    : defaultFee;
   const feeVnd = parseFloat(String(input.serviceFeeVnd || Math.floor(feeJpy * rate)));
   const bonusJpy = parseFloat(String(input.referralBonusJpy || 2000));
   const bonusVnd = Math.floor(bonusJpy * rate);
@@ -72,7 +75,7 @@ Kính gửi Quý khách: ${name} (Mã hồ sơ: ${code})
 VietNenkin xin thông báo kết quả hoàn thuế Nenkin Lần 2 của Quý khách như sau:
 
 1. Số tiền thuế thu hồi được Lần 2: ${formatJpy(r2nd)} (~ ${formatVnd(r2ndVnd)})
-2. Phí dịch vụ quyết toán (20%): ${formatJpy(feeJpy)} (~ ${formatVnd(feeVnd)})
+2. Phí dịch vụ quyết toán: ${formatJpy(feeJpy)} (~ ${formatVnd(feeVnd)})
 3. SỐ TIỀN THỰC NHẬN CÒN LẠI CỦA KHÁCH: ${formatJpy(net2ndJpy)} (~ ${formatVnd(net2ndVnd)})
 Tỷ giá áp dụng: 1 JPY = ${rate} VND
 

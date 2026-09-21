@@ -9,25 +9,25 @@ echo.
 
 cd /d "%~dp0"
 
-:: 1. Uu tien dung NodeJS chinh hang tren may, tranh loi wrapper cua Conda
-if exist "C:\Program Files\nodejs" (
-    set "PATH=C:\Program Files\nodejs;%PATH%"
-)
+:: 1. Uu tien dung NodeJS chinh hang tren may
+if exist "C:\Program Files\nodejs" set "PATH=C:\Program Files\nodejs;%PATH%"
 
-:: 2. Kiem tra va cap nhat thu vien phu thuoc (chi chay neu chua co)
-echo [1/3] Kiem tra thu vien phan mem ...
-if not exist "node_modules" (
-    echo       Chua co node_modules. Dang cai dat thu vien (npm install)...
-    call npm install
-    if errorlevel 1 goto ERR_NPM
-    echo       Cai dat hoan tat.
-) else (
-    echo       Thu vien san sang, bo qua cai dat.
-)
+:: 2. Kiem tra thu vien phu thuoc
+echo [1/3] Kiem tra thu vien phan mem:
+if not exist "node_modules" goto INSTALL_DEPS
+echo       Thu vien da san sang.
+goto PRISMA_STEP
 
-:: 3. Khoi tao Prisma Client truc tiep (nhanh gap 5 lan so voi npx)
+:INSTALL_DEPS
+echo       Chua co node_modules. Dang cai dat thu vien...
+call npm install
+if errorlevel 1 goto ERR_NPM
+echo       Cai dat hoan tat.
+
+:PRISMA_STEP
+:: 3. Khoi tao Prisma Client truc tiep
 echo.
-echo [2/3] Kiem tra cau truc co so du lieu (Prisma)...
+echo [2/3] Kiem tra cau truc co so du lieu:
 if exist "node_modules\.bin\prisma.cmd" (
     call "node_modules\.bin\prisma.cmd" generate
 ) else (
@@ -35,20 +35,20 @@ if exist "node_modules\.bin\prisma.cmd" (
 )
 if errorlevel 1 goto ERR_PRISMA
 
-:: 4. Thong tin ket noi & Khoi dong may chu Next.js
+:: 4. Thong tin ket noi va Khoi dong may chu Next.js
 echo.
-echo [3/3] Dang khoi dong may chu VietNenkin Solutions ...
+echo [3/3] Dang khoi dong may chu VietNenkin Solutions:
 echo ========================================================
 echo   Dia chi he thong:  http://127.0.0.1:3015
 echo   (Trinh duyet se tu dong mo sau vai giay)
-echo   Nhan Ctrl + C trong cua so nay neu muon tat he thong.
+echo   Nhan Ctrl + C de dung may chu khi can thiet.
 echo ========================================================
 echo.
 
-:: Tu dong mo trinh duyet sau 6 giay khi may chu bat dau san sang
+:: Tu dong mo trinh duyet sau 6 giay khi may chu san sang
 start "" /b cmd /c "timeout /t 6 >nul & start http://127.0.0.1:3015"
 
-:: Khoi dong Next.js su dung cache san co (khoi dong nhanh trong 3-5 giay)
+:: Khoi dong Next.js
 call npm run dev
 pause
 exit /b 0
