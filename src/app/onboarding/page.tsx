@@ -91,6 +91,8 @@ function WizardContent() {
 
   const [cardNumber, setCardNumber] = useState('');
   const [zairyuAddress, setZairyuAddress] = useState('');
+  const [zairyuBackAddress, setZairyuBackAddress] = useState('');
+  const [addressSource, setAddressSource] = useState<'BACK' | 'FRONT' | null>(null);
 
   // Passport & Nenkin Book State
   const [passport, setPassport] = useState<File | null>(null);
@@ -142,7 +144,20 @@ function WizardContent() {
     }
     if (!ext || typeof ext !== 'object') return;
 
-    if (docType === 'zairyuFront' || docType === 'zairyuBack') {
+    if (docType === 'zairyuBack') {
+      const backAddr = (ext.address || ext.residenceAddress || ext.zairyuAddress || '').trim();
+      const hasBackAddr = Boolean(backAddr && ext.hasAddressOnBack !== false);
+
+      if (hasBackAddr) {
+        // Ưu tiên 1: Địa chỉ sau cùng từ Mặt sau thẻ ngoại kiều
+        setZairyuAddress(backAddr);
+        setZairyuBackAddress(backAddr);
+        setAddressSource('BACK');
+        toast.success('✓ Đã cập nhật ĐỊA CHỈ SAU CÙNG từ Mặt sau thẻ ngoại kiều!');
+      } else {
+        toast.info('Mặt sau thẻ không có địa chỉ mới (chưa từng đổi địa chỉ). Giữ nguyên địa chỉ mặt trước.');
+      }
+    } else if (docType === 'zairyuFront') {
       const rawName = ext.fullName || ext.name || ext.fullNameKanji || '';
       const rawCard = ext.cardNumber || ext.card_number || ext.number || '';
       const rawAddr = ext.address || ext.residenceAddress || ext.zairyuAddress || '';
@@ -150,7 +165,14 @@ function WizardContent() {
 
       if (rawName) setFullName(String(rawName).toUpperCase().trim());
       if (rawCard) setCardNumber(String(rawCard).toUpperCase().trim());
-      if (rawAddr) setZairyuAddress(String(rawAddr).trim());
+
+      // Ưu tiên: Nếu đã có địa chỉ từ mặt sau, tuyệt đối không bị mặt trước ghi đè!
+      if (zairyuBackAddress || addressSource === 'BACK') {
+        toast.info('Bảo lưu Địa chỉ sau cùng từ Mặt sau thẻ ngoại kiều.');
+      } else if (rawAddr) {
+        setZairyuAddress(String(rawAddr).trim());
+        setAddressSource('FRONT');
+      }
 
       if (rawDob) {
         const dobStr = String(rawDob).trim();
@@ -254,6 +276,7 @@ function WizardContent() {
       processZairyuFrontOcr(docFile);
     } else if (captureType === 'zairyuBack') {
       setZairyuBack(docFile);
+      runOcrExtract('zairyuBack', docFile);
     } else if (captureType === 'passport') {
       setPassport(docFile);
     } else if (captureType === 'nenkin') {
@@ -818,6 +841,31 @@ function WizardContent() {
                             />
                           </div>
                         </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Địa chỉ thường trú tại Nhật (Sau cùng)
+                          </label>
+                          {addressSource === 'BACK' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              ✓ Mặt sau (Sau cùng)
+                            </span>
+                          )}
+                          {addressSource === 'FRONT' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                              Mặt trước
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Địa chỉ cư trú sau cùng tại Nhật (tự động điền từ thẻ)"
+                          value={zairyuAddress}
+                          onChange={e => setZairyuAddress(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
                       </div>
 
                       <div>

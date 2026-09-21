@@ -113,6 +113,8 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
   const [assignedUser, setAssignedUser] = useState<{ id: string; name: string } | null>(null);
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
   const [showTransferModal, setShowTransferModal] = useState<boolean>(false);
+  const [zairyuBackAddress, setZairyuBackAddress] = useState<string>('');
+  const [addressSource, setAddressSource] = useState<'BACK' | 'FRONT' | null>(null);
   const [showVerifyDetails, setShowVerifyDetails] = useState<boolean>(false);
   const [chatGalleryTarget, setChatGalleryTarget] = useState<{
     docKey: string;
@@ -313,6 +315,17 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
           const customer = data.customer || {};
           setCustomer(customer);
           setManualConfirmed(customer.status === 'VERIFIED');
+
+          // Initialize address source priority from existing OCR results if available
+          const backOcr = customer.ocrResults?.find((o: any) => o.documentType === 'zairyuBack');
+          const savedBackAddr = backOcr?.rawData?.address?.trim();
+          if (savedBackAddr && backOcr?.rawData?.hasAddressOnBack !== false) {
+            setZairyuBackAddress(savedBackAddr);
+            setAddressSource('BACK');
+          } else if (customer.zairyuAddress) {
+            setAddressSource('FRONT');
+          }
+
           const formatDate = (d: string | null | undefined) =>
             d ? new Date(d).toISOString().split('T')[0] : '';
           const formValues: any = {
@@ -781,55 +794,91 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  const syncExtractedTaxOffice = (taxOfficeObj: any) => {
+    if (!taxOfficeObj?.name) return;
+    fetch('/api/tax-offices', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(taxOfficeObj) 
+    })
+      .then(r => r.json())
+      .then(tData => {
+        if (tData.success && tData.data?.id) {
+          setTaxOffices(prev => {
+            const idx = prev.findIndex(t => t.id === tData.data.id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = tData.data;
+              return updated;
+            }
+            return [...prev, tData.data];
+          });
+          setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
+          setTaxPanel('card');
+          toast.success('Đã tự động điền Cục thuế & Nơi nhận hồ sơ', {
+            description: `${tData.data.name} · ${tData.data.mailingName || 'Đã khớp dữ liệu NTA'}`
+          });
+        }
+      })
+      .catch(console.error);
+  };
+
   const applyExtracted = (docKey: string, ext: any) => {
-    if (docKey === 'zairyuFront' || docKey === 'zairyuBack' || docKey === 'zairyuCard' || docKey === 'taxOfficeInfo') {
+    if (docKey === 'zairyuBack') {
+      const backAddr = (ext.address || '').trim();
+      const hasBackAddr = Boolean(backAddr && ext.hasAddressOnBack !== false);
+
+      if (hasBackAddr) {
+        // Ưu tiên 1: Địa chỉ sau cùng từ MẶT SAU thẻ ngoại kiều luôn có quyền ưu tiên cao nhất!
+        setValue('zairyuAddress', backAddr, { shouldDirty: true });
+        if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
+        setZairyuBackAddress(backAddr);
+        setAddressSource('BACK');
+
+        toast.success('✓ Đã cập nhật ĐỊA CHỈ SAU CÙNG từ MẶT SAU thẻ ngoại kiều!', {
+          description: `${backAddr} (${ext.postalCode || ''})`
+        });
+
+        if (ext.taxOffice?.name) {
+          syncExtractedTaxOffice(ext.taxOffice);
+        }
+      } else {
+        // Mặt sau trống (chưa từng chuyển nhà)
+        toast.info('Mặt sau thẻ không có ghi nhận đổi địa chỉ', {
+          description: 'Hệ thống giữ nguyên địa chỉ mặt trước là địa chỉ cư trú sau cùng.'
+        });
+      }
+    } else if (docKey === 'zairyuFront' || docKey === 'zairyuCard' || docKey === 'taxOfficeInfo') {
+      // Thông tin cá nhân từ mặt trước luôn được cập nhật
       if (ext.fullName)    setValue('fullName',       ext.fullName,    { shouldValidate: true, shouldDirty: true });
       if (ext.dob)         setValue('dob',             ext.dob,         { shouldValidate: true, shouldDirty: true });
       if (ext.nationality) setValue('nationality',     ext.nationality, { shouldDirty: true });
       if (ext.cardNumber)  setValue('cardNumber',      ext.cardNumber,  { shouldDirty: true });
-      if (ext.address)     setValue('zairyuAddress',   ext.address,     { shouldDirty: true });
-      if (ext.postalCode)  setValue('postalCode',      ext.postalCode,  { shouldDirty: true });
 
-      // Requirement 1 & 2: Inform user about Zairyu Back address checking
-      if (docKey === 'zairyuFront' && !watch('zairyuBackUrl')) {
-        toast.info('Đã tra cứu Cục thuế theo địa chỉ Mặt trước', {
-          description: 'Nếu khách hàng có đổi địa chỉ cư trú, vui lòng tải Mặt sau thẻ ngoại kiều để tự động cập nhật địa chỉ mới nhất.'
+      // Quy tắc ưu tiên địa chỉ:
+      // NẾU ĐÃ CÓ ĐỊA CHỈ TỪ MẶT SAU -> TUYỆT ĐỐI KHÔNG BỊ MẶT TRƯỚC GHI ĐÈ!
+      const currentBackAddr = zairyuBackAddress || (addressSource === 'BACK' ? (watch('zairyuAddress') as string) : '');
+      if (currentBackAddr) {
+        toast.info('Bảo lưu Địa chỉ sau cùng từ Mặt sau thẻ', {
+          description: `Đã cập nhật thông tin cá nhân. Địa chỉ được giữ nguyên theo mặt sau: ${currentBackAddr}`
         });
-      } else if (docKey === 'zairyuBack') {
+      } else {
+        // Ưu tiên 2: Sử dụng địa chỉ mặt trước nếu mặt sau chưa có
         if (ext.address) {
-          toast.success('Đã cập nhật địa chỉ cư trú mới nhất từ mặt sau thẻ!', {
-            description: `${ext.address} (${ext.postalCode || ''})`
+          setValue('zairyuAddress', ext.address, { shouldDirty: true });
+          setAddressSource('FRONT');
+        }
+        if (ext.postalCode) setValue('postalCode', ext.postalCode, { shouldDirty: true });
+
+        if (ext.taxOffice?.name) {
+          syncExtractedTaxOffice(ext.taxOffice);
+        }
+
+        if (!watch('zairyuBackUrl')) {
+          toast.info('Đã nhận diện địa chỉ từ Mặt trước thẻ', {
+            description: 'Nếu khách hàng có chuyển nhà tại Nhật, vui lòng tải Mặt sau thẻ để tự động cập nhật địa chỉ sau cùng.'
           });
         }
-      }
-
-      // Requirement 4: Auto-sync Tax Office & Mailing Center Address without extra clicks
-      if (ext.taxOffice?.name) {
-        fetch('/api/tax-offices', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify(ext.taxOffice) 
-        })
-          .then(r => r.json())
-          .then(tData => {
-            if (tData.success && tData.data?.id) {
-              setTaxOffices(prev => {
-                const idx = prev.findIndex(t => t.id === tData.data.id);
-                if (idx >= 0) {
-                  const updated = [...prev];
-                  updated[idx] = tData.data;
-                  return updated;
-                }
-                return [...prev, tData.data];
-              });
-              setValue('taxOfficeId', tData.data.id, { shouldDirty: true });
-              setTaxPanel('card');
-              toast.success('Đã tự động điền Cục thuế & Nơi nhận hồ sơ', {
-                description: `${tData.data.name} · ${tData.data.mailingName || 'Đã khớp dữ liệu NTA'}`
-              });
-            }
-          })
-          .catch(console.error);
       }
     } else if (docKey === 'passport') {
       if (ext.lastName || ext.firstName) setValue('fullName', `${ext.lastName || ''} ${ext.firstName || ''}`.trim(), { shouldDirty: true });
@@ -1832,7 +1881,23 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                         verified={verifiedFields['myNumber']} showVerify onVerify={() => toggleVerify('myNumber')} />
                     </FormField>
                   </div>
-                  <FormField label="Địa chỉ trên thẻ (Ưu tiên cập nhật mới nhất)">
+                  <FormField
+                    label={
+                      <div className="flex items-center justify-between w-full">
+                        <span>Địa chỉ trên thẻ (Ưu tiên sau cùng)</span>
+                        {addressSource === 'BACK' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            ✓ Mặt sau (Sau cùng)
+                          </span>
+                        )}
+                        {addressSource === 'FRONT' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            Mặt trước
+                          </span>
+                        )}
+                      </div>
+                    }
+                  >
                     <Input {...register('zairyuAddress')} disabled={!isEditing} size="md"
                       verified={verifiedFields['zairyuAddress']} showVerify onVerify={() => toggleVerify('zairyuAddress')}
                       state={verifiedFields['zairyuAddress'] ? 'verified' : 'default'}

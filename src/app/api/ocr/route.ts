@@ -391,7 +391,7 @@ function buildPrompt(documentType: string): string {
 2. Nationality (Quốc tịch)
 3. Date of Birth (Ngày sinh) - định dạng YYYY-MM-DD
 4. Sex (Giới tính)
-5. Address (Địa chỉ cư trú bằng tiếng Nhật)
+5. Address (Địa chỉ cư trú ban đầu ghi trên mặt trước thẻ bằng tiếng Nhật)
 6. Address Romaji (Địa chỉ cư trú chuyển sang Romaji để dễ đọc)
 7. Card Number (Mã số thẻ - thường ở góc trên bên phải)
 8. Từ "Address", hãy suy luận ra Postal Code (Mã bưu điện - 7 chữ số) của địa chỉ đó.
@@ -404,14 +404,30 @@ LƯU Ý: Nếu đây KHÔNG PHẢI là ảnh thẻ ngoại kiều (Zairyu Card),
 Trả về JSON với cấu trúc: { "fullName": "", "nationality": "", "dob": "", "sex": "", "address": "", "romajiAddress": "", "cardNumber": "", "postalCode": "", "hasPermanentResidence": false, "permanentResidenceDate": "", "taxOffice": { "name": "", "romajiName": "", "address": "", "romajiAddress": "", "postalCode": "", "phone": "", "websiteUrl": "", "mapUrl": "", "receptionInfo": "", "notes": "" } }`;
 
     case 'zairyuBack':
-      return `Đây là MẶT SAU của Thẻ ngoại kiều. Nhiệm vụ chính của bạn là tìm Địa Chỉ Cư Trú Mới Nhất.
-LƯU Ý QUAN TRỌNG: Trường hợp mặt sau có nhiều dòng ghi địa chỉ, hãy kiểm tra ngày ghi bên cạnh, hoặc thông thường HÃY LẤY ĐỊA CHỈ Ở DÒNG DƯỚI CÙNG vì đó là địa chỉ được cập nhật sau cùng.
-Chỉ trả về các trường address, romajiAddress, postalCode và taxOffice. Các trường khác (fullName, dob, cardNumber) để chuỗi rỗng.
-KHÔNG ĐƯỢC tự ý đoán hoặc bịa tên Cục Thuế (taxOffice). Hãy để trống toàn bộ object taxOffice.
+      return `Đây là MẶT SAU của Thẻ ngoại kiều Nhật Bản (在留カード裏面).
+Nhiệm vụ tối quan trọng của bạn là kiểm tra bảng "住居地記載欄" (Cột ghi nhận nơi cư trú khi chuyển nhà) để trích xuất ĐỊA CHỈ CƯ TRÚ SAU CÙNG (最新の住居地):
+
+QUY TRÌNH ƯU TIÊN VÀ XÁC ĐỊNH ĐỊA CHỈ SAU CÙNG:
+1. Quan sát bảng "住居地記載欄":
+   - Bảng này có các cột: 届出年月日 (Ngày đăng ký chuyển đến), 住居地 (Nơi cư trú mới), 署名等 (Con dấu/chữ ký xác nhận).
+   - Mỗi lần người nước ngoài chuyển nhà tại Nhật, cơ quan hành chính (Shiyakusho/Kuyakusho) sẽ in hoặc đóng dấu/viết thêm 1 dòng địa chỉ mới theo thứ tự từ trên xuống dưới.
+2. NGUYÊN TẮC BẮT BUỘC:
+   - Nếu có NHIỀU DÒNG ĐỊA CHỈ: HÃY LUÔN LẤY ĐỊA CHỈ Ở DÒNG DƯỚI CÙNG (Dòng cuối cùng có nội dung chữ ghi địa chỉ) hoặc dòng có ngày "届出年月日" muộn nhất theo thời gian. Đó chính xác là ĐỊA CHỈ CƯ TRÚ SAU CÙNG của người mang thẻ trước khi xuất cảnh khỏi Nhật.
+   - Tuyệt đối BỎ QUA các dòng địa chỉ cũ ở phía trên đã bị thay thế.
+3. TRƯỜNG HỢP MẶT SAU ĐỂ TRỐNG (Chưa từng chuyển nhà):
+   - Nếu bảng "住居地記載欄" không có bất kỳ dòng chữ hay con dấu địa chỉ nào (bảng trắng):
+     -> Đặt: "hasAddressOnBack": false, "address": "", "romajiAddress": "", "postalCode": "".
+4. TRƯỜNG HỢP CÓ ĐỊA CHỈ:
+   - "hasAddressOnBack": true
+   - "address": [Địa chỉ sau cùng bằng tiếng Nhật Kanji/Kana]
+   - "romajiAddress": [Địa chỉ sau cùng phiên âm Romaji]
+   - "postalCode": [Mã bưu điện 7 chữ số tương ứng nếu có hoặc suy luận]
+   - "registrationDate": [Ngày 届出年月日 của địa chỉ sau cùng theo định dạng YYYY-MM-DD nếu đọc được]
+5. KHÔNG ĐƯỢC tự ý đoán hoặc bịa tên Cục Thuế (taxOffice). Hãy để trống toàn bộ object taxOffice. Hệ thống sẽ tự động tra cứu chính xác theo địa chỉ sau cùng.
 
 LƯU Ý: Nếu đây KHÔNG PHẢI là mặt sau thẻ ngoại kiều, hãy trả về JSON với tất cả trường rỗng và thêm trường "error": "Ảnh không phải mặt sau thẻ ngoại kiều."
 
-Trả về JSON với cấu trúc: { "fullName": "", "dob": "", "address": "", "romajiAddress": "", "cardNumber": "", "postalCode": "", "taxOffice": { "name": "", "romajiName": "", "address": "", "romajiAddress": "", "postalCode": "", "phone": "", "websiteUrl": "", "mapUrl": "", "receptionInfo": "", "notes": "" } }`;
+Trả về JSON với cấu trúc: { "hasAddressOnBack": false, "address": "", "romajiAddress": "", "postalCode": "", "registrationDate": "", "taxOffice": { "name": "", "romajiName": "", "address": "", "romajiAddress": "", "postalCode": "", "phone": "", "websiteUrl": "", "mapUrl": "", "receptionInfo": "", "notes": "" } }`;
 
     case 'passport':
       return `Trích xuất thông tin từ ảnh Hộ Chiếu (Passport) này:
