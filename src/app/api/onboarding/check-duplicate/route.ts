@@ -45,13 +45,19 @@ export async function POST(req: Request) {
       }) || null;
     }
 
-    if (!existingCustomer && cleanName && cleanName.length >= 3) {
-      existingCustomer = await prisma.customer.findFirst({
-        where: {
-          fullName: { equals: cleanName, mode: 'insensitive' }
-        },
-        select: customerSelect
-      });
+    // Check by Full Name + DOB (only if DOB is provided, to avoid blocking different customers with same common Vietnamese names)
+    const dobStr = typeof body.dob === 'string' ? body.dob.trim() : null;
+    if (!existingCustomer && cleanName && cleanName.length >= 3 && dobStr) {
+      const parsedDob = new Date(dobStr);
+      if (!isNaN(parsedDob.getTime())) {
+        existingCustomer = await prisma.customer.findFirst({
+          where: {
+            fullName: { equals: cleanName, mode: 'insensitive' },
+            dob: parsedDob
+          },
+          select: customerSelect
+        });
+      }
     }
 
     if (existingCustomer) {

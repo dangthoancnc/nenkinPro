@@ -329,7 +329,7 @@ function WizardContent() {
       const res = await fetch('/api/onboarding/check-duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardNumber, phone, fullName })
+        body: JSON.stringify({ cardNumber, phone, fullName, dob })
       });
       const data = await res.json();
 
