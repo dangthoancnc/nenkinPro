@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
@@ -107,6 +107,18 @@ function WizardContent() {
   const [bankPassbook2, setBankPassbook2] = useState<File | null>(null);
   const [bankPassbook2Url, setBankPassbook2Url] = useState('');
 
+  // Bank Account Input Details (Optional / Direct text entry)
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+
+  // Referral Live Check State
+  const [refStatus, setRefStatus] = useState<{ checked: boolean; valid: boolean; message: string } | null>(null);
+  const [checkingRef, setCheckingRef] = useState(false);
+
+  // Legal Consent Checkbox State
+  const [consentAgreed, setConsentAgreed] = useState(false);
+
   // Security Photo State
   const [securityPhoto, setSecurityPhoto] = useState<File | null>(null);
   const [securityPhotoUrl, setSecurityPhotoUrl] = useState('');
@@ -136,6 +148,34 @@ function WizardContent() {
       setCaptureOpen(true);
     }
   };
+
+  const handleVerifyRefCode = async (code: string) => {
+    const clean = code.trim().toUpperCase();
+    if (!clean) {
+      setRefStatus(null);
+      return;
+    }
+    setCheckingRef(true);
+    try {
+      const res = await fetch(`/api/onboarding/verify-ref?code=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+      if (data.valid) {
+        setRefStatus({ checked: true, valid: true, message: data.message });
+      } else {
+        setRefStatus({ checked: true, valid: false, message: data.message || 'Mã không tồn tại' });
+      }
+    } catch {
+      setRefStatus(null);
+    } finally {
+      setCheckingRef(false);
+    }
+  };
+
+  useEffect(() => {
+    if (ref) {
+      handleVerifyRefCode(ref);
+    }
+  }, [ref]);
 
   const applyExtracted = (docType: string, rawExt: any) => {
     let ext = rawExt;
@@ -406,6 +446,11 @@ function WizardContent() {
 
   // STEP 4 HANDLER: Final Submit
   const handleSubmit = async () => {
+    if (!consentAgreed) {
+      setGeneralError('Quý khách vui lòng tích chọn đồng ý cam kết thông tin và điều khoản dịch vụ trước khi nộp hồ sơ.');
+      return;
+    }
+
     setLoading(true);
     setGeneralError(null);
     setExistingCustomerData(null);
@@ -437,6 +482,9 @@ function WizardContent() {
         nenkinNumber,
         bankPassbookUrl: bankUrls[0] || '',
         bankPassbookUrls: bankUrls,
+        bankName: bankName || null,
+        accountNumber: accountNumber || null,
+        accountName: accountName || fullName || null,
         cardNumber,
         zairyuAddress,
         vnAddress,
@@ -992,6 +1040,14 @@ function WizardContent() {
                     )}
                   </div>
 
+                  {/* Guidance Note for Lost / Forgotten Nenkin Book */}
+                  <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-2.5 text-[11px] text-blue-900 flex items-start gap-2">
+                    <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <span className="font-bold">Lưu ý:</span> Nếu bạn bị thất lạc sổ hoặc không nhớ mã số Nenkin, bạn vẫn có thể ấn <strong>Tiếp Theo</strong>. Chuyên viên sẽ hỗ trợ tra cứu lại mã số Nenkin hoàn toàn miễn phí cho bạn.
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setStep(1)}
@@ -1105,9 +1161,74 @@ function WizardContent() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    {/* Direct Bank Account Details (Optional) */}
+                    <div className="border border-slate-200 rounded-xl p-3 bg-white space-y-2.5 shadow-2xs">
+                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
+                        <Building2 className="w-4 h-4 text-indigo-600" />
+                        <span>Thông tin tài khoản nhận tiền tại Việt Nam (Lần 2)</span>
+                      </div>
+
+                      {/* Quick select VN banks */}
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Messenger</label>
+                        <span className="block text-[10px] font-semibold text-slate-500 mb-1">
+                          Gợi ý ngân hàng phổ biến:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {['Vietcombank', 'MB Bank', 'Techcombank', 'BIDV', 'Agribank', 'VietinBank', 'ACB', 'TPBank'].map(b => (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => setBankName(b)}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors ${
+                                bankName === b
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {b}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Tên ngân hàng</label>
+                          <input
+                            type="text"
+                            placeholder="VD: Vietcombank, MB..."
+                            value={bankName}
+                            onChange={e => setBankName(e.target.value)}
+                            className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Số tài khoản</label>
+                          <input
+                            type="text"
+                            placeholder="Số tài khoản chính chủ..."
+                            value={accountNumber}
+                            onChange={e => setAccountNumber(e.target.value.replace(/\s+/g, ''))}
+                            className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Tên chủ tài khoản</label>
+                        <input
+                          type="text"
+                          placeholder="NGUYEN VAN A"
+                          value={accountName || fullName}
+                          onChange={e => setAccountName(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500 uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Messenger (Tùy chọn)</label>
                         <input
                           type="text"
                           placeholder="Link m.me/..."
@@ -1118,13 +1239,36 @@ function WizardContent() {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">Mã Giới Thiệu (Tùy chọn)</label>
-                        <input
-                          type="text"
-                          placeholder="Mã CTV / Bạn bè"
-                          value={refCode}
-                          onChange={e => setRefCode(e.target.value.toUpperCase())}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
-                        />
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="Mã CTV / Bạn bè"
+                            value={refCode}
+                            onChange={e => {
+                              const v = e.target.value.toUpperCase();
+                              setRefCode(v);
+                              if (refStatus) setRefStatus(null);
+                            }}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyRefCode(refCode)}
+                            disabled={checkingRef || !refCode.trim()}
+                            className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 shrink-0 transition-colors disabled:opacity-40 cursor-pointer"
+                          >
+                            {checkingRef ? '...' : 'Kiểm tra'}
+                          </button>
+                        </div>
+                        {refStatus && (
+                          <div className={`mt-1.5 text-[11px] font-medium px-2 py-1 rounded-lg flex items-center gap-1.5 ${
+                            refStatus.valid 
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            <span>{refStatus.valid ? '✓' : 'ℹ'}</span> {refStatus.message}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1181,28 +1325,49 @@ function WizardContent() {
                       <span className="text-slate-500 font-medium">Ngày tháng năm sinh:</span>
                       <span className="font-bold text-slate-900">{dob || '---'}</span>
                     </div>
+                    {(bankName || accountNumber) && (
+                      <div className="flex justify-between border-b border-slate-200 pb-2">
+                        <span className="text-slate-500 font-medium">Tài khoản nhận tiền:</span>
+                        <span className="font-bold text-slate-900 text-right">
+                          {bankName ? `${bankName} · ` : ''}{accountNumber || '---'} {accountName ? `(${accountName})` : ''}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-slate-500 font-medium">Giấy tờ đính kèm:</span>
                       <div className="flex flex-wrap gap-1 justify-end font-semibold">
                         {(zairyuFront || zairyuFrontUrl) && <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px]">Thẻ Ngoại Kiều</span>}
                         {(passport || passportUrl) && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px]">Hộ chiếu</span>}
                         {(nenkinBook || nenkinBookUrl || nenkinNumber) && <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px]">Nenkin</span>}
-                        {(bankPassbook1 || bankPassbook1Url) && <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">Ngân hàng</span>}
+                        {(bankPassbook1 || bankPassbook1Url || accountNumber) && <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">Ngân hàng</span>}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  {/* Legal Terms & Consent Checkbox */}
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-white/90 cursor-pointer hover:bg-slate-50 transition-colors shadow-2xs">
+                    <input
+                      type="checkbox"
+                      checked={consentAgreed}
+                      onChange={e => setConsentAgreed(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 shrink-0 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 leading-relaxed select-none">
+                      Tôi cam kết các thông tin và hình ảnh giấy tờ cung cấp là chính chủ, hoàn toàn chính xác và đồng ý ủy quyền cho VietNenkin đại diện thực hiện thủ tục hoàn thuế Nenkin theo quy định.
+                    </span>
+                  </label>
+
+                  <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => setStep(3)}
-                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all"
+                      className="w-1/3 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm hover:bg-slate-50 transition-all cursor-pointer"
                     >
                       Quay Lại
                     </button>
                     <button
                       onClick={handleSubmit}
-                      disabled={loading}
-                      className="w-2/3 py-3 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.99]"
+                      disabled={loading || !consentAgreed}
+                      className="w-2/3 py-3 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
                     >
                       {loading ? (
                         <>

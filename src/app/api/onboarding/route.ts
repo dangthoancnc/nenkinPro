@@ -17,6 +17,9 @@ const onboardingSchema = z.object({
   nenkinNumber: z.string().max(255).nullable().optional(),
   bankPassbookUrl: z.string().max(2048).nullable().optional(),
   bankPassbookUrls: z.array(z.string()).optional(),
+  bankName: z.string().max(255).nullable().optional(),
+  accountNumber: z.string().max(255).nullable().optional(),
+  accountName: z.string().max(255).nullable().optional(),
   cardNumber: z.string().max(255).nullable().optional(),
   zairyuAddress: z.string().max(255).nullable().optional(),
   taxOfficeId: z.string().max(255).nullable().optional(),
@@ -182,12 +185,19 @@ export async function POST(req: Request) {
           referredByCode: ref || null,
         };
 
-        if (finalBankUrls.length > 0) {
+        const cleanBankName = result.data.bankName?.trim() || null;
+        const cleanAccountNumber = result.data.accountNumber?.trim() || null;
+        const cleanAccountName = (result.data.accountName || cleanFullName || '').toUpperCase().trim() || null;
+
+        if (finalBankUrls.length > 0 || cleanBankName || cleanAccountNumber) {
           createData.bankAccounts = {
             create: [{
               bankCountry: 'VIETNAM',
               purpose: 'BOTH',
               bankPassbookUrls: finalBankUrls,
+              bankName: cleanBankName,
+              accountNumber: cleanAccountNumber,
+              accountName: cleanAccountName,
             }]
           };
         }
@@ -258,6 +268,19 @@ export async function POST(req: Request) {
         description: `Khách hàng ${customer.fullName} (${customer.code}) tự khởi tạo hồ sơ trực tuyến.`
       }
     }).catch(console.error);
+
+    // Record internal notification for assigned staff / admin
+    if (createdById) {
+      await prisma.notification.create({
+        data: {
+          userId: createdById,
+          title: 'Hồ sơ mới tự đăng ký trực tuyến',
+          content: `Khách hàng ${customer.fullName} (${customer.code}) vừa hoàn tất tự đăng ký hồ sơ trực tuyến.`,
+          type: 'APPLICATION_STATUS',
+          link: `/applications/${application.id}`,
+        }
+      }).catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,
