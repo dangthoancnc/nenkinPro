@@ -120,42 +120,112 @@ export async function GET(request: Request) {
 
     const skip = (page - 1) * limit;
 
-    const [applications, total] = await Promise.all([
-      prisma.nenkinApplication.findMany({
-        where: whereClause,
-        include: minimal ? {
-          customer: {
-            select: {
-              id: true,
-              fullName: true,
-              code: true,
-              taxOfficeId: true,
-              referredByCode: true,
-              referralType: true,
-              createdBy: { select: { id: true, name: true, staffCode: true, role: true } },
-              referredByCustomer: { select: { id: true, fullName: true, code: true } }
-            }
+    let applications: any[] = [];
+    let total = 0;
+
+    try {
+      [applications, total] = await Promise.all([
+        prisma.nenkinApplication.findMany({
+          where: whereClause,
+          include: minimal ? {
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                code: true,
+                taxOfficeId: true,
+                referredByCode: true,
+                referralType: true,
+                createdBy: { select: { id: true, name: true, staffCode: true, role: true } },
+                referredByCustomer: { select: { id: true, fullName: true, code: true } }
+              }
+            },
+            assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+            collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+            taxRepresentative: { select: { fullName: true } }
+          } : {
+            customer: {
+              include: {
+                createdBy: { select: { id: true, name: true, staffCode: true, role: true, email: true } },
+                referredByCustomer: { select: { id: true, fullName: true, code: true } }
+              }
+            },
+            assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+            collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+            taxRepresentative: { select: { fullName: true } }
           },
-          assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-          collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-          taxRepresentative: { select: { fullName: true } }
-        } : {
-          customer: {
-            include: {
-              createdBy: { select: { id: true, name: true, staffCode: true, role: true, email: true } },
-              referredByCustomer: { select: { id: true, fullName: true, code: true } }
-            }
-          },
-          assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-          collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-          taxRepresentative: { select: { fullName: true } }
-        },
-        orderBy: orderByClause,
-        skip,
-        take: limit,
-      }),
-      prisma.nenkinApplication.count({ where: whereClause })
-    ]);
+          orderBy: orderByClause,
+          skip,
+          take: limit,
+        }),
+        prisma.nenkinApplication.count({ where: whereClause })
+      ]);
+    } catch (queryErr: any) {
+      if (queryErr?.message?.includes('collaborator')) {
+        console.warn('Prisma client in RAM does not have collaborator relation yet. Using safe fallback:', queryErr.message);
+        [applications, total] = await Promise.all([
+          prisma.nenkinApplication.findMany({
+            where: whereClause,
+            include: minimal ? {
+              customer: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  code: true,
+                  taxOfficeId: true,
+                  referredByCode: true,
+                  referralType: true,
+                  createdBy: { select: { id: true, name: true, staffCode: true, role: true } },
+                  referredByCustomer: { select: { id: true, fullName: true, code: true } }
+                }
+              },
+              assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+              taxRepresentative: { select: { fullName: true } }
+            } : {
+              customer: {
+                include: {
+                  createdBy: { select: { id: true, name: true, staffCode: true, role: true, email: true } },
+                  referredByCustomer: { select: { id: true, fullName: true, code: true } }
+                }
+              },
+              assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+              taxRepresentative: { select: { fullName: true } }
+            },
+            orderBy: orderByClause,
+            skip,
+            take: limit,
+          }),
+          prisma.nenkinApplication.count({ where: whereClause })
+        ]);
+
+        try {
+          const appIds = applications.map(a => a.id);
+          if (appIds.length > 0) {
+            const rawCollabs: any[] = await prisma.$queryRawUnsafe(
+              `SELECT a.id as "appId", u.id, u.name, u.email, u.role, u."staffCode"
+               FROM "nenkin_applications" a
+               JOIN "nenkin_users" u ON a."collaboratorId" = u.id
+               WHERE a.id = ANY($1::text[])`,
+              appIds
+            );
+            const collabMap = new Map(rawCollabs.map(rc => [rc.appId, {
+              id: rc.id,
+              name: rc.name,
+              email: rc.email,
+              role: rc.role,
+              staffCode: rc.staffCode
+            }]));
+            applications.forEach(app => {
+              app.collaborator = collabMap.get(app.id) || null;
+            });
+          }
+        } catch (rawErr) {
+          console.warn('Could not populate raw collaborator:', rawErr);
+        }
+      } else {
+        throw queryErr;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -165,9 +235,9 @@ export async function GET(request: Request) {
       limit,
       totalPages: Math.ceil(total / limit)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching applications:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal Server Error', stack: error?.stack }, { status: 500 });
   }
 }
 

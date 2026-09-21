@@ -14,20 +14,55 @@ export async function GET(
     const { id } = await params;
     const { user, error } = await requireApplicationAccess(id);
     if (error || !user) return error;
-    let application = await prisma.nenkinApplication.findUnique({
-      where: { id },
-      include: {
-        customer: {
-          include: { taxOffice: true, bankAccounts: true, workHistories: { orderBy: { startDate: 'asc' } }, ocrResults: true }
+    let application: any = null;
+    try {
+      application = await prisma.nenkinApplication.findUnique({
+        where: { id },
+        include: {
+          customer: {
+            include: { taxOffice: true, bankAccounts: true, workHistories: { orderBy: { startDate: 'asc' } }, ocrResults: true }
+          },
+          taxRepresentative: {
+            include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+          },
+          taxRepBankAccount: true,
+          assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+          collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
         },
-        taxRepresentative: {
-          include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
-        },
-        taxRepBankAccount: true,
-        assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-        collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
-      },
-    });
+      });
+    } catch (findErr: any) {
+      if (findErr?.message?.includes('collaborator')) {
+        application = await prisma.nenkinApplication.findUnique({
+          where: { id },
+          include: {
+            customer: {
+              include: { taxOffice: true, bankAccounts: true, workHistories: { orderBy: { startDate: 'asc' } }, ocrResults: true }
+            },
+            taxRepresentative: {
+              include: { bankAccounts: { orderBy: { isDefault: 'desc' } } }
+            },
+            taxRepBankAccount: true,
+            assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+          },
+        });
+        if (application) {
+          try {
+            const rawCollab: any[] = await prisma.$queryRawUnsafe(
+              `SELECT u.id, u.name, u.email, u.role, u."staffCode"
+               FROM "nenkin_applications" a
+               JOIN "nenkin_users" u ON a."collaboratorId" = u.id
+               WHERE a.id = $1 LIMIT 1`,
+              application.id
+            );
+            application.collaborator = rawCollab[0] || null;
+          } catch {
+            application.collaborator = null;
+          }
+        }
+      } else {
+        throw findErr;
+      }
+    }
 
     if (!application) {
       // Fallback: check if 'id' is customerId or customerCode
