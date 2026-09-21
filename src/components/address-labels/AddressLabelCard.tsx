@@ -66,9 +66,18 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
 
   const cleanedAddress = cleanAddressString(address, postalCode);
 
-  // Density flags
+  // Density and type flags
   const is3Cols = layout.startsWith('3x');
   const isHighDensity = layout === '3x7' || layout === '3x8';
+  const hasCustomerBanner =
+    customerDisplayMode === 'inside' && Boolean(customerName || appCode);
+  const isIndividual =
+    honorific === '様' ||
+    honorific === '行' ||
+    (honorific === 'none' &&
+      !recipientName.includes('税務署') &&
+      !recipientName.includes('機構') &&
+      !recipientName.includes('センター'));
 
   return (
     <div
@@ -130,50 +139,78 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
         </div>
       )}
 
-      {/* ── MIDDLE: ADDRESS & RECIPIENT GROUP (CONSISTENT SPACING) ── */}
-      <div className="flex-1 min-h-0 flex flex-col justify-center py-0.5">
-        {/* Cleaned Address (No duplicate postal code) */}
-        <p
-          className={`${
-            isHighDensity
-              ? 'text-[9px] leading-tight mb-0.5'
-              : is3Cols
-              ? 'text-[10px] leading-snug mb-1'
-              : 'text-[11px] leading-normal mb-1.5'
-          } font-medium text-slate-800 print:text-black line-clamp-2 select-all`}
-        >
-          {cleanedAddress || '(Chưa có địa chỉ)'}
-        </p>
-
-        {/* Recipient Name & Department (Protected against orphan honorific wrapping) */}
-        <div className="leading-snug">
-          <span
+      {/* ── MIDDLE: ADDRESS & RECIPIENT GROUP (BALANCED & HARMONIOUS) ── */}
+      <div
+        className={`flex-1 min-h-0 flex flex-col ${
+          hasCustomerBanner
+            ? 'justify-center py-0.5'
+            : 'justify-between py-1 sm:py-1.5'
+        }`}
+      >
+        {/* Cleaned Address */}
+        <div className="min-w-0 pt-0.5">
+          <p
             className={`${
               isHighDensity
-                ? 'text-[10.5px]'
-                : recipientName.length > 14
-                ? 'text-[11.5px]'
+                ? 'text-[9px] leading-tight'
                 : is3Cols
-                ? 'text-[12.5px]'
-                : 'text-[13.5px]'
-            } font-black text-slate-900 print:text-black tracking-tight inline`}
+                ? 'text-[10.5px] leading-snug'
+                : 'text-[11.5px] leading-normal'
+            } font-medium text-slate-800 print:text-black select-all line-clamp-2`}
           >
-            {recipientName || '(Chưa có tên)'}
-          </span>
-          {honorific !== 'none' && (
+            {cleanedAddress || '(Chưa có địa chỉ)'}
+          </p>
+        </div>
+
+        {/* Recipient Name & Department / Furigana */}
+        <div className="min-w-0 pt-1 pb-0.5">
+          <div className="leading-snug flex items-baseline flex-wrap gap-y-0.5">
             <span
               className={`${
-                isHighDensity ? 'text-[8.5px]' : 'text-[9.5px]'
-              } font-bold text-slate-800 print:text-black ml-1.5 inline-block shrink-0`}
+                isIndividual
+                  ? isHighDensity
+                    ? 'text-[12.5px]'
+                    : is3Cols
+                    ? 'text-[14.5px] sm:text-[15px]'
+                    : 'text-base sm:text-[16.5px]'
+                  : isHighDensity
+                  ? 'text-[10.5px]'
+                  : recipientName.length > 14
+                  ? 'text-[11.5px]'
+                  : is3Cols
+                  ? 'text-[12.5px]'
+                  : 'text-[13.5px]'
+              } font-black text-slate-900 print:text-black tracking-wide inline`}
             >
-              {honorific}
+              {recipientName || '(Chưa có tên)'}
             </span>
-          )}
+            {honorific !== 'none' && (
+              <span
+                className={`${
+                  isIndividual
+                    ? isHighDensity
+                      ? 'text-[10px] ml-1.5'
+                      : 'text-xs ml-2'
+                    : isHighDensity
+                    ? 'text-[8.5px] ml-1'
+                    : 'text-[9.5px] ml-1.5'
+                } font-bold text-slate-800 print:text-black inline-block shrink-0`}
+              >
+                {honorific}
+              </span>
+            )}
+          </div>
           {department && (
             <p
               className={`${
-                isHighDensity ? 'text-[8px]' : 'text-[8.5px]'
-              } text-slate-600 print:text-black font-semibold truncate leading-tight mt-0.5`}
+                isIndividual
+                  ? isHighDensity
+                    ? 'text-[8.5px]'
+                    : 'text-[9.5px] font-medium text-slate-500 print:text-slate-700'
+                  : isHighDensity
+                  ? 'text-[8px]'
+                  : 'text-[8.5px] font-semibold text-slate-600 print:text-black'
+              } tracking-wide truncate leading-tight mt-0.5`}
             >
               {department}
             </p>
