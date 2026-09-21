@@ -56,6 +56,8 @@ interface Application {
   referralDiscountJpy: number | null;
   assignedUser?: UserInfo | null;
   assignedUserId?: string | null;
+  collaborator?: UserInfo | null;
+  collaboratorId?: string | null;
   customer: CustomerInfo;
   createdAt?: string;
 }
@@ -91,12 +93,14 @@ export default function FinancePage() {
 
   const [dcomLiveRate, setDcomLiveRate] = useState<number | null>(null);
   const [dcomTime, setDcomTime] = useState<string | null>(null);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<{ id: string; name: string; staffCode?: string | null; role: string }[]>([]);
 
   const fetchData = async (forceRefresh = false) => {
     try {
-      const [ratesRes, appsRes] = await Promise.all([
+      const [ratesRes, appsRes, staffsRes] = await Promise.all([
         fetch(`/api/exchange-rates?limit=14${forceRefresh ? '&refresh=true' : ''}`),
-        fetch('/api/applications?limit=1000')
+        fetch('/api/applications?limit=1000'),
+        fetch('/api/staffs/list')
       ]);
 
       if (ratesRes.ok) {
@@ -115,6 +119,13 @@ export default function FinancePage() {
         const aJson = await appsRes.json();
         const appList = Array.isArray(aJson) ? aJson : (Array.isArray(aJson?.data) ? aJson.data : []);
         setApplications(appList);
+      }
+
+      if (staffsRes.ok) {
+        const sJson = await staffsRes.json();
+        if (sJson.success && Array.isArray(sJson.data)) {
+          setCollaboratorOptions(sJson.data);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch finance page data:', e);
@@ -175,6 +186,7 @@ export default function FinancePage() {
 
   // Quick Edit Settlement State
   const [editingAppForSettlement, setEditingAppForSettlement] = useState<Application | null>(null);
+  const [settlementCollaboratorId, setSettlementCollaboratorId] = useState('');
   const [settlementFeeJpy, setSettlementFeeJpy] = useState('');
   const [settlementRate, setSettlementRate] = useState('');
   const [settlementRateDate, setSettlementRateDate] = useState('');
@@ -193,18 +205,31 @@ export default function FinancePage() {
     setSettlementRateDate(initialDate);
     setSettlementFeeVnd(app.serviceFeeVnd !== null && app.serviceFeeVnd !== undefined ? String(app.serviceFeeVnd) : '');
     setSettlementBonusJpy(app.referralBonusJpy !== null && app.referralBonusJpy !== undefined ? String(app.referralBonusJpy) : '');
+
+    // Identify collaborator selection
+    if (app.collaboratorId) {
+      setSettlementCollaboratorId(app.collaboratorId);
+    } else if (app.collaborator?.id) {
+      setSettlementCollaboratorId(app.collaborator.id);
+    } else if (app.referralBonusJpy && Number(app.referralBonusJpy) > 0) {
+      setSettlementCollaboratorId('__OTHER__');
+    } else {
+      setSettlementCollaboratorId('');
+    }
   };
 
   const handleSaveSettlement = async () => {
     if (!editingAppForSettlement) return;
     setSettlementSaving(true);
     try {
+      const finalCollabId = settlementCollaboratorId === '__OTHER__' ? null : (settlementCollaboratorId || null);
       const payload: Record<string, any> = {
         serviceFeeJpy: settlementFeeJpy !== '' ? parseFloat(settlementFeeJpy) : null,
         serviceFeeVnd: settlementFeeVnd !== '' ? parseFloat(settlementFeeVnd) : null,
         exchangeRate: settlementRate !== '' ? parseFloat(settlementRate) : null,
         exchangeRateDate: settlementRateDate ? new Date(settlementRateDate + 'T00:00:00.000Z').toISOString() : null,
         referralBonusJpy: settlementBonusJpy !== '' ? parseFloat(settlementBonusJpy) : null,
+        collaboratorId: finalCollabId,
       };
 
       const res = await fetch(`/api/applications/${editingAppForSettlement.id}`, {
@@ -219,6 +244,7 @@ export default function FinancePage() {
       }
 
       // Update state locally so all tables and KPI cards re-calculate immediately
+      const chosenCollab = collaboratorOptions.find(c => c.id === finalCollabId) || null;
       setApplications(prev => prev.map(a => a.id === editingAppForSettlement.id ? {
         ...a,
         serviceFeeJpy: payload.serviceFeeJpy,
@@ -226,6 +252,8 @@ export default function FinancePage() {
         exchangeRate: payload.exchangeRate,
         exchangeRateDate: payload.exchangeRateDate,
         referralBonusJpy: payload.referralBonusJpy,
+        collaboratorId: finalCollabId,
+        collaborator: chosenCollab ? { id: chosenCollab.id, name: chosenCollab.name, staffCode: chosenCollab.staffCode, role: chosenCollab.role } : null
       } : a));
 
       toast.success(`Đã cập nhật phí & hoa hồng cho hồ sơ ${editingAppForSettlement.customer?.fullName}`);
@@ -241,6 +269,14 @@ export default function FinancePage() {
   // Extract staff / collaborator options for filter dropdown
   const staffFilterOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string; role: string; staffCode?: string }>();
+    collaboratorOptions.forEach(collab => {
+      map.set(collab.id, {
+        id: collab.id,
+        name: collab.name,
+        role: collab.role || 'CTV',
+        staffCode: collab.staffCode || undefined
+      });
+    });
     appList.forEach(app => {
       if (app.assignedUser) {
         map.set(app.assignedUser.id, {
@@ -248,6 +284,14 @@ export default function FinancePage() {
           name: app.assignedUser.name,
           role: app.assignedUser.role || 'STAFF',
           staffCode: app.assignedUser.staffCode || undefined
+        });
+      }
+      if (app.collaborator) {
+        map.set(app.collaborator.id, {
+          id: app.collaborator.id,
+          name: app.collaborator.name,
+          role: app.collaborator.role || 'CTV',
+          staffCode: app.collaborator.staffCode || undefined
         });
       }
       if (app.customer?.createdBy) {
@@ -260,7 +304,7 @@ export default function FinancePage() {
       }
     });
     return Array.from(map.values());
-  }, [appList]);
+  }, [appList, collaboratorOptions]);
 
   // Aggregation per Collaborator / Beneficiary (Quyết toán theo từng người)
   const collaboratorSummaries = useMemo(() => {
@@ -284,37 +328,36 @@ export default function FinancePage() {
     }>();
 
     appList.forEach(app => {
-      const creator = app.customer?.createdBy;
+      const collab = app.collaborator;
       const referrerCust = app.customer?.referredByCustomer;
       const refCode = app.customer?.referredByCode;
+      const bonusJpy = Number(app.referralBonusJpy) || 0;
 
       let key = 'DIRECT';
       let name = 'Trực tiếp / Không qua CTV';
       let role = 'HỆ THỐNG';
       let staffCode = 'DIRECT';
 
-      if (creator && creator.role !== 'ADMIN') {
-        key = creator.id;
-        name = creator.name;
-        role = creator.role || 'COLLABORATOR';
-        staffCode = creator.staffCode || 'CTV';
-      } else if (creator && creator.role === 'ADMIN' && (refCode || referrerCust)) {
-        if (referrerCust) {
-          key = referrerCust.id;
-          name = referrerCust.fullName;
-          role = 'KHÁCH GIỚI THIỆU';
-          staffCode = referrerCust.code;
-        } else if (refCode) {
-          key = `REF_${refCode}`;
-          name = `Mã GT: ${refCode}`;
-          role = 'NGƯỜI GIỚI THIỆU';
-          staffCode = refCode;
-        }
-      } else if (creator) {
-        key = creator.id;
-        name = creator.name;
-        role = creator.role || 'ADMIN';
-        staffCode = creator.staffCode || 'AD';
+      if (collab) {
+        key = collab.id;
+        name = collab.name;
+        role = collab.role === 'COLLABORATOR' ? 'CỘNG TÁC VIÊN' : (collab.role || 'CTV');
+        staffCode = collab.staffCode || 'CTV';
+      } else if (referrerCust) {
+        key = referrerCust.id;
+        name = referrerCust.fullName;
+        role = 'KHÁCH GIỚI THIỆU';
+        staffCode = referrerCust.code;
+      } else if (refCode && refCode !== 'DIRECT') {
+        key = `REF_${refCode}`;
+        name = `Mã GT: ${refCode}`;
+        role = 'NGƯỜI GIỚI THIỆU';
+        staffCode = refCode;
+      } else if (bonusJpy > 0) {
+        key = '__OTHER__';
+        name = 'Hạng mục Khác (Hoa hồng vãng lai / Ngoại lệ)';
+        role = 'NGOẠI LỆ';
+        staffCode = 'KHAC';
       }
 
       if (!summaryMap.has(key)) {
@@ -343,7 +386,6 @@ export default function FinancePage() {
 
       const feeJpy = Number(app.serviceFeeJpy) || 0;
       const feeVnd = Number(app.serviceFeeVnd) || (feeJpy ? feeJpy * (Number(app.exchangeRate) || currentRate) : 0);
-      const bonusJpy = Number(app.referralBonusJpy) || 0;
       const rate = Number(app.exchangeRate) || currentRate;
       const bonusVnd = bonusJpy * rate;
 
@@ -365,7 +407,16 @@ export default function FinancePage() {
       }
     });
 
-    return Array.from(summaryMap.values());
+    const items = Array.from(summaryMap.values());
+    items.sort((a, b) => {
+      if (a.key === '__OTHER__') return 1;
+      if (b.key === '__OTHER__') return -1;
+      if (a.key === 'DIRECT') return 1;
+      if (b.key === 'DIRECT') return -1;
+      return b.totalBonusJpy - a.totalBonusJpy;
+    });
+
+    return items;
   }, [appList, currentRate]);
 
   // Overall Financial Calculations
@@ -392,6 +443,11 @@ export default function FinancePage() {
     .filter(app => ['SENT_1ST', 'RECEIVED_1ST', 'SENT_2ND', 'RECEIVED_2ND'].includes(app.status))
     .reduce((sum, app) => sum + (Number(app.referralBonusJpy) || 0), 0);
 
+  const totalOfficialBonusJpy = appList
+    .filter(app => Boolean(app.collaborator || app.customer?.referredByCustomer))
+    .reduce((sum, app) => sum + (Number(app.referralBonusJpy) || 0), 0);
+  const totalOtherBonusJpy = Math.max(0, totalReferralBonusJpy - totalOfficialBonusJpy);
+
   const totalNetProfitJpy = totalExpectedServiceFeeJpy - totalReferralBonusJpy;
   const totalNetProfitVnd = totalExpectedServiceFeeVnd - (totalReferralBonusJpy * currentRate);
 
@@ -402,6 +458,8 @@ export default function FinancePage() {
       app.customer?.fullName?.toLowerCase().includes(qLower) ||
       app.customer?.code?.toLowerCase().includes(qLower) ||
       app.assignedUser?.name?.toLowerCase().includes(qLower) ||
+      app.collaborator?.name?.toLowerCase().includes(qLower) ||
+      app.collaborator?.staffCode?.toLowerCase().includes(qLower) ||
       app.customer?.createdBy?.name?.toLowerCase().includes(qLower) ||
       app.customer?.referredByCode?.toLowerCase().includes(qLower);
 
@@ -411,6 +469,8 @@ export default function FinancePage() {
     if (selectedStaffFilter !== 'ALL') {
       matchStaff = 
         app.assignedUser?.id === selectedStaffFilter ||
+        app.collaborator?.id === selectedStaffFilter ||
+        app.collaboratorId === selectedStaffFilter ||
         app.customer?.createdBy?.id === selectedStaffFilter;
     }
 
@@ -505,10 +565,16 @@ export default function FinancePage() {
             <Wallet className="w-3.5 h-3.5 text-rose-500" />
           </div>
           <span className="text-sm sm:text-lg font-bold font-mono text-rose-600 mt-0.5">¥{totalReferralBonusJpy.toLocaleString()}</span>
-          <div className="flex items-center gap-1.5 text-[9px] mt-0.5">
+          <div className="flex flex-wrap items-center gap-1.5 text-[9px] mt-0.5">
             <span className="text-emerald-700 font-semibold">Đủ ĐK: ¥{totalPayableBonusJpy.toLocaleString()}</span>
             <span className="text-slate-300">•</span>
             <span className="text-amber-700 font-semibold">Chờ: ¥{totalPendingBonusJpy.toLocaleString()}</span>
+            {totalOtherBonusJpy > 0 && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="text-orange-700 font-semibold" title="Khoản hoa hồng vãng lai chưa gắn CTV">Khác: ¥{totalOtherBonusJpy.toLocaleString()}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -764,21 +830,30 @@ export default function FinancePage() {
                           const netJpy = feeJpy - bonusJpy;
                           const netVnd = feeVnd - bonusVnd;
 
-                          const creator = app.customer?.createdBy;
+                          const collab = app.collaborator;
                           const referrer = app.customer?.referredByCustomer;
                           const refCode = app.customer?.referredByCode;
 
                           let ctvName = 'Trực tiếp';
                           let ctvRoleBadge = 'Direct';
-                          if (creator && creator.role !== 'ADMIN') {
-                            ctvName = creator.name;
-                            ctvRoleBadge = creator.role === 'COLLABORATOR' ? 'CTV' : (creator.role || 'CTV');
+                          let ctvBadgeStyle = 'bg-slate-100 text-slate-500';
+
+                          if (collab) {
+                            ctvName = collab.name;
+                            ctvRoleBadge = collab.staffCode ? `CTV: #${collab.staffCode}` : 'CTV';
+                            ctvBadgeStyle = 'bg-purple-50 text-purple-700 border border-purple-200';
                           } else if (referrer) {
                             ctvName = referrer.fullName;
                             ctvRoleBadge = 'Khách GT';
-                          } else if (refCode) {
+                            ctvBadgeStyle = 'bg-amber-50 text-amber-700 border border-amber-200';
+                          } else if (refCode && refCode !== 'DIRECT') {
                             ctvName = `Mã GT: ${refCode}`;
                             ctvRoleBadge = 'Mã GT';
+                            ctvBadgeStyle = 'bg-blue-50 text-blue-700 border border-blue-200';
+                          } else if (bonusJpy > 0) {
+                            ctvName = 'Hạng mục Khác';
+                            ctvRoleBadge = 'Ngoại lệ';
+                            ctvBadgeStyle = 'bg-orange-50 text-orange-700 border border-orange-200';
                           }
 
                           return (
@@ -819,11 +894,7 @@ export default function FinancePage() {
                                     <Users className="w-3 h-3 text-purple-600 shrink-0" />
                                     <span className="truncate max-w-[130px]">{ctvName}</span>
                                   </div>
-                                  <span className={`inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                                    ctvRoleBadge === 'CTV' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                                    ctvRoleBadge === 'Khách GT' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                    'bg-slate-100 text-slate-500'
-                                  }`}>
+                                  <span className={`inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded ${ctvBadgeStyle}`}>
                                     {ctvRoleBadge}
                                   </span>
                                 </div>
@@ -958,14 +1029,32 @@ export default function FinancePage() {
                         <TableRow key={c.key} className="hover:bg-slate-50/70 transition-colors border-b border-slate-100">
                           {/* 1. Tên CTV */}
                           <TableCell className="py-2.5 px-3">
-                            <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                              <Users className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                              <span>{c.name}</span>
+                            <div className="font-bold text-xs flex items-center gap-1.5">
+                              {c.key === '__OTHER__' ? (
+                                <AlertCircle className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                              ) : c.key === 'DIRECT' ? (
+                                <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              ) : (
+                                <Users className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                              )}
+                              <span className={c.key === '__OTHER__' ? 'text-orange-950 font-bold' : 'text-slate-800'}>{c.name}</span>
                             </div>
                             <div className="flex items-center gap-1 text-[9px] text-slate-400 font-mono mt-0.5">
-                              <span>#{c.staffCode}</span>
-                              <span>•</span>
-                              <span className="font-semibold text-purple-700">{c.role}</span>
+                              {c.key === '__OTHER__' ? (
+                                <span className="font-semibold bg-orange-100 text-orange-800 px-1.5 py-0.2 rounded border border-orange-200">
+                                  NGOẠI LỆ / CHƯA GẮN CTV
+                                </span>
+                              ) : c.key === 'DIRECT' ? (
+                                <span className="font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                  HỒ SƠ TRỰC TIẾP
+                                </span>
+                              ) : (
+                                <>
+                                  <span>#{c.staffCode}</span>
+                                  <span>•</span>
+                                  <span className="font-semibold text-purple-700">{c.role}</span>
+                                </>
+                              )}
                             </div>
                           </TableCell>
 
@@ -1121,6 +1210,9 @@ export default function FinancePage() {
                         className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold gap-1 text-[11px]"
                         onClick={() => {
                           setSettlementBonusJpy('2000');
+                          if (!settlementCollaboratorId) {
+                            setSettlementCollaboratorId('__OTHER__');
+                          }
                         }}
                       >
                         ⚡ Hoa hồng chuẩn (¥2,000)
@@ -1194,15 +1286,86 @@ export default function FinancePage() {
                   />
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">Hoa hồng CTV (JPY)</label>
-                  <Input
-                    type="number"
-                    value={settlementBonusJpy}
-                    onChange={(e) => setSettlementBonusJpy(e.target.value)}
-                    className="h-8 text-xs font-mono font-bold text-rose-600 bg-rose-50/30"
-                    placeholder="VD: 2000"
-                  />
+                {/* CTV & Hoa hồng Section */}
+                <div className="col-span-1 sm:col-span-2 bg-slate-50/80 border border-slate-200/90 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-purple-600" />
+                      Cộng tác viên (CTV) thụ hưởng hoa hồng
+                    </label>
+                    {settlementCollaboratorId && settlementCollaboratorId !== '__OTHER__' ? (
+                      <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+                        ✓ Đã liên kết CTV
+                      </span>
+                    ) : settlementCollaboratorId === '__OTHER__' ? (
+                      <span className="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                        ⚠ Hạng mục Khác (Ngoại lệ)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                        Khách trực tiếp
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
+                    <div>
+                      <select
+                        value={settlementCollaboratorId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettlementCollaboratorId(val);
+                          if (val === '') {
+                            setSettlementBonusJpy('0');
+                          } else {
+                            if (!settlementBonusJpy || settlementBonusJpy === '0') {
+                              setSettlementBonusJpy('2000');
+                            }
+                          }
+                        }}
+                        className="w-full h-8 text-xs font-medium bg-white border border-slate-300 rounded-lg px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
+                      >
+                        <option value="">🚫 Hồ sơ trực tiếp (Không có CTV - HH: 0¥)</option>
+                        <optgroup label="Danh sách CTV / Nhân sự">
+                          {collaboratorOptions.map((collab) => (
+                            <option key={collab.id} value={collab.id}>
+                              👤 {collab.name} {collab.staffCode ? `(#${collab.staffCode})` : ''} · {collab.role === 'COLLABORATOR' ? 'CTV' : collab.role}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <option value="__OTHER__">🔖 Hạng mục Khác (Ngoại lệ / Chưa liên kết)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={settlementBonusJpy}
+                          onChange={(e) => setSettlementBonusJpy(e.target.value)}
+                          className="h-8 text-xs font-mono font-bold text-rose-600 bg-rose-50/30 pr-7"
+                          placeholder="Mức hoa hồng (JPY)"
+                        />
+                        <span className="absolute right-2.5 top-2 text-[11px] font-bold text-slate-400">¥</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
+                    {settlementCollaboratorId && settlementCollaboratorId !== '__OTHER__' ? (
+                      <span className="text-purple-700 font-medium">
+                        💡 Hoa hồng ¥{Number(settlementBonusJpy || 0).toLocaleString()} sẽ tự động liên kết cho <strong>{collaboratorOptions.find(c => c.id === settlementCollaboratorId)?.name || 'CTV đã chọn'}</strong>.
+                      </span>
+                    ) : settlementCollaboratorId === '__OTHER__' ? (
+                      <span className="text-orange-700 font-medium">
+                        💡 Khoản hoa hồng này sẽ được xếp vào báo cáo <strong>Hạng mục Khác</strong> (ngoại lệ chưa liên kết CTV).
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">
+                        💡 Hồ sơ trực tiếp: Không phát sinh chi phí hoa hồng.
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

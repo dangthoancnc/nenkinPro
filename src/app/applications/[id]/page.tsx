@@ -348,6 +348,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             serviceFeeVnd:               data.serviceFeeVnd               || '',
             exchangeRateDate:            formatDate(data.exchangeRateDate),
             referralBonusJpy:            data.referralBonusJpy            || '',
+            collaboratorId:              data.collaboratorId              || '',
             referralDiscountJpy:         data.referralDiscountJpy         || '',
             noticeDate:                  formatDate(data.noticeDate),
             noticeImageUrl:              data.noticeImageUrl              || '',
@@ -603,6 +604,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         serviceFeeVnd:    data.serviceFeeVnd    ? parseFloat(String(data.serviceFeeVnd))    : null,
         exchangeRateDate: data.exchangeRateDate ? new Date(data.exchangeRateDate).toISOString() : null,
         referralBonusJpy: data.referralBonusJpy ? parseFloat(String(data.referralBonusJpy)) : null,
+        collaboratorId:   data.collaboratorId   || null,
         referralDiscountJpy: data.referralDiscountJpy ? parseFloat(String(data.referralDiscountJpy)) : null,
         noticeDate:       data.noticeDate       ? new Date(data.noticeDate).toISOString()     : null,
         noticeImageUrl:   data.noticeImageUrl   || null,
@@ -3808,6 +3810,35 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
               </FormField>
               <FormField label="Phí (VNĐ)">
                 <Input type="number" {...register('serviceFeeVnd')} disabled={!isEditing} size="sm" suffix="₫" className="bg-emerald-50/60 font-semibold" />
+              </FormField>
+              <FormField label="Cộng tác viên (CTV) thụ hưởng">
+                <select
+                  {...register('collaboratorId')}
+                  disabled={!isEditing}
+                  onChange={(e) => {
+                    register('collaboratorId').onChange(e);
+                    const val = e.target.value;
+                    if (val) {
+                      const curBonus = parseFloat(String(watch('referralBonusJpy') || 0));
+                      if (curBonus <= 0) {
+                        setValue('referralBonusJpy', 2000, { shouldDirty: true });
+                        toast.success('Đã tự động gán hoa hồng chuẩn: ¥2,000');
+                      }
+                    } else {
+                      setValue('referralBonusJpy', 0, { shouldDirty: true });
+                    }
+                  }}
+                  className="w-full h-8 text-xs font-medium bg-slate-50/70 border border-slate-300 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60 text-slate-700"
+                >
+                  <option value="">🚫 Khách trực tiếp (Không có CTV)</option>
+                  <optgroup label="Danh sách Nhân sự / CTV">
+                    {staffs.map((collab: any) => (
+                      <option key={collab.id} value={collab.id}>
+                        👤 {collab.name} {collab.staffCode ? `(#${collab.staffCode})` : ''} ({collab.role === 'COLLABORATOR' ? 'CTV' : collab.role})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
               </FormField>
               <FormField label="Hoa hồng CTV (JPY)">
                 <Input type="number" {...register('referralBonusJpy')} disabled={!isEditing} size="sm" prefix="¥" className="bg-rose-50/60 font-semibold text-rose-700" placeholder="VD: 2000" />

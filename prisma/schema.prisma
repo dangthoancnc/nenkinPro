@@ -29,6 +29,7 @@ model User {
   sentMessages      Message[]
   activityFeeds     ActivityFeed[]
   assignedApplications NenkinApplication[] @relation("AssignedStaff")
+  collaboratorApplications NenkinApplication[] @relation("ApplicationCollaborator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -291,6 +292,9 @@ model NenkinApplication {
   assignedUserId      String?
   assignedUser        User?               @relation("AssignedStaff", fields: [assignedUserId], references: [id], onDelete: SetNull)
   assignedAt          DateTime?
+
+  collaboratorId      String?
+  collaborator        User?               @relation("ApplicationCollaborator", fields: [collaboratorId], references: [id], onDelete: SetNull)
 
   histories           ApplicationHistory[]
   conversations       Conversation[]

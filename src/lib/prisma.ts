@@ -18,7 +18,7 @@ const prismaClientSingleton = () => {
   return new PrismaClient({ adapter })
 }
 
-const SCHEMA_VERSION = '2026-09-21-settlement-v2'
+const SCHEMA_VERSION = '2026-09-21-collaborator-v1'
 
 declare global {
   var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>

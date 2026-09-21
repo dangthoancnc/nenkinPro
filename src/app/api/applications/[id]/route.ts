@@ -25,6 +25,7 @@ export async function GET(
         },
         taxRepBankAccount: true,
         assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+        collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
       },
     });
 
@@ -164,6 +165,10 @@ export async function PUT(
       formattedData.assignedAt = formattedData.assignedUserId ? new Date() : null;
     }
 
+    if ('collaboratorId' in formattedData) {
+      formattedData.collaboratorId = formattedData.collaboratorId || null;
+    }
+
     let updatedApplication: any;
     try {
       if (status) {
@@ -172,15 +177,18 @@ export async function PUT(
         updatedApplication = await prisma.nenkinApplication.update({
           where: { id },
           data: formattedData,
+          include: {
+            collaborator: { select: { id: true, name: true, staffCode: true, role: true } },
+            assignedUser: { select: { id: true, name: true, staffCode: true, role: true } }
+          }
         });
       }
     } catch (err: any) {
       if (
-        (err?.message?.includes('exchangeRateDate') || err?.message?.includes('Unknown argument')) &&
-        'exchangeRateDate' in formattedData
+        (err?.message?.includes('exchangeRateDate') || err?.message?.includes('collaboratorId') || err?.message?.includes('Unknown argument'))
       ) {
-        console.warn('Prisma client in memory is missing exchangeRateDate. Falling back to raw update...');
-        const { exchangeRateDate, ...restData } = formattedData;
+        console.warn('Prisma client in memory is outdated. Falling back to resilient update...');
+        const { exchangeRateDate, collaboratorId, ...restData } = formattedData;
         if (status) {
           updatedApplication = await updateApplicationStatus(id, status, user.id, restData, revisionNote);
         } else {
@@ -197,6 +205,16 @@ export async function PUT(
           );
           if (updatedApplication) {
             updatedApplication.exchangeRateDate = exchangeRateDate;
+          }
+        }
+        if (collaboratorId !== undefined) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "NenkinApplication" SET "collaboratorId" = $1 WHERE "id" = $2`,
+            collaboratorId,
+            id
+          );
+          if (updatedApplication) {
+            updatedApplication.collaboratorId = collaboratorId;
           }
         }
       } else {

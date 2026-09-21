@@ -41,6 +41,7 @@ export const applicationSchema = z.object({
   taxRepresentativeId: z.string().nullable().optional(),
   taxRepBankAccountId: z.string().nullable().optional(),
   assignedUserId: z.string().nullable().optional(),
+  collaboratorId: z.string().nullable().optional(),
 
   // --- Nội dung ủy quyền Lần 1 (委任内容) ---
   delegateClaim: z.coerce.boolean().nullable().optional(),

@@ -137,6 +137,7 @@ export async function GET(request: Request) {
             }
           },
           assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+          collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
           taxRepresentative: { select: { fullName: true } }
         } : {
           customer: {
@@ -146,6 +147,7 @@ export async function GET(request: Request) {
             }
           },
           assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
+          collaborator: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
           taxRepresentative: { select: { fullName: true } }
         },
         orderBy: orderByClause,
