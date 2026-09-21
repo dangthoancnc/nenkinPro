@@ -38,14 +38,45 @@ export async function GET(request: Request) {
     }
 
     if (q) {
-      andConditions.push({
-        customer: {
-          OR: [
-            { fullName: { contains: q, mode: 'insensitive' } },
-            { code: { contains: q, mode: 'insensitive' } }
-          ]
+      const qClean = q.trim();
+      const words = qClean.split(/\s+/).filter(Boolean);
+      try {
+        let matchingCustomerIds: string[] = [];
+        if (words.length > 0) {
+          const conditions = words
+            .map((_, i) => `unaccent(c."fullName") ILIKE '%' || unaccent($${i + 1}) || '%'`)
+            .join(' AND ');
+          const sql = `
+            SELECT c.id
+            FROM "nenkin_customers" c
+            WHERE (${conditions})
+               OR c.code ILIKE '%' || $1 || '%'
+               OR (c."fullNameFurigana" IS NOT NULL AND c."fullNameFurigana" ILIKE '%' || $1 || '%')
+               OR (c."nenkinKatakanaName" IS NOT NULL AND c."nenkinKatakanaName" ILIKE '%' || $1 || '%')
+               OR (c.phone IS NOT NULL AND c.phone ILIKE '%' || $1 || '%')
+          `;
+          const rows: { id: string }[] = await prisma.$queryRawUnsafe(sql, ...words);
+          matchingCustomerIds = rows.map(r => r.id);
         }
-      });
+
+        andConditions.push({
+          OR: [
+            { customerId: { in: matchingCustomerIds } },
+            { customer: { fullName: { contains: qClean, mode: 'insensitive' } } },
+            { customer: { code: { contains: qClean, mode: 'insensitive' } } }
+          ]
+        });
+      } catch (err) {
+        console.warn('Unaccent search query fallback:', err);
+        andConditions.push({
+          customer: {
+            OR: [
+              { fullName: { contains: qClean, mode: 'insensitive' } },
+              { code: { contains: qClean, mode: 'insensitive' } }
+            ]
+          }
+        });
+      }
     }
 
     if (statuses.length > 0) {
@@ -118,6 +149,7 @@ export async function GET(request: Request) {
     ]);
 
     return NextResponse.json({
+      success: true,
       data: applications,
       total,
       page,

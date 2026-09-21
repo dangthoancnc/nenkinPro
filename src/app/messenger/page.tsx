@@ -177,15 +177,21 @@ export default function MessengerPage() {
 
   const handleMentionInputChange = (val: string) => {
     setInputText(val);
-    const match = val.match(/[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]*)$/);
+    const match = val.match(/(?:^|\s)[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF\s]{0,30})$/);
     if (match) {
-      const q = match[1] || '';
-      setMentionQuery(q);
+      const q = (match[1] || '').trim();
+      setMentionQuery(match[1] ?? '');
       setLoadingSuggestions(true);
-      fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=5`)
+      fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=6`)
         .then(r => r.json())
-        .then(d => { if (d.success && Array.isArray(d.data)) setMentionSuggestions(d.data); })
-        .catch(console.error)
+        .then(d => {
+          const list = d?.data || (Array.isArray(d) ? d : []);
+          setMentionSuggestions(Array.isArray(list) ? list : []);
+        })
+        .catch(err => {
+          console.error(err);
+          setMentionSuggestions([]);
+        })
         .finally(() => setLoadingSuggestions(false));
     } else {
       setMentionQuery(null);
@@ -222,7 +228,8 @@ export default function MessengerPage() {
       })
       .catch(console.error);
 
-    setInputText('');
+    const cleanedText = inputText.replace(/(?:^|\s)[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF\s]{0,30})$/, '').trim();
+    setInputText(cleanedText ? `${cleanedText} ` : '');
     setMentionQuery(null);
     setMentionSuggestions([]);
   };
@@ -233,9 +240,12 @@ export default function MessengerPage() {
       setRightPanelDossierResults([]);
       return;
     }
-    fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=5`)
+    fetch(`/api/applications?q=${encodeURIComponent(q.trim())}&minimal=true&limit=6`)
       .then(r => r.json())
-      .then(d => { if (d.success && Array.isArray(d.data)) setRightPanelDossierResults(d.data); })
+      .then(d => {
+        const list = d?.data || (Array.isArray(d) ? d : []);
+        setRightPanelDossierResults(Array.isArray(list) ? list : []);
+      })
       .catch(console.error);
   };
 

@@ -274,7 +274,7 @@ function MiniChatWindow({
     const val = e.target.value;
     setInputText(val);
 
-    const match = val.match(/[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]*)$/);
+    const match = val.match(/(?:^|\s)[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF\s]{0,30})$/);
     if (match) {
       const query = match[1] || '';
       setMentionQuery(query);
@@ -288,13 +288,13 @@ function MiniChatWindow({
   const fetchSuggestions = async (q: string) => {
     setLoadingSuggestions(true);
     try {
-      const res = await fetch(`/api/applications?q=${encodeURIComponent(q)}&minimal=true&limit=5`);
+      const res = await fetch(`/api/applications?q=${encodeURIComponent(q.trim())}&minimal=true&limit=6`);
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setMentionSuggestions(data.data);
-      }
+      const list = data?.data || (Array.isArray(data) ? data : []);
+      setMentionSuggestions(Array.isArray(list) ? list : []);
     } catch (e) {
       console.error(e);
+      setMentionSuggestions([]);
     } finally {
       setLoadingSuggestions(false);
     }
@@ -311,7 +311,8 @@ function MiniChatWindow({
       status: app.status,
     });
 
-    setInputText('');
+    const cleanedText = inputText.replace(/(?:^|\s)[@/]([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF\s]{0,30})$/, '').trim();
+    setInputText(cleanedText ? `${cleanedText} ` : '');
     setMentionQuery(null);
     setMentionSuggestions([]);
   };
