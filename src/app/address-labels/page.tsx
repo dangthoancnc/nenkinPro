@@ -27,7 +27,10 @@ import {
   LabelLayoutType,
   LAYOUT_CONFIGS,
 } from '@/components/address-labels/AddressLabelSheet';
-import { AddressLabelData } from '@/components/address-labels/AddressLabelCard';
+import {
+  AddressLabelData,
+  CustomerDisplayMode,
+} from '@/components/address-labels/AddressLabelCard';
 
 type TabType = 'tax_rep' | 'tax_office' | 'nenkin_org';
 
@@ -56,6 +59,7 @@ export default function AddressLabelsPage() {
   const [officeAddressMode, setOfficeAddressMode] = useState<'mailing' | 'headquarters'>('mailing');
   const [officeTag, setOfficeTag] = useState<string>('【申告書等提出先】');
   const [officeHonorific, setOfficeHonorific] = useState<'御中' | '様' | '行' | 'none'>('御中');
+  const [customerDisplayMode, setCustomerDisplayMode] = useState<CustomerDisplayMode>('inside');
 
   // Tab 3: Nenkin Org state
   const [nenkinCount, setNenkinCount] = useState<number>(18);
@@ -162,6 +166,7 @@ export default function AddressLabelsPage() {
         typeTag: officeTag,
         appCode: customer.code || '',
         customerName: customer.fullName || '',
+        customerDisplayMode: customerDisplayMode,
       });
     });
 
@@ -173,6 +178,7 @@ export default function AddressLabelsPage() {
     officeAddressMode,
     officeHonorific,
     officeTag,
+    customerDisplayMode,
   ]);
 
   // Compute label items for Tab 3: Nenkin Org
@@ -474,6 +480,57 @@ export default function AddressLabelsPage() {
                     <option value="">Không in nhãn</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Customer Identification Option (High-Density & Flexible) */}
+              <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <span>Hiển thị thông tin Khách hàng (Tránh nhầm HS):</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.2 rounded">
+                    Linh hoạt
+                  </span>
+                </div>
+
+                <select
+                  value={customerDisplayMode}
+                  onChange={(e) => setCustomerDisplayMode(e.target.value as CustomerDisplayMode)}
+                  className="w-full h-8 rounded-lg border border-slate-200 px-2 text-xs bg-white font-semibold text-slate-800 focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="inside">
+                    1. Trong tem: 【申告者】Tên KH + Mã HS (Khuyên dùng - Chuẩn Nhật)
+                  </option>
+                  <option value="outside">
+                    2. Ngoài khung tem: ✂ Mép cắt kéo (Khi cắt sẽ rời, tem sạch)
+                  </option>
+                  <option value="code_only">
+                    3. Chỉ hiển thị Mã KH (VD: KH0034)
+                  </option>
+                  <option value="hidden">
+                    4. Không hiển thị (Tem Cục thuế thuần túy)
+                  </option>
+                </select>
+
+                <p className="text-[10.5px] text-slate-500 leading-tight">
+                  {customerDisplayMode === 'inside' && (
+                    <span>
+                      In rõ <strong className="text-teal-700">【申告者】Tên khách hàng (Mã KH)</strong> ở góc trên. Chuẩn văn hóa bưu chính Nhật Bản, cầm con tem hay phong bì là nhận diện ngay.
+                    </span>
+                  )}
+                  {customerDisplayMode === 'outside' && (
+                    <span>
+                      In dòng chỉ dẫn <strong className="text-slate-700">✂ [Mã KH] Tên KH</strong> ở lề trên mép cắt. Khi dùng kéo cắt theo viền tem, phần này rời ra, tem dán bì thư sẽ sạch 100%.
+                    </span>
+                  )}
+                  {customerDisplayMode === 'code_only' && (
+                    <span>Chỉ in mã hồ sơ/khách hàng nhỏ gọn ở góc trên tem.</span>
+                  )}
+                  {customerDisplayMode === 'hidden' && (
+                    <span>Ẩn hoàn toàn thông tin khách hàng, tem chỉ hiển thị thông tin Cục thuế.</span>
+                  )}
+                </p>
               </div>
 
               {/* Filter and Selection Tools */}

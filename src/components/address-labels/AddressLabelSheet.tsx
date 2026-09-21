@@ -178,6 +178,34 @@ export const AddressLabelSheet: React.FC<AddressLabelSheetProps> = ({
                     boxSizing: 'border-box',
                   }}
                 >
+                  {/* Outside Cut-Margin Guide Tag (shown when customerDisplayMode is 'outside') */}
+                  {labelData?.customerDisplayMode === 'outside' && (labelData.customerName || labelData.appCode) && (
+                    <div
+                      className="absolute left-[2mm] right-[2mm] flex items-center justify-between text-[7px] leading-none text-slate-400 print:text-slate-600 font-mono select-none pointer-events-none overflow-hidden"
+                      style={{
+                        top: `${Math.max(0.2, padYMm - 2.8)}mm`,
+                      }}
+                    >
+                      <span className="truncate flex items-center gap-1 font-bold">
+                        <span>✂</span>
+                        <span className="text-slate-600 print:text-slate-800">
+                          [{labelData.appCode || 'HS'}]
+                        </span>
+                        <span className="truncate text-slate-700 print:text-black font-semibold">
+                          {labelData.customerName}
+                        </span>
+                        {labelData.recipientName && (
+                          <span className="text-slate-400 print:text-slate-500 truncate font-normal">
+                            → {labelData.recipientName}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[6px] shrink-0 text-slate-400 print:text-slate-600 border border-dashed border-slate-300 print:border-slate-400 px-0.5 rounded ml-1">
+                        mép cắt bỏ
+                      </span>
+                    </div>
+                  )}
+
                   {labelData ? (
                     <AddressLabelCard data={labelData} layout={layout} />
                   ) : (

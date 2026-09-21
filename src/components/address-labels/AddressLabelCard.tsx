@@ -2,6 +2,8 @@
 
 import React from 'react';
 
+export type CustomerDisplayMode = 'inside' | 'outside' | 'code_only' | 'hidden';
+
 export interface AddressLabelData {
   id?: string;
   postalCode: string;
@@ -13,6 +15,7 @@ export interface AddressLabelData {
   typeTag?: string; // e.g. '【お届け先】', '【送付先】', '【申告書等提出先】', '【ご依頼主】'
   appCode?: string;
   customerName?: string;
+  customerDisplayMode?: CustomerDisplayMode;
 }
 
 interface AddressLabelCardProps {
@@ -34,6 +37,7 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
     typeTag = '',
     appCode = '',
     customerName = '',
+    customerDisplayMode = 'inside',
   } = data;
 
   const formattedPostal = postalCode.startsWith('〒')
@@ -52,8 +56,8 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
       style={{ boxSizing: 'border-box' }}
     >
       {/* ── TOP HEADER: POSTAL CODE & TYPE TAG / APP CODE ── */}
-      <div className="flex items-center justify-between gap-1 border-b border-slate-300 print:border-black pb-0.5 shrink-0">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-1 border-b border-slate-300 print:border-black pb-0.5 shrink-0 min-w-0">
+        <div className="flex items-center gap-1 shrink-0">
           <span
             className={`${
               isHighDensity ? 'text-[11px]' : is3Cols ? 'text-xs' : 'text-sm'
@@ -63,16 +67,53 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-1 text-[9px] print:text-[8.5px] font-bold text-slate-700 print:text-black truncate">
-          {typeTag && (
-            <span className="bg-slate-100 print:bg-transparent px-1 rounded text-slate-800 print:text-black font-black shrink-0">
-              {typeTag}
-            </span>
-          )}
-          {(appCode || customerName) && (
-            <span className="text-slate-500 print:text-black truncate max-w-[90px] font-mono">
-              {appCode || customerName}
-            </span>
+        <div className="flex items-center justify-end gap-1 text-[9px] print:text-[8px] font-bold text-slate-700 print:text-black min-w-0 max-w-[68%] truncate">
+          {customerDisplayMode === 'inside' && (customerName || appCode) ? (
+            <div className="flex items-center gap-0.5 truncate bg-slate-100/90 print:bg-transparent px-1 py-0.5 rounded border border-slate-200/80 print:border-none">
+              <span className="text-teal-800 print:text-black font-black shrink-0 text-[8.5px] print:text-[8px]">
+                【申告者】
+              </span>
+              <span className="font-bold text-slate-900 print:text-black truncate text-[8.5px] print:text-[8px]">
+                {customerName || appCode}
+              </span>
+              {customerName && appCode && (
+                <span className="font-mono text-slate-500 print:text-black text-[8px] print:text-[7.5px] shrink-0">
+                  ({appCode})
+                </span>
+              )}
+            </div>
+          ) : customerDisplayMode === 'code_only' ? (
+            <>
+              {typeTag && (
+                <span className="bg-slate-100 print:bg-transparent px-1 rounded text-slate-800 print:text-black font-black shrink-0">
+                  {typeTag}
+                </span>
+              )}
+              {appCode && (
+                <span className="text-slate-500 print:text-black truncate max-w-[90px] font-mono">
+                  {appCode}
+                </span>
+              )}
+            </>
+          ) : customerDisplayMode === 'outside' || customerDisplayMode === 'hidden' ? (
+            typeTag ? (
+              <span className="bg-slate-100 print:bg-transparent px-1 rounded text-slate-800 print:text-black font-black shrink-0">
+                {typeTag}
+              </span>
+            ) : null
+          ) : (
+            <>
+              {typeTag && (
+                <span className="bg-slate-100 print:bg-transparent px-1 rounded text-slate-800 print:text-black font-black shrink-0">
+                  {typeTag}
+                </span>
+              )}
+              {(appCode || customerName) && (
+                <span className="text-slate-500 print:text-black truncate max-w-[90px] font-mono">
+                  {appCode || customerName}
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -127,12 +168,21 @@ export const AddressLabelCard: React.FC<AddressLabelCardProps> = ({
         )}
       </div>
 
-      {/* ── BOTTOM: PHONE NUMBER ── */}
-      {phone && (
+      {/* ── BOTTOM: PHONE NUMBER & SECONDARY TAG ── */}
+      {(phone || (customerDisplayMode === 'inside' && typeTag)) && (
         <div className="pt-0.5 border-t border-slate-200 print:border-slate-300 flex items-center justify-between text-[8px] print:text-[8px] text-slate-600 print:text-black shrink-0 font-mono">
           <span>
-            <strong className="font-bold">TEL:</strong> {phone}
+            {phone ? (
+              <>
+                <strong className="font-bold">TEL:</strong> {phone}
+              </>
+            ) : null}
           </span>
+          {customerDisplayMode === 'inside' && typeTag && (
+            <span className="font-sans font-bold text-slate-500 print:text-black text-[7.5px] shrink-0">
+              {typeTag}
+            </span>
+          )}
         </div>
       )}
     </div>
