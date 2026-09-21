@@ -150,8 +150,11 @@ export default function AddressLabelsPage() {
         postal = taxOffice.mailingPostalCode || taxOffice.postalCode || '';
         address = taxOffice.mailingAddress || taxOffice.address || '';
         name = taxOffice.mailingName || taxOffice.name || '';
-        if (taxOffice.mailingName && taxOffice.mailingName !== taxOffice.name) {
-          department = `（${taxOffice.name} 宛）`;
+        const baseName = taxOffice.name || '';
+        if (baseName && taxOffice.mailingName && taxOffice.mailingName !== baseName) {
+          if (!taxOffice.mailingName.includes(baseName)) {
+            department = `（${baseName} 宛）`;
+          }
         }
       }
 
