@@ -65,10 +65,15 @@ interface Rate {
 
 export default function FinancePage() {
   const { isAdmin, isLoading: userLoading } = useCurrentUser();
+  const [isMounted, setIsMounted] = useState(false);
   const [rates, setRates] = useState<Rate[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingRate, setUpdatingRate] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Form values for new rate
   const [rateDate, setRateDate] = useState(new Date().toISOString().split('T')[0]);
@@ -355,8 +360,25 @@ export default function FinancePage() {
 
   if (userLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <RefreshCw className="w-8 h-8 animate-spin text-slate-400" />
+      <div className="space-y-4 max-w-full overflow-x-hidden pb-20 md:pb-0 animate-pulse">
+        <div className="space-y-1.5">
+          <div className="h-6 w-48 bg-slate-200/80 rounded-md"></div>
+          <div className="h-3 w-80 bg-slate-200/50 rounded-md"></div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-20 bg-white/70 border border-slate-200/60 rounded-xl p-3"></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="h-44 bg-white/70 border border-slate-200/60 rounded-xl"></div>
+            <div className="h-48 bg-white/70 border border-slate-200/60 rounded-xl"></div>
+          </div>
+          <div className="lg:col-span-8">
+            <div className="h-96 bg-white/70 border border-slate-200/60 rounded-xl"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -508,7 +530,7 @@ export default function FinancePage() {
                 <CardDescription className="text-[10px] text-slate-500">Biến động tỷ giá 14 ngày qua</CardDescription>
               </CardHeader>
               <CardContent className="p-0 h-40 w-full min-w-0">
-                {chartData.length > 0 ? (
+                {isMounted && chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
                     <LineChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -519,7 +541,9 @@ export default function FinancePage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-slate-400 text-xs">Không có dữ liệu tỷ giá</div>
+                  <div className="flex h-full items-center justify-center text-slate-400 text-xs">
+                    {isMounted ? 'Không có dữ liệu tỷ giá' : 'Đang tải biểu đồ...'}
+                  </div>
                 )}
               </CardContent>
             </Card>

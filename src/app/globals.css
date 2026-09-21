@@ -71,6 +71,10 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  img {
+    max-width: 100%;
+  }
+
   /* Mobile viewport overflow guard */
   @media (max-width: 1023px) {
     html, body {

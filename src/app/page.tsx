@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ShieldCheck, Search, PhoneCall, ArrowRight, Star, Eye, EyeOff, LayoutDashboard, UserCheck, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
@@ -63,7 +64,20 @@ export default function Home() {
       {/* Navbar */}
       <nav className="bg-white text-slate-800 py-3 px-4 sm:px-6 md:px-8 flex items-center justify-between shadow-sm border-b border-slate-200">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+          <div 
+            className="w-8 h-8 max-w-[32px] max-h-[32px] overflow-hidden shrink-0 flex items-center justify-center" 
+            style={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}
+          >
+            <Image 
+              src="/logo.png" 
+              alt="Logo" 
+              width={32} 
+              height={32} 
+              priority 
+              className="w-8 h-8 object-contain" 
+              style={{ width: 32, height: 32, maxWidth: 32, maxHeight: 32 }} 
+            />
+          </div>
           <span className="text-lg sm:text-xl font-bold tracking-wide">
             VietNenkin<span className="text-red-500">Pro</span>
           </span>

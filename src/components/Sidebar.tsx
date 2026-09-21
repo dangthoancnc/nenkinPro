@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { LogOut, Banknote, Pin, PinOff, Home } from 'lucide-react';
 import { menuItems } from '@/lib/navigation';
@@ -43,8 +44,19 @@ export default function Sidebar({
     >
       <div className={`h-16 flex items-center px-6 border-b border-border ${isOpen ? 'justify-between' : 'justify-center'} sm:justify-between`}>
         <div className={`flex items-center gap-2 ${!isOpen && 'justify-center w-full'}`}>
-          <div className="w-8 h-8 bg-transparent rounded-lg flex items-center justify-center shrink-0">
-            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+          <div 
+            className="w-8 h-8 max-w-[32px] max-h-[32px] overflow-hidden bg-transparent rounded-lg flex items-center justify-center shrink-0"
+            style={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}
+          >
+            <Image 
+              src="/logo.png" 
+              alt="Logo" 
+              width={32} 
+              height={32} 
+              priority 
+              className="w-8 h-8 object-contain" 
+              style={{ width: 32, height: 32, maxWidth: 32, maxHeight: 32 }} 
+            />
           </div>
           {isOpen && (
             <h1 className="text-base font-bold tracking-tight text-white whitespace-nowrap">
