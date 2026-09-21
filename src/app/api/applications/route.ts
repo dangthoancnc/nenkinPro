@@ -130,16 +130,22 @@ export async function GET(request: Request) {
               fullName: true,
               code: true,
               taxOfficeId: true,
-              createdBy: { select: { name: true, staffCode: true } }
+              referredByCode: true,
+              referralType: true,
+              createdBy: { select: { id: true, name: true, staffCode: true, role: true } },
+              referredByCustomer: { select: { id: true, fullName: true, code: true } }
             }
           },
-          assignedUser: { select: { id: true, name: true, email: true, role: true } },
+          assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
           taxRepresentative: { select: { fullName: true } }
         } : {
           customer: {
-            include: { createdBy: { select: { name: true, staffCode: true } } }
+            include: {
+              createdBy: { select: { id: true, name: true, staffCode: true, role: true, email: true } },
+              referredByCustomer: { select: { id: true, fullName: true, code: true } }
+            }
           },
-          assignedUser: { select: { id: true, name: true, email: true, role: true } },
+          assignedUser: { select: { id: true, name: true, email: true, role: true, staffCode: true } },
           taxRepresentative: { select: { fullName: true } }
         },
         orderBy: orderByClause,
