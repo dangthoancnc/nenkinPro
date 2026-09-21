@@ -9,12 +9,14 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
+import CustomerMiniChat from '@/components/customer/CustomerMiniChat';
 
 export default function CustomerPortalPage() {
   const [customer, setCustomer] = useState<any | null>(null);
   const [isStaffPreview, setIsStaffPreview] = useState(false);
   const [staffUser, setStaffUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -274,10 +276,12 @@ export default function CustomerPortalPage() {
           <Button
             type="button"
             size="xs"
-            onClick={() => router.push('/messenger')}
-            className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs px-4"
+            onClick={() => setIsChatOpen(prev => !prev)}
+            className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs px-4 flex items-center gap-1.5 shadow-md hover:shadow-indigo-500/20"
           >
-            <MessageSquare className="w-3.5 h-3.5 mr-1" /> Chat Nhắn Tin Với Hỗ Trợ
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Chat Nhắn Tin Với Hỗ Trợ</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
           </Button>
         </div>
 
@@ -369,6 +373,14 @@ export default function CustomerPortalPage() {
           </div>
         </div>
       )}
+
+      {/* ── 5. CUSTOMER DOCKED MINI CHAT WINDOW ── */}
+      <CustomerMiniChat
+        customer={customer}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        isStaffPreview={isStaffPreview}
+      />
 
     </div>
   );
