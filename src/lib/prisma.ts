@@ -4,15 +4,15 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 const prismaClientSingleton = () => {
-  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL || '';
+  const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || '';
   const isCloudDb = connectionString.includes('supabase') || connectionString.includes('aws') || connectionString.includes('neon') || connectionString.includes('railway');
 
   const pool = new Pool({
     connectionString,
     ssl: isCloudDb ? { rejectUnauthorized: false } : false,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    max: 10,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
