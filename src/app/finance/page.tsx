@@ -51,6 +51,7 @@ interface Application {
   serviceFeeJpy: number | null;
   exchangeRate: number | null;
   serviceFeeVnd: number | null;
+  exchangeRateDate?: string | null;
   referralBonusJpy: number | null;
   referralDiscountJpy: number | null;
   assignedUser?: UserInfo | null;
@@ -176,6 +177,7 @@ export default function FinancePage() {
   const [editingAppForSettlement, setEditingAppForSettlement] = useState<Application | null>(null);
   const [settlementFeeJpy, setSettlementFeeJpy] = useState('');
   const [settlementRate, setSettlementRate] = useState('');
+  const [settlementRateDate, setSettlementRateDate] = useState('');
   const [settlementFeeVnd, setSettlementFeeVnd] = useState('');
   const [settlementBonusJpy, setSettlementBonusJpy] = useState('');
   const [settlementSaving, setSettlementSaving] = useState(false);
@@ -185,6 +187,10 @@ export default function FinancePage() {
     setSettlementFeeJpy(app.serviceFeeJpy !== null && app.serviceFeeJpy !== undefined ? String(app.serviceFeeJpy) : '');
     const activeR = app.exchangeRate ? String(app.exchangeRate) : String(currentRate);
     setSettlementRate(activeR);
+    const initialDate = app.exchangeRateDate 
+      ? new Date(app.exchangeRateDate).toISOString().split('T')[0]
+      : (app.received2ndDate ? new Date(app.received2ndDate as any).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+    setSettlementRateDate(initialDate);
     setSettlementFeeVnd(app.serviceFeeVnd !== null && app.serviceFeeVnd !== undefined ? String(app.serviceFeeVnd) : '');
     setSettlementBonusJpy(app.referralBonusJpy !== null && app.referralBonusJpy !== undefined ? String(app.referralBonusJpy) : '');
   };
@@ -193,10 +199,11 @@ export default function FinancePage() {
     if (!editingAppForSettlement) return;
     setSettlementSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         serviceFeeJpy: settlementFeeJpy !== '' ? parseFloat(settlementFeeJpy) : null,
         serviceFeeVnd: settlementFeeVnd !== '' ? parseFloat(settlementFeeVnd) : null,
         exchangeRate: settlementRate !== '' ? parseFloat(settlementRate) : null,
+        exchangeRateDate: settlementRateDate ? new Date(settlementRateDate + 'T00:00:00.000Z').toISOString() : null,
         referralBonusJpy: settlementBonusJpy !== '' ? parseFloat(settlementBonusJpy) : null,
       };
 
@@ -217,6 +224,7 @@ export default function FinancePage() {
         serviceFeeJpy: payload.serviceFeeJpy,
         serviceFeeVnd: payload.serviceFeeVnd,
         exchangeRate: payload.exchangeRate,
+        exchangeRateDate: payload.exchangeRateDate,
         referralBonusJpy: payload.referralBonusJpy,
       } : a));
 
@@ -591,7 +599,7 @@ export default function FinancePage() {
               </CardHeader>
               <CardContent className="p-0 h-40 w-full min-w-0">
                 {isMounted && chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
+                  <ResponsiveContainer width="100%" height={160} minWidth={100} minHeight={160}>
                     <LineChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="date" tick={{ fontSize: 9 }} stroke="#64748b" />
@@ -850,6 +858,11 @@ export default function FinancePage() {
                                     <div className="text-[10px] text-slate-500 mt-0.5">
                                       {feeVnd ? `${feeVnd.toLocaleString()} đ` : '---'}
                                     </div>
+                                    {app.exchangeRateDate && (
+                                      <div className="text-[9px] text-slate-400 font-mono mt-0.5" title="Ngày chuyển tiền / tính tỷ giá">
+                                        📅 {new Date(app.exchangeRateDate).toLocaleDateString('vi-VN')}
+                                      </div>
+                                    )}
                                   </div>
                                   <button
                                     type="button"
@@ -1118,7 +1131,19 @@ export default function FinancePage() {
               })()}
 
               {/* Inputs */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                    Ngày chuyển tiền / tính tỷ giá
+                  </label>
+                  <Input
+                    type="date"
+                    value={settlementRateDate}
+                    onChange={(e) => setSettlementRateDate(e.target.value)}
+                    className="h-8 text-xs font-mono font-medium"
+                  />
+                </div>
+
                 <div>
                   <label className="text-[11px] font-semibold text-slate-700 block mb-1">Tỷ giá JPY/VND</label>
                   <Input

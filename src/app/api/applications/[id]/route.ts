@@ -147,7 +147,7 @@ export async function PUT(
     if (error || !user) return error;
     const body = await request.json();
     const { status, revisionNote, ...payload } = body;
-    const dateFields = ['noticeDate', 'applyDate', 'sent1stDate', 'received1stDate', 'sent2ndDate', 'received2ndDate'];
+    const dateFields = ['noticeDate', 'applyDate', 'sent1stDate', 'received1stDate', 'sent2ndDate', 'received2ndDate', 'exchangeRateDate'];
     const formattedData: Record<string, any> = {};
     Object.keys(payload).forEach(key => {
       if (payload[key] !== undefined) {

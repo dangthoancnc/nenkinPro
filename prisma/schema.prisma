@@ -246,6 +246,7 @@ model NenkinApplication {
   serviceFeeJpy Decimal?
   exchangeRate  Decimal?
   serviceFeeVnd Decimal?
+  exchangeRateDate DateTime? // Ngày chuyển tiền hoặc ngày tính tỷ giá
   
   referralBonusJpy    Decimal?  // +2000 JPY commission cho CTV giới thiệu
   referralDiscountJpy Decimal?  // -2000 JPY giảm giá cho khách hàng được giới thiệu

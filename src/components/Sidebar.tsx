@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -26,11 +27,16 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const filteredMenuItems = menuItems.filter((item) => {
     if (!item.roles) return true;
-    if (!user) {
-      // Default safe items before session loads: hide strictly ADMIN items
+    if (!isMounted || !user) {
+      // Default safe items before session loads & during SSR hydration: hide strictly ADMIN items
       return item.roles.includes('COLLABORATOR');
     }
     return item.roles.includes(user.role as any);

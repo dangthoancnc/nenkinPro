@@ -37,6 +37,7 @@ export const completedSchema = received2ndSchema.extend({
   serviceFeeJpy: z.coerce.number().min(0, 'Bắt buộc có phí dịch vụ (serviceFeeJpy)'),
   exchangeRate: z.coerce.number().min(0, 'Bắt buộc có tỷ giá (exchangeRate)'),
   serviceFeeVnd: z.coerce.number().min(0, 'Bắt buộc có phí dịch vụ VNĐ (serviceFeeVnd)'),
+  exchangeRateDate: z.string().optional().nullable(),
   referralBonusJpy: z.coerce.number().optional().nullable(),
   referralDiscountJpy: z.coerce.number().optional().nullable(),
 });

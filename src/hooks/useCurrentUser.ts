@@ -69,11 +69,20 @@ async function fetchUser(): Promise<CurrentUser | null> {
 }
 
 export function useCurrentUser() {
-  const [user, setUser] = useState<CurrentUser | null>(() => cachedUser || getStoredUser());
-  const [loading, setLoading] = useState<boolean>(() => !cachedUser && !getStoredUser());
+  const [user, setUser] = useState<CurrentUser | null>(cachedUser);
+  const [loading, setLoading] = useState<boolean>(!cachedUser);
 
   useEffect(() => {
     let mounted = true;
+
+    // Synchronize with stored user immediately upon client mounting to prevent SSR hydration mismatch
+    if (!cachedUser) {
+      const stored = getStoredUser();
+      if (stored && mounted) {
+        setUser(stored);
+        setLoading(false);
+      }
+    }
 
     const listener = (u: CurrentUser | null) => {
       if (mounted) {

@@ -346,6 +346,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             serviceFeeJpy:               data.serviceFeeJpy               || '',
             exchangeRate:                data.exchangeRate                || '',
             serviceFeeVnd:               data.serviceFeeVnd               || '',
+            exchangeRateDate:            formatDate(data.exchangeRateDate),
             referralBonusJpy:            data.referralBonusJpy            || '',
             referralDiscountJpy:         data.referralDiscountJpy         || '',
             noticeDate:                  formatDate(data.noticeDate),
@@ -600,6 +601,7 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
         serviceFeeJpy:    data.serviceFeeJpy    ? parseFloat(String(data.serviceFeeJpy))    : null,
         exchangeRate:     data.exchangeRate     ? parseFloat(String(data.exchangeRate))     : null,
         serviceFeeVnd:    data.serviceFeeVnd    ? parseFloat(String(data.serviceFeeVnd))    : null,
+        exchangeRateDate: data.exchangeRateDate ? new Date(data.exchangeRateDate).toISOString() : null,
         referralBonusJpy: data.referralBonusJpy ? parseFloat(String(data.referralBonusJpy)) : null,
         referralDiscountJpy: data.referralDiscountJpy ? parseFloat(String(data.referralDiscountJpy)) : null,
         noticeDate:       data.noticeDate       ? new Date(data.noticeDate).toISOString()     : null,
@@ -3758,6 +3760,15 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
             )}
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1.5 border-t border-slate-100">
+              <FormField label="Ngày chuyển tiền / tính tỷ giá">
+                <Input 
+                  type="date" 
+                  {...register('exchangeRateDate')} 
+                  disabled={!isEditing} 
+                  size="sm" 
+                  className="bg-slate-50/70 font-mono"
+                />
+              </FormField>
               <FormField label="Tỷ giá JPY/VND">
                 <Input 
                   type="number" 
