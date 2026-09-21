@@ -125,6 +125,9 @@ export default function CustomerPortalPage() {
 
   const currentStageIndex = getStageIndex(status);
 
+  // Số tiền Lần 2 (hoàn thuế 20.42%): ưu tiên thực nhận L2 -> thuế đã khấu trừ -> tính theo tổng tiền -> tính theo Lần 1 -> tax2ndJpy
+  const lan2Amount = app?.received2ndJpy || app?.withheldTax || (app?.totalExpectedJpy ? Math.floor(Number(app.totalExpectedJpy) * 0.2042) : (app?.received1stJpy ? Math.floor(Number(app.received1stJpy) * 0.2042 / 0.7958) : app?.tax2ndJpy));
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-6">
       
@@ -241,7 +244,7 @@ export default function CustomerPortalPage() {
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Giai đoạn 2: Nộp Cục Thuế Hoàn (20.42%)</span>
           <h3 className="text-xl font-bold text-amber-400">
-            {app?.tax2ndJpy ? `${Number(app.tax2ndJpy).toLocaleString('ja-JP')} ¥` : 'Đang tính toán'}
+            {lan2Amount ? `${Number(lan2Amount).toLocaleString('ja-JP')} ¥` : 'Đang tính toán'}
           </h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             Số tiền thuế được Người đại diện nộp đơn nhận lại từ Cục thuế quản lý.

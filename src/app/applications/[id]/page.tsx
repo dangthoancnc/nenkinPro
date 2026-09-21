@@ -3683,12 +3683,12 @@ export default function WorkspaceDetailPage({ params }: { params: Promise<{ id: 
                       value={
                         watch('withheldTax')
                           ? String(watch('withheldTax'))
-                          : watch('tax2ndJpy')
-                          ? String(watch('tax2ndJpy'))
                           : watch('totalExpectedJpy')
                           ? String(Math.floor(parseFloat(String(watch('totalExpectedJpy'))) * 0.2042))
                           : watch('received1stJpy')
-                          ? String(Math.floor(parseFloat(String(watch('received1stJpy'))) * 0.255))
+                          ? String(Math.floor(parseFloat(String(watch('received1stJpy'))) * 0.2042 / 0.7958))
+                          : watch('tax2ndJpy')
+                          ? String(watch('tax2ndJpy'))
                           : ''
                       }
                       disabled
