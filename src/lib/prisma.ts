@@ -18,8 +18,16 @@ const prismaClientSingleton = () => {
   return new PrismaClient({ adapter })
 }
 
+const SCHEMA_VERSION = '2026-09-21-settlement-v2'
+
 declare global {
   var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>
+  var prismaSchemaVersion: undefined | string
+}
+
+if (process.env.NODE_ENV !== 'production' && globalThis.prismaSchemaVersion !== SCHEMA_VERSION) {
+  globalThis.prismaGlobal = undefined
+  globalThis.prismaSchemaVersion = SCHEMA_VERSION
 }
 
 const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()

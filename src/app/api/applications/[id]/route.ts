@@ -164,14 +164,44 @@ export async function PUT(
       formattedData.assignedAt = formattedData.assignedUserId ? new Date() : null;
     }
 
-    let updatedApplication;
-    if (status) {
-      updatedApplication = await updateApplicationStatus(id, status, user.id, formattedData, revisionNote);
-    } else {
-      updatedApplication = await prisma.nenkinApplication.update({
-        where: { id },
-        data: formattedData,
-      });
+    let updatedApplication: any;
+    try {
+      if (status) {
+        updatedApplication = await updateApplicationStatus(id, status, user.id, formattedData, revisionNote);
+      } else {
+        updatedApplication = await prisma.nenkinApplication.update({
+          where: { id },
+          data: formattedData,
+        });
+      }
+    } catch (err: any) {
+      if (
+        (err?.message?.includes('exchangeRateDate') || err?.message?.includes('Unknown argument')) &&
+        'exchangeRateDate' in formattedData
+      ) {
+        console.warn('Prisma client in memory is missing exchangeRateDate. Falling back to raw update...');
+        const { exchangeRateDate, ...restData } = formattedData;
+        if (status) {
+          updatedApplication = await updateApplicationStatus(id, status, user.id, restData, revisionNote);
+        } else {
+          updatedApplication = await prisma.nenkinApplication.update({
+            where: { id },
+            data: restData,
+          });
+        }
+        if (exchangeRateDate !== undefined) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "NenkinApplication" SET "exchangeRateDate" = $1 WHERE "id" = $2`,
+            exchangeRateDate,
+            id
+          );
+          if (updatedApplication) {
+            updatedApplication.exchangeRateDate = exchangeRateDate;
+          }
+        }
+      } else {
+        throw err;
+      }
     }
 
     return NextResponse.json(updatedApplication);
