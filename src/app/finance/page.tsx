@@ -52,6 +52,8 @@ interface Application {
   exchangeRate: number | null;
   serviceFeeVnd: number | null;
   exchangeRateDate?: string | null;
+  received2ndDate?: string | null;
+  sent2ndDate?: string | null;
   referralBonusJpy: number | null;
   referralDiscountJpy: number | null;
   assignedUser?: UserInfo | null;
