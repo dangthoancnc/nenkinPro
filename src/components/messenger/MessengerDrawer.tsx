@@ -211,37 +211,39 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-sm sm:max-w-md bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 border-r border-slate-200">
+      <div className="relative w-full sm:w-[420px] max-w-[92vw] bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 border-r border-slate-200">
         
         {/* Drawer Header */}
-        <div className="p-3.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white flex items-center justify-between shrink-0 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+        <div className="px-3.5 py-3 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white flex items-center justify-between shrink-0 shadow-xs gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shrink-0 shadow-2xs">
               <MessageSquare className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="font-bold text-sm leading-tight flex items-center gap-1.5">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-sm leading-tight text-white truncate">
                 Tin Nhắn & Danh Bạ
               </h2>
-              <p className="text-[10px] text-blue-100">Chọn để mở khung chat nhỏ không làm gián đoạn việc</p>
+              <p className="text-[10.5px] text-blue-100/90 truncate mt-0.5">
+                Cửa sổ chat nhanh tiện lợi
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleOpenFullMessenger}
-              className="h-7 px-2 bg-white/15 hover:bg-white/25 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors border border-white/20"
+              className="h-7 px-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-lg text-[11.5px] font-semibold flex items-center gap-1.5 transition-all border border-white/25 whitespace-nowrap shrink-0 shadow-2xs cursor-pointer"
               title="Mở toàn màn hình Messenger"
             >
-              <span>Toàn màn hình</span>
-              <ExternalLink className="w-3 h-3" />
+              <span className="whitespace-nowrap">Toàn màn hình</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="w-7 h-7 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-colors"
-              title="Đóng"
+              className="w-7 h-7 hover:bg-white/20 active:scale-95 rounded-lg flex items-center justify-center text-white transition-all shrink-0 cursor-pointer"
+              title="Đóng (Esc)"
             >
               <X className="w-4 h-4" />
             </button>
@@ -451,15 +453,15 @@ export default function MessengerDrawer({ isOpen, onClose }: MessengerDrawerProp
         </div>
 
         {/* Footer info & shortcut to Full Messenger */}
-        <div className="p-2.5 bg-slate-50 border-t border-slate-200/90 shrink-0 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Khung chat nổi mở ở góc dưới phải</span>
+        <div className="px-3.5 py-2.5 bg-slate-50 border-t border-slate-200/90 shrink-0 flex items-center justify-between text-[11px] text-slate-500 gap-2">
+          <span className="truncate">Chat nổi mở ở góc dưới phải</span>
           <button
             type="button"
             onClick={handleOpenFullMessenger}
-            className="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+            className="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 hover:underline cursor-pointer"
           >
             <span>Mở trang Messenger đầy đủ</span>
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLink className="w-3 h-3 shrink-0" />
           </button>
         </div>
 
