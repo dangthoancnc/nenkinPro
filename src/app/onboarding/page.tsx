@@ -268,7 +268,9 @@ function WizardContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setOcrError('Đang xử lý dữ liệu.');
+        const errorMsg = data?.error || 'Chưa thể tự động trích xuất thông tin từ ảnh này. Quý khách vui lòng tự điền các ô thông tin bên dưới.';
+        setOcrError(errorMsg);
+        toast.error(errorMsg);
         return;
       }
 
@@ -292,12 +294,21 @@ function WizardContent() {
         setSecurityPhotoUrl(data.securityPhotoUrl);
       }
 
-      if (data.extractedData) {
+      if (data.extractedData && !(data.extractedData as any).error) {
         applyExtracted(documentType, data.extractedData);
+        if (documentType === 'zairyuFront') {
+          toast.success('✓ Đã tự động bóc tách thông tin thẻ ngoại kiều thành công!');
+        } else if (documentType === 'zairyuBack') {
+          toast.success('✓ Đã cập nhật thông tin mặt sau thẻ ngoại kiều!');
+        }
+      } else if (data.extractedData?.error) {
+        toast.warning(data.extractedData.error);
       }
     } catch (err: any) {
       console.error('OCR Extract Error:', err);
-      setOcrError('Đang xử lý dữ liệu.');
+      const errorMsg = 'Quá trình trích xuất tự động gặp sự cố. Quý khách vui lòng điền thông tin vào các ô bên dưới.';
+      setOcrError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

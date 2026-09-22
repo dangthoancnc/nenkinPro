@@ -68,7 +68,8 @@ export async function POST(request: Request) {
     }
 
     const file = formData.get('file') as File | null;
-    const action = formData.get('action') as string || 'uploadAndExtract';
+    const rawAction = formData.get('action') as string || 'uploadAndExtract';
+    const action = rawAction.toLowerCase();
     const imageUrl = formData.get('imageUrl') as string | null;
 
     let publicUrl = imageUrl || '';
@@ -188,21 +189,28 @@ export async function POST(request: Request) {
         const genAI = new GoogleGenerativeAI(currentKey);
 
         for (const modelName of MODELS_TO_TRY) {
-          try {
-            const modelConfig: Record<string, unknown> = { model: modelName };
-            const model = genAI.getGenerativeModel(modelConfig as unknown as ModelParams);
+          // Rule: Max 1-2 retries for transient 503/429 spikes
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              const modelConfig: Record<string, unknown> = { model: modelName };
+              const model = genAI.getGenerativeModel(modelConfig as unknown as ModelParams);
 
-            result = await model.generateContent([prompt, ...imageParts]);
-            if (result) break; // Success with model → exit model loop
-          } catch (modelError: unknown) {
-            const errorMessage = modelError instanceof Error ? modelError.message : String(modelError);
-            lastError = modelError instanceof Error ? modelError : new Error(errorMessage);
+              result = await model.generateContent([prompt, ...imageParts]);
+              if (result) break;
+            } catch (modelError: unknown) {
+              const errorMessage = modelError instanceof Error ? modelError.message : String(modelError);
+              lastError = modelError instanceof Error ? modelError : new Error(errorMessage);
 
-            console.warn(`Gemini model ${modelName} (Key ${i + 1}) error: ${errorMessage.substring(0, 100)}`);
-            if (errorMessage.includes('429') || errorMessage.includes('RATE_LIMIT') || errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('404') || errorMessage.includes('not found')) {
-              continue; // Try next model for this key
+              console.warn(`Gemini model ${modelName} (Key ${i + 1}, Attempt ${attempt}) error: ${errorMessage.substring(0, 120)}`);
+              const isTransient = errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED');
+              if (attempt < 2 && isTransient) {
+                await new Promise(res => setTimeout(res, 1500));
+                continue;
+              }
+              break;
             }
           }
+          if (result) break;
         }
 
         if (result) break; // Success → stop trying more keys
@@ -319,9 +327,9 @@ export async function POST(request: Request) {
         }
       }
 
-      // === 3. Save to OcrResult if we have a customerId ===
+      // === 3. Save to OcrResult if we have a real customerId ===
       // customerId is already parsed at the top of the function
-      if (customerId && extractedData && !(extractedData as any).error) {
+      if (customerId && !customerId.startsWith('draft_') && source !== 'onboarding' && extractedData && !(extractedData as any).error) {
         try {
           await prisma.ocrResult.upsert({
             where: { customerId_documentType: { customerId, documentType } },
