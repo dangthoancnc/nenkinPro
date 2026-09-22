@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
+import { ShieldCheck, UploadCloud, FileText, CheckCircle2, ChevronRight, X, Camera, HelpCircle, Gift, Phone, MessageSquare, AlertTriangle, Trash2, RefreshCw, KeyRound, UserCheck, ShieldAlert, Sparkles, Building2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import DocumentCaptureOverlay from '@/components/DocumentCaptureOverlay';
 
@@ -90,9 +90,11 @@ function WizardContent() {
   const [zairyuBackUrl, setZairyuBackUrl] = useState('');
 
   const [cardNumber, setCardNumber] = useState('');
+  const [zairyuFrontAddress, setZairyuFrontAddress] = useState('');
   const [zairyuAddress, setZairyuAddress] = useState('');
   const [zairyuBackAddress, setZairyuBackAddress] = useState('');
   const [addressSource, setAddressSource] = useState<'BACK' | 'FRONT' | null>(null);
+  const [zairyuSubStep, setZairyuSubStep] = useState<'FRONT' | 'BACK'>('FRONT');
 
   // Passport & Nenkin Book State
   const [passport, setPassport] = useState<File | null>(null);
@@ -195,7 +197,11 @@ function WizardContent() {
         setAddressSource('BACK');
         toast.success('✓ Đã cập nhật ĐỊA CHỈ SAU CÙNG từ Mặt sau thẻ ngoại kiều!');
       } else {
-        toast.info('Mặt sau thẻ không có địa chỉ mới (chưa từng đổi địa chỉ). Giữ nguyên địa chỉ mặt trước.');
+        if (zairyuFrontAddress && (!zairyuAddress || addressSource === 'FRONT')) {
+          setZairyuAddress(zairyuFrontAddress);
+          setAddressSource('FRONT');
+        }
+        toast.info('Mặt sau thẻ không có địa chỉ mới (chưa từng đổi địa chỉ). Giữ nguyên địa chỉ ban đầu.');
       }
     } else if (docType === 'zairyuFront') {
       const rawName = ext.fullName || ext.name || ext.fullNameKanji || '';
@@ -206,12 +212,13 @@ function WizardContent() {
       if (rawName) setFullName(String(rawName).toUpperCase().trim());
       if (rawCard) setCardNumber(String(rawCard).toUpperCase().trim());
 
-      // Ưu tiên: Nếu đã có địa chỉ từ mặt sau, tuyệt đối không bị mặt trước ghi đè!
-      if (zairyuBackAddress || addressSource === 'BACK') {
-        toast.info('Bảo lưu Địa chỉ sau cùng từ Mặt sau thẻ ngoại kiều.');
-      } else if (rawAddr) {
-        setZairyuAddress(String(rawAddr).trim());
-        setAddressSource('FRONT');
+      if (rawAddr) {
+        setZairyuFrontAddress(String(rawAddr).trim());
+        // Chỉ lưu tạm làm địa chỉ nếu mặt sau chưa trích xuất
+        if (!zairyuBackAddress && addressSource !== 'BACK') {
+          setZairyuAddress(String(rawAddr).trim());
+          setAddressSource('FRONT');
+        }
       }
 
       if (rawDob) {
@@ -356,8 +363,8 @@ function WizardContent() {
     return data.publicUrl;
   };
 
-  // STEP 1 HANDLER: Zairyu Card + OCR + Duplicate Check
-  const handleNextStep1 = async () => {
+  // SUB-STEP 1a HANDLER: Validate Front Card & Personal Info, advance to Back Card
+  const handleGoToBackStep = () => {
     setGeneralError(null);
     setOcrError(null);
 
@@ -369,8 +376,49 @@ function WizardContent() {
       setGeneralError('Quý khách vui lòng xác nhận Họ và Tên.');
       return;
     }
+    if (!dob.trim()) {
+      setGeneralError('Quý khách vui lòng xác nhận Ngày sinh.');
+      return;
+    }
     if (!phone.trim() && !zaloContact.trim()) {
       setGeneralError('Quý khách vui lòng nhập Số điện thoại hoặc Zalo để nhân viên thuận tiện liên hệ.');
+      return;
+    }
+
+    setZairyuSubStep('BACK');
+  };
+
+  // STEP 1 HANDLER: Verify Address & Back Card, Duplicate Check, Advance to Step 2
+  const handleNextStep1 = async () => {
+    setGeneralError(null);
+    setOcrError(null);
+
+    // Kiểm tra thông tin mặt trước
+    if (!zairyuFront && !zairyuFrontUrl && !cardNumber.trim()) {
+      setZairyuSubStep('FRONT');
+      setGeneralError('Quý khách vui lòng tải/chụp mặt trước Thẻ Ngoại Kiều (Zairyu Card) hoặc nhập Số thẻ.');
+      return;
+    }
+    if (!fullName.trim() || !dob.trim()) {
+      setZairyuSubStep('FRONT');
+      setGeneralError('Quý khách vui lòng kiểm tra lại Họ tên và Ngày sinh tại Mặt Trước.');
+      return;
+    }
+    if (!phone.trim() && !zaloContact.trim()) {
+      setZairyuSubStep('FRONT');
+      setGeneralError('Quý khách vui lòng nhập Số điện thoại hoặc Zalo để nhân viên thuận tiện liên hệ.');
+      return;
+    }
+
+    // Yêu cầu bắt buộc mặt sau và địa chỉ sau cùng
+    if (!zairyuBack && !zairyuBackUrl) {
+      setZairyuSubStep('BACK');
+      setGeneralError('Quý khách vui lòng tải/chụp Mặt Sau Thẻ Ngoại Kiều để xác thực địa chỉ sau cùng.');
+      return;
+    }
+    if (!zairyuAddress.trim()) {
+      setZairyuSubStep('BACK');
+      setGeneralError('Quý khách vui lòng xác thực Địa chỉ thường trú tại Nhật (sau cùng).');
       return;
     }
 
@@ -722,26 +770,60 @@ function WizardContent() {
               {step === 1 && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thẻ Ngoại Kiều (Zairyu Card) & Thông tin</h2>
-                    <p className="text-xs text-slate-500">Vui lòng tải ảnh thẻ ngoại kiều để hệ thống tự động bóc tách thông tin.</p>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900">Bước 1: Thẻ Ngoại Kiều (Mặt trước & Mặt sau)</h2>
+                    <p className="text-xs text-slate-500">
+                      Yêu cầu tải cả 2 mặt thẻ. Mặt trước xác thực thông tin cá nhân, mặt sau xác thực địa chỉ cư trú sau cùng.
+                    </p>
                   </div>
 
-                  {/* Japanese Style Guidance Box */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
-                    <div className="font-bold flex items-center gap-1 text-amber-800">
-                      <HelpCircle className="w-4 h-4 text-amber-600" /> Hướng dẫn chụp ảnh chuẩn:
-                    </div>
-                    <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-800">
-                      <li>Đặt thẻ nằm phẳng trên mặt bàn có màu tương phản.</li>
-                      <li>Tránh ánh đèn chiếu trực tiếp làm chói bóng hoặc che mất địa chỉ.</li>
-                    </ul>
+                  {/* Sub-step Progress Tabs (1. Mặt trước -> 2. Mặt sau) */}
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setZairyuSubStep('FRONT')}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                        zairyuSubStep === 'FRONT'
+                          ? 'bg-white text-indigo-700 shadow-sm font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                        zairyuFront || zairyuFrontUrl ? 'bg-emerald-500 text-white font-bold' : 'bg-slate-300 text-slate-700'
+                      }`}>
+                        {zairyuFront || zairyuFrontUrl ? '✓' : '1'}
+                      </span>
+                      <span>1. Mặt trước & Cá nhân</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!zairyuFront && !zairyuFrontUrl && !cardNumber.trim()) {
+                          toast.warning('Vui lòng hoàn thành chụp/tải Mặt trước trước khi chuyển sang Mặt sau.');
+                          return;
+                        }
+                        setZairyuSubStep('BACK');
+                      }}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                        zairyuSubStep === 'BACK'
+                          ? 'bg-white text-indigo-700 shadow-sm font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                        zairyuBack || zairyuBackUrl ? 'bg-emerald-500 text-white font-bold' : 'bg-slate-300 text-slate-700'
+                      }`}>
+                        {zairyuBack || zairyuBackUrl ? '✓' : '2'}
+                      </span>
+                      <span>2. Mặt sau & Địa chỉ</span>
+                    </button>
                   </div>
 
                   {/* Processing Status Banner */}
                   {loading && (
                     <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-700 flex items-center gap-2 animate-pulse">
                       <RefreshCw className="w-4 h-4 animate-spin text-indigo-600 shrink-0" />
-                      <div>Đang xử lý dữ liệu.</div>
+                      <div>Đang xử lý dữ liệu và trích xuất thông tin qua AI...</div>
                     </div>
                   )}
 
@@ -753,208 +835,315 @@ function WizardContent() {
                     </div>
                   )}
 
-                  {/* Front & Back Dropzones */}
-                  <div className="space-y-3">
-                    {/* Front Dropzone */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Mặt Trước Thẻ Ngoại Kiều *</label>
-                      <input
-                        id="zairyuFrontInput"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setZairyuFront(file);
-                            runOcrExtract('zairyuFront', file);
-                          }
-                        }}
-                      />
-
-                      {zairyuFront || zairyuFrontUrl ? (
-                        <ImageThumbnailItem
-                          file={zairyuFront}
-                          url={zairyuFrontUrl}
-                          label="Mặt Trước Thẻ Ngoại Kiều"
-                          onDelete={() => {
-                            setZairyuFront(null);
-                            setZairyuFrontUrl('');
-                          }}
-                        />
-                      ) : (
-                        <div
-                          onClick={() => handleTriggerCapture('zairyuFront', 'zairyuFrontInput')}
-                          className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-4 text-center cursor-pointer transition-all"
-                        >
-                          <Camera className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
-                          <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Trước</div>
+                  {/* SUB-STEP 1: FRONT CARD & PERSONAL INFO */}
+                  {zairyuSubStep === 'FRONT' && (
+                    <div className="space-y-4">
+                      {/* Guidance Box */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                        <div className="font-bold flex items-center gap-1 text-amber-800">
+                          <HelpCircle className="w-4 h-4 text-amber-600" /> Hướng dẫn Mặt Trước:
                         </div>
-                      )}
-                    </div>
-
-                    {/* Back Dropzone */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Mặt Sau Thẻ Ngoại Kiều (Tùy chọn)</label>
-                      <input
-                        id="zairyuBackInput"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setZairyuBack(file);
-                            runOcrExtract('zairyuBack', file);
-                          }
-                        }}
-                      />
-
-                      {zairyuBack || zairyuBackUrl ? (
-                        <ImageThumbnailItem
-                          file={zairyuBack}
-                          url={zairyuBackUrl}
-                          label="Mặt Sau Thẻ Ngoại Kiều"
-                          onDelete={() => {
-                            setZairyuBack(null);
-                            setZairyuBackUrl('');
-                          }}
-                        />
-                      ) : (
-                        <div
-                          onClick={() => handleTriggerCapture('zairyuBack', 'zairyuBackInput')}
-                          className="border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50/50 rounded-xl p-3 text-center cursor-pointer transition-all"
-                        >
-                          <UploadCloud className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-                          <div className="text-xs font-semibold text-slate-600">Tải Ảnh Mặt Sau (Nếu có)</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Extracted & Confirmed Personal Information Panel */}
-                  <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-3">
-                    <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                      <FileText className="w-4 h-4 text-indigo-600" /> Xác nhận thông tin trích xuất & Liên hệ
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên *</label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: NGUYEN VAN A"
-                        value={fullName}
-                        onChange={e => setFullName(e.target.value.toUpperCase())}
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase bg-white"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Số thẻ ngoại kiều</label>
-                        <input
-                          type="text"
-                          placeholder="AB12345678CD"
-                          value={cardNumber}
-                          onChange={e => setCardNumber(e.target.value.toUpperCase())}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                        <input
-                          type="date"
-                          value={dob}
-                          onChange={e => setDob(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-2.5 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại liên hệ *</label>
-                          <div className="relative">
-                            <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                            <input
-                              type="text"
-                              placeholder="080... hoặc SĐT VN"
-                              value={phone}
-                              onChange={e => setPhone(e.target.value)}
-                              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Zalo (SĐT / Link)</label>
-                          <div className="relative">
-                            <MessageSquare className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-2.5" />
-                            <input
-                              type="text"
-                              placeholder="Zalo SĐT..."
-                              value={zaloContact}
-                              onChange={e => setZaloContact(e.target.value)}
-                              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-                            />
-                          </div>
-                        </div>
+                        <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-800">
+                          <li>Chụp rõ nét, không bị chói đèn để hệ thống tự động bóc tách Họ tên, Ngày sinh, Số thẻ.</li>
+                        </ul>
                       </div>
 
+                      {/* Front Dropzone */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-slate-700">
-                            Địa chỉ thường trú tại Nhật (Sau cùng)
-                          </label>
+                          <label className="block text-xs font-bold text-slate-700">Mặt Trước Thẻ Ngoại Kiều *</label>
+                          {(zairyuFront || zairyuFrontUrl) && (
+                            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Đã tải lên
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          id="zairyuFrontInput"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setZairyuFront(file);
+                              runOcrExtract('zairyuFront', file);
+                            }
+                          }}
+                        />
+
+                        {zairyuFront || zairyuFrontUrl ? (
+                          <ImageThumbnailItem
+                            file={zairyuFront}
+                            url={zairyuFrontUrl}
+                            label="Mặt Trước Thẻ Ngoại Kiều"
+                            onDelete={() => {
+                              setZairyuFront(null);
+                              setZairyuFrontUrl('');
+                            }}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => handleTriggerCapture('zairyuFront', 'zairyuFrontInput')}
+                            className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-4 text-center cursor-pointer transition-all"
+                          >
+                            <Camera className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
+                            <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Trước</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">Tự động điền Họ tên, Ngày sinh, Số thẻ</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Extracted & Confirmed Personal Information Panel */}
+                      <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-3">
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                          <FileText className="w-4 h-4 text-indigo-600" /> Xác thực Thông Tin Cá Nhân (Mặt trước)
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên *</label>
+                          <input
+                            type="text"
+                            placeholder="Ví dụ: NGUYEN VAN A"
+                            value={fullName}
+                            onChange={e => setFullName(e.target.value.toUpperCase())}
+                            className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase bg-white font-semibold"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Số thẻ ngoại kiều *</label>
+                            <input
+                              type="text"
+                              placeholder="AB12345678CD"
+                              value={cardNumber}
+                              onChange={e => setCardNumber(e.target.value.toUpperCase())}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 uppercase font-mono bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
+                            <input
+                              type="date"
+                              value={dob}
+                              onChange={e => setDob(e.target.value)}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-2.5 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại liên hệ *</label>
+                              <div className="relative">
+                                <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                                <input
+                                  type="text"
+                                  placeholder="080... hoặc SĐT VN"
+                                  value={phone}
+                                  onChange={e => setPhone(e.target.value)}
+                                  className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1">Zalo (SĐT / Link)</label>
+                              <div className="relative">
+                                <MessageSquare className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-2.5" />
+                                <input
+                                  type="text"
+                                  placeholder="Zalo SĐT..."
+                                  value={zaloContact}
+                                  onChange={e => setZaloContact(e.target.value)}
+                                  className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleGoToBackStep}
+                        disabled={loading}
+                        className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 shadow-md"
+                      >
+                        {loading ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" /> Đang trích xuất dữ liệu...
+                          </>
+                        ) : (
+                          <>
+                            Xác thực thông tin cá nhân & Tiếp tục Mặt Sau <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* SUB-STEP 2: BACK CARD & FINAL ADDRESS */}
+                  {zairyuSubStep === 'BACK' && (
+                    <div className="space-y-4">
+                      {/* Summary Ribbon of Confirmed Personal Info */}
+                      <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs">
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500 font-medium">Thông tin cá nhân đã xác thực:</div>
+                          <div className="font-bold text-slate-800">
+                            {fullName || 'Chưa nhập tên'} {cardNumber ? `(${cardNumber})` : ''} {dob ? `• Sinh: ${dob}` : ''}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setZairyuSubStep('FRONT')}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"
+                        >
+                          Sửa
+                        </button>
+                      </div>
+
+                      {/* Japanese Style Guidance Box for Back Card */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-950 space-y-1">
+                        <div className="font-bold flex items-center gap-1 text-blue-800">
+                          <HelpCircle className="w-4 h-4 text-blue-600" /> Quy định về Địa chỉ cư trú (Mặt sau):
+                        </div>
+                        <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-blue-900">
+                          <li>Địa chỉ khai thuế bắt buộc là <strong>Địa chỉ cư trú sau cùng</strong> tại Nhật Bản.</li>
+                          <li>Hệ thống AI sẽ tự động đọc ô <strong>住居地記載欄</strong> ở mặt sau để trích xuất dòng địa chỉ mới nhất.</li>
+                          <li>Nếu bạn chưa từng chuyển nhà (ô mặt sau để trống), hệ thống sẽ bảo lưu địa chỉ gốc mặt trước.</li>
+                        </ul>
+                      </div>
+
+                      {/* Back Dropzone */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-slate-700">Mặt Sau Thẻ Ngoại Kiều *</label>
+                          {(zairyuBack || zairyuBackUrl) && (
+                            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Đã tải lên
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          id="zairyuBackInput"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setZairyuBack(file);
+                              runOcrExtract('zairyuBack', file);
+                            }
+                          }}
+                        />
+
+                        {zairyuBack || zairyuBackUrl ? (
+                          <ImageThumbnailItem
+                            file={zairyuBack}
+                            url={zairyuBackUrl}
+                            label="Mặt Sau Thẻ Ngoại Kiều"
+                            onDelete={() => {
+                              setZairyuBack(null);
+                              setZairyuBackUrl('');
+                              setZairyuBackAddress('');
+                              if (addressSource === 'BACK') {
+                                setAddressSource(zairyuFrontAddress ? 'FRONT' : null);
+                                setZairyuAddress(zairyuFrontAddress || '');
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => handleTriggerCapture('zairyuBack', 'zairyuBackInput')}
+                            className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-4 text-center cursor-pointer transition-all"
+                          >
+                            <Camera className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
+                            <div className="text-xs font-bold text-slate-800">Chụp / Chọn Ảnh Mặt Sau *</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">Tự động trích xuất Địa chỉ cư trú sau cùng</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Address Confirmation Panel */}
+                      <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-3">
+                        <div className="text-xs font-bold text-slate-800 flex items-center justify-between border-b border-slate-200 pb-2">
+                          <span className="flex items-center gap-1.5">
+                            <Building2 className="w-4 h-4 text-emerald-600" /> Xác thực Địa Chỉ Thường Trú Sau Cùng
+                          </span>
                           {addressSource === 'BACK' && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               ✓ Mặt sau (Sau cùng)
                             </span>
                           )}
                           {addressSource === 'FRONT' && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                              Mặt trước
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                              Mặt trước (Gốc)
                             </span>
                           )}
                         </div>
-                        <input
-                          type="text"
-                          placeholder="Địa chỉ cư trú sau cùng tại Nhật (tự động điền từ thẻ)"
-                          value={zairyuAddress}
-                          onChange={e => setZairyuAddress(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-                        />
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Địa chỉ thường trú tại Nhật (Sau cùng) *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Địa chỉ cư trú sau cùng tại Nhật (Kanji/Romaji)..."
+                            value={zairyuAddress}
+                            onChange={e => {
+                              setZairyuAddress(e.target.value);
+                              if (addressSource !== 'BACK') setAddressSource(null);
+                            }}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
+                          />
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            Địa chỉ này sẽ dùng để gửi đơn hoàn thuế về Cục thuế quản lý tương ứng.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ tại Việt Nam (Nếu có)</label>
+                          <input
+                            type="text"
+                            placeholder="Địa chỉ ở Việt Nam nếu quý khách đã về nước..."
+                            value={vnAddress}
+                            onChange={e => setVnAddress(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ tại Việt Nam (Nếu có)</label>
-                        <input
-                          type="text"
-                          placeholder="Địa chỉ ở Việt Nam nếu đã về nước..."
-                          value={vnAddress}
-                          onChange={e => setVnAddress(e.target.value)}
-                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-                        />
+                      {/* Navigation Buttons for Sub-step 2 */}
+                      <div className="flex gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setZairyuSubStep('FRONT')}
+                          className="px-4 py-3 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <ArrowLeft className="w-4 h-4" /> Quay lại Mặt Trước
+                        </button>
+                        <button
+                          onClick={handleNextStep1}
+                          disabled={loading}
+                          className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99] disabled:opacity-50"
+                        >
+                          {loading ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              Xác thực địa chỉ & Tiếp tục Bước 2 <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  </div>
-
-                  <button
-                    onClick={handleNextStep1}
-                    disabled={loading}
-                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] disabled:opacity-50 shadow-md"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Đang xử lý, hãy chờ...
-                      </>
-                    ) : (
-                      <>
-                        Tiếp Theo: Hộ Chiếu & Nenkin <ChevronRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
+                  )}
                 </div>
               )}
 

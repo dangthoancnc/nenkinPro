@@ -192,7 +192,9 @@ export default function DocumentCaptureOverlay({ isOpen, onClose, onCapture, doc
                 <div className="w-full h-full flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
                   <div className="text-center mb-8 px-4">
                     <p className="text-white font-bold text-lg drop-shadow-md">
-                      {documentType === 'zairyu' ? 'Chụp mặt trước Thẻ Ngoại Kiều' : 
+                      {documentType === 'zairyuFront' ? 'Chụp mặt trước Thẻ Ngoại Kiều' : 
+                       documentType === 'zairyuBack' ? 'Chụp mặt sau Thẻ Ngoại Kiều' : 
+                       documentType === 'zairyu' ? 'Chụp Thẻ Ngoại Kiều' : 
                        documentType === 'passport' ? 'Chụp trang thông tin Hộ chiếu' : 
                        documentType === 'nenkin' ? 'Chụp Sổ tay Nenkin' : 'Chụp Sổ/Thẻ ngân hàng'}
                     </p>
@@ -218,6 +220,7 @@ export default function DocumentCaptureOverlay({ isOpen, onClose, onCapture, doc
           <div className="absolute inset-0 w-full h-full bg-slate-900 z-50">
             <ImageCropper 
               imageSrc={docPreviewUrl}
+              aspect={(documentType === 'zairyuFront' || documentType === 'zairyuBack' || documentType === 'zairyu') ? 1.585 : 1.33}
               onSave={(blob) => {
                 const newFile = new File([blob], docFile?.name || 'document_photo.jpg', { type: blob.type || 'image/jpeg' });
                 setDocFile(newFile);

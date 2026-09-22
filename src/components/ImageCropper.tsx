@@ -7,13 +7,16 @@ interface ImageCropperProps {
   imageSrc: string;
   onSave: (croppedBlob: Blob) => void;
   onCancel: () => void;
+  aspect?: number;
 }
 
-export default function ImageCropper({ imageSrc, onSave, onCancel }: ImageCropperProps) {
+export default function ImageCropper({ imageSrc, onSave, onCancel, aspect = 1.585 }: ImageCropperProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+
+  const safeAspect = aspect && !isNaN(aspect) && aspect > 0 ? aspect : 1.585;
 
   const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -75,9 +78,19 @@ export default function ImageCropper({ imageSrc, onSave, onCancel }: ImageCroppe
 
   const handleSave = async () => {
     try {
+      if (!croppedAreaPixels || !croppedAreaPixels.width || !croppedAreaPixels.height) {
+        const res = await fetch(imageSrc);
+        const blob = await res.blob();
+        onSave(blob);
+        return;
+      }
       const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
       if (croppedBlob) {
         onSave(croppedBlob);
+      } else {
+        const res = await fetch(imageSrc);
+        const blob = await res.blob();
+        onSave(blob);
       }
     } catch (e) {
       console.error(e);
@@ -93,7 +106,7 @@ export default function ImageCropper({ imageSrc, onSave, onCancel }: ImageCroppe
           crop={crop}
           zoom={zoom}
           rotation={rotation}
-          aspect={NaN} // free crop
+          aspect={safeAspect}
           onCropChange={setCrop}
           onCropComplete={onCropComplete}
           onZoomChange={setZoom}
